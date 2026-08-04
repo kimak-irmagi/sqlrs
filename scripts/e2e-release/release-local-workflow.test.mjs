@@ -134,6 +134,9 @@ run("release workflow includes macos podman probe with double flow run", () => {
   assert.match(String(installStep.run || ""), /2677be9fa3bf75f7dbd4dfe5f5039cf105806f102af15ee6c6d174c70dcda3b8/);
   assert.match(String(installStep.run || ""), /shasum -a 256 -c/);
   assert.match(String(installStep.run || ""), /sudo installer -pkg/);
+  assert.match(String(installStep.run || ""), /\/etc\/paths\.d\/podman-pkg/);
+  assert.match(String(installStep.run || ""), /GITHUB_PATH/);
+  assert.match(String(installStep.run || ""), /export PATH=/);
   assert.doesNotMatch(String(installStep.run || ""), /brew install podman/);
   assert.ok(startStep, "missing podman machine startup step");
   assert.equal(skipStep, undefined, "skip step must be removed: podman probe is release-blocking");
