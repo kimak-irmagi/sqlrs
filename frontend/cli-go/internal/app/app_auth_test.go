@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sqlrs/cli/internal/cli"
 	"github.com/sqlrs/cli/internal/config"
 )
 
@@ -140,6 +141,55 @@ func TestResolveEffectiveAuthTokenBranches(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRunAuthSecondPassErrorBranches(t *testing.T) {
+	var help bytes.Buffer
+	if err := runAuth(&help, io.Discard, t.TempDir(), cli.GlobalOptions{}, []string{"--help"}); err != nil || !strings.Contains(help.String(), "Usage:") {
+		t.Fatalf("help = %q, %v", help.String(), err)
+	}
+
+	tests := []struct {
+		name    string
+		config  string
+		args    []string
+		manager fakeAuthManager
+		want    string
+	}{
+		{name: "invalid config", config: "profiles: [", args: []string{"status"}, want: "config"},
+		{name: "local mode", config: authTestConfig("local", "", "none"), args: []string{"status"}, want: "require remote mode"},
+		{name: "automatic endpoint", config: authTestConfig("remote", "auto", "oidcSession"), args: []string{"status"}, want: "explicit remote endpoint"},
+		{name: "login auth mode", config: authTestConfig("remote", "https://example.org", "bearer"), args: []string{"login", "google"}, want: "requires profile auth.mode"},
+		{name: "login manager error", config: authTestConfig("remote", "https://example.org", "oidcSession"), args: []string{"login", "google"}, manager: fakeAuthManager{loginErr: errors.New("login failed")}, want: "login failed"},
+		{name: "status manager error", config: authTestConfig("remote", "https://example.org", "oidcSession"), args: []string{"status"}, manager: fakeAuthManager{statusErr: errors.New("status failed")}, want: "status failed"},
+		{name: "logout manager error", config: authTestConfig("remote", "https://example.org", "oidcSession"), args: []string{"logout"}, manager: fakeAuthManager{logoutErr: errors.New("logout failed")}, want: "logout failed"},
+	}
+
+	oldFactory := authManagerFactory
+	t.Cleanup(func() { authManagerFactory = oldFactory })
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cwd := t.TempDir()
+			setTestDirs(t, cwd)
+			writeProjectConfig(t, cwd, tt.config)
+			authManagerFactory = func() authManager { return tt.manager }
+			err := runAuth(io.Discard, io.Discard, cwd, cli.GlobalOptions{Workspace: cwd}, tt.args)
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(tt.want)) {
+				t.Fatalf("error = %v, want containing %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func authTestConfig(mode, endpoint, authMode string) string {
+	return "defaultProfile: remote\n" +
+		"profiles:\n" +
+		"  remote:\n" +
+		"    mode: " + mode + "\n" +
+		"    endpoint: " + endpoint + "\n" +
+		"    auth:\n" +
+		"      mode: " + authMode + "\n" +
+		"      clientID: client-id\n"
 }
 
 func TestResolveAuthTokenUsesEnv(t *testing.T) {
