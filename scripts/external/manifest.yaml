@@ -67,7 +67,7 @@ sources:
   liquibase-jhipster-initial-schema:
     kind: single-file
     url: https://raw.githubusercontent.com/jhipster/jhipster-sample-app/main/src/main/resources/config/liquibase/changelog/00000000000000_initial_schema.xml
-    sha256: 4d18c1419989fb98cfc85fa5b747c65985e439f44fc4f3108bb241b5f468e623
+    sha256: 855fa9bd1148b2dbf0834864952b7782c0e7b47ee95a87fb75a0904b110756ce
     out:
       path: examples/liquibase/jhipster-sample-app/config/liquibase/changelog/00000000000000_initial_schema.xml
     license:
@@ -76,7 +76,7 @@ sources:
   liquibase-jhipster-bankaccount:
     kind: single-file
     url: https://raw.githubusercontent.com/jhipster/jhipster-sample-app/main/src/main/resources/config/liquibase/changelog/20150805124838_added_entity_BankAccount.xml
-    sha256: 89aaa165dc28541c380a6fdf235a8df7c7e0ca21099c05afd5f33cd3f3cad179
+    sha256: 547bb8c2646db509a886b3a61b09cf9951a200f681d89da379589a1bebcec4c4
     out:
       path: examples/liquibase/jhipster-sample-app/config/liquibase/changelog/20150805124838_added_entity_BankAccount.xml
     license:
@@ -85,7 +85,7 @@ sources:
   liquibase-jhipster-label:
     kind: single-file
     url: https://raw.githubusercontent.com/jhipster/jhipster-sample-app/main/src/main/resources/config/liquibase/changelog/20150805124936_added_entity_Label.xml
-    sha256: 551f8fe8d078aac97f928655e9f8752db1d961cdf68d072ebcd30c0d91269d87
+    sha256: 0d65ec1fa45535969ea5f1ed389eda5a0e8f0943af567c2242767803be51437f
     out:
       path: examples/liquibase/jhipster-sample-app/config/liquibase/changelog/20150805124936_added_entity_Label.xml
     license:
@@ -94,7 +94,7 @@ sources:
   liquibase-jhipster-operation:
     kind: single-file
     url: https://raw.githubusercontent.com/jhipster/jhipster-sample-app/main/src/main/resources/config/liquibase/changelog/20150805125054_added_entity_Operation.xml
-    sha256: 877e59da4f6bee4fad43d29814d4d37e5ab978bbdf55313d89c82ae0cad6f703
+    sha256: 0e159176df50c0bc95fc465bb9c777e8a4726c767d770d50fdfa679ee2a9af03
     out:
       path: examples/liquibase/jhipster-sample-app/config/liquibase/changelog/20150805125054_added_entity_Operation.xml
     license:
