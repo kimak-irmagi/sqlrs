@@ -57,10 +57,11 @@ func initLocalBtrfsStore(opts localBtrfsInitOptions) (localBtrfsInitResult, erro
 }
 
 func planLocalBtrfsStore(storeType string, storePath string) (localBtrfsStorePlan, error) {
-	pathValue := filepath.Clean(strings.TrimSpace(storePath))
+	pathValue := strings.TrimSpace(storePath)
 	if pathValue == "" {
 		return localBtrfsStorePlan{}, fmt.Errorf("store path is required")
 	}
+	pathValue = filepath.Clean(pathValue)
 
 	normalizedType := normalizeStoreType(storeType)
 	switch normalizedType {

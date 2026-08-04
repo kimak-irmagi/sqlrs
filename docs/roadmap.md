@@ -202,8 +202,9 @@ gantt
   the gateway-owned admission projection without changing the CLI syntax.
   Remote path binding is isolated from local WSL configuration, preventing
   Windows host paths from being rewritten into `/mnt/...` coordinates.
-  Upload progress reports actual streamed bytes at bounded checkpoints and
-  identifies files only by workspace-relative path and shortened digest.
+  Upload progress reports actual streamed bytes at bounded checkpoints, stable
+  unique-upload ordinals, and a final transferred-byte total, and identifies
+  files only by workspace-relative path and shortened digest.
 - **In progress (CI templates baseline)**: GitHub Actions-based release/e2e flows
   are active; broader team templates (e.g., GitLab and on-prem deployment variants)
   are still pending.

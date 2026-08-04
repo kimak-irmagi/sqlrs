@@ -398,3 +398,111 @@ func TestRunPrivilegedCommandRoutesByPrivilege(t *testing.T) {
 		t.Fatalf("expected sudo for non-root, got command=%q args=%#v", gotCommand, gotArgs)
 	}
 }
+
+func TestPlanLocalBtrfsStoreRejectsInvalidInputs(t *testing.T) {
+	tests := []struct {
+		name      string
+		storeType string
+		storePath string
+		want      string
+	}{
+		{name: "missing path", storeType: "dir", storePath: " ", want: "store path is required"},
+		{name: "unsupported type", storeType: "archive", storePath: "/tmp/store", want: "unsupported store type"},
+		{name: "relative image without directory", storeType: "image", storePath: "store.img", want: "cannot derive store directory"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := planLocalBtrfsStore(tt.storeType, tt.storePath)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %v, want containing %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestEnsureLoopbackBtrfsStoreReusesMountedBtrfs(t *testing.T) {
+	root := t.TempDir()
+	plan := localBtrfsStorePlan{storeDir: filepath.Join(root, "store"), imagePath: filepath.Join(root, "disk.img")}
+	if err := os.WriteFile(plan.imagePath, []byte("existing"), 0o600); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+	withLocalBtrfsRunAllowFailureStub(t, func(desc string, command string, args ...string) (string, error) {
+		switch command {
+		case "blkid":
+			return "btrfs", nil
+		case "findmnt":
+			return plan.storeDir + " btrfs", nil
+		default:
+			t.Fatalf("unexpected command: %s", command)
+			return "", nil
+		}
+	})
+
+	got, err := ensureLoopbackBtrfsStore(plan, localBtrfsInitOptions{})
+	if err != nil {
+		t.Fatalf("ensureLoopbackBtrfsStore: %v", err)
+	}
+	if got != plan.storeDir {
+		t.Fatalf("store path = %q, want %q", got, plan.storeDir)
+	}
+}
+
+func TestEnsureDeviceBackedBtrfsStoreFormatsAndMounts(t *testing.T) {
+	plan := localBtrfsStorePlan{storeDir: t.TempDir(), devicePath: "/dev/loop7"}
+	var calls []btrfsCommandCall
+	withLocalBtrfsRunAllowFailureStub(t, func(desc string, command string, args ...string) (string, error) {
+		switch command {
+		case "findmnt":
+			return "", fmt.Errorf("%s: %w", desc, exitStatusError(t, 1))
+		case "blkid":
+			return "ext4", nil
+		default:
+			t.Fatalf("unexpected command: %s", command)
+			return "", nil
+		}
+	})
+	withLocalBtrfsRunCommandStub(t, func(desc string, command string, args ...string) (string, error) {
+		calls = append(calls, btrfsCommandCall{desc: desc, command: command, args: append([]string(nil), args...)})
+		return "", nil
+	})
+	withLocalBtrfsIsBtrfsStub(t, func(string) (bool, error) { return true, nil })
+
+	got, err := ensureDeviceBackedBtrfsStore(plan, localBtrfsInitOptions{Reinit: true})
+	if err != nil {
+		t.Fatalf("ensureDeviceBackedBtrfsStore: %v", err)
+	}
+	if got != plan.storeDir {
+		t.Fatalf("store path = %q, want %q", got, plan.storeDir)
+	}
+	for _, command := range []string{"mkfs.btrfs", "mount", "chown"} {
+		if !hasCommand(calls, command) {
+			t.Fatalf("expected command %q in calls: %#v", command, calls)
+		}
+	}
+}
+
+func TestBtrfsCommandWrappersCaptureOutputAndErrors(t *testing.T) {
+	out, err := runLocalBtrfsCommand("successful command", "sh", "-c", "printf ' output '")
+	if err != nil || out != "output" {
+		t.Fatalf("runLocalBtrfsCommand = %q, %v", out, err)
+	}
+	if _, err := runLocalBtrfsCommand("silent failure", "sh", "-c", "exit 3"); err == nil || !strings.Contains(err.Error(), "silent failure") {
+		t.Fatalf("silent failure error = %v", err)
+	}
+	if _, err := runLocalBtrfsCommand("verbose failure", "sh", "-c", "printf problem; exit 4"); err == nil || !strings.Contains(err.Error(), "problem") {
+		t.Fatalf("verbose failure error = %v", err)
+	}
+
+	out, err = runLocalBtrfsCommandAllowFailure("successful command", "sh", "-c", "printf ' output '")
+	if err != nil || out != "output" {
+		t.Fatalf("runLocalBtrfsCommandAllowFailure = %q, %v", out, err)
+	}
+	out, err = runLocalBtrfsCommandAllowFailure("verbose failure", "sh", "-c", "printf problem; exit 5")
+	if err == nil || out != "problem" || !strings.Contains(err.Error(), "problem") {
+		t.Fatalf("verbose allow-failure = %q, %v", out, err)
+	}
+	out, err = runLocalBtrfsCommandAllowFailure("silent failure", "sh", "-c", "exit 6")
+	if err == nil || out != "" || !strings.Contains(err.Error(), "silent failure") {
+		t.Fatalf("silent allow-failure = %q, %v", out, err)
+	}
+}

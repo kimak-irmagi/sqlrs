@@ -90,13 +90,17 @@ source-content cache.
 
 ## 4. Progress
 
-Retry loop испускает typed in-memory progress events и сам не рендерит output.
-Events покрывают sync start, каждый request round, requested manifest/blob sets,
-завершение каждого hash или directory listing, upload start/byte
-checkpoints/completion, retry и final summary. Идентичность file задаётся safe
-workspace-relative path и shortened digest. Byte events отражают bytes,
-фактически прочитанные upload stream, и создаются на bounded checkpoints, а не
-на каждом вызове `Read`. Duplicate digests не порождают duplicate upload events.
+После первого ответа `source_inputs_missing` retry loop испускает typed in-memory
+progress events и сам не рендерит output. Initial accepted request или initial
+non-source-sync error не испускает source-sync events. Events покрывают sync
+start, каждый request round, парные start/completion milestones для каждого
+requested hash или directory listing, upload start/byte checkpoints/completion,
+retry и final summary. Идентичность file задаётся safe workspace-relative path и
+shortened digest. Каждый unique upload содержит stable ordinal и total текущего
+unique-upload set. Byte events отражают bytes, фактически прочитанные upload
+stream, и создаются на bounded checkpoints, а не на каждом вызове `Read`.
+Duplicate digests не порождают duplicate upload events, а final event суммирует
+успешно загруженные bytes.
 
 `internal/app` владеет presentation и пишет только в stderr:
 

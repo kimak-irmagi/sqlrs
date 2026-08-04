@@ -68,3 +68,43 @@ accepted in `2026-07-06-remote-source-input-sync-cli.md` and preserves the
 absolute logical path contract from
 `2026-07-20-portable-remote-source-path-binding.md`; only safe event labels use
 workspace-relative paths.
+
+## Decision 3: Truthful Operation And Transfer Context
+
+Conversation timestamp: `2026-08-04T13:38:22.3593395+07:00`
+
+GitHub user id: `evilguest`
+
+Agent: `Codex / GPT-5`
+
+### Question
+
+How should the semantic stream distinguish work that is currently executing
+from work that has completed, and how much transfer context should each upload
+event carry?
+
+### Alternatives considered
+
+1. Keep completion-only hash/list events and document the spinner as an
+   approximate recent-operation display.
+2. Remove operation names and upload ordinals from the public progress
+   contract.
+3. Emit paired start/completion events for hash and directory-list work, attach
+   stable ordinal/total context to each unique upload, and aggregate bytes that
+   were successfully consumed.
+
+### Decision
+
+Choose alternative 3. Source-sync progress begins only after the gateway first
+requests missing inputs. Hash and directory-list work has distinct start and
+completion events. Each unique digest upload carries its ordinal within the
+current unique-upload set, byte checkpoints retain that context, and the final
+event reports successfully uploaded bytes. An initial accepted request or an
+initial non-source-sync error produces no source-sync events.
+
+### Rationale
+
+The spinner must describe work that is actually in progress, while verbose
+output must remain auditable and agree with the user guide. Deferring the event
+stream until synchronization is required also preserves the established silent
+fast path.

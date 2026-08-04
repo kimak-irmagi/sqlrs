@@ -24,20 +24,24 @@ const uploadProgressCheckpoint = int64(1024 * 1024)
 type ProgressStage string
 
 const (
-	ProgressStageStart           ProgressStage = "start"
-	ProgressStageRound           ProgressStage = "round"
-	ProgressStageFileHashed      ProgressStage = "file_hashed"
-	ProgressStageDirectoryListed ProgressStage = "directory_listed"
-	ProgressStageUploadStart     ProgressStage = "upload_start"
-	ProgressStageUploadBytes     ProgressStage = "upload_bytes"
-	ProgressStageUploadComplete  ProgressStage = "upload_complete"
-	ProgressStageRetry           ProgressStage = "retry"
-	ProgressStageComplete        ProgressStage = "complete"
-	ProgressStageError           ProgressStage = "error"
+	ProgressStageStart              ProgressStage = "start"
+	ProgressStageRound              ProgressStage = "round"
+	ProgressStageFileHashStart      ProgressStage = "file_hash_start"
+	ProgressStageFileHashed         ProgressStage = "file_hashed"
+	ProgressStageDirectoryListStart ProgressStage = "directory_list_start"
+	ProgressStageDirectoryListed    ProgressStage = "directory_listed"
+	ProgressStageUploadStart        ProgressStage = "upload_start"
+	ProgressStageUploadBytes        ProgressStage = "upload_bytes"
+	ProgressStageUploadComplete     ProgressStage = "upload_complete"
+	ProgressStageRetry              ProgressStage = "retry"
+	ProgressStageComplete           ProgressStage = "complete"
+	ProgressStageError              ProgressStage = "error"
 )
 
 // ProgressEvent is a presentation-neutral source synchronization milestone.
-// Paths are workspace-relative and Bytes reports content consumed by upload.
+// Paths are workspace-relative. Bytes reports upload content consumed for the
+// event (or the successful aggregate on completion), while UploadIndex and
+// UploadCount identify one unique digest transfer in the current request set.
 type ProgressEvent struct {
 	Stage             ProgressStage
 	Round             int
@@ -50,11 +54,19 @@ type ProgressEvent struct {
 	FileHashes        int
 	DirectoryListings int
 	UploadedBlobs     int
+	UploadIndex       int
+	UploadCount       int
 	Error             string
 }
 
 type Progress interface {
 	Update(ProgressEvent)
+}
+
+// ProgressFinisher closes presentation resources without adding a semantic
+// event. Implementations use it to stop delayed renderers on the silent path.
+type ProgressFinisher interface {
+	Finish()
 }
 
 type Uploader interface {
@@ -79,8 +91,8 @@ func Execute[T any](ctx context.Context, opts Options, req client.PrepareJobRequ
 	if !opts.Enabled {
 		return execute(ctx, req)
 	}
+	defer finishProgress(opts.Progress)
 	state := newRoundState(opts)
-	state.emit(ProgressEvent{Stage: ProgressStageStart})
 	maxRounds := opts.MaxRounds
 	if maxRounds <= 0 {
 		maxRounds = DefaultMaxRounds
@@ -90,15 +102,23 @@ func Execute[T any](ctx context.Context, opts Options, req client.PrepareJobRequ
 	for round := 1; ; round++ {
 		result, err := execute(ctx, req)
 		if err == nil {
-			state.emit(ProgressEvent{Stage: ProgressStageComplete, Round: round, FileHashes: len(state.files), DirectoryListings: len(state.directories), UploadedBlobs: len(state.uploaded)})
+			if state.started {
+				state.emit(ProgressEvent{Stage: ProgressStageComplete, Round: round, FileHashes: len(state.files), DirectoryListings: len(state.directories), UploadedBlobs: len(state.uploaded), Bytes: state.uploadedBytes})
+			}
 			return result, nil
 		}
 
 		var missing *client.SourceInputsMissingError
 		if !errors.As(err, &missing) {
 			var zero T
-			state.emit(ProgressEvent{Stage: ProgressStageError, Round: round, Error: err.Error()})
+			if state.started {
+				state.emit(ProgressEvent{Stage: ProgressStageError, Round: round, Error: err.Error()})
+			}
 			return zero, err
+		}
+		if !state.started {
+			state.started = true
+			state.emit(ProgressEvent{Stage: ProgressStageStart})
 		}
 		if round > maxRounds {
 			var zero T
@@ -126,15 +146,17 @@ func Execute[T any](ctx context.Context, opts Options, req client.PrepareJobRequ
 }
 
 type roundState struct {
-	root        string
-	workDir     string
-	rootID      string
-	fs          inputset.FileSystem
-	uploader    Uploader
-	progress    Progress
-	files       map[string]string
-	directories map[string]client.SourceDirectoryListing
-	uploaded    map[string]struct{}
+	root          string
+	workDir       string
+	rootID        string
+	fs            inputset.FileSystem
+	uploader      Uploader
+	progress      Progress
+	started       bool
+	uploadedBytes int64
+	files         map[string]string
+	directories   map[string]client.SourceDirectoryListing
+	uploaded      map[string]struct{}
 }
 
 type applyStats struct {
@@ -252,8 +274,31 @@ func (s *roundState) applyMissing(ctx context.Context, missing client.SourceInpu
 		}
 		return blobs[i].Hash < blobs[j].Hash
 	})
+	pendingDigests := make(map[string]struct{})
 	for _, blob := range blobs {
-		uploaded, err := s.uploadBlob(ctx, blob)
+		digest, ok := validBlobDigest(blob.Hash)
+		if !ok {
+			continue
+		}
+		if _, uploaded := s.uploaded[digest]; !uploaded {
+			pendingDigests[digest] = struct{}{}
+		}
+	}
+	uploadOrdinals := make(map[string]int, len(pendingDigests))
+	nextUploadIndex := 0
+	for _, blob := range blobs {
+		digest, valid := validBlobDigest(blob.Hash)
+		uploadIndex := 0
+		if valid {
+			if _, pending := pendingDigests[digest]; pending {
+				if _, assigned := uploadOrdinals[digest]; !assigned {
+					nextUploadIndex++
+					uploadOrdinals[digest] = nextUploadIndex
+				}
+				uploadIndex = uploadOrdinals[digest]
+			}
+		}
+		uploaded, err := s.uploadBlob(ctx, blob, uploadIndex, len(pendingDigests))
 		if err != nil {
 			return stats, changed, err
 		}
@@ -271,10 +316,12 @@ func (s *roundState) addFileHash(manifestPath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	s.emit(ProgressEvent{Stage: ProgressStageFileHashStart, Path: cleaned})
 	hash, _, err := s.readFileHash(absPath)
 	if err != nil {
 		return false, fmt.Errorf("hash source file %s: %w", cleaned, err)
 	}
+	s.emit(ProgressEvent{Stage: ProgressStageFileHashed, Path: cleaned, Digest: shortDigest(hash)})
 	if previous, ok := s.files[cleaned]; ok {
 		if previous != hash {
 			return false, fmt.Errorf("source file changed during sync: %s", cleaned)
@@ -282,7 +329,6 @@ func (s *roundState) addFileHash(manifestPath string) (bool, error) {
 		return false, nil
 	}
 	s.files[cleaned] = hash
-	s.emit(ProgressEvent{Stage: ProgressStageFileHashed, Path: cleaned, Digest: shortDigest(hash)})
 	return true, nil
 }
 
@@ -291,6 +337,7 @@ func (s *roundState) addDirectoryListing(manifestPath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	s.emit(ProgressEvent{Stage: ProgressStageDirectoryListStart, Path: cleaned})
 	entries, err := s.fs.ReadDir(absPath)
 	if err != nil {
 		return false, fmt.Errorf("list source directory %s: %w", cleaned, err)
@@ -312,6 +359,7 @@ func (s *roundState) addDirectoryListing(manifestPath string) (bool, error) {
 	sort.Slice(listing.Entries, func(i, j int) bool {
 		return listing.Entries[i].Name < listing.Entries[j].Name
 	})
+	s.emit(ProgressEvent{Stage: ProgressStageDirectoryListed, Path: cleaned})
 	if previous, ok := s.directories[cleaned]; ok {
 		if !sameDirectoryListing(previous, listing) {
 			return false, fmt.Errorf("source directory changed during sync: %s", cleaned)
@@ -319,17 +367,16 @@ func (s *roundState) addDirectoryListing(manifestPath string) (bool, error) {
 		return false, nil
 	}
 	s.directories[cleaned] = listing
-	s.emit(ProgressEvent{Stage: ProgressStageDirectoryListed, Path: cleaned})
 	return true, nil
 }
 
-func (s *roundState) uploadBlob(ctx context.Context, blob client.SourceMissingBlob) (bool, error) {
+func (s *roundState) uploadBlob(ctx context.Context, blob client.SourceMissingBlob, uploadIndex, uploadCount int) (bool, error) {
 	if s.uploader == nil {
 		return false, fmt.Errorf("source blob upload is not configured")
 	}
 	expected := strings.TrimSpace(blob.Hash)
-	digest, ok := strings.CutPrefix(expected, "sha256:")
-	if !ok || !isLowerHexDigest(digest) {
+	digest, ok := validBlobDigest(expected)
+	if !ok {
 		return false, fmt.Errorf("invalid source blob hash for %s: %s", blob.Path, blob.Hash)
 	}
 	cleaned, absPath, err := s.resolveManifestPath(blob.Path)
@@ -354,13 +401,14 @@ func (s *roundState) uploadBlob(ctx context.Context, blob client.SourceMissingBl
 	if _, ok := s.uploaded[digest]; ok {
 		return changed, nil
 	}
-	s.emit(ProgressEvent{Stage: ProgressStageUploadStart, Path: cleaned, Digest: shortDigest(expected), TotalBytes: int64(len(content))})
-	reader := &progressReader{reader: bytes.NewReader(content), total: int64(len(content)), path: cleaned, digest: shortDigest(expected), emit: s.emit}
+	s.emit(ProgressEvent{Stage: ProgressStageUploadStart, Path: cleaned, Digest: shortDigest(expected), TotalBytes: int64(len(content)), UploadIndex: uploadIndex, UploadCount: uploadCount})
+	reader := &progressReader{reader: bytes.NewReader(content), total: int64(len(content)), path: cleaned, digest: shortDigest(expected), uploadIndex: uploadIndex, uploadCount: uploadCount, emit: s.emit}
 	if err := s.uploader.PutSourceBlob(ctx, digest, reader); err != nil {
 		return false, err
 	}
-	s.emit(ProgressEvent{Stage: ProgressStageUploadComplete, Path: cleaned, Digest: shortDigest(expected), Bytes: reader.read, TotalBytes: int64(len(content))})
+	s.emit(ProgressEvent{Stage: ProgressStageUploadComplete, Path: cleaned, Digest: shortDigest(expected), Bytes: reader.read, TotalBytes: int64(len(content)), UploadIndex: uploadIndex, UploadCount: uploadCount})
 	s.uploaded[digest] = struct{}{}
+	s.uploadedBytes += reader.read
 	return true, nil
 }
 
@@ -406,11 +454,18 @@ func (s *roundState) emit(event ProgressEvent) {
 	}
 }
 
+func finishProgress(progress Progress) {
+	if finisher, ok := progress.(ProgressFinisher); ok {
+		finisher.Finish()
+	}
+}
+
 type progressReader struct {
-	reader            io.Reader
-	emit              func(ProgressEvent)
-	path, digest      string
-	total, read, next int64
+	reader                   io.Reader
+	emit                     func(ProgressEvent)
+	path, digest             string
+	total, read, next        int64
+	uploadIndex, uploadCount int
 }
 
 func (r *progressReader) Read(p []byte) (int, error) {
@@ -423,7 +478,7 @@ func (r *progressReader) Read(p []byte) (int, error) {
 	n, err := r.reader.Read(p)
 	r.read += int64(n)
 	if r.read >= r.next && r.read < r.total {
-		r.emit(ProgressEvent{Stage: ProgressStageUploadBytes, Path: r.path, Digest: r.digest, Bytes: r.read, TotalBytes: r.total})
+		r.emit(ProgressEvent{Stage: ProgressStageUploadBytes, Path: r.path, Digest: r.digest, Bytes: r.read, TotalBytes: r.total, UploadIndex: r.uploadIndex, UploadCount: r.uploadCount})
 		for r.next <= r.read {
 			r.next += uploadProgressCheckpoint
 		}
@@ -462,6 +517,11 @@ func isLowerHexDigest(value string) bool {
 		return false
 	}
 	return true
+}
+
+func validBlobDigest(value string) (string, bool) {
+	digest, ok := strings.CutPrefix(strings.TrimSpace(value), "sha256:")
+	return digest, ok && isLowerHexDigest(digest)
 }
 
 func driveQualified(value string) bool {

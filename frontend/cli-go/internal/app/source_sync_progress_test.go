@@ -14,11 +14,48 @@ func TestSourceSyncVerboseProgressRendersEveryEvent(t *testing.T) {
 	var output bytes.Buffer
 	progress := newSourceSyncProgress(&output, true)
 	progress.Update(remotesource.ProgressEvent{Stage: remotesource.ProgressStageRound, Round: 1, ManifestEntries: 3, Blobs: 0})
-	progress.Update(remotesource.ProgressEvent{Stage: remotesource.ProgressStageUploadComplete, Path: "db/schema.sql", Digest: "0123456789ab", Bytes: 42, TotalBytes: 42})
+	progress.Update(remotesource.ProgressEvent{Stage: remotesource.ProgressStageUploadComplete, Path: "db/schema.sql", Digest: "0123456789ab", Bytes: 12698, TotalBytes: 20600, UploadIndex: 2, UploadCount: 3})
+	progress.Update(remotesource.ProgressEvent{Stage: remotesource.ProgressStageComplete, FileHashes: 3, UploadedBlobs: 3, Bytes: 42700})
 
 	text := output.String()
-	if !strings.Contains(text, "round 1 requested 3 manifest entries") || !strings.Contains(text, "uploaded db/schema.sql sha256:0123456789ab (42 bytes)") {
+	if !strings.Contains(text, "round 1 requested manifest=3 blobs=0") || !strings.Contains(text, "uploaded db/schema.sql sha256:0123456789ab 12.4 KiB (2/3)") || !strings.Contains(text, "complete files=3 listings=0 uploaded=3 bytes=41.7 KiB") {
 		t.Fatalf("verbose progress = %q", text)
+	}
+}
+
+func TestSourceSyncProgressFormatsUploadContextAndHumanBytes(t *testing.T) {
+	tests := []struct {
+		event remotesource.ProgressEvent
+		want  string
+	}{
+		{event: remotesource.ProgressEvent{Stage: remotesource.ProgressStageUploadStart, Path: "schema.sql", TotalBytes: 20600, UploadIndex: 2, UploadCount: 3}, want: "source sync: uploading schema.sql 0/20.1 KiB (2/3)"},
+		{event: remotesource.ProgressEvent{Stage: remotesource.ProgressStageUploadBytes, Path: "schema.sql", Bytes: 12698, TotalBytes: 20600, UploadIndex: 2, UploadCount: 3}, want: "source sync: uploading schema.sql 12.4/20.1 KiB (2/3)"},
+		{event: remotesource.ProgressEvent{Stage: remotesource.ProgressStageUploadComplete, Path: "schema.sql", Bytes: 12698, UploadIndex: 2, UploadCount: 3}, want: "source sync: uploaded schema.sql 12.4 KiB (2/3)"},
+		{event: remotesource.ProgressEvent{Stage: remotesource.ProgressStageUploadComplete, Path: "small.sql", Bytes: 42, UploadIndex: 1, UploadCount: 1}, want: "source sync: uploaded small.sql 42 B (1/1)"},
+		{event: remotesource.ProgressEvent{Stage: remotesource.ProgressStageComplete, FileHashes: 3, DirectoryListings: 1, UploadedBlobs: 3, Bytes: 42700}, want: "source sync: complete files=3 listings=1 uploaded=3 bytes=41.7 KiB"},
+	}
+	for _, test := range tests {
+		if got := formatSourceSyncProgressLine(test.event); got != test.want {
+			t.Errorf("formatSourceSyncProgressLine(%+v) = %q, want %q", test.event, got, test.want)
+		}
+	}
+}
+
+func TestSourceSyncOperationUsesOnlyActiveOperationEvents(t *testing.T) {
+	tests := []struct {
+		event remotesource.ProgressEvent
+		want  string
+	}{
+		{event: remotesource.ProgressEvent{Stage: remotesource.ProgressStageFileHashStart, Path: "a.sql"}, want: "source sync: hashing a.sql"},
+		{event: remotesource.ProgressEvent{Stage: remotesource.ProgressStageFileHashed, Path: "a.sql"}, want: ""},
+		{event: remotesource.ProgressEvent{Stage: remotesource.ProgressStageDirectoryListStart, Path: "db"}, want: "source sync: listing db"},
+		{event: remotesource.ProgressEvent{Stage: remotesource.ProgressStageDirectoryListed, Path: "db"}, want: ""},
+		{event: remotesource.ProgressEvent{Stage: remotesource.ProgressStageUploadComplete, Path: "a.sql"}, want: ""},
+	}
+	for _, test := range tests {
+		if got := formatSourceSyncOperation(test.event); got != test.want {
+			t.Errorf("formatSourceSyncOperation(%+v) = %q, want %q", test.event, got, test.want)
+		}
 	}
 }
 
@@ -89,7 +126,9 @@ func TestSourceSyncProgressFormattersCoverSemanticEvents(t *testing.T) {
 	events := []remotesource.ProgressEvent{
 		{Stage: remotesource.ProgressStageStart},
 		{Stage: remotesource.ProgressStageRound, Round: 2, ManifestEntries: 1, Blobs: 3},
+		{Stage: remotesource.ProgressStageFileHashStart, Path: "a.sql"},
 		{Stage: remotesource.ProgressStageFileHashed, Path: "a.sql", Digest: "0123456789ab"},
+		{Stage: remotesource.ProgressStageDirectoryListStart, Path: "db"},
 		{Stage: remotesource.ProgressStageDirectoryListed, Path: "db"},
 		{Stage: remotesource.ProgressStageUploadStart, Path: "a.sql", TotalBytes: 10},
 		{Stage: remotesource.ProgressStageUploadBytes, Path: "a.sql", Bytes: 5, TotalBytes: 10},
@@ -101,11 +140,6 @@ func TestSourceSyncProgressFormattersCoverSemanticEvents(t *testing.T) {
 	for _, event := range events {
 		if got := formatSourceSyncProgressLine(event); got == "" {
 			t.Fatalf("empty verbose line for %+v", event)
-		}
-		if event.Stage != remotesource.ProgressStageComplete && event.Stage != remotesource.ProgressStageError {
-			if got := formatSourceSyncOperation(event); got == "" {
-				t.Fatalf("empty operation for %+v", event)
-			}
 		}
 	}
 	if got := formatSourceSyncProgressLine(remotesource.ProgressEvent{Stage: "unknown"}); got != "" {
@@ -134,5 +168,25 @@ func TestSourceSyncSpinnerCanStopBeforeDelayAndStopAgain(t *testing.T) {
 	}
 	if info.Size() != 0 {
 		t.Fatalf("spinner wrote before delay: %d bytes", info.Size())
+	}
+}
+
+func TestSourceSyncProgressFinishStopsSilentSpinnerLifecycle(t *testing.T) {
+	oldTerminal := isTerminalWriterFn
+	isTerminalWriterFn = func(*os.File) bool { return true }
+	t.Cleanup(func() { isTerminalWriterFn = oldTerminal })
+	file, err := os.CreateTemp(t.TempDir(), "source-sync-finish")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	progress := newSourceSyncProgress(file, false)
+	finisher, ok := progress.(interface{ Finish() })
+	if !ok {
+		t.Fatalf("progress %T does not expose lifecycle finish", progress)
+	}
+	finisher.Finish()
+	if info, err := file.Stat(); err != nil || info.Size() != 0 {
+		t.Fatalf("silent finish stat=%+v err=%v", info, err)
 	}
 }

@@ -88,14 +88,17 @@ source-content cache.
 
 ## 4. Progress
 
-The retry loop emits typed in-memory progress events; it does not render user
-output. Events cover sync start, each request round, requested manifest and blob
-sets, each hash or directory-listing completion, upload start/byte
+After the first `source_inputs_missing` response, the retry loop emits typed
+in-memory progress events; it does not render user output. An initial accepted
+request or initial non-source-sync error emits no source-sync events. Events
+cover sync start, each request round, paired start/completion milestones for
+each requested hash or directory listing, upload start/byte
 checkpoints/completion, retry, and final summary. File identity is a safe
-workspace-relative path plus a shortened digest. Byte events report bytes
-actually consumed by the upload stream and are emitted at bounded checkpoints,
-not on every `Read` call. Duplicate digests do not create duplicate upload
-events.
+workspace-relative path plus a shortened digest. Each unique upload carries a
+stable ordinal and total for the current unique-upload set. Byte events report
+bytes actually consumed by the upload stream and are emitted at bounded
+checkpoints, not on every `Read` call. Duplicate digests do not create duplicate
+upload events, and the final event aggregates successfully uploaded bytes.
 
 `internal/app` owns presentation and sends it only to stderr:
 

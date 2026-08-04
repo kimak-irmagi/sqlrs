@@ -279,14 +279,21 @@ func writeProjectConfig(t *testing.T, workspace string, content string) {
 }
 
 type fakeAuthManager struct {
-	login     authLoginResult
-	status    authStatusResult
-	logout    authLogoutResult
-	onLogin   func(authLoginOptions)
-	onResolve func(authResolveOptions)
+	login      authLoginResult
+	status     authStatusResult
+	logout     authLogoutResult
+	loginErr   error
+	statusErr  error
+	logoutErr  error
+	resolveErr error
+	onLogin    func(authLoginOptions)
+	onResolve  func(authResolveOptions)
 }
 
 func (m fakeAuthManager) LoginGoogle(_ context.Context, opts authLoginOptions) (authLoginResult, error) {
+	if m.loginErr != nil {
+		return authLoginResult{}, m.loginErr
+	}
 	if m.onLogin != nil {
 		m.onLogin(opts)
 	}
@@ -304,14 +311,17 @@ func (m fakeAuthManager) LoginGoogle(_ context.Context, opts authLoginOptions) (
 }
 
 func (m fakeAuthManager) Status(context.Context, authStatusOptions) (authStatusResult, error) {
-	return m.status, nil
+	return m.status, m.statusErr
 }
 
 func (m fakeAuthManager) Logout(context.Context, authLogoutOptions) (authLogoutResult, error) {
-	return m.logout, nil
+	return m.logout, m.logoutErr
 }
 
 func (m fakeAuthManager) ResolveBearerToken(_ context.Context, opts authResolveOptions) (authResolvedBearerToken, error) {
+	if m.resolveErr != nil {
+		return authResolvedBearerToken{}, m.resolveErr
+	}
 	if m.onResolve != nil {
 		m.onResolve(opts)
 	}

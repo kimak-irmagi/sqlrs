@@ -204,8 +204,9 @@ gantt
   source-transfer timeout и работает с gateway-owned admission projection без
   изменения CLI syntax. Remote path binding изолирован от local WSL config,
   поэтому Windows host paths не преобразуются ошибочно в `/mnt/...`.
-  Upload progress сообщает фактически переданные bytes на bounded checkpoints
-  и идентифицирует files только workspace-relative path и shortened digest.
+  Upload progress сообщает фактически переданные bytes на bounded checkpoints,
+  stable unique-upload ordinals и final transferred-byte total и идентифицирует
+  files только workspace-relative path и shortened digest.
 - **В работе (базовый CI-template слой)**: GitHub Actions release/e2e пайплайны
   уже активны; более широкие team-шаблоны (например, GitLab и on-prem варианты)
   ещё впереди.

@@ -162,13 +162,14 @@ absolute host path.
 Example verbose output:
 
 ```text
+source sync: started
 source sync: round 1 requested manifest=3 blobs=0
 source sync: hashing flights/schema.sql
 source sync: hashed flights/schema.sql sha256:dbfc71aa...
 source sync: round 2 requested manifest=0 blobs=3
-source sync: uploading flights/schema.sql 12.4 KiB (1/3)
-source sync: uploaded flights/schema.sql 12.4 KiB (1/3)
-source sync: complete files=3 uploaded=3 bytes=41.7 KiB
+source sync: uploading flights/schema.sql sha256:dbfc71aa... 12.4/20.1 KiB (1/3)
+source sync: uploaded flights/schema.sql sha256:dbfc71aa... 20.1 KiB (1/3)
+source sync: complete files=3 listings=0 uploaded=3 bytes=41.7 KiB
 ```
 
 The interactive spinner renders the same event stream as a current-operation

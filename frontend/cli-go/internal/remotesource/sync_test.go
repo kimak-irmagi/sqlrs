@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,9 +20,40 @@ type recordingUploader struct {
 	err     error
 }
 
-type recordingProgress struct{ events []ProgressEvent }
+type recordingProgress struct {
+	events   []ProgressEvent
+	finished bool
+}
 
 func (p *recordingProgress) Update(event ProgressEvent) { p.events = append(p.events, event) }
+func (p *recordingProgress) Finish()                    { p.finished = true }
+
+func (p *recordingProgress) lastStage() ProgressStage {
+	if len(p.events) == 0 {
+		return ""
+	}
+	return p.events[len(p.events)-1].Stage
+}
+
+type progressCheckingFS struct {
+	inputset.FileSystem
+	progress *recordingProgress
+	t        *testing.T
+}
+
+func (f progressCheckingFS) Stat(name string) (fs.FileInfo, error) {
+	if f.progress.lastStage() != ProgressStageFileHashStart {
+		f.t.Fatalf("stat %s observed stage %q, want %q", name, f.progress.lastStage(), ProgressStageFileHashStart)
+	}
+	return f.FileSystem.Stat(name)
+}
+
+func (f progressCheckingFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	if f.progress.lastStage() != ProgressStageDirectoryListStart {
+		f.t.Fatalf("readdir %s observed stage %q, want %q", name, f.progress.lastStage(), ProgressStageDirectoryListStart)
+	}
+	return f.FileSystem.ReadDir(name)
+}
 
 func (u *recordingUploader) PutSourceBlob(_ context.Context, digest string, body io.Reader) error {
 	if u.err != nil {
@@ -100,14 +132,81 @@ func TestExecuteExpandsManifestUploadsBlobAndRetries(t *testing.T) {
 	if len(progress.events) == 0 || progress.events[0].Stage != ProgressStageStart || progress.events[len(progress.events)-1].Stage != ProgressStageComplete {
 		t.Fatalf("progress events = %+v", progress.events)
 	}
-	var uploadComplete *ProgressEvent
+	var uploadComplete, syncComplete *ProgressEvent
 	for i := range progress.events {
 		if progress.events[i].Stage == ProgressStageUploadComplete {
 			uploadComplete = &progress.events[i]
 		}
+		if progress.events[i].Stage == ProgressStageComplete {
+			syncComplete = &progress.events[i]
+		}
 	}
-	if uploadComplete == nil || uploadComplete.Path != "db/changelog/master.sql" || uploadComplete.Bytes != int64(len("select 1;\n")) || strings.Contains(uploadComplete.Path, root) {
+	if uploadComplete == nil || uploadComplete.Path != "db/changelog/master.sql" || uploadComplete.Bytes != int64(len("select 1;\n")) || uploadComplete.UploadIndex != 1 || uploadComplete.UploadCount != 1 || strings.Contains(uploadComplete.Path, root) {
 		t.Fatalf("upload completion = %+v", uploadComplete)
+	}
+	if syncComplete == nil || syncComplete.Bytes != int64(len("select 1;\n")) {
+		t.Fatalf("sync completion = %+v", syncComplete)
+	}
+}
+
+func TestExecuteKeepsInitialAcceptedAndInitialErrorSilent(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		err  error
+	}{
+		{name: "accepted"},
+		{name: "initial error", err: errors.New("gateway unavailable")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			progress := &recordingProgress{}
+			_, err := Execute[string](context.Background(), Options{Enabled: true, Progress: progress}, client.PrepareJobRequest{}, func(context.Context, client.PrepareJobRequest) (string, error) {
+				return "ok", test.err
+			})
+			if !errors.Is(err, test.err) {
+				t.Fatalf("error = %v, want %v", err, test.err)
+			}
+			if len(progress.events) != 0 {
+				t.Fatalf("initial request events = %+v, want none", progress.events)
+			}
+			if !progress.finished {
+				t.Fatal("progress lifecycle was not finished")
+			}
+		})
+	}
+}
+
+func TestExecuteEmitsFilesystemOperationStartBeforeAccess(t *testing.T) {
+	root := t.TempDir()
+	if err := writeSourceFile(root, "query.sql", "select 1;\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeSourceFile(root, "db/one.sql", "select 1;\n"); err != nil {
+		t.Fatal(err)
+	}
+	progress := &recordingProgress{}
+	checks := progressCheckingFS{FileSystem: inputset.OSFileSystem{}, progress: progress, t: t}
+	calls := 0
+	_, err := Execute[string](context.Background(), Options{Enabled: true, WorkspaceRoot: root, FileSystem: checks, Progress: progress}, client.PrepareJobRequest{}, func(context.Context, client.PrepareJobRequest) (string, error) {
+		calls++
+		if calls == 1 {
+			return "", &client.SourceInputsMissingError{Response: client.SourceInputsMissingErrorResponse{MissingManifestEntries: []client.SourceMissingManifestEntry{
+				{Path: "query.sql", Kind: "file_hash"},
+				{Path: "db", Kind: "directory_listing"},
+			}}}
+		}
+		return "ok", nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []ProgressStage{ProgressStageStart, ProgressStageRound, ProgressStageDirectoryListStart, ProgressStageDirectoryListed, ProgressStageFileHashStart, ProgressStageFileHashed, ProgressStageRetry, ProgressStageComplete}
+	if len(progress.events) != len(want) {
+		t.Fatalf("events = %+v, want stages %v", progress.events, want)
+	}
+	for i, stage := range want {
+		if progress.events[i].Stage != stage {
+			t.Fatalf("event %d stage = %q, want %q; events=%+v", i, progress.events[i].Stage, stage, progress.events)
+		}
 	}
 }
 
@@ -140,7 +239,7 @@ func TestExecuteReportsActualUploadByteCheckpoint(t *testing.T) {
 			complete = event
 		}
 	}
-	if checkpoint == nil || checkpoint.Bytes < uploadProgressCheckpoint || checkpoint.Bytes >= int64(len(content)) {
+	if checkpoint == nil || checkpoint.Bytes < uploadProgressCheckpoint || checkpoint.Bytes >= int64(len(content)) || checkpoint.UploadIndex != 1 || checkpoint.UploadCount != 1 {
 		t.Fatalf("checkpoint = %+v", checkpoint)
 	}
 	if complete == nil || complete.Bytes != int64(len(content)) || complete.TotalBytes != int64(len(content)) {
@@ -254,9 +353,11 @@ func TestExecuteHandlesDuplicateManifestEntryInOneRound(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := 0
+	progress := &recordingProgress{}
 	got, err := Execute[string](context.Background(), Options{
 		Enabled:       true,
 		WorkspaceRoot: root,
+		Progress:      progress,
 	}, client.PrepareJobRequest{}, func(_ context.Context, req client.PrepareJobRequest) (string, error) {
 		calls++
 		if calls == 1 {
@@ -276,6 +377,18 @@ func TestExecuteHandlesDuplicateManifestEntryInOneRound(t *testing.T) {
 	})
 	if err != nil || got != "ok" || calls != 2 {
 		t.Fatalf("result=%q calls=%d err=%v", got, calls, err)
+	}
+	starts, completes := 0, 0
+	for _, event := range progress.events {
+		if event.Stage == ProgressStageFileHashStart {
+			starts++
+		}
+		if event.Stage == ProgressStageFileHashed {
+			completes++
+		}
+	}
+	if starts != 2 || completes != 2 {
+		t.Fatalf("hash operation pairs: starts=%d completes=%d events=%+v", starts, completes, progress.events)
 	}
 }
 
@@ -357,6 +470,7 @@ func TestExecuteUploadsMultipleSortedBlobs(t *testing.T) {
 	hashA := "sha256:" + inputset.HashContent([]byte("select 1;\n"))
 	hashB := "sha256:" + inputset.HashContent([]byte("select 2;\n"))
 	uploader := &recordingUploader{}
+	progress := &recordingProgress{}
 	calls := 0
 	var retryManifest *client.SourceManifest
 
@@ -364,6 +478,7 @@ func TestExecuteUploadsMultipleSortedBlobs(t *testing.T) {
 		Enabled:       true,
 		WorkspaceRoot: root,
 		Uploader:      uploader,
+		Progress:      progress,
 	}, client.PrepareJobRequest{}, func(_ context.Context, req client.PrepareJobRequest) (string, error) {
 		calls++
 		if calls == 1 {
@@ -388,6 +503,23 @@ func TestExecuteUploadsMultipleSortedBlobs(t *testing.T) {
 	}
 	if retryManifest == nil || retryManifest.Files["a.sql"] != hashA || retryManifest.Files["c.sql"] != hashA {
 		t.Fatalf("retry manifest files = %+v, want both duplicate-content paths", retryManifest)
+	}
+	var starts []ProgressEvent
+	var complete ProgressEvent
+	for _, event := range progress.events {
+		if event.Stage == ProgressStageUploadStart {
+			starts = append(starts, event)
+		}
+		if event.Stage == ProgressStageComplete {
+			complete = event
+		}
+	}
+	if len(starts) != 2 || starts[0].UploadIndex != 1 || starts[0].UploadCount != 2 || starts[1].UploadIndex != 2 || starts[1].UploadCount != 2 {
+		t.Fatalf("upload starts = %+v", starts)
+	}
+	wantBytes := int64(len("select 1;\n") + len("select 2;\n"))
+	if complete.UploadedBlobs != 2 || complete.Bytes != wantBytes {
+		t.Fatalf("complete = %+v, want bytes=%d", complete, wantBytes)
 	}
 }
 

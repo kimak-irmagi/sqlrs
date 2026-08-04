@@ -148,10 +148,12 @@
   - Payload remote source-sync manifest и recoverable missing-input response.
 - `remotesource.Options`, `remotesource.Uploader`
   - Опции выполнения remote source-sync и boundary для upload source blob-ов.
-- `remotesource.ProgressEvent`, `remotesource.ProgressSink`
+- `remotesource.ProgressEvent`, `remotesource.Progress`, `remotesource.ProgressFinisher`
   - Execution-local semantic progress stream и presentation-neutral consumer
-    boundary. Events содержат relative paths, shortened digests, counts и
-    фактически переданные bytes, но не source bytes или absolute host paths.
+    boundary. Events содержат relative paths, shortened digests, unique-upload
+    ordinals, counts и фактически переданные bytes, но не source bytes или
+    absolute host paths. Парные operation events отличают выполняемую filesystem
+    работу от completion.
 - `remotesource.ClientWorkspaceContext`
   - Передаёт absolute logical client workspace root и effective working
     directory, используемые для отображения bound paths `psql` и Liquibase в

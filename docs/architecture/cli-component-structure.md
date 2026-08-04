@@ -145,10 +145,12 @@ addition of a shared `inputset` layer for file-bearing command semantics.
   - Remote source-sync manifest payload and recoverable missing-input response.
 - `remotesource.Options`, `remotesource.Uploader`
   - Remote source-sync execution options and source blob upload boundary.
-- `remotesource.ProgressEvent`, `remotesource.ProgressSink`
+- `remotesource.ProgressEvent`, `remotesource.Progress`, `remotesource.ProgressFinisher`
   - Execution-local semantic progress stream and its presentation-neutral
-    consumer boundary. Events carry relative paths, shortened digests, counts,
-    and actual transferred bytes but never source bytes or absolute host paths.
+    consumer boundary. Events carry relative paths, shortened digests,
+    unique-upload ordinals, counts, and actual transferred bytes but never
+    source bytes or absolute host paths. Paired operation events distinguish
+    currently executing filesystem work from completion.
 - `remotesource.ClientWorkspaceContext`
   - Carries the absolute logical client workspace root and effective working
     directory used to map bound `psql` and Liquibase paths into manifest keys.

@@ -93,6 +93,31 @@ func TestExplainPrepareCacheWithSourceSyncRetriesAndUploads(t *testing.T) {
 	}
 }
 
+func TestExplainPrepareCacheAcceptedInitialRequestHasNoSourceSyncProgress(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		io.WriteString(w, `{"decision":"hit","reason_code":"exact_state_match","signature":"sig"}`)
+	}))
+	t.Cleanup(server.Close)
+
+	var progress bytes.Buffer
+	_, err := explainPrepareCache(context.Background(), cli.PrepareOptions{
+		Mode:        "remote",
+		Endpoint:    server.URL,
+		ImageID:     "postgres:16",
+		PrepareKind: "psql",
+		SourceSync: &remotesource.Options{
+			Enabled:  true,
+			Progress: newSourceSyncProgress(&progress, true),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if progress.Len() != 0 {
+		t.Fatalf("initial accepted request progress = %q, want none", progress.String())
+	}
+}
+
 func TestBuildRemoteSourceSyncOptionsModesAndRefContext(t *testing.T) {
 	root := t.TempDir()
 	refRoot := t.TempDir()
