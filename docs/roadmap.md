@@ -191,8 +191,10 @@ gantt
   CLI now support remote source-input synchronization for remote `prepare`,
   `plan`, and `cache explain prepare` flows. The client attaches a bounded
   `source_manifest`, handles recoverable `source_inputs_missing` responses,
-  uploads requested blobs through `/v1/source-blobs/sha256/{digest}`, reports
-  sync progress to stderr, honors per-profile `sourceSync` policy, and uses the
+  uploads requested blobs through `/v1/source-blobs/sha256/{digest}`, emits
+  typed sync events rendered as verbose stderr lines or a delayed interactive
+  spinner (with normal non-TTY output kept silent), honors per-profile
+  `sourceSync` policy, and uses the
   selected ref filesystem for ref-backed prepare stages. Local profile behavior
   is unchanged. The production handshake now also sends absolute client
   `root_path`/`work_dir` coordinates, retains absolute public prepare arguments,
@@ -200,6 +202,9 @@ gantt
   the gateway-owned admission projection without changing the CLI syntax.
   Remote path binding is isolated from local WSL configuration, preventing
   Windows host paths from being rewritten into `/mnt/...` coordinates.
+  Upload progress reports actual streamed bytes at bounded checkpoints, stable
+  unique-upload ordinals, and a final transferred-byte total, and identifies
+  files only by workspace-relative path and shortened digest.
 - **In progress (CI templates baseline)**: GitHub Actions-based release/e2e flows
   are active; broader team templates (e.g., GitLab and on-prem deployment variants)
   are still pending.

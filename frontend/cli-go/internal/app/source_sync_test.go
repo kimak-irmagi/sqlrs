@@ -79,7 +79,7 @@ func TestExplainPrepareCacheWithSourceSyncRetriesAndUploads(t *testing.T) {
 			Enabled:       true,
 			MaxRounds:     2,
 			WorkspaceRoot: root,
-			Progress:      &progress,
+			Progress:      newSourceSyncProgress(&progress, true),
 		},
 	})
 	if err != nil {
@@ -88,8 +88,33 @@ func TestExplainPrepareCacheWithSourceSyncRetriesAndUploads(t *testing.T) {
 	if got.Decision != "hit" || got.Signature != "sig" || postCount != 2 || putCount != 1 {
 		t.Fatalf("response=%+v postCount=%d putCount=%d", got, postCount, putCount)
 	}
-	if !strings.Contains(progress.String(), "source sync: round 1") || !strings.Contains(progress.String(), "uploaded 1 blobs") {
+	if !strings.Contains(progress.String(), "source sync: round 1") || !strings.Contains(progress.String(), "uploaded query.sql") || !strings.Contains(progress.String(), "source sync: complete") {
 		t.Fatalf("progress = %q", progress.String())
+	}
+}
+
+func TestExplainPrepareCacheAcceptedInitialRequestHasNoSourceSyncProgress(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		io.WriteString(w, `{"decision":"hit","reason_code":"exact_state_match","signature":"sig"}`)
+	}))
+	t.Cleanup(server.Close)
+
+	var progress bytes.Buffer
+	_, err := explainPrepareCache(context.Background(), cli.PrepareOptions{
+		Mode:        "remote",
+		Endpoint:    server.URL,
+		ImageID:     "postgres:16",
+		PrepareKind: "psql",
+		SourceSync: &remotesource.Options{
+			Enabled:  true,
+			Progress: newSourceSyncProgress(&progress, true),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if progress.Len() != 0 {
+		t.Fatalf("initial accepted request progress = %q, want none", progress.String())
 	}
 }
 

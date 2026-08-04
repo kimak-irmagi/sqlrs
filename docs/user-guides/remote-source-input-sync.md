@@ -141,10 +141,49 @@ The command fails when a requested local path is unavailable, a local hash does
 not match the server-requested hash, a blob upload is rejected, the retry limit
 is reached, or the server returns a non-recoverable error.
 
-With verbose output enabled, each recoverable round reports the number of
-requested manifest entries and blobs, followed by the number uploaded. No
-source-sync progress lines means that the server did not return a
-`source_inputs_missing` response.
+Source synchronization follows the common CLI progress presentation model and
+does not add a new command-line option:
+
+- with `-v/--verbose`, every source-sync progress event is written as a separate
+  stderr line;
+- without verbose output on an interactive terminal, one delayed spinner line
+  shows the current operation and is updated in place;
+- without verbose output on a non-interactive stderr, no spinner or ANSI control
+  sequences are emitted;
+- successful command stdout remains unchanged in every mode.
+
+Progress events cover sync start, recoverable-round requests, each requested
+file hash or directory listing, blob upload start/progress/completion, request
+retry, and final completion. Blob events include the workspace-relative path,
+actual transferred bytes, total bytes when known, ordinal within the requested
+blob set, and a shortened digest. They never include source contents or an
+absolute host path.
+
+Example verbose output:
+
+```text
+source sync: started
+source sync: round 1 requested manifest=3 blobs=0
+source sync: hashing flights/schema.sql
+source sync: hashed flights/schema.sql sha256:dbfc71aa...
+source sync: round 2 requested manifest=0 blobs=3
+source sync: uploading flights/schema.sql sha256:dbfc71aa... 12.4/20.1 KiB (1/3)
+source sync: uploaded flights/schema.sql sha256:dbfc71aa... 20.1 KiB (1/3)
+source sync: complete files=3 listings=0 uploaded=3 bytes=41.7 KiB
+```
+
+The interactive spinner renders the same event stream as a current-operation
+line, for example:
+
+```text
+source sync: uploading schema.sql 12.4/20.1 KiB (2/3) |
+```
+
+Byte progress represents bytes actually consumed by the HTTP upload body, not
+merely files selected for transfer. A final verbose summary therefore provides
+client-side evidence of how many blobs and bytes were sent. No verbose
+source-sync event means that the server accepted the initial request without a
+recoverable `source_inputs_missing` response.
 
 Each deployment defines a maximum size for one source blob. A file within that
 published limit is uploaded as one content-addressed blob; a larger file fails

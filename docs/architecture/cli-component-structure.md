@@ -25,7 +25,8 @@ addition of a shared `inputset` layer for file-bearing command semantics.
   - Builds command context and chooses path resolvers and runtime projections
     from `internal/inputset`.
   - Builds remote source-sync options for remote `plan`, `prepare`, and
-    `cache explain` stages, including ref-backed filesystem selection.
+    `cache explain` stages, including ref-backed filesystem selection, and owns
+    verbose-line versus delayed-spinner progress presentation.
   - Rejects remote-only user and organization commands in local mode before
     local engine discovery or autostart.
   - Owns package-local ref-aware run-binding helpers for standalone
@@ -53,8 +54,8 @@ addition of a shared `inputset` layer for file-bearing command semantics.
     `remote-source-input-sync-flow.md`.
   - Owns `source_manifest` expansion, bounded `source_inputs_missing` retry,
     safe workspace-relative path resolution, requested source blob hashing and
-    upload, logical workspace-root/work-dir context, and progress reporting to
-    the stage stderr writer.
+    upload, logical workspace-root/work-dir context, and typed progress event
+    emission. It does not inspect TTY state or render terminal output.
 - `internal/inputset`
   - Shared CLI-side source of truth for file-bearing command semantics.
   - Owns staged parse/bind/collect/project abstractions and common helper types.
@@ -144,6 +145,12 @@ addition of a shared `inputset` layer for file-bearing command semantics.
   - Remote source-sync manifest payload and recoverable missing-input response.
 - `remotesource.Options`, `remotesource.Uploader`
   - Remote source-sync execution options and source blob upload boundary.
+- `remotesource.ProgressEvent`, `remotesource.Progress`, `remotesource.ProgressFinisher`
+  - Execution-local semantic progress stream and its presentation-neutral
+    consumer boundary. Events carry relative paths, shortened digests,
+    unique-upload ordinals, counts, and actual transferred bytes but never
+    source bytes or absolute host paths. Paired operation events distinguish
+    currently executing filesystem work from completion.
 - `remotesource.ClientWorkspaceContext`
   - Carries the absolute logical client workspace root and effective working
     directory used to map bound `psql` and Liquibase paths into manifest keys.

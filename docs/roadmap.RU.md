@@ -194,14 +194,19 @@ gantt
   `prepare`, `plan` и `cache explain prepare` flow. Клиент добавляет bounded
   `source_manifest`, обрабатывает recoverable `source_inputs_missing`,
   загружает запрошенные blob-ы через `/v1/source-blobs/sha256/{digest}`,
-  пишет progress синхронизации в stderr, учитывает per-profile `sourceSync`
-  policy и использует выбранный ref filesystem для ref-backed prepare stages.
+  испускает typed sync events, которые отображаются verbose lines в stderr или
+  delayed interactive spinner (normal non-TTY остаётся silent), учитывает
+  per-profile `sourceSync` policy и использует выбранный ref filesystem для
+  ref-backed prepare stages.
   Поведение local profile не меняется. Production handshake теперь также
   передает абсолютные client coordinates `root_path`/`work_dir`, сохраняет
   абсолютные public prepare arguments, использует отдельный 15-минутный
   source-transfer timeout и работает с gateway-owned admission projection без
   изменения CLI syntax. Remote path binding изолирован от local WSL config,
   поэтому Windows host paths не преобразуются ошибочно в `/mnt/...`.
+  Upload progress сообщает фактически переданные bytes на bounded checkpoints,
+  stable unique-upload ordinals и final transferred-byte total и идентифицирует
+  files только workspace-relative path и shortened digest.
 - **В работе (базовый CI-template слой)**: GitHub Actions release/e2e пайплайны
   уже активны; более широкие team-шаблоны (например, GitLab и on-prem варианты)
   ещё впереди.

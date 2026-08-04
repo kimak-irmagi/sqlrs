@@ -25,7 +25,8 @@
   - Собирает command context и выбирает path resolver-ы и runtime projection-ы
     из `internal/inputset`.
   - Собирает remote source-sync options для remote `plan`, `prepare` и
-    `cache explain` stages, включая выбор ref-backed filesystem.
+    `cache explain` stages, включая выбор ref-backed filesystem, и владеет
+    выбором presentation между verbose lines и delayed spinner.
   - Отклоняет remote-only команды управления пользователями и организациями в
     local mode до discovery или autostart локального engine.
   - Владеет package-local helper-ами ref-aware run binding для standalone
@@ -55,7 +56,8 @@
   - Владеет расширением `source_manifest`, bounded retry для
     `source_inputs_missing`, безопасным workspace-relative path resolution,
     хэшированием и upload-ом запрошенных source blob-ов, logical context
-    workspace root/work dir и progress reporting в stderr текущей stage.
+    workspace root/work dir и emission typed progress events. Package не
+    проверяет TTY state и не рендерит terminal output.
 - `internal/inputset`
   - Общий CLI-side источник истины для file-bearing семантики команд.
   - Владеет staged абстракциями parse/bind/collect/project и общими типами.
@@ -146,6 +148,12 @@
   - Payload remote source-sync manifest и recoverable missing-input response.
 - `remotesource.Options`, `remotesource.Uploader`
   - Опции выполнения remote source-sync и boundary для upload source blob-ов.
+- `remotesource.ProgressEvent`, `remotesource.Progress`, `remotesource.ProgressFinisher`
+  - Execution-local semantic progress stream и presentation-neutral consumer
+    boundary. Events содержат relative paths, shortened digests, unique-upload
+    ordinals, counts и фактически переданные bytes, но не source bytes или
+    absolute host paths. Парные operation events отличают выполняемую filesystem
+    работу от completion.
 - `remotesource.ClientWorkspaceContext`
   - Передаёт absolute logical client workspace root и effective working
     directory, используемые для отображения bound paths `psql` и Liquibase в

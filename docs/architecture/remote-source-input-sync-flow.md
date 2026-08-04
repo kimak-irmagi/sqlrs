@@ -88,10 +88,29 @@ source-content cache.
 
 ## 4. Progress
 
-The retry loop writes source-sync progress to stderr. The messages are
-diagnostic and must not alter successful command stdout. They include round
-counts, manifest expansion counts, and upload counts, but never raw source
-content.
+After the first `source_inputs_missing` response, the retry loop emits typed
+in-memory progress events; it does not render user output. An initial accepted
+request or initial non-source-sync error emits no source-sync events. Events
+cover sync start, each request round, paired start/completion milestones for
+each requested hash or directory listing, upload start/byte
+checkpoints/completion, retry, and final summary. File identity is a safe
+workspace-relative path plus a shortened digest. Each unique upload carries a
+stable ordinal and total for the current unique-upload set. Byte events report
+bytes actually consumed by the upload stream and are emitted at bounded
+checkpoints, not on every `Read` call. Duplicate digests do not create duplicate
+upload events, and the final event aggregates successfully uploaded bytes.
+
+`internal/app` owns presentation and sends it only to stderr:
+
+- verbose mode renders every received event as a stable diagnostic line;
+- normal interactive mode uses a delayed spinner showing the current operation
+  and clears it on completion or error;
+- normal non-interactive mode emits neither spinner control sequences nor
+  routine progress.
+
+Successful command stdout remains unchanged. Progress state is execution-local
+and is not persisted; raw source content and absolute host paths never appear in
+events.
 
 ## 5. Error Boundaries
 

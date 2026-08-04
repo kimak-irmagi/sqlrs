@@ -468,3 +468,130 @@ func TestLiquibaseCollectAndValidateAdditionalBranches(t *testing.T) {
 		}
 	})
 }
+
+func TestLiquibaseSecondPassCollectionErrorsAndBlobHashes(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "defaults.properties")
+	writeFile(t, file, "x=y\n")
+	resolver := inputset.NewWorkspaceResolver(root, root, nil)
+
+	if _, err := CollectInvocationInputs([]string{"--defaults-file"}, resolver, inputset.OSFileSystem{}); err == nil {
+		t.Fatal("expected missing invocation path error")
+	}
+
+	set, err := buildInputSet([]string{file}, root, hookBlobFS{
+		hookFS:  hookFS{},
+		blobOID: func(string) (string, error) { return "blob-oid", nil },
+	})
+	if err != nil || len(set.Entries) != 1 || set.Entries[0].Hash != "blob-oid" {
+		t.Fatalf("blob input set = %#v, %v", set, err)
+	}
+	if _, err := buildInputSet([]string{file}, root, hookBlobFS{
+		hookFS:  hookFS{},
+		blobOID: func(string) (string, error) { return "", errors.New("oid failed") },
+	}); err == nil || !strings.Contains(err.Error(), "hash") {
+		t.Fatalf("expected blob hash error, got %v", err)
+	}
+	if _, err := buildInputSet([]string{file}, root, hookFS{
+		readFile: func(string) ([]byte, error) { return nil, errors.New("read failed") },
+	}); err == nil || !strings.Contains(err.Error(), "read") {
+		t.Fatalf("expected input read error, got %v", err)
+	}
+
+	issues := append(
+		ValidateArgs([]string{"--defaults-file"}, resolver, inputset.OSFileSystem{}),
+		ValidateArgs([]string{"--search-path"}, resolver, inputset.OSFileSystem{})...,
+	)
+	if len(issues) != 2 || issues[0].Code != "missing_path_arg" || issues[1].Code != "missing_path_arg" {
+		t.Fatalf("missing argument issues = %#v", issues)
+	}
+}
+
+func TestLiquibaseSecondPassSearchAndTrackerBranches(t *testing.T) {
+	root := t.TempDir()
+	resolver := inputset.NewWorkspaceResolver(root, root, nil)
+	for _, value := range []string{"", "one,,two"} {
+		if _, err := resolveSearchPathParts(value, resolver); err == nil {
+			t.Fatalf("resolveSearchPathParts(%q) should fail", value)
+		}
+	}
+	parts, err := resolveSearchPathParts("classpath:db,https://example.org/db", resolver)
+	if err != nil || len(parts) != 0 {
+		t.Fatalf("remote search parts = %v, %v", parts, err)
+	}
+	badResolver := inputset.NewWorkspaceResolver(root, root, func(string) (string, error) {
+		return "", errors.New("resolve failed")
+	})
+	if _, err := resolveSearchPathParts("local", badResolver); err == nil {
+		t.Fatal("expected search path resolution error")
+	}
+
+	master := filepath.Join(root, "master.xml")
+	writeFile(t, master, `<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"/>`)
+	trk := &tracker{
+		fs: hookFS{
+			readFile: func(string) ([]byte, error) { return nil, errors.New("changelog read failed") },
+		},
+		root: root,
+		seen: make(map[string]struct{}),
+	}
+	var order []string
+	if err := trk.collect(master, &order); err == nil || !strings.Contains(err.Error(), "read failed") {
+		t.Fatalf("expected changelog read error, got %v", err)
+	}
+
+	writeFile(t, master, `<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"><include file="classpath:db/child.xml"/><includeAll path="https://example.org/db"/><changeSet><sqlFile path="classpath:db/query.sql"/></changeSet></databaseChangeLog>`)
+	trk = &tracker{fs: inputset.OSFileSystem{}, root: root, seen: make(map[string]struct{})}
+	order = nil
+	if err := trk.collect(master, &order); err != nil || len(order) != 1 {
+		t.Fatalf("remote-only changelog order = %v, %v", order, err)
+	}
+
+	writeFile(t, master, `<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"><includeAll path="missing" relativeToChangelogFile="true"/></databaseChangeLog>`)
+	trk = &tracker{fs: inputset.OSFileSystem{}, root: root, seen: make(map[string]struct{})}
+	if err := trk.collect(master, &order); err == nil || !strings.Contains(err.Error(), "includeAll") {
+		t.Fatalf("expected includeAll error, got %v", err)
+	}
+
+	writeFile(t, master, `<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"><changeSet><loadData file="missing.csv" relativeToChangelogFile="true"/></changeSet></databaseChangeLog>`)
+	trk = &tracker{fs: inputset.OSFileSystem{}, root: root, seen: make(map[string]struct{})}
+	if err := trk.collect(master, &order); err == nil {
+		t.Fatal("expected local leaf error")
+	}
+}
+
+func TestLiquibaseSecondPassParsingAndLocalPathFlattening(t *testing.T) {
+	if _, _, err := parseIncludes("broken.json", []byte(`{"databaseChangeLog":`)); err == nil {
+		t.Fatal("expected parseIncludes error")
+	}
+
+	sqlFile := &localPathRef{File: "query.sql"}
+	loadData := &localPathRef{File: "data.csv"}
+	loadUpdate := &localPathRef{File: "updates.csv"}
+	refs := localPathRefsFromChangeSet(changeSetSpec{
+		SQLFile:        sqlFile,
+		LoadData:       loadData,
+		LoadUpdateData: loadUpdate,
+		Changes: []changeSetChange{{
+			SQLFile:        sqlFile,
+			LoadData:       loadData,
+			LoadUpdateData: loadUpdate,
+		}},
+	})
+	if len(refs) != 6 {
+		t.Fatalf("local refs = %#v", refs)
+	}
+	items := []changeItem{{}, {ChangeSet: &changeSetSpec{SQLFile: sqlFile}}}
+	if got := flattenLocalPathRefs(items); len(got) != 1 || got[0].File != "query.sql" {
+		t.Fatalf("flattened local refs = %#v", got)
+	}
+}
+
+type hookBlobFS struct {
+	hookFS
+	blobOID func(string) (string, error)
+}
+
+func (h hookBlobFS) BlobOID(path string) (string, error) {
+	return h.blobOID(path)
+}

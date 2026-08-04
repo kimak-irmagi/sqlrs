@@ -850,6 +850,20 @@ jobs:
             echo "${podman_sha256}  ${podman_pkg}" | shasum -a 256 -c -
             sudo installer -pkg "$podman_pkg" -target /
           fi
+          if ! command -v podman >/dev/null 2>&1; then
+            podman_path_file="/etc/paths.d/podman-pkg"
+            if [[ ! -r "$podman_path_file" ]]; then
+              echo "Podman installer did not publish its executable path" >&2
+              exit 1
+            fi
+            podman_bin_dir="$(head -n 1 "$podman_path_file")"
+            if [[ -z "$podman_bin_dir" || ! -x "${podman_bin_dir}/podman" ]]; then
+              echo "Podman executable not found in installer path: ${podman_bin_dir}" >&2
+              exit 1
+            fi
+            echo "$podman_bin_dir" >> "$GITHUB_PATH"
+            export PATH="${podman_bin_dir}:${PATH}"
+          fi
           podman --version
 
       - name: Start Podman machine

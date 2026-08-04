@@ -71,7 +71,6 @@ func TestCreatePrepareJobWithSourceSyncRetriesAndUploads(t *testing.T) {
 			Enabled:       true,
 			MaxRounds:     2,
 			WorkspaceRoot: root,
-			Progress:      io.Discard,
 		}},
 		client.PrepareJobRequest{PrepareKind: "psql", ImageID: "postgres:16"},
 	)

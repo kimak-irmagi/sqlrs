@@ -180,7 +180,7 @@ func buildRemoteSourceSyncOptions(stderr io.Writer, opts cli.PrepareOptions, req
 		WorkDir:       workDir,
 		WorkspaceID:   opts.ProfileName,
 		FileSystem:    sourceFS,
-		Progress:      stderr,
+		Progress:      newSourceSyncProgress(stderr, opts.Verbose),
 	}, nil
 }
 

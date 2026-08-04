@@ -20,12 +20,16 @@ import (
 // session data never appears in process arguments.
 type SystemCredentialStore struct{}
 
+var findDarwinGenericPasswordFn = findDarwinGenericPassword
+var putDarwinGenericPasswordFn = putDarwinGenericPassword
+var deleteDarwinGenericPasswordFn = deleteDarwinGenericPassword
+
 func NewSystemCredentialStore() CredentialStore {
 	return SystemCredentialStore{}
 }
 
 func (SystemCredentialStore) Get(_ context.Context, key CredentialKey) (Session, bool, error) {
-	data, ok, err := findDarwinGenericPassword(credentialService, key.displayAccount())
+	data, ok, err := findDarwinGenericPasswordFn(credentialService, key.displayAccount())
 	if err != nil || !ok {
 		return Session{}, ok, err
 	}
@@ -37,11 +41,11 @@ func (SystemCredentialStore) Get(_ context.Context, key CredentialKey) (Session,
 }
 
 func (SystemCredentialStore) Put(_ context.Context, key CredentialKey, session Session) error {
-	return putDarwinGenericPassword(credentialService, key.displayAccount(), []byte(encodeSession(session)))
+	return putDarwinGenericPasswordFn(credentialService, key.displayAccount(), []byte(encodeSession(session)))
 }
 
 func (SystemCredentialStore) Delete(_ context.Context, key CredentialKey) error {
-	return deleteDarwinGenericPassword(credentialService, key.displayAccount())
+	return deleteDarwinGenericPasswordFn(credentialService, key.displayAccount())
 }
 
 func findDarwinGenericPassword(service, account string) ([]byte, bool, error) {
