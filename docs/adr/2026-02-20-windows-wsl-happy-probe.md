@@ -134,6 +134,8 @@ Date: 2026-02-20
 
 ## Decision Record 8: keep probe workflow as manual diagnostic path only
 
+Status: Obsolete; superseded by [Decision Record 9](#decision-record-9-remove-the-obsolete-standalone-probe-test).
+
 - Timestamp: 2026-02-21T05:25:00+07:00
 - User: @evilguest
 - Agent: Codex (GPT-5)
@@ -147,3 +149,21 @@ Date: 2026-02-20
   `workflow_dispatch` only.
 - Rationale: Release gating is now covered by `release-local.yml`; manual probe
   remains useful for focused troubleshooting without extra CI noise.
+
+## Decision Record 9: remove the obsolete standalone probe test
+
+- Timestamp: 2026-08-04T16:59:06+07:00
+- User: @evilguest
+- Agent: Codex (GPT-5)
+- Question: Should the test and documentation for the removed standalone
+  Windows WSL probe remain after its coverage moved into `release-local.yml`?
+- Alternatives:
+  - Keep the orphaned test and historical documentation unchanged.
+  - Restore the standalone probe workflow.
+  - Remove the orphaned test and update the documentation to describe the
+    release-gated matrix.
+- Decision: Remove `windows-wsl-probe-workflow.test.mjs` and update the user
+  guide to reference the Windows cells in `release-local.yml`.
+- Rationale: The standalone workflow was removed in commit `ab0bedf`, so its
+  test could only fail on a missing file. The release workflow and its tests
+  now own the same Windows/WSL contract.
