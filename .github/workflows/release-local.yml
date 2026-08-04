@@ -842,7 +842,13 @@ jobs:
         run: |
           set -euo pipefail
           if ! command -v podman >/dev/null 2>&1; then
-            brew install podman
+            podman_version="v5.8.5"
+            podman_pkg="${RUNNER_TEMP}/podman-installer-macos-amd64.pkg"
+            podman_sha256="2677be9fa3bf75f7dbd4dfe5f5039cf105806f102af15ee6c6d174c70dcda3b8"
+            podman_url="https://github.com/podman-container-tools/podman/releases/download/${podman_version}/podman-installer-macos-amd64.pkg"
+            curl -fsSL "$podman_url" -o "$podman_pkg"
+            echo "${podman_sha256}  ${podman_pkg}" | shasum -a 256 -c -
+            sudo installer -pkg "$podman_pkg" -target /
           fi
           podman --version
 
