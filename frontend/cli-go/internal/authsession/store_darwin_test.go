@@ -31,8 +31,8 @@ func withDarwinCredentialStubs(
 }
 
 func TestSystemCredentialStoreDarwinPutGetDelete(t *testing.T) {
-	key := CredentialKey{Profile: "remote", Endpoint: "https://sqlrs.example.org", Issuer: "issuer", ClientID: "client"}
-	want := Session{Provider: "google", RefreshToken: "refresh", TokenExpiry: time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)}
+	key := CredentialKey{ProfileName: "remote", Endpoint: "https://sqlrs.example.org", Issuer: "issuer", ClientID: "client"}
+	want := Session{Provider: "google", RefreshToken: "refresh", IDTokenExpiry: time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)}
 	var stored []byte
 	var account string
 	deleted := false
@@ -69,7 +69,7 @@ func TestSystemCredentialStoreDarwinPutGetDelete(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("Get = %#v, %t, %v", got, ok, err)
 	}
-	if got.RefreshToken != want.RefreshToken || !got.TokenExpiry.Equal(want.TokenExpiry) {
+	if got.RefreshToken != want.RefreshToken || !got.IDTokenExpiry.Equal(want.IDTokenExpiry) {
 		t.Fatalf("session = %#v, want %#v", got, want)
 	}
 	if !strings.Contains(account, "remote") {
@@ -84,7 +84,7 @@ func TestSystemCredentialStoreDarwinPutGetDelete(t *testing.T) {
 }
 
 func TestSystemCredentialStoreDarwinErrorsAndMissingSession(t *testing.T) {
-	key := CredentialKey{Profile: "remote"}
+	key := CredentialKey{ProfileName: "remote"}
 	store := SystemCredentialStore{}
 
 	withDarwinCredentialStubs(t,
