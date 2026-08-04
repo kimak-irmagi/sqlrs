@@ -21,7 +21,7 @@ sources:
   sakila-postgres-schema:
     kind: single-file
     url: https://raw.githubusercontent.com/sakiladb/postgres/master/1-postgres-sakila-schema.sql
-    sha256: 4c82eaf8c8fee22f35bb067f996028325546844184d0412cecd7c42cd19c21dd
+    sha256: cde48de659d307b5d0d0434e3110d5792583df8899f8fea7d4f743b72e0c4aa4
     out:
       path: examples/sakila/1-postgres-sakila-schema.sql
     license:
@@ -30,7 +30,7 @@ sources:
   sakila-postgres-data:
     kind: single-file
     url: https://raw.githubusercontent.com/sakiladb/postgres/master/2-postgres-sakila-insert-data.sql
-    sha256: 5abfb27721f56443dcd67b0fe4313c66c2ceca5e552fc1e31b2fb289157ff2e9
+    sha256: 2e414ba12ded2eefa6f09a428f5bfc8b566e5ceacc14a573040bb52fb2fea631
     out:
       path: examples/sakila/2-postgres-sakila-insert-data.sql
     license:
@@ -39,7 +39,7 @@ sources:
   sakila-postgres-user:
     kind: single-file
     url: https://raw.githubusercontent.com/sakiladb/postgres/master/3-postgres-sakila-user.sql
-    sha256: dbe46ab6a1ecfcf15af929907c927545f495b733ce454e4b56d83ec0728b5307
+    sha256: c734478cb5157db07a46dcad05fdc564c614ccdcc2b34df73236594db4666ab9
     out:
       path: examples/sakila/3-postgres-sakila-user.sql
     license:
