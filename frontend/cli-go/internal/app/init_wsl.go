@@ -71,6 +71,7 @@ var runHostCommandFn = runHostCommand
 var isElevatedFn = isElevated
 var isTerminalWriterFn = isTerminalWriter
 var isWindows = runtime.GOOS == "windows"
+var validateInstalledWSLEngineFn = validateInstalledWSLEngine
 
 const defaultVHDXName = "btrfs.vhdx"
 const defaultInstalledWSLEnginePath = "/home/user/.local/lib/sqlrs/sqlrs-engine"
@@ -139,19 +140,28 @@ func installWSLEngine(ctx context.Context, distro, sourcePath, destination strin
 	if err != nil {
 		return "", fmt.Errorf("read WSL engine payload: %w", err)
 	}
+	expectedMachine, err := expectedELFMachineHex(runtime.GOARCH)
+	if err != nil {
+		return "", err
+	}
 	const script = `set -eu
 dest="$1"
+expected_machine="$2"
 if [ -z "$dest" ]; then dest="$HOME/.local/lib/sqlrs/sqlrs-engine"; fi
 dir="${dest%/*}"
 mkdir -p "$dir"
 tmp="$(mktemp "$dir/.sqlrs-engine.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 cat >"$tmp"
+magic="$(dd if="$tmp" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+machine="$(dd if="$tmp" bs=1 skip=18 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+test "$magic" = "7f454c46"
+test "$machine" = "$expected_machine"
 chmod 755 "$tmp"
 mv -f "$tmp" "$dest"
 trap - EXIT
 printf '%s\n' "$dest"`
-	out, err := runWSLCommandWithInputFn(ctx, distro, verbose, "install WSL engine", string(payload), "sh", "-c", script, "sqlrs-engine-installer", strings.TrimSpace(destination))
+	out, err := runWSLCommandWithInputFn(ctx, distro, verbose, "install WSL engine", string(payload), "sh", "-c", script, "sqlrs-engine-installer", strings.TrimSpace(destination), expectedMachine)
 	if err != nil {
 		return "", fmt.Errorf("install WSL engine: %w", err)
 	}
@@ -160,6 +170,37 @@ printf '%s\n' "$dest"`
 		return "", fmt.Errorf("install WSL engine: installer returned invalid path %q", installed)
 	}
 	return installed, nil
+}
+
+func validateInstalledWSLEngine(ctx context.Context, distro, installedPath string, verbose bool) error {
+	expectedMachine, err := expectedELFMachineHex(runtime.GOARCH)
+	if err != nil {
+		return err
+	}
+	const script = `set -eu
+path="$1"
+expected_machine="$2"
+test -f "$path"
+test -x "$path"
+magic="$(dd if="$path" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+machine="$(dd if="$path" bs=1 skip=18 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+test "$magic" = "7f454c46"
+test "$machine" = "$expected_machine"`
+	if _, err := runWSLCommandAllowFailureFn(ctx, distro, verbose, "validate installed WSL engine", "sh", "-c", script, "sqlrs-engine-validator", strings.TrimSpace(installedPath), expectedMachine); err != nil {
+		return fmt.Errorf("installed WSL engine is missing or incompatible: %w", err)
+	}
+	return nil
+}
+
+func expectedELFMachineHex(goarch string) (string, error) {
+	switch goarch {
+	case "amd64":
+		return "3e00", nil
+	case "arm64":
+		return "b700", nil
+	default:
+		return "", fmt.Errorf("unsupported WSL engine architecture %q", goarch)
+	}
 }
 
 func wslUnavailable(opts wslInitOptions, warning string) (wslInitResult, error) {

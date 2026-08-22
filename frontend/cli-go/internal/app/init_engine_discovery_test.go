@@ -129,8 +129,8 @@ func TestRunInitRepairsMissingDerivedWSLEngineWithoutUpdate(t *testing.T) {
 	installedCalls := 0
 	runWSLCommandWithInputFn = func(_ context.Context, _ string, _ bool, _ string, _ string, _ string, args ...string) (string, error) {
 		installedCalls++
-		if args[len(args)-1] != installed {
-			t.Fatalf("repair destination=%q", args[len(args)-1])
+		if args[len(args)-2] != installed {
+			t.Fatalf("repair destination=%q", args[len(args)-2])
 		}
 		return installed + "\n", nil
 	}

@@ -39,6 +39,10 @@ type commandContext struct {
 	verbose              bool
 }
 
+var resolveHostEngineFn = func(req enginebin.Request) (enginebin.Resolved, error) {
+	return (enginebin.Resolver{}).Resolve(req)
+}
+
 // resolveCommandContext resolves config, profile, runtime paths, and output mode
 // once for the whole CLI invocation as described by the maintainability refactor design.
 func resolveCommandContext(cwd string, opts cli.GlobalOptions) (commandContext, error) {
@@ -125,18 +129,11 @@ func resolveCommandContext(cwd string, opts cli.GlobalOptions) (commandContext, 
 		runDir = filepath.Join(cfgResult.Paths.StateDir, "run")
 	}
 
-	daemonPath := os.Getenv("SQLRS_DAEMON_PATH")
+	environmentDaemonPath := strings.TrimSpace(os.Getenv("SQLRS_DAEMON_PATH"))
+	configuredDaemonPath := strings.TrimSpace(cfg.Orchestrator.DaemonPath)
+	daemonPath := environmentDaemonPath
 	if daemonPath == "" {
-		daemonPath = cfg.Orchestrator.DaemonPath
-	}
-	if strings.TrimSpace(daemonPath) == "" && mode == "local" {
-		if resolved, resolveErr := (enginebin.Resolver{}).Resolve(enginebin.Request{
-			Kind:       enginebin.KindHost,
-			TargetOS:   runtime.GOOS,
-			TargetArch: runtime.GOARCH,
-		}); resolveErr == nil {
-			daemonPath = resolved.Path
-		}
+		daemonPath = configuredDaemonPath
 	}
 	engineRunDir := ""
 	engineStatePath := ""
@@ -150,6 +147,19 @@ func resolveCommandContext(cwd string, opts cli.GlobalOptions) (commandContext, 
 		if err != nil {
 			return result, err
 		}
+	}
+	if mode == "local" && wslDistro == "" {
+		resolved, resolveErr := resolveHostEngineFn(enginebin.Request{
+			Kind:            enginebin.KindHost,
+			TargetOS:        runtime.GOOS,
+			TargetArch:      runtime.GOARCH,
+			EnvironmentPath: environmentDaemonPath,
+			ConfigPath:      configuredDaemonPath,
+		})
+		if resolveErr != nil {
+			return result, fmt.Errorf("resolve host engine: %w", resolveErr)
+		}
+		daemonPath = resolved.Path
 	}
 
 	result.profileName = profileName
