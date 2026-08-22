@@ -150,6 +150,9 @@ func TestRunInitRepairsMissingDerivedWSLEngineWithoutUpdate(t *testing.T) {
 }
 
 func TestRunInitAutoRejectsUnavailableWSLPayload(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("automatic WSL selection is only available on Windows")
+	}
 	withWindowsMode(t)
 	previousResolver := resolveWSLPayloadFn
 	resolveWSLPayloadFn = func(string) (enginebin.Resolved, error) {
