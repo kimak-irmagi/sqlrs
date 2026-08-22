@@ -44,8 +44,8 @@ Retains orchestration ownership:
 
 - `runInit` determines which runtime binaries are required from snapshot/store
   selection;
-- command-context construction maps typed config and environment values into
-  `enginebin.Request`;
+- command-context construction maps typed config and environment values into a
+  deferred runtime candidate;
 - package-local WSL provisioning installs the resolved Linux source by copying
   to a temporary file, setting executable permissions, validating the installed
   file, and atomically renaming it;
@@ -73,9 +73,11 @@ choose engine candidates or own bundle layout.
 
 ### `internal/daemon`
 
-Receives a fully resolved runtime command from `internal/app`. It remains
+Receives a deferred runtime candidate from `internal/app`. It remains
 responsible for lock acquisition, process start, health polling, and
-`engine.json`; it does not discover executables.
+`engine.json`. After the final locked health check and only when a new process
+must be started, it resolves the native host engine through `internal/enginebin`
+or validates the configured installed WSL engine path.
 
 ## Release Packaging
 
@@ -115,6 +117,7 @@ flowchart LR
   APP --> CONFIG["internal/config"]
   APP --> WSL["internal/wsl"]
   APP --> DAEMON["internal/daemon"]
+  DAEMON --> ENGINEBIN
   ENGINEBIN --> FS["os / filesystem / PATH"]
   APP --> WSLFS["WSL derived engine installation"]
   PACKAGER["scripts/release-local.mjs"] --> BUNDLE["release bundle"]

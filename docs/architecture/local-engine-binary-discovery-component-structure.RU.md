@@ -43,7 +43,7 @@ workspace config, не выполняет WSL-команды, не копиру�
 
 - `runInit` определяет нужные runtime binaries из выбора snapshot/store;
 - сборка command context переводит typed config и environment values в
-  `enginebin.Request`;
+  отложенный runtime candidate;
 - package-local WSL provisioning устанавливает найденный Linux source через
   временную копию, executable permissions, проверку установленного файла и
   атомарное переименование;
@@ -70,9 +70,11 @@ engine candidates и не владеет структурой bundle.
 
 ### `internal/daemon`
 
-Получает полностью разрешённую runtime command из `internal/app`. Он по-прежнему
-отвечает за lock, запуск процесса, health polling и `engine.json`, но не за
-discovery executable.
+Получает отложенный runtime candidate из `internal/app`. Он по-прежнему отвечает
+за lock, запуск процесса, health polling и `engine.json`. После финальной
+health-проверки под lock и только когда требуется запустить новый процесс он
+разрешает native host engine через `internal/enginebin` либо проверяет
+настроенный путь установленного WSL engine.
 
 ## Release packaging
 
@@ -112,6 +114,7 @@ flowchart LR
   APP --> CONFIG["internal/config"]
   APP --> WSL["internal/wsl"]
   APP --> DAEMON["internal/daemon"]
+  DAEMON --> ENGINEBIN
   ENGINEBIN --> FS["os / filesystem / PATH"]
   APP --> WSLFS["WSL derived engine installation"]
   PACKAGER["scripts/release-local.mjs"] --> BUNDLE["release bundle"]

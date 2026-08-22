@@ -553,7 +553,6 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 	if mode != "local" && mode != "remote" {
 		return opts, false, ExitErrorf(64, "Invalid arguments: unknown init mode")
 	}
-
 	if mode == "remote" {
 		if opts.RemoteURL == "" || opts.RemoteToken == "" {
 			return opts, false, ExitErrorf(64, "Invalid arguments: --url and --token are required for remote init")
@@ -562,6 +561,9 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 			return opts, false, ExitErrorf(64, "Invalid arguments: local-only flags are not valid for remote init")
 		}
 		return opts, false, nil
+	}
+	if opts.WSLEnginePath != "" && !isWindows {
+		return opts, false, ExitErrorf(64, "Invalid arguments: --wsl-engine is only valid on Windows")
 	}
 
 	if opts.RemoteURL != "" || opts.RemoteToken != "" {

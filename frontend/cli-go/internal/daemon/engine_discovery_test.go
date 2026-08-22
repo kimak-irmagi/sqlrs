@@ -64,6 +64,52 @@ func TestConnectOrStartDefersHostResolutionUntilAutostart(t *testing.T) {
 	}
 }
 
+func TestConnectOrStartDefersHostResolutionUntilLockedHealthRecheck(t *testing.T) {
+	healthChecks := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/health" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		healthChecks++
+		if healthChecks < 3 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"ok":true,"instanceId":"inst"}`)
+	}))
+	defer server.Close()
+
+	stateDir := t.TempDir()
+	if err := WriteEngineState(filepath.Join(stateDir, "engine.json"), EngineState{
+		Endpoint:   server.URL,
+		InstanceID: "inst",
+	}); err != nil {
+		t.Fatalf("WriteEngineState: %v", err)
+	}
+	withStartHostResolver(t, func(string) (enginebin.Resolved, error) {
+		t.Fatal("engine that became healthy before the locked recheck must not be resolved")
+		return enginebin.Resolved{}, nil
+	})
+
+	result, err := ConnectOrStart(context.Background(), ConnectOptions{
+		Endpoint:       "auto",
+		Autostart:      true,
+		DaemonPath:     "missing-engine",
+		RunDir:         stateDir,
+		StateDir:       stateDir,
+		StartupTimeout: time.Second,
+		ClientTimeout:  time.Second,
+	})
+	if err != nil {
+		t.Fatalf("ConnectOrStart: %v", err)
+	}
+	if result.Endpoint != server.URL {
+		t.Fatalf("endpoint=%q, want %q", result.Endpoint, server.URL)
+	}
+}
+
 func TestConnectOrStartMissingWSLEngineReturnsInitHint(t *testing.T) {
 	withStartWSLValidator(t, func(context.Context, string, string) error {
 		return errors.New("exit status 1")

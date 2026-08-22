@@ -117,20 +117,6 @@ LONG_PATH:
 	if opts.RunDir == "" {
 		return ConnectResult{}, fmt.Errorf("runDir is not configured")
 	}
-	if strings.TrimSpace(opts.WSLDistro) != "" {
-		if strings.TrimSpace(opts.DaemonPath) == "" {
-			return ConnectResult{}, fmt.Errorf("configured WSL engine is missing; rerun sqlrs init local")
-		}
-		if err := validateWSLEngineForStartFn(ctx, opts.WSLDistro, opts.DaemonPath); err != nil {
-			return ConnectResult{}, fmt.Errorf("configured WSL engine %q is unavailable: %v; rerun sqlrs init local", opts.DaemonPath, err)
-		}
-	} else {
-		resolved, err := resolveHostEngineForStartFn(opts.DaemonPath)
-		if err != nil {
-			return ConnectResult{}, fmt.Errorf("resolve host engine: %w", err)
-		}
-		opts.DaemonPath = resolved.Path
-	}
 
 	if err := util.EnsureDir(opts.RunDir); err != nil {
 		return ConnectResult{}, err
@@ -158,6 +144,20 @@ LONG_PATH:
 
 	if mustStartDaemon {
 		logVerbose(opts.Verbose, "healthy engine rejected auth after refresh; starting new daemon")
+	}
+	if strings.TrimSpace(opts.WSLDistro) != "" {
+		if strings.TrimSpace(opts.DaemonPath) == "" {
+			return ConnectResult{}, fmt.Errorf("configured WSL engine is missing; rerun sqlrs init local")
+		}
+		if err := validateWSLEngineForStartFn(ctx, opts.WSLDistro, opts.DaemonPath); err != nil {
+			return ConnectResult{}, fmt.Errorf("configured WSL engine %q is unavailable: %v; rerun sqlrs init local", opts.DaemonPath, err)
+		}
+	} else {
+		resolved, err := resolveHostEngineForStartFn(opts.DaemonPath)
+		if err != nil {
+			return ConnectResult{}, fmt.Errorf("resolve host engine: %w", err)
+		}
+		opts.DaemonPath = resolved.Path
 	}
 	logsDir := filepath.Join(opts.StateDir, "logs")
 	if err := util.EnsureDir(logsDir); err != nil {

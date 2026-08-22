@@ -13,12 +13,24 @@ import (
 )
 
 func TestParseInitFlagsSeparatesHostAndWSLEngines(t *testing.T) {
+	withWindowsMode(t)
 	opts, help, err := parseInitFlags([]string{"local", "--engine", "host.exe", "--wsl-engine", "linux-engine"}, "")
 	if err != nil || help {
 		t.Fatalf("parseInitFlags() help=%v err=%v", help, err)
 	}
 	if opts.EnginePath != "host.exe" || opts.WSLEnginePath != "linux-engine" {
 		t.Fatalf("unexpected engine paths: host=%q wsl=%q", opts.EnginePath, opts.WSLEnginePath)
+	}
+}
+
+func TestParseInitFlagsRejectsWSLEngineOutsideWindows(t *testing.T) {
+	previous := isWindows
+	isWindows = false
+	t.Cleanup(func() { isWindows = previous })
+
+	_, _, err := parseInitFlags([]string{"local", "--wsl-engine", "linux-engine"}, "")
+	if err == nil || !strings.Contains(err.Error(), "only valid on Windows") {
+		t.Fatalf("expected Windows-only flag error, got %v", err)
 	}
 }
 
