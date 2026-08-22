@@ -51,8 +51,9 @@ node scripts/build-cli-go.mjs
 
 ## Release packaging (local variant)
 
-The local release bundles `sqlrs` and `sqlrs-engine` into archives under
-`dist/release/`.
+The local release bundles `sqlrs` and its native `sqlrs-engine` into archives
+under `dist/release/`. A Windows archive additionally bundles the matching Linux
+engine payload for WSL2 under `libexec/linux-<arch>/sqlrs-engine`.
 
 Provide a platform-specific engine binary per target, for example:
 
@@ -64,6 +65,12 @@ Build an archive:
 
 ```bash
 node scripts/release-local.mjs --version v0.1.0 --os linux --arch amd64 --engine-bin dist/engine/linux_amd64/sqlrs-engine
+```
+
+Windows packaging additionally requires the Linux companion:
+
+```powershell
+node scripts/release-local.mjs --version v0.1.0 --os windows --arch amd64 --engine-bin dist/engine/windows_amd64/sqlrs-engine.exe --wsl-engine-bin dist/engine/linux_amd64/sqlrs-engine
 ```
 
 ## Test

@@ -54,6 +54,9 @@ flowchart LR
 - Parse user commands and flags
 - Interact with local filesystem (project config, paths)
 - Discover or spawn a local engine process
+- Resolve the native engine from explicit configuration, environment, the CLI
+  release bundle, or `PATH`; on Windows, resolve and provision the bundled Linux
+  companion independently for WSL2/btrfs
 - Communicate with engine via HTTP over loopback or Unix socket
 - Execute `run` commands locally against a prepared instance/instance
 - Reject remote-only user and organization management commands before local
@@ -190,6 +193,10 @@ On Windows (when btrfs is selected):
 - Engine writes `engine.json` to the Windows state directory and receives that path via `/mnt/...` (WSL path translation)
 - Engine verifies the systemd mount for `SQLRS_STATE_STORE` at startup (WSL + btrfs only)
 - StateFS backend may fall back to copy-based strategy
+- The Windows release contains both `sqlrs-engine.exe` for native copy mode and
+  a Linux companion under `libexec/linux-<arch>/` for WSL2/btrfs. Discovery and
+  provisioning are defined in
+  [`local-engine-binary-discovery-flow.md`](local-engine-binary-discovery-flow.md).
 
 ---
 

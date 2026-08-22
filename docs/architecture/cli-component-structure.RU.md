@@ -108,6 +108,11 @@
     refresh token-ами или cached ID token-ами.
 - `internal/paths`
   - OS-aware разрешение директорий config/cache/state.
+- `internal/enginebin`
+  - Разрешает native и Windows WSL companion engine binaries из explicit
+    overrides, environment, bundle запущенного CLI и native `PATH` fallback.
+  - Проверяет executable format и target architecture, не читая config, не
+    выполняя WSL-команды и не сохраняя state.
 - `internal/wsl`
   - Примитивы определения WSL и выбора дистрибутива, которые `internal/app`
     использует для `init local` и Windows local mode.
@@ -216,6 +221,7 @@ flowchart LR
   DAEMON["internal/daemon"]
   CONFIG["internal/config"]
   PATHS["internal/paths"]
+  ENGINEBIN["internal/enginebin"]
   WSL["internal/wsl"]
   UTIL["internal/util"]
   FS["workspace filesystem"]
@@ -228,6 +234,7 @@ flowchart LR
   APP --> REFCTX
   APP --> CONFIG
   APP --> PATHS
+  APP --> ENGINEBIN
   APP --> WSL
   APP --> UTIL
   AUTH --> CONFIG

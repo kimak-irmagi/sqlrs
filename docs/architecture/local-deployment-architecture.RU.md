@@ -54,6 +54,9 @@ flowchart LR
 - Парсить команды и флаги пользователя
 - Работать с локальной файловой системой (конфиг проекта, пути)
 - Находить или запускать локальный процесс engine
+- Разрешать native engine из explicit config, environment, CLI release bundle
+  или `PATH`; на Windows отдельно разрешать и устанавливать bundled Linux
+  companion для WSL2/btrfs
 - Общаться с engine по HTTP через loopback или Unix socket
 - Выполнять `run` команды локально против подготовленного экземпляра
 - Отклонять remote-only команды управления пользователями и организациями до
@@ -191,6 +194,10 @@ Engine выполняет `psql` внутри DB-контейнера через
 - Engine пишет `engine.json` в Windows state dir и получает путь через `/mnt/...` (WSL path translation)
 - Engine проверяет systemd-маунт `SQLRS_STATE_STORE` при старте (только WSL + btrfs)
 - StateFS backend может откатываться на copy-based стратегию
+- Windows release содержит `sqlrs-engine.exe` для native copy mode и Linux
+  companion в `libexec/linux-<arch>/` для WSL2/btrfs. Discovery и provisioning
+  определены в
+  [`local-engine-binary-discovery-flow.RU.md`](local-engine-binary-discovery-flow.RU.md).
 
 ---
 

@@ -71,6 +71,8 @@ Scenario metadata is declared in:
 
 1. Maintainer pushes RC tag `vX.Y.Z-rc.N`.
 2. `build_rc` compiles `sqlrs` and `sqlrs-engine` for all targets and packages bundles.
+   The Windows archive is self-contained: it includes the native Windows engine
+   and the matching Linux engine payload under `libexec/linux-<arch>/`.
 3. `build_rc` publishes archives, checksums, and `release-manifest.json` as
    workflow artifacts.
 4. `e2e_happy_path` downloads RC artifacts and runs release-gated matrix in
@@ -79,6 +81,9 @@ Scenario metadata is declared in:
    - Linux: `hp-psql-chinook`/`hp-psql-sakila` with `copy` and `btrfs`.
    - Windows: `hp-psql-chinook` with `copy` (host engine) and `btrfs`
      (host `sqlrs.exe` + WSL runtime).
+     Both cells extract only the published Windows archive; the WSL cell must
+     use its bundled Linux payload rather than a separately downloaded Linux
+     release.
    - macOS podman probe: `hp-psql-chinook` with `copy`, runtime forced by
      `container.runtime=podman`, with double `prepare+run` pass in one workspace.
      Podman machine startup in this cell is release-blocking.

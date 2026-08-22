@@ -72,7 +72,9 @@ Release-blocking сценарии для MVP:
 
 1. Maintainer пушит RC tag `vX.Y.Z-rc.N`.
 2. `build_rc` компилирует `sqlrs` и `sqlrs-engine` для всех таргетов и
-   упаковывает бандлы.
+   упаковывает бандлы. Windows archive самодостаточен: он содержит native
+   Windows engine и соответствующий Linux engine payload в
+   `libexec/linux-<arch>/`.
 3. `build_rc` публикует архивы, checksums и `release-manifest.json` как workflow
    artifacts.
 4. `e2e_happy_path` скачивает RC-артефакты и выполняет release-gated матрицу в
@@ -81,6 +83,9 @@ Release-blocking сценарии для MVP:
    - Linux: `hp-psql-chinook`/`hp-psql-sakila` с `copy` и `btrfs`.
    - Windows: `hp-psql-chinook` с `copy` (host engine) и `btrfs`
      (host `sqlrs.exe` + WSL runtime).
+     Обе ячейки распаковывают только публикуемый Windows archive; WSL-ячейка
+     обязана использовать bundled Linux payload, а не отдельно загруженный
+     Linux release.
    - macOS podman probe: `hp-psql-chinook` с `copy`, runtime принудительно
      задается через `container.runtime=podman`, `prepare+run` выполняется дважды
      в одном workspace.

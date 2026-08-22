@@ -31,6 +31,10 @@ Entry points for Taidon architecture and service design.
   auth package boundaries, credential storage, and data ownership.
 - [`cli-component-structure.md`](cli-component-structure.md) - CLI internal
   component structure.
+- [`local-engine-binary-discovery-flow.md`](local-engine-binary-discovery-flow.md) -
+  local engine discovery, Windows dual-engine bundle, and WSL provisioning flow.
+- [`local-engine-binary-discovery-component-structure.md`](local-engine-binary-discovery-component-structure.md) -
+  package boundaries and data ownership for engine binary discovery.
 - [`inputset-component-structure.md`](inputset-component-structure.md) - shared
   CLI-side input-set layer for file-bearing command semantics.
 - [`local-engine-component-structure.md`](local-engine-component-structure.md) -

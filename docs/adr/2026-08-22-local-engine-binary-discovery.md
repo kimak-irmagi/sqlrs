@@ -1,6 +1,6 @@
 # ADR: Local engine binary discovery and Windows bundle composition
 
-Status: Proposed
+Status: Accepted
 Date: 2026-08-22
 
 ## Decision Record 1: Resolve local engines without mandatory configuration

@@ -32,6 +32,10 @@
   границы CLI auth packages, credential storage и владение данными.
 - [`cli-component-structure.RU.md`](cli-component-structure.RU.md) - внутренняя
   структура CLI.
+- [`local-engine-binary-discovery-flow.RU.md`](local-engine-binary-discovery-flow.RU.md) -
+  discovery локального engine, Windows dual-engine bundle и WSL provisioning.
+- [`local-engine-binary-discovery-component-structure.RU.md`](local-engine-binary-discovery-component-structure.RU.md) -
+  package boundaries и владение данными для discovery engine binaries.
 - [`inputset-component-structure.RU.md`](inputset-component-structure.RU.md) -
   общий CLI-side слой input set для file-bearing семантики команд.
 - [`local-engine-component-structure.RU.md`][lecs] -
