@@ -244,7 +244,7 @@ func writeHealthyDaemonScript(t *testing.T, dir, endpoint, instanceID, token str
 			"shift\r\n" +
 			"goto parse\r\n" +
 			":parsed\r\n" +
-			"powershell -NoProfile -Command \"Start-Sleep -Milliseconds 200\"\r\n" +
+			"ping -n 2 127.0.0.1 >nul\r\n" +
 			fmt.Sprintf("> \"%%state%%\" echo {\"endpoint\":\"%s\",\"instanceId\":\"%s\",\"authToken\":\"%s\"}\r\n", endpoint, instanceID, token) +
 			"timeout /t 2 /nobreak >nul\r\n"
 		if err := os.WriteFile(path, []byte(content), 0o700); err != nil {
