@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -100,6 +101,26 @@ func TestExplicitInvalidCandidateDoesNotFallThrough(t *testing.T) {
 	_, err := resolver.Resolve(Request{Kind: KindHost, TargetOS: "linux", TargetArch: "amd64", ExplicitPath: missing})
 	if err == nil || !strings.Contains(err.Error(), "explicit") || !strings.Contains(err.Error(), missing) {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestResolveHostRejectsNonExecutablePOSIXCandidate(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not expose POSIX execute bits")
+	}
+	root := t.TempDir()
+	candidate := writeELF(t, root, "sqlrs-engine", 62)
+	if err := os.Chmod(candidate, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := (Resolver{}).Resolve(Request{
+		Kind:         KindHost,
+		TargetOS:     "linux",
+		TargetArch:   "amd64",
+		ExplicitPath: candidate,
+	})
+	if err == nil || !strings.Contains(err.Error(), "not executable") {
+		t.Fatalf("expected execute-permission error, got %v", err)
 	}
 }
 

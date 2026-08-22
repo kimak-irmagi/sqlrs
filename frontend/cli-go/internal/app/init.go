@@ -59,6 +59,10 @@ const defaultBtrfsStoreSizeGB = 100
 
 var initLocalBtrfsStoreFn = initLocalBtrfsStore
 
+var resolveHostEngineFn = func(req enginebin.Request) (enginebin.Resolved, error) {
+	return (enginebin.Resolver{}).Resolve(req)
+}
+
 var resolveWSLPayloadFn = func(explicit string) (enginebin.Resolved, error) {
 	return (enginebin.Resolver{}).Resolve(enginebin.Request{
 		Kind:            enginebin.KindWSLPayload,
@@ -184,16 +188,9 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 		if useWSL {
 			resolved, resolveErr := resolveWSLPayloadFn(opts.WSLEnginePath)
 			if resolveErr != nil {
-				explicitWSLEngine := strings.TrimSpace(opts.WSLEnginePath) != "" || strings.TrimSpace(os.Getenv("SQLRS_WSL_ENGINE_PATH")) != ""
-				if requireWSL || explicitWSLEngine {
-					return ExitErrorf(64, "Invalid WSL engine: %v", resolveErr)
-				}
-				useWSL = false
-				resolvedStoreType = "dir"
-				resolvedStorePath, _ = resolveStorePath(resolvedStoreType, "")
-			} else {
-				wslEngineSource = resolved.Path
+				return ExitErrorf(64, "Invalid WSL engine: %v", resolveErr)
 			}
+			wslEngineSource = resolved.Path
 		}
 		usesWSLRuntime = useWSL
 		if useWSL && !opts.DryRun {

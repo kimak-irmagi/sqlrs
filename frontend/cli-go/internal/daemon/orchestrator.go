@@ -17,9 +17,25 @@ import (
 	"sync"
 	"time"
 	"unicode"
+
+	"github.com/sqlrs/cli/internal/enginebin"
 )
 
 var isWindows = runtime.GOOS == "windows"
+
+var resolveHostEngineForStartFn = func(candidate string) (enginebin.Resolved, error) {
+	return (enginebin.Resolver{}).Resolve(enginebin.Request{
+		Kind:       enginebin.KindHost,
+		TargetOS:   runtime.GOOS,
+		TargetArch: runtime.GOARCH,
+		ConfigPath: candidate,
+	})
+}
+
+var validateWSLEngineForStartFn = func(ctx context.Context, distro, enginePath string) error {
+	_, err := runWSLCommandFn(ctx, distro, "test", "-x", enginePath)
+	return err
+}
 
 var cachedEngineStates = struct {
 	mu sync.Mutex
@@ -98,12 +114,22 @@ LONG_PATH:
 		logVerbose(opts.Verbose, "engine not running and autostart disabled")
 		return ConnectResult{}, fmt.Errorf("local engine is not running")
 	}
-	if opts.DaemonPath == "" {
-		return ConnectResult{}, fmt.Errorf("local daemon path is not configured")
-	}
-
 	if opts.RunDir == "" {
 		return ConnectResult{}, fmt.Errorf("runDir is not configured")
+	}
+	if strings.TrimSpace(opts.WSLDistro) != "" {
+		if strings.TrimSpace(opts.DaemonPath) == "" {
+			return ConnectResult{}, fmt.Errorf("configured WSL engine is missing; rerun sqlrs init local")
+		}
+		if err := validateWSLEngineForStartFn(ctx, opts.WSLDistro, opts.DaemonPath); err != nil {
+			return ConnectResult{}, fmt.Errorf("configured WSL engine %q is unavailable: %v; rerun sqlrs init local", opts.DaemonPath, err)
+		}
+	} else {
+		resolved, err := resolveHostEngineForStartFn(opts.DaemonPath)
+		if err != nil {
+			return ConnectResult{}, fmt.Errorf("resolve host engine: %w", err)
+		}
+		opts.DaemonPath = resolved.Path
 	}
 
 	if err := util.EnsureDir(opts.RunDir); err != nil {

@@ -33,6 +33,17 @@ var defaultTestHostResolver = func(req enginebin.Request) (enginebin.Resolved, e
 
 func TestMain(m *testing.M) {
 	resolveHostEngineFn = defaultTestHostResolver
+	resolveWSLPayloadFn = func(explicit string) (enginebin.Resolved, error) {
+		if strings.TrimSpace(explicit) != "" {
+			return (enginebin.Resolver{}).Resolve(enginebin.Request{
+				Kind:         enginebin.KindWSLPayload,
+				TargetOS:     "linux",
+				TargetArch:   runtime.GOARCH,
+				ExplicitPath: explicit,
+			})
+		}
+		return enginebin.Resolved{Path: filepath.Join(os.TempDir(), "sqlrs-engine-linux"), Kind: enginebin.KindWSLPayload, Origin: enginebin.OriginBundle}, nil
+	}
 	os.Exit(m.Run())
 }
 
@@ -62,7 +73,7 @@ func TestRunInitRejectsMissingHostEngineBeforeWritingConfig(t *testing.T) {
 	}
 }
 
-func TestResolveCommandContextValidatesConfiguredHostCandidate(t *testing.T) {
+func TestResolveCommandContextDefersConfiguredHostCandidateValidation(t *testing.T) {
 	temp := t.TempDir()
 	setTestDirs(t, temp)
 	marker := filepath.Join(temp, ".sqlrs")
@@ -75,15 +86,16 @@ func TestResolveCommandContextValidatesConfiguredHostCandidate(t *testing.T) {
 		t.Fatal(err)
 	}
 	withHostResolver(t, func(req enginebin.Request) (enginebin.Resolved, error) {
-		if req.ConfigPath != configured {
-			t.Fatalf("config candidate=%q, want %q", req.ConfigPath, configured)
-		}
-		return enginebin.Resolved{}, errors.New("format elf is incompatible with windows")
+		t.Fatal("command context must defer host discovery until daemon autostart")
+		return enginebin.Resolved{}, nil
 	})
 
-	_, err := resolveCommandContext(temp, cli.GlobalOptions{})
-	if err == nil || !strings.Contains(err.Error(), "resolve host engine") {
-		t.Fatalf("expected validated host-engine error, got %v", err)
+	ctx, err := resolveCommandContext(temp, cli.GlobalOptions{})
+	if err != nil {
+		t.Fatalf("resolveCommandContext: %v", err)
+	}
+	if ctx.daemonPath != configured {
+		t.Fatalf("daemonPath=%q, want deferred candidate %q", ctx.daemonPath, configured)
 	}
 }
 

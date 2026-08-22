@@ -10,7 +10,6 @@ import (
 
 	"github.com/sqlrs/cli/internal/cli"
 	"github.com/sqlrs/cli/internal/config"
-	"github.com/sqlrs/cli/internal/enginebin"
 )
 
 // commandContext centralizes shared CLI command wiring defined in
@@ -37,10 +36,6 @@ type commandContext struct {
 	idleTimeout          time.Duration
 	startupTimeout       time.Duration
 	verbose              bool
-}
-
-var resolveHostEngineFn = func(req enginebin.Request) (enginebin.Resolved, error) {
-	return (enginebin.Resolver{}).Resolve(req)
 }
 
 // resolveCommandContext resolves config, profile, runtime paths, and output mode
@@ -148,20 +143,6 @@ func resolveCommandContext(cwd string, opts cli.GlobalOptions) (commandContext, 
 			return result, err
 		}
 	}
-	if mode == "local" && wslDistro == "" {
-		resolved, resolveErr := resolveHostEngineFn(enginebin.Request{
-			Kind:            enginebin.KindHost,
-			TargetOS:        runtime.GOOS,
-			TargetArch:      runtime.GOARCH,
-			EnvironmentPath: environmentDaemonPath,
-			ConfigPath:      configuredDaemonPath,
-		})
-		if resolveErr != nil {
-			return result, fmt.Errorf("resolve host engine: %w", resolveErr)
-		}
-		daemonPath = resolved.Path
-	}
-
 	result.profileName = profileName
 	result.profile = profile
 	result.mode = mode

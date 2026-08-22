@@ -149,22 +149,20 @@ func TestRunInitRepairsMissingDerivedWSLEngineWithoutUpdate(t *testing.T) {
 	}
 }
 
-func TestRunInitAutoFallsBackToDirectoryWhenWSLPayloadIsUnavailable(t *testing.T) {
+func TestRunInitAutoRejectsUnavailableWSLPayload(t *testing.T) {
 	withWindowsMode(t)
 	previousResolver := resolveWSLPayloadFn
 	resolveWSLPayloadFn = func(string) (enginebin.Resolved, error) {
 		return enginebin.Resolved{}, os.ErrNotExist
 	}
 	t.Cleanup(func() { resolveWSLPayloadFn = previousResolver })
-	storeRoot := filepath.Join(t.TempDir(), "store")
-	t.Setenv("SQLRS_STATE_STORE", storeRoot)
 	workspace := t.TempDir()
 	var out bytes.Buffer
-	if err := runInit(&out, workspace, "", []string{"local"}, false); err != nil {
-		t.Fatalf("runInit: %v", err)
+	err := runInit(&out, workspace, "", []string{"local"}, false)
+	if err == nil || !strings.Contains(err.Error(), "Invalid WSL engine") {
+		t.Fatalf("expected missing-payload error, got %v", err)
 	}
-	raw := loadConfigMap(t, filepath.Join(workspace, ".sqlrs", "config.yaml"))
-	if got := nestedString(raw, "engine", "storePath"); got != storeRoot {
-		t.Fatalf("storePath=%q, want directory fallback %q", got, storeRoot)
+	if _, statErr := os.Stat(filepath.Join(workspace, ".sqlrs")); !os.IsNotExist(statErr) {
+		t.Fatalf("workspace marker must not be written, stat err=%v", statErr)
 	}
 }

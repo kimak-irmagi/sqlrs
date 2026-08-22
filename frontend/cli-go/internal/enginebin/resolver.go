@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -166,6 +167,9 @@ func Validate(path, targetOS, targetArch string) (Validation, error) {
 	}
 	if !info.Mode().IsRegular() {
 		return Validation{}, fmt.Errorf("not a regular file")
+	}
+	if targetOS != "windows" && runtime.GOOS != "windows" && info.Mode().Perm()&0o111 == 0 {
+		return Validation{}, fmt.Errorf("file is not executable")
 	}
 	file, err := os.Open(path)
 	if err != nil {
