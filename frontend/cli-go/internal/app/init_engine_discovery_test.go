@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -66,6 +67,9 @@ func TestInstallWSLEngineWritesAtomically(t *testing.T) {
 }
 
 func TestRunInitPassesResolvedWSLEngineToProvisioner(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("WSL init is only exercised by the Windows CI job")
+	}
 	withWindowsMode(t)
 	workspace := t.TempDir()
 	engine := filepath.Join(workspace, "sqlrs-engine")
