@@ -174,12 +174,27 @@ or `--snapshot auto` with `--store image|device`).
 
 ### `--engine <path>`
 
-Set the local engine binary path in workspace config.
+Set the native host engine binary path in workspace config.
 
-- Overrides built-in defaults
+- Overrides environment, bundle-relative, and `PATH` discovery
 - Stored in `.sqlrs/config.yaml`
 - If a **relative path** is provided **and** the current working directory is inside the workspace, the path is stored **relative to `.sqlrs/config.yaml`**.
 - Otherwise (absolute path, or `sqlrs init` run outside the workspace via `--workspace`), the path is stored as an **absolute path**.
+
+On Windows this path identifies `sqlrs-engine.exe`, which is used for native
+host execution and the `copy` snapshot fallback. It does not identify the Linux
+engine used inside WSL2.
+
+### `--wsl-engine <path>`
+
+Windows only. Set the Linux engine payload that `sqlrs init local` provisions
+inside the selected WSL2 distribution.
+
+- Overrides `SQLRS_WSL_ENGINE_PATH` and bundle-relative discovery
+- Must identify a Linux ELF binary for the host CPU architecture
+- The source path is not used as the long-lived runtime path: init copies the
+  binary into the WSL distribution and records the installed Linux path in
+  `engine.wsl.enginePath`
 
 ### `--shared-cache`
 
@@ -264,7 +279,40 @@ When btrfs is required, the local engine runs inside WSL2:
 
 - `sqlrs init local` provisions the btrfs store inside the selected distro,
   using a host VHDX by default.
+- The Windows release bundle contains both the native Windows engine and the
+  matching Linux engine payload.
+- Init copies the Linux payload into the selected WSL distribution before it
+  writes a WSL-backed workspace configuration.
 - The CLI records WSL mount metadata in workspace config for validation.
+
+### Engine binary discovery
+
+Explicit configuration remains optional for a normal release installation.
+The CLI resolves the native host engine in this order:
+
+1. `--engine` during init, or `orchestrator.daemonPath` after init.
+2. `SQLRS_DAEMON_PATH`.
+3. The platform-native engine in the release bundle containing the running
+   `sqlrs` executable.
+4. `sqlrs-engine` (or `sqlrs-engine.exe`) on `PATH`.
+
+On Windows, the Linux WSL engine payload is resolved independently:
+
+1. `--wsl-engine` during init, or `engine.wsl.enginePath` after provisioning.
+2. `SQLRS_WSL_ENGINE_PATH`.
+3. `libexec/linux-<arch>/sqlrs-engine` in the release bundle containing the
+   running `sqlrs.exe`.
+
+`SQLRS_HOME` is not used for binary discovery. SQLRS home/state directories own
+mutable configuration and runtime state, while release binaries are discovered
+from explicit overrides or the installation layout.
+
+Before creating a new workspace or changing its configuration, local init
+validates every engine binary required by the selected runtime. If validation or
+WSL provisioning fails, `.sqlrs/config.yaml` remains unchanged. Re-running
+`sqlrs init local` for an existing WSL-backed workspace repairs a missing
+provisioned Linux engine from the bundle without requiring `--update`; this
+repairs a derived runtime artifact and does not change user configuration.
 
 ### macOS
 
