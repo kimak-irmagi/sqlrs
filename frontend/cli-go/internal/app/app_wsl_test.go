@@ -30,9 +30,10 @@ func TestResolveWSLSettingsUsesConfig(t *testing.T) {
 	cfg := config.Config{
 		Engine: config.EngineConfig{
 			WSL: config.EngineWSLConfig{
-				Mode:     "auto",
-				Distro:   "Ubuntu",
-				StateDir: "/var/lib/sqlrs/store",
+				Mode:       "auto",
+				Distro:     "Ubuntu",
+				StateDir:   "/var/lib/sqlrs/store",
+				EnginePath: "/home/user/.local/lib/sqlrs/sqlrs-engine",
 			},
 		},
 	}
@@ -53,7 +54,7 @@ func TestResolveWSLSettingsUsesConfig(t *testing.T) {
 	if statePath != "/mnt/c/sqlrs/state/engine.json" {
 		t.Fatalf("unexpected statePath: %s", statePath)
 	}
-	if daemonPath != "/mnt/c/sqlrs/bin/sqlrs-engine" {
+	if daemonPath != "/home/user/.local/lib/sqlrs/sqlrs-engine" {
 		t.Fatalf("unexpected daemonPath: %s", daemonPath)
 	}
 	if mountDevice != "" || mountFSType != "" {

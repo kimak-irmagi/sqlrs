@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sqlrs/cli/internal/enginebin"
 	"gopkg.in/yaml.v3"
 )
 
@@ -211,8 +212,13 @@ func withInitWSLStub(t *testing.T, fn func(opts wslInitOptions) (wslInitResult, 
 	t.Helper()
 	prev := initWSLFn
 	initWSLFn = fn
+	previousResolver := resolveWSLPayloadFn
+	resolveWSLPayloadFn = func(string) (enginebin.Resolved, error) {
+		return enginebin.Resolved{Path: "test-linux-engine", Kind: enginebin.KindWSLPayload}, nil
+	}
 	t.Cleanup(func() {
 		initWSLFn = prev
+		resolveWSLPayloadFn = previousResolver
 	})
 }
 

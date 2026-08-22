@@ -359,8 +359,8 @@ Start daemon:
 
 The native local engine is resolved from, in order:
 
-1. `orchestrator.daemonPath` in config.
-2. `SQLRS_DAEMON_PATH`.
+1. `SQLRS_DAEMON_PATH`.
+2. `orchestrator.daemonPath` in config.
 3. The native engine in the release bundle containing the running CLI.
 4. `sqlrs-engine` on `PATH`.
 

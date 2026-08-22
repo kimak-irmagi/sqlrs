@@ -100,7 +100,7 @@ flowchart TD
 - Ошибка называет требуемый runtime (`host` или `wsl`), все проверенные классы
   источников и подходящий init flag или environment variable.
 - Диагностика может показывать пути, но не токены из `engine.json`.
-- Невалидный explicit candidate немедленно возвращает ошибку без fallback к
+- Невалидный CLI или environment candidate немедленно возвращает ошибку без fallback к
   bundle или `PATH`.
 - Bundle-relative discovery начинается от `os.Executable`, а не от cwd.
 - `PATH` служит fallback только для native engine. Произвольный Linux engine из

@@ -10,6 +10,7 @@ import (
 
 	"github.com/sqlrs/cli/internal/cli"
 	"github.com/sqlrs/cli/internal/config"
+	"github.com/sqlrs/cli/internal/enginebin"
 )
 
 // commandContext centralizes shared CLI command wiring defined in
@@ -127,6 +128,15 @@ func resolveCommandContext(cwd string, opts cli.GlobalOptions) (commandContext, 
 	daemonPath := os.Getenv("SQLRS_DAEMON_PATH")
 	if daemonPath == "" {
 		daemonPath = cfg.Orchestrator.DaemonPath
+	}
+	if strings.TrimSpace(daemonPath) == "" && mode == "local" {
+		if resolved, resolveErr := (enginebin.Resolver{}).Resolve(enginebin.Request{
+			Kind:       enginebin.KindHost,
+			TargetOS:   runtime.GOOS,
+			TargetArch: runtime.GOARCH,
+		}); resolveErr == nil {
+			daemonPath = resolved.Path
+		}
 	}
 	engineRunDir := ""
 	engineStatePath := ""

@@ -41,6 +41,34 @@ function isWindowsTarget(goos) {
   return goos === "windows";
 }
 
+function validateExecutable(pathname, goos, goarch, label) {
+  const data = fs.readFileSync(pathname);
+  let format = "unknown";
+  let arch = "unknown";
+  if (data.length >= 20 && data.subarray(0, 4).equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46]))) {
+    format = "linux";
+    const machine = data.readUInt16LE(18);
+    arch = machine === 62 ? "amd64" : machine === 183 ? "arm64" : "unknown";
+  } else if (data.length >= 64 && data.subarray(0, 2).toString("ascii") === "MZ") {
+    const peOffset = data.readUInt32LE(0x3c);
+    if (data.length >= peOffset + 6 && data.subarray(peOffset, peOffset + 4).equals(Buffer.from("PE\0\0"))) {
+      format = "windows";
+      const machine = data.readUInt16LE(peOffset + 4);
+      arch = machine === 0x8664 ? "amd64" : machine === 0xaa64 ? "arm64" : "unknown";
+    }
+  } else if (data.length >= 8) {
+    const magic = data.readUInt32LE(0);
+    if (magic === 0xfeedface || magic === 0xfeedfacf) {
+      format = "darwin";
+      const cpu = data.readUInt32LE(4);
+      arch = cpu === 0x01000007 ? "amd64" : cpu === 0x0100000c ? "arm64" : "unknown";
+    }
+  }
+  if (format !== goos || arch !== goarch) {
+    throw new Error(`${label} must be ${goos}/${goarch}, detected ${format}/${arch}: ${pathname}`);
+  }
+}
+
 function copyDir(src, dest) {
   if (!fs.existsSync(src)) return;
   fs.cpSync(src, dest, { recursive: true });
@@ -52,6 +80,7 @@ const goos = args.os || process.env.GOOS;
 const goarch = args.arch || process.env.GOARCH;
 const workspace = args.workspace ? path.resolve(args.workspace) : repoRoot;
 const engineBin = args["engine-bin"] || process.env.SQLRS_ENGINE_BIN;
+const wslEngineBin = args["wsl-engine-bin"] || process.env.SQLRS_WSL_ENGINE_BIN;
 
 if (!version) {
   throw new Error("Missing version. Provide --version or SQLRS_VERSION.");
@@ -61,6 +90,12 @@ if (!goos || !goarch) {
 }
 if (!engineBin) {
   throw new Error("Missing engine binary. Provide --engine-bin or SQLRS_ENGINE_BIN.");
+}
+if (isWindowsTarget(goos) && !wslEngineBin) {
+  throw new Error("Missing WSL engine binary. Provide --wsl-engine-bin or SQLRS_WSL_ENGINE_BIN.");
+}
+if (!isWindowsTarget(goos) && wslEngineBin) {
+  throw new Error("--wsl-engine-bin is valid only for Windows release bundles.");
 }
 
 const exeSuffix = isWindowsTarget(goos) ? ".exe" : "";
@@ -80,6 +115,7 @@ ensureDir(stagingDir);
 const cliPath = path.join(distBin, `sqlrs${exeSuffix}`);
 const engineOut = path.join(distBin, `sqlrs-engine${exeSuffix}`);
 const enginePath = path.resolve(engineBin);
+const wslEnginePath = wslEngineBin ? path.resolve(wslEngineBin) : "";
 
 await run({
   cmd: ["go", "build", "-o", cliPath, "./cmd/sqlrs"],
@@ -90,10 +126,23 @@ await run({
 if (!fs.existsSync(enginePath)) {
   throw new Error(`Engine binary not found: ${enginePath}`);
 }
+validateExecutable(enginePath, goos, goarch, "Engine binary");
 fs.copyFileSync(enginePath, engineOut);
+
+if (isWindowsTarget(goos)) {
+  if (!fs.existsSync(wslEnginePath)) {
+    throw new Error(`WSL engine binary not found: ${wslEnginePath}`);
+  }
+  validateExecutable(wslEnginePath, "linux", goarch, "WSL engine binary");
+}
 
 fs.copyFileSync(cliPath, path.join(stagingDir, `sqlrs${exeSuffix}`));
 fs.copyFileSync(engineOut, path.join(stagingDir, `sqlrs-engine${exeSuffix}`));
+if (isWindowsTarget(goos)) {
+  const wslEngineOut = path.join(stagingDir, "libexec", `linux-${goarch}`, "sqlrs-engine");
+  ensureDir(path.dirname(wslEngineOut));
+  fs.copyFileSync(wslEnginePath, wslEngineOut);
+}
 fs.copyFileSync(path.join(repoRoot, "LICENSE"), path.join(stagingDir, "LICENSE"));
 fs.copyFileSync(path.join(repoRoot, "README.md"), path.join(stagingDir, "README.md"));
 

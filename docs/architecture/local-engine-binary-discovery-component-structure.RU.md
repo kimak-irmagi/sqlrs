@@ -21,7 +21,7 @@
 Ключевые типы:
 
 - `Kind`: `Host` или `WSLPayload`;
-- `Origin`: `Explicit`, `Environment`, `Bundle` или `Path`;
+- `Origin`: `Explicit`, `Environment`, `Config`, `Bundle` или `Path`;
 - `Request`: target OS/architecture, путь исполняемого CLI, explicit/config
   candidate, environment candidate и разрешение `PATH` fallback;
 - `Resolved`: абсолютный source path, kind, origin, обнаруженный executable
@@ -34,7 +34,7 @@
 - command lookup (`exec.LookPath` в production);
 - операции inspection/open над filesystem.
 
-Пакет проверяет PE/ELF format и architecture до возврата candidate. Он не читает
+Пакет проверяет PE, ELF или Mach-O format и architecture до возврата candidate. Он не читает
 workspace config, не выполняет WSL-команды, не копирует файлы и не хранит state.
 
 ### `internal/app`

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -12,15 +13,16 @@ import (
 )
 
 type wslInitOptions struct {
-	Enable      bool
-	Distro      string
-	Require     bool
-	NoStart     bool
-	Workspace   string
-	Verbose     bool
-	StoreSizeGB int
-	Reinit      bool
-	StorePath   string
+	Enable           bool
+	Distro           string
+	Require          bool
+	NoStart          bool
+	Workspace        string
+	Verbose          bool
+	StoreSizeGB      int
+	Reinit           bool
+	StorePath        string
+	EngineSourcePath string
 }
 
 type wslInitResult struct {
@@ -71,6 +73,7 @@ var isTerminalWriterFn = isTerminalWriter
 var isWindows = runtime.GOOS == "windows"
 
 const defaultVHDXName = "btrfs.vhdx"
+const defaultInstalledWSLEnginePath = "/home/user/.local/lib/sqlrs/sqlrs-engine"
 
 func defaultWSLInitDeps() wslInitDeps {
 	return wslInitDeps{
@@ -95,6 +98,14 @@ func initWSL(opts wslInitOptions) (wslInitResult, error) {
 		return wslUnavailable(opts, err.Error())
 	}
 
+	enginePath := ""
+	if strings.TrimSpace(opts.EngineSourcePath) != "" {
+		enginePath, err = installWSLEngine(context.Background(), bootstrap.Distro, opts.EngineSourcePath, "", opts.Verbose)
+		if err != nil {
+			return wslUnavailable(opts, err.Error())
+		}
+	}
+
 	storage, err := prepareWSLStorage(context.Background(), deps, opts, bootstrap.Distro)
 	if err != nil {
 		return wslUnavailable(opts, err.Error())
@@ -112,6 +123,7 @@ func initWSL(opts wslInitOptions) (wslInitResult, error) {
 	return wslInitResult{
 		UseWSL:          true,
 		Distro:          bootstrap.Distro,
+		EnginePath:      enginePath,
 		StateDir:        storage.StateDir,
 		StorePath:       storage.StorePath,
 		MountDevice:     storage.Partition,
@@ -120,6 +132,34 @@ func initWSL(opts wslInitOptions) (wslInitResult, error) {
 		MountDeviceUUID: mount.DeviceUUID,
 		Warning:         strings.Join(warnings, "\n"),
 	}, nil
+}
+
+func installWSLEngine(ctx context.Context, distro, sourcePath, destination string, verbose bool) (string, error) {
+	payload, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return "", fmt.Errorf("read WSL engine payload: %w", err)
+	}
+	const script = `set -eu
+dest="$1"
+if [ -z "$dest" ]; then dest="$HOME/.local/lib/sqlrs/sqlrs-engine"; fi
+dir="${dest%/*}"
+mkdir -p "$dir"
+tmp="$(mktemp "$dir/.sqlrs-engine.XXXXXX")"
+trap 'rm -f "$tmp"' EXIT
+cat >"$tmp"
+chmod 755 "$tmp"
+mv -f "$tmp" "$dest"
+trap - EXIT
+printf '%s\n' "$dest"`
+	out, err := runWSLCommandWithInputFn(ctx, distro, verbose, "install WSL engine", string(payload), "sh", "-c", script, "sqlrs-engine-installer", strings.TrimSpace(destination))
+	if err != nil {
+		return "", fmt.Errorf("install WSL engine: %w", err)
+	}
+	installed := strings.TrimSpace(out)
+	if installed == "" || !strings.HasPrefix(installed, "/") {
+		return "", fmt.Errorf("install WSL engine: installer returned invalid path %q", installed)
+	}
+	return installed, nil
 }
 
 func wslUnavailable(opts wslInitOptions, warning string) (wslInitResult, error) {

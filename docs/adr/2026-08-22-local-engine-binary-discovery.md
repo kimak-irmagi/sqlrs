@@ -17,10 +17,10 @@ Date: 2026-08-22
   - Resolve explicit overrides first, then discover binaries relative to the
     running CLI release bundle, with `PATH` as a native-host fallback.
 - Decision: Keep explicit configuration optional. Resolve the native host engine
-  from `--engine`/config, then `SQLRS_DAEMON_PATH`, then the bundle containing
-  the running CLI, and finally `PATH`. Resolve the Windows WSL payload
-  independently from `--wsl-engine`/the provisioned config,
-  `SQLRS_WSL_ENGINE_PATH`, and then the CLI bundle. Do not introduce
+  from `--engine`, then `SQLRS_DAEMON_PATH`, persisted config, the bundle
+  containing the running CLI, and finally `PATH`. Resolve the Windows WSL
+  payload independently from `--wsl-engine`, `SQLRS_WSL_ENGINE_PATH`, the
+  provisioned config, and then the CLI bundle. Do not introduce
   `SQLRS_HOME` for executable discovery.
 - Rationale: A release bundle should work after extraction without per-workspace
   paths, while explicit overrides remain available for development and custom

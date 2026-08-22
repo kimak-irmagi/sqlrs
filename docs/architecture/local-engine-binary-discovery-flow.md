@@ -100,7 +100,7 @@ Normal commands do not install or repair binaries. This keeps `status`,
 - Errors identify the required runtime (`host` or `wsl`), every discovery class
   attempted, and the corrective init flag or environment variable.
 - Diagnostics may show filesystem paths but never tokens from `engine.json`.
-- Explicit invalid candidates fail immediately; they do not silently fall
+- Explicit CLI or environment candidates fail immediately; they do not silently fall
   through to bundle or `PATH` discovery.
 - Bundle-relative discovery starts from `os.Executable`, not the current working
   directory.

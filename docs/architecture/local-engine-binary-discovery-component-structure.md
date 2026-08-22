@@ -21,7 +21,7 @@ Owns platform-neutral binary discovery and validation policy.
 Key types:
 
 - `Kind`: `Host` or `WSLPayload`;
-- `Origin`: `Explicit`, `Environment`, `Bundle`, or `Path`;
+- `Origin`: `Explicit`, `Environment`, `Config`, `Bundle`, or `Path`;
 - `Request`: target OS/architecture, CLI executable path, explicit/config
   candidate, environment candidate, and whether `PATH` fallback is allowed;
 - `Resolved`: absolute source path, kind, origin, detected executable format,
@@ -34,7 +34,7 @@ Key interfaces injected for tests:
 - command lookup (`exec.LookPath` in production);
 - filesystem inspection/open operations.
 
-The package validates PE versus ELF format and architecture before returning a
+The package validates PE, ELF, or Mach-O format and architecture before returning a
 candidate. It does not read workspace config, execute WSL commands, copy files,
 or persist state.
 

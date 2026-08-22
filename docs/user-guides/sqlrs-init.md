@@ -290,17 +290,19 @@ When btrfs is required, the local engine runs inside WSL2:
 Explicit configuration remains optional for a normal release installation.
 The CLI resolves the native host engine in this order:
 
-1. `--engine` during init, or `orchestrator.daemonPath` after init.
+1. `--engine` during init.
 2. `SQLRS_DAEMON_PATH`.
-3. The platform-native engine in the release bundle containing the running
+3. `orchestrator.daemonPath` from merged configuration.
+4. The platform-native engine in the release bundle containing the running
    `sqlrs` executable.
-4. `sqlrs-engine` (or `sqlrs-engine.exe`) on `PATH`.
+5. `sqlrs-engine` (or `sqlrs-engine.exe`) on `PATH`.
 
 On Windows, the Linux WSL engine payload is resolved independently:
 
-1. `--wsl-engine` during init, or `engine.wsl.enginePath` after provisioning.
+1. `--wsl-engine` during init.
 2. `SQLRS_WSL_ENGINE_PATH`.
-3. `libexec/linux-<arch>/sqlrs-engine` in the release bundle containing the
+3. `engine.wsl.enginePath` after provisioning.
+4. `libexec/linux-<arch>/sqlrs-engine` in the release bundle containing the
    running `sqlrs.exe`.
 
 `SQLRS_HOME` is not used for binary discovery. SQLRS home/state directories own
