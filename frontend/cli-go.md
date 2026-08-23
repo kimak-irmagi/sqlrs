@@ -357,12 +357,16 @@ Start daemon:
 
 ### 6.4 How to spawn the daemon
 
-Assumption for MVP:
+The native local engine is resolved from, in order:
 
-- Local service binary path is configured or discoverable.
-- Provide config key or env:
-  - SQLRS_DAEMON_PATH (preferred)
-  - or orchestrator.daemonPath in config
+1. `SQLRS_DAEMON_PATH`.
+2. `orchestrator.daemonPath` in config.
+3. The native engine in the release bundle containing the running CLI.
+4. `sqlrs-engine` on `PATH`.
+
+On Windows, the WSL Linux payload is resolved and provisioned independently as
+defined in `docs/user-guides/sqlrs-init.md`. `orchestrator.daemonPath` always
+means the native host engine.
 
 Spawn:
 
@@ -374,9 +378,9 @@ Spawn:
   `--write-engine-json <path>`
 - Service is responsible for creating engine.json when ready.
 
-If daemonPath missing:
-
-- connect-or-start should error clearly: "local daemon path is not configured".
+If discovery finds no compatible engine, connect-or-start reports the required
+runtime, attempted discovery sources, and a corrective init flag or environment
+variable.
 
 ## 7. HTTP API contract (client side)
 
@@ -498,7 +502,6 @@ Integration tests (optional for MVP):
   - local:
 
     ```bash
-    export SQLRS_DAEMON_PATH=/path/to/sqlrs-service
     sqlrs status
     sqlrs run -- psql -c "select 1"
     ```

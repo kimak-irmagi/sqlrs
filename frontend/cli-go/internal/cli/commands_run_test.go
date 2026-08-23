@@ -255,16 +255,18 @@ func TestRunClientLocalAutoAutostartDisabled(t *testing.T) {
 	}
 }
 
-func TestRunClientLocalAutoMissingDaemonPath(t *testing.T) {
+func TestRunClientLocalAutoMissingDiscoverableEngine(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
 	_, err := runClient(context.Background(), RunOptions{
 		Mode:      "local",
 		Endpoint:  "auto",
 		Autostart: true,
+		RunDir:    t.TempDir(),
 		StateDir:  t.TempDir(),
 		Timeout:   time.Second,
 	})
-	if err == nil || !strings.Contains(err.Error(), "local daemon path") {
-		t.Fatalf("expected daemon path error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "resolve host engine") {
+		t.Fatalf("expected host discovery error, got %v", err)
 	}
 }
 

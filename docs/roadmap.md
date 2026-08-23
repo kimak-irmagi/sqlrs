@@ -284,6 +284,9 @@ gantt
   Chinook, Sakila, and Liquibase/JHipster alias-driven scenarios, with Btrfs in
   matrix validation and a dedicated local cache-pressure scenario in release
   checks)
+- Self-contained local release discovery — **Done** (native engines are found
+  beside the CLI or on `PATH`; Windows archives also carry and atomically
+  provision the matching Linux engine for WSL, including repeat-init repair)
 
 **Optional (nice-to-have)**:
 

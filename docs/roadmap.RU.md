@@ -287,6 +287,10 @@ gantt
   для alias-driven сценариев Chinook, Sakila и Liquibase/JHipster, включая
   Btrfs в матрице валидации и отдельный local cache-pressure сценарий в
   release-проверках)
+- Самодостаточное обнаружение движка в локальном релизе — **сделано** (native
+  engine находится рядом с CLI или через `PATH`; Windows-архив также содержит
+  совместимый Linux engine для WSL, атомарно устанавливает и восстанавливает
+  его при повторном init)
 
 **Опционально (nice-to-have)**:
 

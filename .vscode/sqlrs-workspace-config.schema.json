@@ -47,7 +47,7 @@
         },
         "daemonPath": {
           "type": "string",
-          "description": "Path to local engine binary."
+          "description": "Explicit path to the native host sqlrs-engine binary."
         }
       },
       "additionalProperties": false

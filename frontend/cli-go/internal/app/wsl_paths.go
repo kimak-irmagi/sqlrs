@@ -55,14 +55,18 @@ func resolveWSLSettings(cfg config.Config, dirs paths.Dirs, daemonPath string) (
 
 	engineBinary := daemonPath
 	if cfg.Engine.WSL.EnginePath != "" {
-		engineBinary = cfg.Engine.WSL.EnginePath
+		engineBinary = strings.TrimSpace(cfg.Engine.WSL.EnginePath)
 	}
-	wslDaemonPath, err := windowsToWSLPath(engineBinary)
-	if err != nil {
-		if mode == "required" {
-			return "", "", "", "", "", "", "", err
+	wslDaemonPath := engineBinary
+	if !strings.HasPrefix(wslDaemonPath, "/") {
+		var err error
+		wslDaemonPath, err = windowsToWSLPath(engineBinary)
+		if err != nil {
+			if mode == "required" {
+				return "", "", "", "", "", "", "", err
+			}
+			return daemonPath, "", "", "", "", "", "", nil
 		}
-		return daemonPath, "", "", "", "", "", "", nil
 	}
 
 	statePath := filepath.Join(dirs.StateDir, "engine.json")

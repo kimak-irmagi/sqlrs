@@ -82,19 +82,17 @@ func TestRunInitWSLAutoModeBranchCoverage(t *testing.T) {
 		t.Skip("windows-only path")
 	}
 
-	prevWSL := initWSLFn
-	initWSLFn = func(opts wslInitOptions) (wslInitResult, error) {
+	withInitWSLStub(t, func(opts wslInitOptions) (wslInitResult, error) {
 		return wslInitResult{
 			UseWSL:      true,
 			Distro:      "Ubuntu",
 			StateDir:    "/mnt/sqlrs/store",
-			EnginePath:  "/mnt/c/sqlrs/sqlrs-engine.exe",
+			EnginePath:  "/home/user/.local/lib/sqlrs/sqlrs-engine",
 			StorePath:   "C:\\sqlrs\\store\\btrfs.vhdx",
 			MountUnit:   "sqlrs.mount",
 			MountFSType: "btrfs",
 		}, nil
-	}
-	t.Cleanup(func() { initWSLFn = prevWSL })
+	})
 
 	workspace := t.TempDir()
 	var out bytes.Buffer

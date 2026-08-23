@@ -336,8 +336,8 @@ func TestConnectOrStartMissingDaemonPath(t *testing.T) {
 		RunDir:    filepath.Join(temp, "run"),
 		StateDir:  temp,
 	})
-	if err == nil || !strings.Contains(err.Error(), "daemon path") {
-		t.Fatalf("expected daemon path error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "resolve host engine") {
+		t.Fatalf("expected host discovery error, got %v", err)
 	}
 }
 

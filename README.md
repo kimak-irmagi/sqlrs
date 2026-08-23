@@ -169,6 +169,14 @@ Build binaries (PowerShell):
 ```powershell
 go build -o dist/bin/sqlrs-engine.exe ./backend/local-engine-go/cmd/sqlrs-engine
 go build -o dist/bin/sqlrs.exe ./frontend/cli-go/cmd/sqlrs
+New-Item -ItemType Directory -Force -Path dist/bin/libexec/linux-amd64 | Out-Null
+$env:GOOS = "linux"
+$env:GOARCH = "amd64"
+$env:CGO_ENABLED = "0"
+go build -o dist/bin/libexec/linux-amd64/sqlrs-engine ./backend/local-engine-go/cmd/sqlrs-engine
+Remove-Item Env:GOOS
+Remove-Item Env:GOARCH
+Remove-Item Env:CGO_ENABLED
 ```
 
 Initialize WSL + btrfs (loopback image) and write workspace config:
@@ -180,6 +188,9 @@ Initialize WSL + btrfs (loopback image) and write workspace config:
 Notes:
 
 - `sqlrs init local --snapshot btrfs` validates WSL, resolves the distro, and ensures the WSL state dir is on **btrfs**.
+- The Windows distribution contains `sqlrs-engine.exe` for native copy mode and
+  a Linux engine payload for WSL2/btrfs. Normal release users do not need to
+  configure either path.
 - The current implementation creates a host VHDX at `%LOCALAPPDATA%\\sqlrs\\store\\btrfs.vhdx`, formats it as btrfs inside WSL, and mounts it to `~/.local/state/sqlrs/store`.
 - If WSL or btrfs is missing, `sqlrs init local --snapshot btrfs` fails. Use `sqlrs init local --snapshot auto` to allow fallback to the Windows host engine with copy snapshots.
 - Use `--no-start` to skip auto-starting the WSL distro during init.

@@ -89,7 +89,23 @@ The Windows local bundle **includes**:
 - Windows engine binary
 - Linux engine binary (same CPU arch)
 
-`sqlrs init local` copies the Linux engine binary into the WSL distro on first run.
+The bundle layout is:
+
+```text
+sqlrs.exe
+sqlrs-engine.exe
+libexec/
+  linux-amd64/
+    sqlrs-engine
+```
+
+The architecture segment follows the release target (for example,
+`linux-arm64` for a future Windows arm64 bundle).
+
+`sqlrs init local` copies the Linux engine binary into the WSL distro on first
+run and repairs that installed copy when a subsequent init finds it missing.
+The native Windows engine remains the runtime for copy snapshots and for the
+automatic fallback when WSL2-backed btrfs is unavailable.
 
 ### B) btrfs volume lifecycle
 
@@ -208,13 +224,19 @@ If any condition fails: **error** (no fallback).
 
 `engine.wsl.enginePath`
 
-- default: auto (see binary provisioning below).
+- records the installed path inside the selected WSL distribution,
+- is populated after the bundled Linux payload is copied into WSL,
+- can be sourced explicitly during init with `--wsl-engine` or
+  `SQLRS_WSL_ENGINE_PATH`.
 
 ### 4.1 Orchestrator daemon path (host)
 
-`orchestrator.daemonPath` points to the **linux** engine binary in the host bundle.
-When launching inside WSL, the CLI converts this host path to a `/mnt/...` path
-and passes it to `wsl.exe` to start the engine.
+`orchestrator.daemonPath` points to the native host engine. On Windows this is
+`sqlrs-engine.exe`; it is used for copy snapshots and host fallback. It does not
+double as the Linux WSL payload path.
+
+When WSL mode is active, the CLI instead starts the installed Linux path from
+`engine.wsl.enginePath` through `wsl.exe`.
 
 ### 5) Host store path (Windows)
 

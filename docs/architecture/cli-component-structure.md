@@ -105,6 +105,11 @@ addition of a shared `inputset` layer for file-bearing command semantics.
     refresh tokens or cached ID tokens.
 - `internal/paths`
   - OS-aware config/cache/state directory resolution.
+- `internal/enginebin`
+  - Resolves native and Windows WSL companion engine binaries from explicit
+    overrides, environment, the running CLI bundle, and native `PATH` fallback.
+  - Validates executable format and target architecture without reading config,
+    running WSL commands, or persisting state.
 - `internal/wsl`
   - WSL detection and distro resolution primitives used by `internal/app` for
     `init local` and Windows local mode.
@@ -212,6 +217,7 @@ flowchart LR
   DAEMON["internal/daemon"]
   CONFIG["internal/config"]
   PATHS["internal/paths"]
+  ENGINEBIN["internal/enginebin"]
   WSL["internal/wsl"]
   UTIL["internal/util"]
   FS["workspace filesystem"]
@@ -224,6 +230,7 @@ flowchart LR
   APP --> REFCTX
   APP --> CONFIG
   APP --> PATHS
+  APP --> ENGINEBIN
   APP --> WSL
   APP --> UTIL
   AUTH --> CONFIG

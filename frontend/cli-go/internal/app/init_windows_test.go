@@ -79,7 +79,7 @@ func TestInitRejectsWindowsEngineBinaryForWSL(t *testing.T) {
 	err := runInit(&out, workspace, "", []string{
 		"local",
 		"--snapshot", "btrfs",
-		"--engine", enginePath,
+		"--wsl-engine", enginePath,
 	}, false)
 	var exitErr *ExitError
 	if !errors.As(err, &exitErr) {
@@ -88,7 +88,7 @@ func TestInitRejectsWindowsEngineBinaryForWSL(t *testing.T) {
 	if exitErr.Code != 64 {
 		t.Fatalf("expected exit code 64, got %d", exitErr.Code)
 	}
-	if !strings.Contains(err.Error(), "Linux sqlrs-engine binary") {
+	if !strings.Contains(err.Error(), "Invalid WSL engine") {
 		t.Fatalf("unexpected error message: %q", err.Error())
 	}
 }
@@ -108,7 +108,7 @@ func TestInitAcceptsLinuxEngineBinaryForWSL(t *testing.T) {
 	if err := runInit(&out, workspace, "", []string{
 		"local",
 		"--snapshot", "btrfs",
-		"--engine", enginePath,
+		"--wsl-engine", enginePath,
 	}, false); err != nil {
 		t.Fatalf("runInit: %v", err)
 	}

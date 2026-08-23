@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,29 +16,31 @@ import (
 
 	"github.com/sqlrs/cli/internal/cli"
 	"github.com/sqlrs/cli/internal/config"
+	"github.com/sqlrs/cli/internal/enginebin"
 	"github.com/sqlrs/cli/internal/paths"
 	"github.com/sqlrs/cli/internal/util"
 )
 
 type initOptions struct {
-	Workspace   string
-	Force       bool
-	Update      bool
-	EnginePath  string
-	SharedCache bool
-	DryRun      bool
-	Snapshot    string
-	StoreType   string
-	StorePath   string
-	StoreSizeGB int
-	Reinit      bool
-	Distro      string
-	NoStart     bool
-	WSLMode     string
-	RemoteURL   string
-	RemoteToken string
-	Mode        string
-	Verbose     bool
+	Workspace     string
+	Force         bool
+	Update        bool
+	EnginePath    string
+	WSLEnginePath string
+	SharedCache   bool
+	DryRun        bool
+	Snapshot      string
+	StoreType     string
+	StorePath     string
+	StoreSizeGB   int
+	Reinit        bool
+	Distro        string
+	NoStart       bool
+	WSLMode       string
+	RemoteURL     string
+	RemoteToken   string
+	Mode          string
+	Verbose       bool
 }
 
 type localBtrfsInitOptions struct {
@@ -55,6 +58,20 @@ type localBtrfsInitResult struct {
 const defaultBtrfsStoreSizeGB = 100
 
 var initLocalBtrfsStoreFn = initLocalBtrfsStore
+
+var resolveHostEngineFn = func(req enginebin.Request) (enginebin.Resolved, error) {
+	return (enginebin.Resolver{}).Resolve(req)
+}
+
+var resolveWSLPayloadFn = func(explicit string) (enginebin.Resolved, error) {
+	return (enginebin.Resolver{}).Resolve(enginebin.Request{
+		Kind:            enginebin.KindWSLPayload,
+		TargetOS:        "linux",
+		TargetArch:      runtime.GOARCH,
+		ExplicitPath:    explicit,
+		EnvironmentPath: os.Getenv("SQLRS_WSL_ENGINE_PATH"),
+	})
+}
 
 func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bool) error {
 	opts, showHelp, err := parseInitFlags(args, globalWorkspace)
@@ -74,6 +91,14 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 	if err != nil {
 		return ExitErrorf(4, "Cannot create .sqlrs directory: %v", err)
 	}
+	explicitHostSource := ""
+	if opts.EnginePath != "" {
+		explicitHostSource = normalizeEngineSourcePath(opts.EnginePath, cwd)
+		opts.EnginePath = normalizeEnginePath(opts.EnginePath, cwd, target)
+	}
+	if opts.WSLEnginePath != "" {
+		opts.WSLEnginePath = normalizeEngineSourcePath(opts.WSLEnginePath, cwd)
+	}
 
 	localMarker := filepath.Join(target, ".sqlrs")
 	localExists := dirExists(localMarker)
@@ -85,6 +110,7 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 
 	configPath := filepath.Join(localMarker, "config.yaml")
 	hasUpdateFlags := opts.EnginePath != "" ||
+		opts.WSLEnginePath != "" ||
 		opts.SharedCache ||
 		opts.Snapshot != "" ||
 		opts.StoreType != "" ||
@@ -108,6 +134,19 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 			}
 		}
 		if !opts.Update {
+			if isWindows && configValid && !opts.DryRun && strings.EqualFold(opts.Mode, "local") {
+				repaired, repairErr := repairExistingWSLEngine(configPath, opts.WSLEnginePath, opts.Verbose)
+				if repairErr != nil {
+					if errors.Is(repairErr, errLegacyWSLEngineUpdateRequired) {
+						fmt.Fprintf(w, "Legacy WSL engine configuration requires an explicit update. Run: sqlrs init local --workspace %q --update\n", target)
+					} else {
+						return ExitErrorf(1, "WSL engine repair failed: %v", repairErr)
+					}
+				}
+				if repaired {
+					fmt.Fprintln(w, "Repaired the provisioned WSL engine")
+				}
+			}
 			if opts.DryRun {
 				fmt.Fprintf(w, "Workspace already initialized at %s (dry-run)\n", target)
 			} else {
@@ -125,11 +164,8 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 		}
 	}
 
-	if opts.EnginePath != "" {
-		opts.EnginePath = normalizeEnginePath(opts.EnginePath, cwd, target)
-	}
-
 	var wslResult *wslInitResult
+	usesWSLRuntime := false
 	if strings.EqualFold(opts.Mode, "local") {
 		snapshot := strings.ToLower(strings.TrimSpace(opts.Snapshot))
 		if snapshot == "" {
@@ -148,22 +184,27 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 
 		storeExplicit := opts.StoreType != "" || opts.StorePath != ""
 		useWSL, requireWSL := shouldUseWSL(snapshot, resolvedStoreType, storeExplicit)
+		var wslEngineSource string
 		if useWSL {
-			if err := validateLinuxEngineBinaryForWSL(opts.EnginePath); err != nil {
-				return ExitErrorf(64, "Invalid arguments: %v", err)
+			resolved, resolveErr := resolveWSLPayloadFn(opts.WSLEnginePath)
+			if resolveErr != nil {
+				return ExitErrorf(64, "Invalid WSL engine: %v", resolveErr)
 			}
+			wslEngineSource = resolved.Path
 		}
+		usesWSLRuntime = useWSL
 		if useWSL && !opts.DryRun {
 			result, err := initWSLFn(wslInitOptions{
-				Enable:      true,
-				Distro:      opts.Distro,
-				Require:     requireWSL,
-				NoStart:     opts.NoStart,
-				Workspace:   target,
-				Verbose:     opts.Verbose,
-				StoreSizeGB: opts.StoreSizeGB,
-				Reinit:      opts.Reinit,
-				StorePath:   resolvedStorePath,
+				Enable:           true,
+				Distro:           opts.Distro,
+				Require:          requireWSL,
+				NoStart:          opts.NoStart,
+				Workspace:        target,
+				Verbose:          opts.Verbose,
+				StoreSizeGB:      opts.StoreSizeGB,
+				Reinit:           opts.Reinit,
+				StorePath:        resolvedStorePath,
+				EngineSourcePath: wslEngineSource,
 			})
 			if err != nil {
 				return ExitErrorf(1, "WSL init failed: %v", err)
@@ -182,8 +223,26 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 					opts.WSLMode = "auto"
 				}
 			} else if snapshot == "auto" && !requireWSL {
+				usesWSLRuntime = false
 				resolvedStoreType = "dir"
 				resolvedStorePath, _ = resolveStorePath(resolvedStoreType, "")
+			}
+		}
+
+		if !usesWSLRuntime {
+			configuredHostPath, loadErr := configuredHostEngineForInit(target, configExists, configValid)
+			if loadErr != nil {
+				return ExitErrorf(64, "Invalid host engine configuration: %v", loadErr)
+			}
+			if _, resolveErr := resolveHostEngineFn(enginebin.Request{
+				Kind:            enginebin.KindHost,
+				TargetOS:        runtime.GOOS,
+				TargetArch:      runtime.GOARCH,
+				ExplicitPath:    explicitHostSource,
+				EnvironmentPath: os.Getenv("SQLRS_DAEMON_PATH"),
+				ConfigPath:      configuredHostPath,
+			}); resolveErr != nil {
+				return ExitErrorf(64, "Invalid host engine: %v", resolveErr)
 			}
 		}
 
@@ -232,6 +291,9 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 			return ExitErrorf(4, "Cannot read config.yaml: %v", err)
 		}
 		baseConfig = loaded
+		if wslResult != nil {
+			removeLegacyWSLEngineDaemon(baseConfig, configPath)
+		}
 	}
 	configData, err := buildWorkspaceConfig(opts, wslResult, baseConfig)
 	if err != nil {
@@ -247,6 +309,111 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 		fmt.Fprintf(w, "Initialized workspace at %s\n", target)
 	}
 	return nil
+}
+
+func configuredHostEngineForInit(target string, configExists, configValid bool) (string, error) {
+	if configExists && !configValid {
+		return "", nil
+	}
+	loaded, err := config.Load(config.LoadOptions{WorkingDir: target})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(loaded.Config.Orchestrator.DaemonPath), nil
+}
+
+var errLegacyWSLEngineUpdateRequired = errors.New("legacy WSL engine configuration requires --update")
+
+func repairExistingWSLEngine(configPath, explicitSource string, verbose bool) (bool, error) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return false, err
+	}
+	var cfg config.Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return false, err
+	}
+	mode := strings.ToLower(strings.TrimSpace(cfg.Engine.WSL.Mode))
+	distro := strings.TrimSpace(cfg.Engine.WSL.Distro)
+	installed := strings.TrimSpace(cfg.Engine.WSL.EnginePath)
+	if (mode != "auto" && mode != "required") || distro == "" {
+		return false, nil
+	}
+	if installed == "" {
+		legacyDaemonPath := resolveConfigRelativeEnginePath(cfg.Orchestrator.DaemonPath, configPath)
+		if _, resolveErr := resolveLegacyWSLEngineSource(legacyDaemonPath, explicitSource); resolveErr != nil {
+			return false, resolveErr
+		}
+		return false, errLegacyWSLEngineUpdateRequired
+	}
+	if err := validateInstalledWSLEngineFn(context.Background(), distro, installed, verbose); err == nil {
+		return false, nil
+	}
+	resolved, err := resolveWSLPayloadFn(explicitSource)
+	if err != nil {
+		return false, err
+	}
+	actual, err := installWSLEngine(context.Background(), distro, resolved.Path, installed, verbose)
+	if err != nil {
+		return false, err
+	}
+	if actual != installed {
+		return false, fmt.Errorf("installer returned %q, expected configured path %q", actual, installed)
+	}
+	return true, nil
+}
+
+func resolveConfigRelativeEnginePath(value, configPath string) string {
+	resolved := strings.TrimSpace(value)
+	if resolved == "" || filepath.IsAbs(resolved) {
+		return resolved
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(configPath), resolved))
+}
+
+func removeLegacyWSLEngineDaemon(raw map[string]any, configPath string) {
+	if nestedMapString(raw, "engine", "wsl", "enginePath") != "" {
+		return
+	}
+	orchestrator, ok := raw["orchestrator"].(map[string]any)
+	if !ok {
+		return
+	}
+	legacy, _ := orchestrator["daemonPath"].(string)
+	legacy = strings.TrimSpace(legacy)
+	if legacy == "" {
+		return
+	}
+	legacy = resolveConfigRelativeEnginePath(legacy, configPath)
+	if _, err := enginebin.Validate(legacy, "linux", runtime.GOARCH); err == nil {
+		delete(orchestrator, "daemonPath")
+	}
+}
+
+func nestedMapString(root map[string]any, keys ...string) string {
+	current := any(root)
+	for _, key := range keys {
+		next, ok := current.(map[string]any)
+		if !ok {
+			return ""
+		}
+		current = next[key]
+	}
+	value, _ := current.(string)
+	return strings.TrimSpace(value)
+}
+
+func resolveLegacyWSLEngineSource(legacyDaemonPath, explicitSource string) (enginebin.Resolved, error) {
+	if strings.TrimSpace(explicitSource) != "" {
+		return resolveWSLPayloadFn(explicitSource)
+	}
+	legacy := strings.TrimSpace(legacyDaemonPath)
+	if legacy != "" {
+		if validation, err := enginebin.Validate(legacy, "linux", runtime.GOARCH); err == nil {
+			return enginebin.Resolved{Path: legacy, Kind: enginebin.KindWSLPayload, Origin: enginebin.OriginConfig, Format: validation.Format, Arch: validation.Arch}, nil
+		}
+	}
+	return resolveWSLPayloadFn("")
 }
 
 func shouldRunStrictBtrfsInit(snapshot string, dryRun bool, wslResult *wslInitResult) bool {
@@ -322,6 +489,7 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 	workspace := fs.String("workspace", "", "workspace root")
 	force := fs.Bool("force", false, "allow nested workspace")
 	engine := fs.String("engine", "", "engine binary path")
+	wslEngine := fs.String("wsl-engine", "", "Linux engine binary to install into WSL")
 	sharedCache := fs.Bool("shared-cache", false, "use shared cache")
 	update := fs.Bool("update", false, "update existing workspace config")
 	snapshot := fs.String("snapshot", "", "snapshot backend")
@@ -357,6 +525,7 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 	opts.Force = *force
 	opts.Update = *update
 	opts.EnginePath = strings.TrimSpace(*engine)
+	opts.WSLEnginePath = strings.TrimSpace(*wslEngine)
 	opts.SharedCache = *sharedCache
 	opts.DryRun = *dryRun
 	opts.Snapshot = normalizeSnapshot(*snapshot)
@@ -384,15 +553,17 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 	if mode != "local" && mode != "remote" {
 		return opts, false, ExitErrorf(64, "Invalid arguments: unknown init mode")
 	}
-
 	if mode == "remote" {
 		if opts.RemoteURL == "" || opts.RemoteToken == "" {
 			return opts, false, ExitErrorf(64, "Invalid arguments: --url and --token are required for remote init")
 		}
-		if opts.EnginePath != "" || opts.SharedCache || opts.Snapshot != "" || opts.StoreType != "" || opts.StorePath != "" || opts.StoreSizeGB > 0 || opts.Reinit || opts.Distro != "" || opts.NoStart {
+		if opts.EnginePath != "" || opts.WSLEnginePath != "" || opts.SharedCache || opts.Snapshot != "" || opts.StoreType != "" || opts.StorePath != "" || opts.StoreSizeGB > 0 || opts.Reinit || opts.Distro != "" || opts.NoStart {
 			return opts, false, ExitErrorf(64, "Invalid arguments: local-only flags are not valid for remote init")
 		}
 		return opts, false, nil
+	}
+	if opts.WSLEnginePath != "" && !isWindows {
+		return opts, false, ExitErrorf(64, "Invalid arguments: --wsl-engine is only valid on Windows")
 	}
 
 	if opts.RemoteURL != "" || opts.RemoteToken != "" {
@@ -574,6 +745,21 @@ func normalizeEnginePath(enginePath, cwd, workspace string) string {
 	}
 
 	return filepath.Clean(filepath.Join(cwdAbs, path))
+}
+
+func normalizeEngineSourcePath(enginePath, cwd string) string {
+	value := strings.TrimSpace(enginePath)
+	if value == "" {
+		return ""
+	}
+	if filepath.IsAbs(value) {
+		return filepath.Clean(value)
+	}
+	base := strings.TrimSpace(cwd)
+	if base == "" {
+		base, _ = os.Getwd()
+	}
+	return filepath.Clean(filepath.Join(base, value))
 }
 
 func resolveExistingPath(value string) string {

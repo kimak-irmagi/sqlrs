@@ -162,13 +162,29 @@ jobs:
           $env:CGO_ENABLED = "0"
           go build -o "$outDir\\sqlrs-engine${{ matrix.exe }}" ./cmd/sqlrs-engine
 
-      - name: Build local release
+          $linuxOutDir = "${{ github.workspace }}\\${{ env.ENGINE_DIR }}\\linux_${{ matrix.goarch }}"
+          New-Item -ItemType Directory -Force -Path $linuxOutDir | Out-Null
+          $env:GOOS = "linux"
+          go build -o "$linuxOutDir\\sqlrs-engine" ./cmd/sqlrs-engine
+
+      - name: Build local release (unix)
+        if: runner.os != 'Windows'
         run: >
           node scripts/release-local.mjs
           --version "${{ steps.version.outputs.base }}"
           --os "${{ matrix.goos }}"
           --arch "${{ matrix.goarch }}"
           --engine-bin "${{ github.workspace }}/${{ env.ENGINE_DIR }}/${{ matrix.goos }}_${{ matrix.goarch }}/sqlrs-engine${{ matrix.exe }}"
+
+      - name: Build local release (windows)
+        if: runner.os == 'Windows'
+        run: >
+          node scripts/release-local.mjs
+          --version "${{ steps.version.outputs.base }}"
+          --os "${{ matrix.goos }}"
+          --arch "${{ matrix.goarch }}"
+          --engine-bin "${{ github.workspace }}/${{ env.ENGINE_DIR }}/${{ matrix.goos }}_${{ matrix.goarch }}/sqlrs-engine${{ matrix.exe }}"
+          --wsl-engine-bin "${{ github.workspace }}/${{ env.ENGINE_DIR }}/linux_${{ matrix.goarch }}/sqlrs-engine"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -268,8 +284,6 @@ jobs:
           - platform: linux
             scenario: cache-pressure-chinook
             snapshot_backend: btrfs
-          - platform: windows
-            snapshot_backend: copy
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -468,13 +482,6 @@ jobs:
           name: sqlrs_windows_amd64
           path: rc-artifacts
 
-      - name: Download linux rc artifact for WSL engine
-        if: matrix.platform == 'windows'
-        uses: actions/download-artifact@v4
-        with:
-          name: sqlrs_linux_amd64
-          path: rc-artifacts-linux
-
       - name: Extract linux bundle
         if: matrix.platform == 'linux'
         id: bundle-linux
@@ -495,7 +502,7 @@ jobs:
           fi
           echo "bundle_dir=$bundle_dir" >> "$GITHUB_OUTPUT"
 
-      - name: Extract windows and linux bundles
+      - name: Extract windows bundle
         if: matrix.platform == 'windows'
         id: bundle-windows
         shell: pwsh
@@ -523,23 +530,14 @@ jobs:
             throw "sqlrs-engine.exe not found in extracted windows bundle"
           }
 
-          $linuxArchive = Get-ChildItem -Path rc-artifacts-linux -Recurse -Filter "sqlrs_${base}_linux_amd64.tar.gz" | Select-Object -First 1
-          if (-not $linuxArchive) {
-            throw "linux release archive for WSL engine not found"
-          }
-          tar -xzf $linuxArchive.FullName -C $bundleRoot
-
           $linuxEngine = Get-ChildItem -Path $bundleRoot -Recurse -File -Filter "sqlrs-engine" |
-            Where-Object { $_.FullName -match "linux_amd64" } |
-            Sort-Object { $_.FullName.Length } |
+            Where-Object { $_.FullName -match "libexec[\\/]linux-amd64[\\/]sqlrs-engine$" } |
             Select-Object -First 1
           if (-not $linuxEngine) {
             throw "linux sqlrs-engine not found in extracted linux bundle"
           }
 
           "sqlrs_bin=$($windowsSqlrs.FullName)" >> $env:GITHUB_OUTPUT
-          "engine_windows_bin=$($windowsEngine.FullName)" >> $env:GITHUB_OUTPUT
-          "engine_linux_bin=$($linuxEngine.FullName)" >> $env:GITHUB_OUTPUT
       - name: Setup Liquibase latest (linux host)
         if: matrix.platform == 'linux' && matrix.scenario == 'hp-lb-jhipster'
         uses: liquibase/setup-liquibase@v2
@@ -628,13 +626,7 @@ jobs:
           $storeRoot = Join-Path $outDir "store"
           $storeImage = Join-Path $storeRoot "btrfs.vhdx"
           $sqlrs = "${{ steps.bundle-windows.outputs.sqlrs_bin }}"
-          $engineWindows = "${{ steps.bundle-windows.outputs.engine_windows_bin }}"
-          $engineLinux = "${{ steps.bundle-windows.outputs.engine_linux_bin }}"
           $isBtrfs = $env:SNAPSHOT_BACKEND -eq "btrfs"
-          $engine = if ($isBtrfs) { $engineLinux } else { $engineWindows }
-          if ([string]::IsNullOrWhiteSpace($engine)) {
-            throw "engine binary path is empty for snapshot backend $env:SNAPSHOT_BACKEND"
-          }
           Remove-Item Env:DOCKER_HOST -ErrorAction SilentlyContinue
           Remove-Item Env:SQLRS_DOCKER_HOST_PATH_STYLE -ErrorAction SilentlyContinue
           Remove-Item Env:SQLRS_STATE_DB -ErrorAction SilentlyContinue
@@ -654,7 +646,6 @@ jobs:
           $initArgs = @(
             "--workspace", $workspaceDir,
             "init", "local",
-            "--engine", $engine,
             "--snapshot", $env:SNAPSHOT_BACKEND
           )
           if ($isBtrfs) {

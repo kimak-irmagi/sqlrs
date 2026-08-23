@@ -124,9 +124,11 @@ func resolveCommandContext(cwd string, opts cli.GlobalOptions) (commandContext, 
 		runDir = filepath.Join(cfgResult.Paths.StateDir, "run")
 	}
 
-	daemonPath := os.Getenv("SQLRS_DAEMON_PATH")
+	environmentDaemonPath := strings.TrimSpace(os.Getenv("SQLRS_DAEMON_PATH"))
+	configuredDaemonPath := strings.TrimSpace(cfg.Orchestrator.DaemonPath)
+	daemonPath := environmentDaemonPath
 	if daemonPath == "" {
-		daemonPath = cfg.Orchestrator.DaemonPath
+		daemonPath = configuredDaemonPath
 	}
 	engineRunDir := ""
 	engineStatePath := ""
@@ -141,7 +143,6 @@ func resolveCommandContext(cwd string, opts cli.GlobalOptions) (commandContext, 
 			return result, err
 		}
 	}
-
 	result.profileName = profileName
 	result.profile = profile
 	result.mode = mode

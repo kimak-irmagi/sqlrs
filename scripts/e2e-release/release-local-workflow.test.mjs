@@ -32,7 +32,7 @@ run("happy e2e matrix includes platform and snapshot backend axes", () => {
   assert.deepEqual(job.strategy?.matrix?.snapshot_backend, ["copy", "btrfs"]);
 });
 
-run("happy e2e excludes unsupported windows scenario cells", () => {
+run("happy e2e keeps the Windows copy backend covered", () => {
   const workflow = loadWorkflow();
   const job = workflow.jobs?.["e2e-happy"];
   const excluded = job.strategy?.matrix?.exclude || [];
@@ -40,10 +40,7 @@ run("happy e2e excludes unsupported windows scenario cells", () => {
     excluded.some((entry) => entry.platform === "windows" && entry.scenario === "hp-psql-sakila"),
     "missing windows/sakila exclusion"
   );
-  assert.ok(
-    excluded.some((entry) => entry.platform === "windows" && entry.snapshot_backend === "copy"),
-    "missing windows/copy exclusion"
-  );
+  assert.ok(!excluded.some((entry) => entry.platform === "windows" && entry.snapshot_backend === "copy"));
 });
 
 run("linux e2e cell passes snapshot backend to run-scenario", () => {
@@ -86,8 +83,8 @@ run("windows e2e cell provisions WSL and docker prerequisites", () => {
   assert.equal(String(wslStep.if || "").trim(), "matrix.platform == 'windows' && matrix.snapshot_backend == 'btrfs'");
   assert.equal(dockerStep.uses, "docker/setup-docker-action@v4");
   assert.match(String(runStep.run || ""), /sqlrs_bin/);
-  assert.match(String(runStep.run || ""), /engine_windows_bin/);
-  assert.match(String(runStep.run || ""), /engine_linux_bin/);
+  assert.doesNotMatch(String(runStep.run || ""), /engine_windows_bin|engine_linux_bin/);
+  assert.doesNotMatch(String(runStep.run || ""), /--engine|--wsl-engine/);
   assert.match(String(runStep.run || ""), /\$isBtrfs/);
   assert.match(String(runStep.run || ""), /"--store", "dir", \$storeRoot/);
   assert.match(String(runStep.run || ""), /"--store", "image", \$storeImage/);
@@ -95,6 +92,24 @@ run("windows e2e cell provisions WSL and docker prerequisites", () => {
   assert.match(String(runStep.run || ""), /"prepare",\s*"chinook"/);
   assert.match(String(runStep.run || ""), /raw-stdout-run2\.log/);
   assert.match(String(runStep.run || ""), /second pass failed/);
+});
+
+run("windows release archive is self-contained for native and WSL runtimes", () => {
+  const workflow = loadWorkflow();
+  const build = workflow.jobs?.["build-rc"];
+  const windowsBuild = (build.steps || []).find((step) => step.name === "Build engine (windows)");
+  const windowsRelease = (build.steps || []).find((step) => step.name === "Build local release (windows)");
+  assert.match(String(windowsBuild?.run || ""), /GOOS = "linux"/);
+  assert.match(String(windowsRelease?.run || ""), /--wsl-engine-bin/);
+
+  const e2e = workflow.jobs?.["e2e-happy"];
+  assert.equal(
+    (e2e.steps || []).find((step) => step.name === "Download linux rc artifact for WSL engine"),
+    undefined
+  );
+  const extract = (e2e.steps || []).find((step) => step.name === "Extract windows bundle");
+  assert.match(String(extract?.run || ""), /libexec/);
+  assert.match(String(extract?.run || ""), /linux-amd64/);
 });
 
 run("publish RC waits for unified e2e-happy job", () => {

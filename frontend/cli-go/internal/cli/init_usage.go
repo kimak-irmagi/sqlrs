@@ -18,6 +18,7 @@ func PrintInitUsage(w io.Writer) {
 	io.WriteString(w, "  --store-size <NGB>      Image store size (default: 100GB)\n")
 	io.WriteString(w, "  --reinit                Recreate the store (destructive)\n")
 	io.WriteString(w, "  --engine <path>         Engine binary path\n")
+	io.WriteString(w, "  --wsl-engine <path>     Linux engine binary to install into WSL\n")
 	io.WriteString(w, "  --shared-cache          Enable shared cache in local config\n")
 	io.WriteString(w, "  --no-start              Skip WSL auto-start during init\n")
 	io.WriteString(w, "  --distro <name>         WSL distro name\n\n")
