@@ -79,9 +79,9 @@ run("windows e2e cell provisions WSL and docker prerequisites", () => {
   assert.ok(wslStep, "missing WSL setup step");
   assert.ok(dockerStep, "missing docker setup step");
   assert.ok(runStep, "missing windows run step");
-  assert.equal(wslStep.uses, "Vampire/setup-wsl@v6");
+  assert.equal(wslStep.uses, "Vampire/setup-wsl@v7");
   assert.equal(String(wslStep.if || "").trim(), "matrix.platform == 'windows'");
-  assert.equal(dockerStep.uses, "docker/setup-docker-action@v4");
+  assert.equal(dockerStep.uses, "docker/setup-docker-action@v5");
   assert.match(String(runStep.run || ""), /sqlrs_bin/);
   assert.doesNotMatch(String(runStep.run || ""), /engine_windows_bin|engine_linux_bin/);
   assert.doesNotMatch(String(runStep.run || ""), /--engine|--wsl-engine/);
@@ -95,6 +95,33 @@ run("windows e2e cell provisions WSL and docker prerequisites", () => {
   assert.match(String(runStep.run || ""), /"prepare",\s*"chinook"/);
   assert.match(String(runStep.run || ""), /raw-stdout-run2\.log/);
   assert.match(String(runStep.run || ""), /second pass failed/);
+});
+
+run("release workflow uses Node 24-backed action majors", () => {
+  const workflow = loadWorkflow();
+  const uses = Object.values(workflow.jobs || {}).flatMap((job) =>
+    (job.steps || []).map((step) => step.uses).filter(Boolean)
+  );
+  const expectedMajors = new Map([
+    ["actions/checkout", "v7"],
+    ["actions/setup-go", "v7"],
+    ["actions/setup-node", "v7"],
+    ["actions/upload-artifact", "v7"],
+    ["actions/download-artifact", "v8"],
+    ["docker/setup-docker-action", "v5"],
+    ["Vampire/setup-wsl", "v7"],
+    ["liquibase/setup-liquibase", "v3"],
+    ["softprops/action-gh-release", "v3"],
+  ]);
+
+  for (const [action, major] of expectedMajors) {
+    const references = uses.filter((value) => value.startsWith(`${action}@`));
+    assert.ok(references.length > 0, `missing ${action}`);
+    assert.ok(
+      references.every((value) => value === `${action}@${major}`),
+      `${action} must consistently use ${major}: ${references.join(", ")}`
+    );
+  }
 });
 
 run("windows release archive is self-contained for native and WSL runtimes", () => {
