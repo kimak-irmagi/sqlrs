@@ -52,6 +52,18 @@ run("linux e2e cell passes snapshot backend to run-scenario", () => {
   assert.match(String(runStep.run || ""), /--flow-runs "2"/);
 });
 
+run("linux e2e cells fetch only their scenario datasets", () => {
+  const workflow = loadWorkflow();
+  const job = workflow.jobs?.["e2e-happy"];
+  const fetchStep = (job.steps || []).find((step) => step.name === "Fetch example SQL datasets (locked)");
+  assert.ok(fetchStep, "missing SQL dataset fetch step");
+  const script = String(fetchStep.run || "");
+  assert.match(script, /hp-psql-chinook\|cache-pressure-chinook[\s\S]*--source-prefix chinook-postgres/);
+  assert.match(script, /hp-psql-sakila[\s\S]*--source-prefix sakila-postgres-/);
+  assert.match(script, /hp-lb-jhipster[\s\S]*--source-prefix liquibase-jhipster-/);
+  assert.doesNotMatch(script, /pnpm fetch:sql --lock\s*$/m);
+});
+
 run("e2e diagnostics artifacts are backend and platform specific", () => {
   const workflow = loadWorkflow();
   const job = workflow.jobs?.["e2e-happy"];

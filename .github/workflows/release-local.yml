@@ -307,7 +307,24 @@ jobs:
 
       - name: Fetch example SQL datasets (locked)
         if: matrix.platform == 'linux'
-        run: pnpm fetch:sql --lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.scenario }}" in
+            hp-psql-chinook|cache-pressure-chinook)
+              pnpm fetch:sql --lock --source-prefix chinook-postgres
+              ;;
+            hp-psql-sakila)
+              pnpm fetch:sql --lock --source-prefix sakila-postgres-
+              ;;
+            hp-lb-jhipster)
+              pnpm fetch:sql --lock --source-prefix liquibase-jhipster-
+              ;;
+            *)
+              echo "unknown scenario: ${{ matrix.scenario }}" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Fetch Chinook SQL asset (locked)
         if: matrix.platform == 'windows' && matrix.scenario == 'hp-psql-chinook'
