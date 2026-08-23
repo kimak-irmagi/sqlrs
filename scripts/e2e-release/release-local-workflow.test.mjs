@@ -101,6 +101,8 @@ run("windows e2e cell provisions WSL and docker prerequisites", () => {
   assert.match(String(runStep.run || ""), /DOCKER_HOST/);
   assert.match(String(runStep.run || ""), /SQLRS_DOCKER_HOST_PATH_STYLE = "linux"/);
   assert.match(String(runStep.run || ""), /hostname -I/);
+  assert.match(String(runStep.run || ""), /\\\\wsl\.localhost/);
+  assert.match(String(runStep.run || ""), /\/var\/tmp\/sqlrs-release-e2e/);
   assert.match(String(runStep.run || ""), /"--store", "dir", \$storeRoot/);
   assert.match(String(runStep.run || ""), /"--store", "image", \$storeImage/);
   assert.match(String(runStep.run || ""), /chinook\.prep\.s9s\.yaml/);

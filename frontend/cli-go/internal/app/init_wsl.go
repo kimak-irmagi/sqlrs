@@ -75,6 +75,7 @@ var validateInstalledWSLEngineFn = validateInstalledWSLEngine
 
 const defaultVHDXName = "btrfs.vhdx"
 const defaultInstalledWSLEnginePath = "/home/user/.local/lib/sqlrs/sqlrs-engine"
+const defaultWSLEngineDestination = "__SQLRS_DEFAULT_DESTINATION__"
 
 func defaultWSLInitDeps() wslInitDeps {
 	return wslInitDeps{
@@ -146,8 +147,8 @@ func installWSLEngine(ctx context.Context, distro, sourcePath, destination strin
 	}
 	const script = `set -eu
 expected_machine="$1"
-dest="${2:-}"
-if [ -z "$dest" ]; then dest="$HOME/.local/lib/sqlrs/sqlrs-engine"; fi
+dest="$2"
+if [ "$dest" = "__SQLRS_DEFAULT_DESTINATION__" ]; then dest="$HOME/.local/lib/sqlrs/sqlrs-engine"; fi
 dir="${dest%/*}"
 mkdir -p "$dir"
 tmp="$(mktemp "$dir/.sqlrs-engine.XXXXXX")"
@@ -161,10 +162,11 @@ chmod 755 "$tmp"
 mv -f "$tmp" "$dest"
 trap - EXIT
 printf '%s\n' "$dest"`
-	args := []string{"-c", script, "sqlrs-engine-installer", expectedMachine}
-	if destination = strings.TrimSpace(destination); destination != "" {
-		args = append(args, destination)
+	destination = strings.TrimSpace(destination)
+	if destination == "" {
+		destination = defaultWSLEngineDestination
 	}
+	args := []string{"-c", script, "sqlrs-engine-installer", expectedMachine, destination}
 	out, err := runWSLCommandWithInputFn(ctx, distro, verbose, "install WSL engine", string(payload), "sh", args...)
 	if err != nil {
 		return "", fmt.Errorf("install WSL engine: %w", err)

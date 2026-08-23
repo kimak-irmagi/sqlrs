@@ -656,6 +656,13 @@ jobs:
             }
             $env:DOCKER_HOST = "tcp://${wslAddress}:2375"
             $env:SQLRS_DOCKER_HOST_PATH_STYLE = "linux"
+
+            $wslStoreRoot = "/var/tmp/sqlrs-release-e2e/$scenario-$env:SNAPSHOT_BACKEND/store"
+            wsl.exe -d "${{ matrix.wsl_distro }}" -- mkdir -p $wslStoreRoot
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not create the copy state store in the WSL filesystem; exit code $LASTEXITCODE"
+            }
+            $storeRoot = "\\wsl.localhost\${{ matrix.wsl_distro }}" + $wslStoreRoot.Replace("/", "\")
           }
 
           $env:APPDATA = Join-Path $outDir "appdata"

@@ -74,8 +74,11 @@ func TestInstallWSLEngineWritesAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotArgs[len(gotArgs)-1] != expectedMachine {
-		t.Fatalf("default install args=%q, want expected machine as the last argument", gotArgs)
+	if gotArgs[len(gotArgs)-2] != expectedMachine {
+		t.Fatalf("default install args=%q, want expected machine before destination", gotArgs)
+	}
+	if gotArgs[len(gotArgs)-1] != defaultWSLEngineDestination {
+		t.Fatalf("default install args=%q, want a non-empty default destination sentinel", gotArgs)
 	}
 	for _, arg := range gotArgs {
 		if arg == "" {
@@ -83,7 +86,7 @@ func TestInstallWSLEngineWritesAtomically(t *testing.T) {
 		}
 	}
 	joined := gotCommand + " " + strings.Join(gotArgs, " ")
-	for _, required := range []string{"mktemp", "chmod 755", "mv -f", "$HOME/.local/lib/sqlrs/sqlrs-engine"} {
+	for _, required := range []string{"mktemp", "chmod 755", "mv -f", "$HOME/.local/lib/sqlrs/sqlrs-engine", defaultWSLEngineDestination} {
 		if !strings.Contains(joined, required) {
 			t.Fatalf("atomic install command %q does not contain %q", joined, required)
 		}
