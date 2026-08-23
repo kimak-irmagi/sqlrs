@@ -81,8 +81,8 @@ Release-blocking сценарии для MVP:
    чистых runner-ах с осями `platform x scenario x snapshot_backend`.
    Текущие blocking-ячейки:
    - Linux: `hp-psql-chinook`/`hp-psql-sakila` с `copy` и `btrfs`.
-   - Windows: `hp-psql-chinook` с `copy` (host engine) и `btrfs`
-     (host `sqlrs.exe` + WSL runtime).
+   - Windows: `hp-psql-chinook` с `copy` (нативный host engine, подключённый
+     к Linux Docker daemon в WSL) и `btrfs` (host `sqlrs.exe` + WSL runtime).
      Обе ячейки распаковывают только публикуемый Windows archive; WSL-ячейка
      обязана использовать bundled Linux payload, а не отдельно загруженный
      Linux release.
@@ -178,7 +178,8 @@ Data ownership:
 - Happy-path release матрица является blocking с осью platform:
   - Linux: сценарии `hp-psql-chinook`, `hp-psql-sakila`; backend-ы `copy`, `btrfs`.
   - Windows: сценарий `hp-psql-chinook`; backend-ы `copy`, `btrfs`
-    (`copy` использует host engine, `btrfs` использует WSL-backed runtime).
+    (`copy` использует нативный host engine с Linux Docker daemon в WSL,
+    `btrfs` использует WSL-backed runtime).
 - macOS выполняет проверку бандла и smoke команд, а также podman probe
   (`hp-psql-chinook`, `copy`, два последовательных `prepare+run`).
 

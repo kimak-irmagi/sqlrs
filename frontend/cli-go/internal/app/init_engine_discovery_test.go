@@ -70,6 +70,18 @@ func TestInstallWSLEngineWritesAtomically(t *testing.T) {
 	if !bytes.Equal([]byte(gotInput), payload) {
 		t.Fatal("installer did not stream the source payload")
 	}
+	expectedMachine, err := expectedELFMachineHex(runtime.GOARCH)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotArgs[len(gotArgs)-1] != expectedMachine {
+		t.Fatalf("default install args=%q, want expected machine as the last argument", gotArgs)
+	}
+	for _, arg := range gotArgs {
+		if arg == "" {
+			t.Fatalf("default install must not pass an empty argument through wsl.exe: %q", gotArgs)
+		}
+	}
 	joined := gotCommand + " " + strings.Join(gotArgs, " ")
 	for _, required := range []string{"mktemp", "chmod 755", "mv -f", "$HOME/.local/lib/sqlrs/sqlrs-engine"} {
 		if !strings.Contains(joined, required) {
@@ -141,8 +153,8 @@ func TestRunInitRepairsMissingDerivedWSLEngineWithoutUpdate(t *testing.T) {
 	installedCalls := 0
 	runWSLCommandWithInputFn = func(_ context.Context, _ string, _ bool, _ string, _ string, _ string, args ...string) (string, error) {
 		installedCalls++
-		if args[len(args)-2] != installed {
-			t.Fatalf("repair destination=%q", args[len(args)-2])
+		if args[len(args)-1] != installed {
+			t.Fatalf("repair destination=%q", args[len(args)-1])
 		}
 		return installed + "\n", nil
 	}

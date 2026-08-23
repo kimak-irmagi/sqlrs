@@ -338,13 +338,13 @@ jobs:
         uses: docker/setup-docker-action@v4
 
       - name: Set up WSL
-        if: matrix.platform == 'windows' && matrix.snapshot_backend == 'btrfs'
+        if: matrix.platform == 'windows'
         uses: Vampire/setup-wsl@v6
         with:
           distribution: ${{ matrix.wsl_distro }}
 
       - name: Show host WSL status
-        if: matrix.platform == 'windows' && matrix.snapshot_backend == 'btrfs'
+        if: matrix.platform == 'windows'
         shell: pwsh
         run: |
           wsl --status
@@ -360,7 +360,7 @@ jobs:
           }
 
       - name: Ensure Docker in WSL distro (prereq)
-        if: matrix.platform == 'windows' && matrix.snapshot_backend == 'btrfs'
+        if: matrix.platform == 'windows'
         shell: wsl-bash {0}
         run: |
           set -euo pipefail
@@ -631,6 +631,16 @@ jobs:
           Remove-Item Env:SQLRS_DOCKER_HOST_PATH_STYLE -ErrorAction SilentlyContinue
           Remove-Item Env:SQLRS_STATE_DB -ErrorAction SilentlyContinue
 
+          if (-not $isBtrfs) {
+            $wslAddresses = (wsl.exe -d "${{ matrix.wsl_distro }}" -- hostname -I) -split '\s+'
+            $wslAddress = $wslAddresses | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Select-Object -First 1
+            if ([string]::IsNullOrWhiteSpace($wslAddress)) {
+              throw "Could not determine the WSL IPv4 address for the Linux Docker daemon."
+            }
+            $env:DOCKER_HOST = "tcp://${wslAddress}:2375"
+            $env:SQLRS_DOCKER_HOST_PATH_STYLE = "linux"
+          }
+
           $env:APPDATA = Join-Path $outDir "appdata"
           $env:LOCALAPPDATA = Join-Path $outDir "localappdata"
           $env:SQLRS_STATE_STORE = $storeRoot
@@ -684,7 +694,7 @@ jobs:
             } else {
               docker version 1> (Join-Path $outDir "docker-version.txt") 2> (Join-Path $outDir "dockerd.log")
               if ($LASTEXITCODE -ne 0) {
-                throw "host docker check failed with exit code $LASTEXITCODE"
+                throw "host Docker client could not reach the WSL Linux daemon (DOCKER_HOST=$env:DOCKER_HOST); exit code $LASTEXITCODE"
               }
             }
 
@@ -719,7 +729,7 @@ jobs:
             --diff "$outDir/diff.log"
 
       - name: Collect WSL dockerd diagnostics
-        if: failure() && matrix.platform == 'windows' && matrix.snapshot_backend == 'btrfs'
+        if: failure() && matrix.platform == 'windows'
         shell: pwsh
         run: |
           $outDir = Join-Path $env:RUNNER_TEMP "e2e\windows\${{ matrix.scenario }}-${{ matrix.snapshot_backend }}"

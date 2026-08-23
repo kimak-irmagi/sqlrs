@@ -80,12 +80,15 @@ run("windows e2e cell provisions WSL and docker prerequisites", () => {
   assert.ok(dockerStep, "missing docker setup step");
   assert.ok(runStep, "missing windows run step");
   assert.equal(wslStep.uses, "Vampire/setup-wsl@v6");
-  assert.equal(String(wslStep.if || "").trim(), "matrix.platform == 'windows' && matrix.snapshot_backend == 'btrfs'");
+  assert.equal(String(wslStep.if || "").trim(), "matrix.platform == 'windows'");
   assert.equal(dockerStep.uses, "docker/setup-docker-action@v4");
   assert.match(String(runStep.run || ""), /sqlrs_bin/);
   assert.doesNotMatch(String(runStep.run || ""), /engine_windows_bin|engine_linux_bin/);
   assert.doesNotMatch(String(runStep.run || ""), /--engine|--wsl-engine/);
   assert.match(String(runStep.run || ""), /\$isBtrfs/);
+  assert.match(String(runStep.run || ""), /DOCKER_HOST/);
+  assert.match(String(runStep.run || ""), /SQLRS_DOCKER_HOST_PATH_STYLE = "linux"/);
+  assert.match(String(runStep.run || ""), /hostname -I/);
   assert.match(String(runStep.run || ""), /"--store", "dir", \$storeRoot/);
   assert.match(String(runStep.run || ""), /"--store", "image", \$storeImage/);
   assert.match(String(runStep.run || ""), /chinook\.prep\.s9s\.yaml/);

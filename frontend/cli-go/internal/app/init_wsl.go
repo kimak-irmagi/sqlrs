@@ -145,8 +145,8 @@ func installWSLEngine(ctx context.Context, distro, sourcePath, destination strin
 		return "", err
 	}
 	const script = `set -eu
-dest="$1"
-expected_machine="$2"
+expected_machine="$1"
+dest="${2:-}"
 if [ -z "$dest" ]; then dest="$HOME/.local/lib/sqlrs/sqlrs-engine"; fi
 dir="${dest%/*}"
 mkdir -p "$dir"
@@ -161,7 +161,11 @@ chmod 755 "$tmp"
 mv -f "$tmp" "$dest"
 trap - EXIT
 printf '%s\n' "$dest"`
-	out, err := runWSLCommandWithInputFn(ctx, distro, verbose, "install WSL engine", string(payload), "sh", "-c", script, "sqlrs-engine-installer", strings.TrimSpace(destination), expectedMachine)
+	args := []string{"-c", script, "sqlrs-engine-installer", expectedMachine}
+	if destination = strings.TrimSpace(destination); destination != "" {
+		args = append(args, destination)
+	}
+	out, err := runWSLCommandWithInputFn(ctx, distro, verbose, "install WSL engine", string(payload), "sh", args...)
 	if err != nil {
 		return "", fmt.Errorf("install WSL engine: %w", err)
 	}

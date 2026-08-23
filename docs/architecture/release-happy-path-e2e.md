@@ -79,8 +79,9 @@ Scenario metadata is declared in:
    clean runners with axes `platform x scenario x snapshot_backend`.
    Current blocking cells are:
    - Linux: `hp-psql-chinook`/`hp-psql-sakila` with `copy` and `btrfs`.
-   - Windows: `hp-psql-chinook` with `copy` (host engine) and `btrfs`
-     (host `sqlrs.exe` + WSL runtime).
+   - Windows: `hp-psql-chinook` with `copy` (native host engine connected to
+     the Linux Docker daemon in WSL) and `btrfs` (host `sqlrs.exe` + WSL
+     runtime).
      Both cells extract only the published Windows archive; the WSL cell must
      use its bundled Linux payload rather than a separately downloaded Linux
      release.
@@ -176,7 +177,8 @@ Current blocking profile:
 - Happy-path release matrix is blocking with platform axis:
   - Linux: scenarios `hp-psql-chinook`, `hp-psql-sakila`; backends `copy`, `btrfs`.
   - Windows: scenario `hp-psql-chinook`; backends `copy`, `btrfs`
-    (`copy` uses host engine, `btrfs` uses WSL-backed runtime).
+    (`copy` uses the native host engine with a WSL Linux Docker daemon,
+    `btrfs` uses the WSL-backed runtime).
 - macOS runs bundle + command smoke checks, and an additional podman probe
   (`hp-psql-chinook`, `copy`, two consecutive `prepare+run` executions).
 
