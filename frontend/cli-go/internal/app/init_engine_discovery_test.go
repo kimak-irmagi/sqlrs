@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -74,11 +75,8 @@ func TestInstallWSLEngineWritesAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotArgs[len(gotArgs)-2] != expectedMachine {
-		t.Fatalf("default install args=%q, want expected machine before destination", gotArgs)
-	}
-	if gotArgs[len(gotArgs)-1] != defaultWSLEngineDestination {
-		t.Fatalf("default install args=%q, want a non-empty default destination sentinel", gotArgs)
+	if len(gotArgs) != 2 || gotArgs[0] != "-c" {
+		t.Fatalf("default install args=%q, want only an embedded shell script", gotArgs)
 	}
 	for _, arg := range gotArgs {
 		if arg == "" {
@@ -86,7 +84,7 @@ func TestInstallWSLEngineWritesAtomically(t *testing.T) {
 		}
 	}
 	joined := gotCommand + " " + strings.Join(gotArgs, " ")
-	for _, required := range []string{"mktemp", "chmod 755", "mv -f", "$HOME/.local/lib/sqlrs/sqlrs-engine", defaultWSLEngineDestination} {
+	for _, required := range []string{"mktemp", "chmod 755", "mv -f", "$HOME/.local/lib/sqlrs/sqlrs-engine", expectedMachine} {
 		if !strings.Contains(joined, required) {
 			t.Fatalf("atomic install command %q does not contain %q", joined, required)
 		}
@@ -154,10 +152,12 @@ func TestRunInitRepairsMissingDerivedWSLEngineWithoutUpdate(t *testing.T) {
 	t.Cleanup(func() { runWSLCommandAllowFailureFn = previousCheck })
 	previousInstall := runWSLCommandWithInputFn
 	installedCalls := 0
-	runWSLCommandWithInputFn = func(_ context.Context, _ string, _ bool, _ string, _ string, _ string, args ...string) (string, error) {
+	runWSLCommandWithInputFn = func(_ context.Context, _ string, _ bool, _ string, _ string, command string, args ...string) (string, error) {
 		installedCalls++
-		if args[len(args)-1] != installed {
-			t.Fatalf("repair destination=%q", args[len(args)-1])
+		encoded := base64.StdEncoding.EncodeToString([]byte(installed))
+		joined := command + " " + strings.Join(args, " ")
+		if !strings.Contains(joined, encoded) {
+			t.Fatalf("repair installer does not embed encoded destination: %q", joined)
 		}
 		return installed + "\n", nil
 	}
