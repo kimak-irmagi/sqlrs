@@ -663,6 +663,7 @@ jobs:
               throw "Could not create the copy state store in the WSL filesystem; exit code $LASTEXITCODE"
             }
             $storeRoot = "\\wsl.localhost\${{ matrix.wsl_distro }}" + $wslStoreRoot.Replace("/", "\")
+            $env:SQLRS_STATE_DB = Join-Path $outDir "state.db"
           }
 
           $env:APPDATA = Join-Path $outDir "appdata"

@@ -908,6 +908,33 @@ func TestRunUsesStateStoreRootForDB(t *testing.T) {
 	}
 }
 
+func TestRunUsesExplicitStateDBPath(t *testing.T) {
+	prevOpen := openDBFn
+	var gotPath string
+	openDBFn = func(path string) (*sql.DB, error) {
+		gotPath = path
+		return nil, errors.New("boom")
+	}
+	t.Cleanup(func() { openDBFn = prevOpen })
+
+	stateDir := t.TempDir()
+	storeRoot := filepath.Join(t.TempDir(), "store-root")
+	dbPath := filepath.Join(t.TempDir(), "metadata", "state.db")
+	t.Setenv("SQLRS_STATE_STORE", storeRoot)
+	t.Setenv("SQLRS_STATE_DB", dbPath)
+	statePath := filepath.Join(stateDir, "engine.json")
+	code, err := run([]string{"--listen=127.0.0.1:0", "--write-engine-json=" + statePath})
+	if code != 1 || err == nil || !strings.Contains(err.Error(), "open state db") {
+		t.Fatalf("expected state db error, got code=%d err=%v", code, err)
+	}
+	if gotPath != dbPath {
+		t.Fatalf("expected state db path %s, got %s", dbPath, gotPath)
+	}
+	if info, statErr := os.Stat(filepath.Dir(dbPath)); statErr != nil || !info.IsDir() {
+		t.Fatalf("expected state db directory to be created: %v", statErr)
+	}
+}
+
 func TestRunOpenQueueDBError(t *testing.T) {
 	prevNew := newQueueFn
 	newQueueFn = func(*sql.DB) (*queue.SQLiteStore, error) {

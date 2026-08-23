@@ -264,7 +264,10 @@ sequenceDiagram
 ## 4. Персистентность и discovery
 
 - Корень state store: `<state-dir>/state-store` по умолчанию, переопределяется `SQLRS_STATE_STORE`.
-- SQLite БД: `<state-store-root>/state.db`.
+- SQLite БД: `<state-store-root>/state.db` по умолчанию, переопределяется через
+  `SQLRS_STATE_DB`. Переопределение предназначено для runtime-сценариев, где
+  snapshot store доступен через файловую систему без надёжной SQLite-блокировки
+  (например, ext4-каталог WSL, открытый Windows host engine).
 - Config файл: `<state-store-root>/config.json`.
 - Runtime-директории job: `<state-store-root>/jobs/<job_id>/runtime`.
 - Discovery-файл CLI: `engine.json` (путь задается через `--write-engine-json`).

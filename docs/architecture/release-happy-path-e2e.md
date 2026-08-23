@@ -80,7 +80,8 @@ Scenario metadata is declared in:
    Current blocking cells are:
    - Linux: `hp-psql-chinook`/`hp-psql-sakila` with `copy` and `btrfs`.
    - Windows: `hp-psql-chinook` with `copy` (native host engine connected to
-     the Linux Docker daemon and an ext4-backed state store exposed through WSL)
+     the Linux Docker daemon and an ext4-backed snapshot store exposed through
+     WSL, while SQLite metadata stays on the Windows filesystem)
      and `btrfs` (host `sqlrs.exe` + WSL runtime).
      Both cells extract only the published Windows archive; the WSL cell must
      use its bundled Linux payload rather than a separately downloaded Linux
@@ -178,7 +179,8 @@ Current blocking profile:
   - Linux: scenarios `hp-psql-chinook`, `hp-psql-sakila`; backends `copy`, `btrfs`.
   - Windows: scenario `hp-psql-chinook`; backends `copy`, `btrfs`
     (`copy` uses the native host engine with a WSL Linux Docker daemon and an
-    ext4-backed state store, `btrfs` uses the WSL-backed runtime).
+    ext4-backed snapshot store and a Windows-local SQLite metadata database,
+    `btrfs` uses the WSL-backed runtime).
 - macOS runs bundle + command smoke checks, and an additional podman probe
   (`hp-psql-chinook`, `copy`, two consecutive `prepare+run` executions).
 

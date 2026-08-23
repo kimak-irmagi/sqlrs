@@ -273,7 +273,10 @@ sequenceDiagram
 ## 4. Persistence and discovery
 
 - State store root: `<state-dir>/state-store` by default, overridable by `SQLRS_STATE_STORE`.
-- SQLite DB: `<state-store-root>/state.db`.
+- SQLite DB: `<state-store-root>/state.db` by default, overridable by
+  `SQLRS_STATE_DB`. The override is intended for runtimes where the snapshot
+  store is exposed through a filesystem that cannot provide reliable SQLite
+  locking (for example, a WSL ext4 directory exposed to a Windows host engine).
 - Config file: `<state-store-root>/config.json`.
 - Job runtime dirs: `<state-store-root>/jobs/<job_id>/runtime`.
 - CLI discovery file: `engine.json` (path passed by `--write-engine-json`).
