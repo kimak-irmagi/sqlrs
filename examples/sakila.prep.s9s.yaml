@@ -1,5 +1,6 @@
 kind: psql
 image: postgres:17
 args:
+  - --quiet
   - -f
   - sakila/prepare.sql

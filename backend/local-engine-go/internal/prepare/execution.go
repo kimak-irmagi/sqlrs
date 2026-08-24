@@ -551,9 +551,9 @@ func (e *taskExecutor) executePsqlStep(ctx context.Context, jobID string, prepar
 		if ctx.Err() != nil {
 			return errorResponse("cancelled", "task cancelled", "")
 		}
-		details := strings.TrimSpace(output)
-		if details == "" {
-			details = err.Error()
+		details := strings.TrimSpace(err.Error())
+		if renderedOutput := strings.TrimSpace(output); renderedOutput != "" {
+			details += "\n" + renderedOutput
 		}
 		if noSpaceResp := noSpaceErrorResponse("prepare step failed due to insufficient storage", "prepare_step", errors.New(details)); noSpaceResp != nil {
 			return noSpaceResp
