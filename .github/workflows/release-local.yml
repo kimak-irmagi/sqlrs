@@ -23,10 +23,10 @@ jobs:
         runner: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: frontend/cli-go/go.mod
 
@@ -39,10 +39,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -70,10 +70,10 @@ jobs:
         runner: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: backend/local-engine-go/go.mod
 
@@ -115,7 +115,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Resolve release versions
         id: version
@@ -133,12 +133,12 @@ jobs:
           "base=$base" >> $env:GITHUB_OUTPUT
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: frontend/cli-go/go.mod
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -187,7 +187,7 @@ jobs:
           --wsl-engine-bin "${{ github.workspace }}/${{ env.ENGINE_DIR }}/linux_${{ matrix.goarch }}/sqlrs-engine"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sqlrs_${{ matrix.goos }}_${{ matrix.goarch }}
           path: |
@@ -201,10 +201,10 @@ jobs:
       base_version: ${{ steps.version.outputs.base }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -226,7 +226,7 @@ jobs:
           echo "base=$base" >> "$GITHUB_OUTPUT"
 
       - name: Download release artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: sqlrs_*
           merge-multiple: true
@@ -242,7 +242,7 @@ jobs:
           --workflow-run-id "${{ github.run_id }}"
 
       - name: Upload release manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-manifest
           path: release-assets/release-manifest.json
@@ -286,10 +286,10 @@ jobs:
             snapshot_backend: btrfs
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -307,7 +307,24 @@ jobs:
 
       - name: Fetch example SQL datasets (locked)
         if: matrix.platform == 'linux'
-        run: pnpm fetch:sql --lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.scenario }}" in
+            hp-psql-chinook|cache-pressure-chinook)
+              pnpm fetch:sql --lock --source-prefix chinook-postgres
+              ;;
+            hp-psql-sakila)
+              pnpm fetch:sql --lock --source-prefix sakila-postgres-
+              ;;
+            hp-lb-jhipster)
+              pnpm fetch:sql --lock --source-prefix liquibase-jhipster-
+              ;;
+            *)
+              echo "unknown scenario: ${{ matrix.scenario }}" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Fetch Chinook SQL asset (locked)
         if: matrix.platform == 'windows' && matrix.scenario == 'hp-psql-chinook'
@@ -335,16 +352,16 @@ jobs:
 
       - name: Set up Docker on host
         if: matrix.platform == 'windows'
-        uses: docker/setup-docker-action@v4
+        uses: docker/setup-docker-action@v5
 
       - name: Set up WSL
-        if: matrix.platform == 'windows' && matrix.snapshot_backend == 'btrfs'
-        uses: Vampire/setup-wsl@v6
+        if: matrix.platform == 'windows'
+        uses: Vampire/setup-wsl@v7
         with:
           distribution: ${{ matrix.wsl_distro }}
 
       - name: Show host WSL status
-        if: matrix.platform == 'windows' && matrix.snapshot_backend == 'btrfs'
+        if: matrix.platform == 'windows'
         shell: pwsh
         run: |
           wsl --status
@@ -360,7 +377,7 @@ jobs:
           }
 
       - name: Ensure Docker in WSL distro (prereq)
-        if: matrix.platform == 'windows' && matrix.snapshot_backend == 'btrfs'
+        if: matrix.platform == 'windows'
         shell: wsl-bash {0}
         run: |
           set -euo pipefail
@@ -470,14 +487,14 @@ jobs:
 
       - name: Download linux rc artifact
         if: matrix.platform == 'linux'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: sqlrs_linux_amd64
           path: rc-artifacts
 
       - name: Download windows rc artifact
         if: matrix.platform == 'windows'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: sqlrs_windows_amd64
           path: rc-artifacts
@@ -540,7 +557,7 @@ jobs:
           "sqlrs_bin=$($windowsSqlrs.FullName)" >> $env:GITHUB_OUTPUT
       - name: Setup Liquibase latest (linux host)
         if: matrix.platform == 'linux' && matrix.scenario == 'hp-lb-jhipster'
-        uses: liquibase/setup-liquibase@v2
+        uses: liquibase/setup-liquibase@v3
         with:
           version: '5.0.1'
           edition: 'community'
@@ -631,6 +648,24 @@ jobs:
           Remove-Item Env:SQLRS_DOCKER_HOST_PATH_STYLE -ErrorAction SilentlyContinue
           Remove-Item Env:SQLRS_STATE_DB -ErrorAction SilentlyContinue
 
+          if (-not $isBtrfs) {
+            $wslAddresses = (wsl.exe -d "${{ matrix.wsl_distro }}" -- hostname -I) -split '\s+'
+            $wslAddress = $wslAddresses | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Select-Object -First 1
+            if ([string]::IsNullOrWhiteSpace($wslAddress)) {
+              throw "Could not determine the WSL IPv4 address for the Linux Docker daemon."
+            }
+            $env:DOCKER_HOST = "tcp://${wslAddress}:2375"
+            $env:SQLRS_DOCKER_HOST_PATH_STYLE = "linux"
+
+            $wslStoreRoot = "/var/tmp/sqlrs-release-e2e/$scenario-$env:SNAPSHOT_BACKEND/store"
+            wsl.exe -d "${{ matrix.wsl_distro }}" -- mkdir -p $wslStoreRoot
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not create the copy state store in the WSL filesystem; exit code $LASTEXITCODE"
+            }
+            $storeRoot = "\\wsl.localhost\${{ matrix.wsl_distro }}" + $wslStoreRoot.Replace("/", "\")
+            $env:SQLRS_STATE_DB = Join-Path $outDir "state.db"
+          }
+
           $env:APPDATA = Join-Path $outDir "appdata"
           $env:LOCALAPPDATA = Join-Path $outDir "localappdata"
           $env:SQLRS_STATE_STORE = $storeRoot
@@ -684,7 +719,7 @@ jobs:
             } else {
               docker version 1> (Join-Path $outDir "docker-version.txt") 2> (Join-Path $outDir "dockerd.log")
               if ($LASTEXITCODE -ne 0) {
-                throw "host docker check failed with exit code $LASTEXITCODE"
+                throw "host Docker client could not reach the WSL Linux daemon (DOCKER_HOST=$env:DOCKER_HOST); exit code $LASTEXITCODE"
               }
             }
 
@@ -719,7 +754,7 @@ jobs:
             --diff "$outDir/diff.log"
 
       - name: Collect WSL dockerd diagnostics
-        if: failure() && matrix.platform == 'windows' && matrix.snapshot_backend == 'btrfs'
+        if: failure() && matrix.platform == 'windows'
         shell: pwsh
         run: |
           $outDir = Join-Path $env:RUNNER_TEMP "e2e\windows\${{ matrix.scenario }}-${{ matrix.snapshot_backend }}"
@@ -730,7 +765,7 @@ jobs:
 
       - name: Upload Linux E2E diagnostics
         if: failure() && matrix.platform == 'linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-${{ matrix.platform }}-${{ matrix.scenario }}-${{ matrix.snapshot_backend }}
           if-no-files-found: warn
@@ -757,7 +792,7 @@ jobs:
             ${{ runner.temp }}/e2e/linux/${{ matrix.scenario }}-${{ matrix.snapshot_backend }}/workspace/*.sql
       - name: Upload Windows E2E diagnostics
         if: failure() && matrix.platform == 'windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-${{ matrix.platform }}-${{ matrix.scenario }}-${{ matrix.snapshot_backend }}
           if-no-files-found: warn
@@ -771,10 +806,10 @@ jobs:
     needs: [build-rc]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -803,7 +838,7 @@ jobs:
           echo "base=$base" >> "$GITHUB_OUTPUT"
 
       - name: Download darwin rc artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: sqlrs_darwin_*
           merge-multiple: true
@@ -999,7 +1034,7 @@ jobs:
 
       - name: Upload macOS podman release e2e diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-darwin-hp-psql-chinook-copy-podman
           if-no-files-found: warn
@@ -1027,7 +1062,7 @@ jobs:
             os_family: darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Resolve release versions
         id: version
@@ -1040,7 +1075,7 @@ jobs:
 
       - name: Download darwin rc artifacts
         if: matrix.os_family == 'darwin'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: sqlrs_darwin_*
           merge-multiple: true
@@ -1086,7 +1121,7 @@ jobs:
 
       - name: Upload darwin smoke diagnostics
         if: failure() && matrix.os_family == 'darwin'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-smoke-darwin
           path: ${{ runner.temp }}/smoke-darwin
@@ -1099,20 +1134,20 @@ jobs:
       contents: write
     steps:
       - name: Download release bundles
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: sqlrs_*
           merge-multiple: true
           path: release-assets
 
       - name: Download manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-manifest
           path: release-assets
 
       - name: Publish RC release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_VERSION }}
           name: ${{ env.RELEASE_VERSION }}
@@ -1211,7 +1246,7 @@ jobs:
           )
 
       - name: Publish GA release from verified RC assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}

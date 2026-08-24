@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -67,14 +68,27 @@ func TestInstallWSLEngineWritesAtomically(t *testing.T) {
 	if got != defaultInstalledWSLEnginePath {
 		t.Fatalf("installed path=%q", got)
 	}
-	if !bytes.Equal([]byte(gotInput), payload) {
-		t.Fatal("installer did not stream the source payload")
+	encodedPayload := base64.StdEncoding.EncodeToString(payload)
+	expectedMachine, err := expectedELFMachineHex(runtime.GOARCH)
+	if err != nil {
+		t.Fatal(err)
 	}
-	joined := gotCommand + " " + strings.Join(gotArgs, " ")
-	for _, required := range []string{"mktemp", "chmod 755", "mv -f", "$HOME/.local/lib/sqlrs/sqlrs-engine"} {
+	if len(gotArgs) != 1 || gotArgs[0] != "-s" {
+		t.Fatalf("default install args=%q, want the script to arrive through stdin", gotArgs)
+	}
+	for _, arg := range gotArgs {
+		if arg == "" {
+			t.Fatalf("default install must not pass an empty argument through wsl.exe: %q", gotArgs)
+		}
+	}
+	joined := gotCommand + " " + strings.Join(gotArgs, " ") + "\n" + gotInput
+	for _, required := range []string{"mktemp", "chmod 755", "mv -f", "$HOME/.local/lib/sqlrs/sqlrs-engine", expectedMachine} {
 		if !strings.Contains(joined, required) {
 			t.Fatalf("atomic install command %q does not contain %q", joined, required)
 		}
+	}
+	if !strings.Contains(gotInput, encodedPayload) {
+		t.Fatal("installer script does not contain the encoded source payload")
 	}
 }
 
@@ -139,10 +153,12 @@ func TestRunInitRepairsMissingDerivedWSLEngineWithoutUpdate(t *testing.T) {
 	t.Cleanup(func() { runWSLCommandAllowFailureFn = previousCheck })
 	previousInstall := runWSLCommandWithInputFn
 	installedCalls := 0
-	runWSLCommandWithInputFn = func(_ context.Context, _ string, _ bool, _ string, _ string, _ string, args ...string) (string, error) {
+	runWSLCommandWithInputFn = func(_ context.Context, _ string, _ bool, _ string, input, command string, args ...string) (string, error) {
 		installedCalls++
-		if args[len(args)-2] != installed {
-			t.Fatalf("repair destination=%q", args[len(args)-2])
+		encoded := base64.StdEncoding.EncodeToString([]byte(installed))
+		joined := command + " " + strings.Join(args, " ") + "\n" + input
+		if !strings.Contains(joined, encoded) {
+			t.Fatalf("repair installer does not embed encoded destination: %q", joined)
 		}
 		return installed + "\n", nil
 	}

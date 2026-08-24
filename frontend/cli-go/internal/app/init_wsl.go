@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -144,15 +145,23 @@ func installWSLEngine(ctx context.Context, distro, sourcePath, destination strin
 	if err != nil {
 		return "", err
 	}
-	const script = `set -eu
-dest="$1"
-expected_machine="$2"
-if [ -z "$dest" ]; then dest="$HOME/.local/lib/sqlrs/sqlrs-engine"; fi
-dir="${dest%/*}"
+	destination = strings.TrimSpace(destination)
+	destinationAssignment := `dest="$HOME/.local/lib/sqlrs/sqlrs-engine"`
+	if destination != "" {
+		encoded := base64.StdEncoding.EncodeToString([]byte(destination))
+		destinationAssignment = `dest="$(printf '%s' '` + encoded + `' | base64 -d)"`
+	}
+	encodedPayload := base64.StdEncoding.EncodeToString(payload)
+	script := "set -eu\n" +
+		"expected_machine='" + expectedMachine + "'\n" +
+		destinationAssignment + "\n" +
+		`dir="${dest%/*}"
 mkdir -p "$dir"
 tmp="$(mktemp "$dir/.sqlrs-engine.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
-cat >"$tmp"
+base64 -d >"$tmp" <<'__SQLRS_ENGINE_PAYLOAD__'
+` + encodedPayload + `
+__SQLRS_ENGINE_PAYLOAD__
 magic="$(dd if="$tmp" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')"
 machine="$(dd if="$tmp" bs=1 skip=18 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')"
 test "$magic" = "7f454c46"
@@ -161,7 +170,7 @@ chmod 755 "$tmp"
 mv -f "$tmp" "$dest"
 trap - EXIT
 printf '%s\n' "$dest"`
-	out, err := runWSLCommandWithInputFn(ctx, distro, verbose, "install WSL engine", string(payload), "sh", "-c", script, "sqlrs-engine-installer", strings.TrimSpace(destination), expectedMachine)
+	out, err := runWSLCommandWithInputFn(ctx, distro, verbose, "install WSL engine", script, "sh", "-s")
 	if err != nil {
 		return "", fmt.Errorf("install WSL engine: %w", err)
 	}

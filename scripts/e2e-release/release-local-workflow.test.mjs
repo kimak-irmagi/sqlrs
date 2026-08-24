@@ -52,6 +52,18 @@ run("linux e2e cell passes snapshot backend to run-scenario", () => {
   assert.match(String(runStep.run || ""), /--flow-runs "2"/);
 });
 
+run("linux e2e cells fetch only their scenario datasets", () => {
+  const workflow = loadWorkflow();
+  const job = workflow.jobs?.["e2e-happy"];
+  const fetchStep = (job.steps || []).find((step) => step.name === "Fetch example SQL datasets (locked)");
+  assert.ok(fetchStep, "missing SQL dataset fetch step");
+  const script = String(fetchStep.run || "");
+  assert.match(script, /hp-psql-chinook\|cache-pressure-chinook[\s\S]*--source-prefix chinook-postgres/);
+  assert.match(script, /hp-psql-sakila[\s\S]*--source-prefix sakila-postgres-/);
+  assert.match(script, /hp-lb-jhipster[\s\S]*--source-prefix liquibase-jhipster-/);
+  assert.doesNotMatch(script, /pnpm fetch:sql --lock\s*$/m);
+});
+
 run("e2e diagnostics artifacts are backend and platform specific", () => {
   const workflow = loadWorkflow();
   const job = workflow.jobs?.["e2e-happy"];
@@ -79,19 +91,52 @@ run("windows e2e cell provisions WSL and docker prerequisites", () => {
   assert.ok(wslStep, "missing WSL setup step");
   assert.ok(dockerStep, "missing docker setup step");
   assert.ok(runStep, "missing windows run step");
-  assert.equal(wslStep.uses, "Vampire/setup-wsl@v6");
-  assert.equal(String(wslStep.if || "").trim(), "matrix.platform == 'windows' && matrix.snapshot_backend == 'btrfs'");
-  assert.equal(dockerStep.uses, "docker/setup-docker-action@v4");
+  assert.equal(wslStep.uses, "Vampire/setup-wsl@v7");
+  assert.equal(String(wslStep.if || "").trim(), "matrix.platform == 'windows'");
+  assert.equal(dockerStep.uses, "docker/setup-docker-action@v5");
   assert.match(String(runStep.run || ""), /sqlrs_bin/);
   assert.doesNotMatch(String(runStep.run || ""), /engine_windows_bin|engine_linux_bin/);
   assert.doesNotMatch(String(runStep.run || ""), /--engine|--wsl-engine/);
   assert.match(String(runStep.run || ""), /\$isBtrfs/);
+  assert.match(String(runStep.run || ""), /DOCKER_HOST/);
+  assert.match(String(runStep.run || ""), /SQLRS_DOCKER_HOST_PATH_STYLE = "linux"/);
+  assert.match(String(runStep.run || ""), /hostname -I/);
+  assert.match(String(runStep.run || ""), /\\\\wsl\.localhost/);
+  assert.match(String(runStep.run || ""), /\/var\/tmp\/sqlrs-release-e2e/);
+  assert.match(String(runStep.run || ""), /SQLRS_STATE_DB = Join-Path \$outDir "state\.db"/);
   assert.match(String(runStep.run || ""), /"--store", "dir", \$storeRoot/);
   assert.match(String(runStep.run || ""), /"--store", "image", \$storeImage/);
   assert.match(String(runStep.run || ""), /chinook\.prep\.s9s\.yaml/);
   assert.match(String(runStep.run || ""), /"prepare",\s*"chinook"/);
   assert.match(String(runStep.run || ""), /raw-stdout-run2\.log/);
   assert.match(String(runStep.run || ""), /second pass failed/);
+});
+
+run("release workflow uses Node 24-backed action majors", () => {
+  const workflow = loadWorkflow();
+  const uses = Object.values(workflow.jobs || {}).flatMap((job) =>
+    (job.steps || []).map((step) => step.uses).filter(Boolean)
+  );
+  const expectedMajors = new Map([
+    ["actions/checkout", "v7"],
+    ["actions/setup-go", "v7"],
+    ["actions/setup-node", "v7"],
+    ["actions/upload-artifact", "v7"],
+    ["actions/download-artifact", "v8"],
+    ["docker/setup-docker-action", "v5"],
+    ["Vampire/setup-wsl", "v7"],
+    ["liquibase/setup-liquibase", "v3"],
+    ["softprops/action-gh-release", "v3"],
+  ]);
+
+  for (const [action, major] of expectedMajors) {
+    const references = uses.filter((value) => value.startsWith(`${action}@`));
+    assert.ok(references.length > 0, `missing ${action}`);
+    assert.ok(
+      references.every((value) => value === `${action}@${major}`),
+      `${action} must consistently use ${major}: ${references.join(", ")}`
+    );
+  }
 });
 
 run("windows release archive is self-contained for native and WSL runtimes", () => {

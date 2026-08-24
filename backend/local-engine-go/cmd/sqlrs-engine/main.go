@@ -426,7 +426,14 @@ func run(args []string) (int, error) {
 	if err := os.MkdirAll(stateStoreRoot, 0o700); err != nil {
 		return 1, fmt.Errorf("create state store root: %v", err)
 	}
-	db, err := openDBFn(filepath.Join(stateStoreRoot, "state.db"))
+	stateDBPath := strings.TrimSpace(os.Getenv("SQLRS_STATE_DB"))
+	if stateDBPath == "" {
+		stateDBPath = filepath.Join(stateStoreRoot, "state.db")
+	}
+	if err := os.MkdirAll(filepath.Dir(stateDBPath), 0o700); err != nil {
+		return 1, fmt.Errorf("create state db dir: %v", err)
+	}
+	db, err := openDBFn(stateDBPath)
 	if err != nil {
 		return 1, fmt.Errorf("open state db: %v", err)
 	}

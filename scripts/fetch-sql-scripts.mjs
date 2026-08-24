@@ -13,11 +13,15 @@
  *   node scripts/fetch-sql-scripts.mjs --print-sha
  *   node scripts/fetch-sql-scripts.mjs --write-sha
  *   node scripts/fetch-sql-scripts.mjs --lock
+ *   node scripts/fetch-sql-scripts.mjs --lock --source-prefix chinook-
  *
  * Flags:
  *   --print-sha   Print computed sha256 for each downloaded artifact.
  *   --write-sha   If sha256 in manifest is empty/missing, write computed sha256 back to manifest.
  *   --lock        Fail if any sha256 is missing/empty OR mismatch occurs.
+ *   --source-prefix <prefix>
+ *                 Download only manifest sources whose names start with the prefix.
+ *                 May be repeated; matching sources are combined.
  */
 
 import fs from "node:fs";
@@ -36,13 +40,35 @@ const baseDir = path.join(repoRoot, "scripts", "external");
 const cacheDir = path.join(baseDir, "cache");
 const manifestPath = path.join(baseDir, "manifest.yaml");
 
-function parseArgs(argv) {
-  const args = new Set(argv.slice(2));
+export function parseArgs(argv) {
+  const args = argv.slice(2);
+  const sourcePrefixes = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] !== "--source-prefix") continue;
+    const prefix = args[i + 1]?.trim();
+    if (!prefix || prefix.startsWith("--")) {
+      throw new Error("--source-prefix requires a non-empty value");
+    }
+    sourcePrefixes.push(prefix);
+    i += 1;
+  }
+  const argSet = new Set(args);
   return {
-    printSha: args.has("--print-sha"),
-    writeSha: args.has("--write-sha"),
-    lock: args.has("--lock"),
+    printSha: argSet.has("--print-sha"),
+    writeSha: argSet.has("--write-sha"),
+    lock: argSet.has("--lock"),
+    sourcePrefixes,
   };
+}
+
+export function selectSources(sources, prefixes) {
+  const entries = Object.entries(sources || {});
+  if (!Array.isArray(prefixes) || prefixes.length === 0) return entries;
+  const selected = entries.filter(([name]) => prefixes.some((prefix) => name.startsWith(prefix)));
+  if (selected.length === 0) {
+    throw new Error(`No manifest sources match prefixes: ${prefixes.join(", ")}`);
+  }
+  return selected;
 }
 
 function ensureDir(p) {
@@ -155,13 +181,13 @@ async function main() {
   const opts = parseArgs(process.argv);
 
   const manifest = loadManifest(manifestPath);
-  const sources = manifest.sources || {};
+  const sources = selectSources(manifest.sources, opts.sourcePrefixes);
 
   ensureDir(cacheDir);
 
   let manifestChanged = false;
 
-  for (const [name, s] of Object.entries(sources)) {
+  for (const [name, s] of sources) {
     const url = s.url;
     if (!isNonEmptyString(url)) {
       throw new Error(`${name}: url is required`);
@@ -267,7 +293,9 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error(e?.stack || String(e));
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  main().catch((e) => {
+    console.error(e?.stack || String(e));
+    process.exit(1);
+  });
+}
