@@ -423,8 +423,8 @@ func TestExecutePsqlStepOutputDetails(t *testing.T) {
 	prepared := preparedRequest{normalizedArgs: []string{"-c", "select 1"}}
 	rt := &jobRuntime{}
 	errResp := mgr.executePsqlStep(context.Background(), "job-1", prepared, rt, taskState{})
-	if errResp == nil || !strings.Contains(errResp.Details, "details") {
-		t.Fatalf("expected details from output, got %+v", errResp)
+	if errResp == nil || !strings.Contains(errResp.Details, "boom") || !strings.Contains(errResp.Details, "details") {
+		t.Fatalf("expected the runner error and command output in details, got %+v", errResp)
 	}
 }
 
