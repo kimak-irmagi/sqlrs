@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..", "..");
 const workflowPath = path.join(repoRoot, ".github", "workflows", "release-local.yml");
+const sakilaAliasPath = path.join(repoRoot, "examples", "sakila.prep.s9s.yaml");
 
 function run(name, fn) {
   try {
@@ -23,6 +24,11 @@ function loadWorkflow() {
   const raw = fs.readFileSync(workflowPath, "utf8");
   return YAML.parse(raw);
 }
+
+run("sakila release fixture suppresses per-statement psql status output", () => {
+  const alias = YAML.parse(fs.readFileSync(sakilaAliasPath, "utf8"));
+  assert.ok(alias.args?.includes("--quiet"), "Sakila prepare must run psql in quiet mode");
+});
 
 run("happy e2e matrix includes platform and snapshot backend axes", () => {
   const workflow = loadWorkflow();
