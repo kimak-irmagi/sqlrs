@@ -125,6 +125,9 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($raw)) {
             throw "release version is empty"
           }
+          if ($raw -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$') {
+            throw "release version must match vMAJOR.MINOR.PATCH-rc.NUMBER"
+          }
           $base = $raw -replace '-rc\.[0-9]+$',''
           if ([string]::IsNullOrWhiteSpace($base)) {
             throw "base version is empty"
@@ -148,7 +151,8 @@ jobs:
         run: |
           mkdir -p "${{ github.workspace }}/${{ env.ENGINE_DIR }}/${{ matrix.goos }}_${{ matrix.goarch }}"
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
-            go build -o "${{ github.workspace }}/${{ env.ENGINE_DIR }}/${{ matrix.goos }}_${{ matrix.goarch }}/sqlrs-engine${{ matrix.exe }}" \
+            go build -ldflags "-X main.buildVersion=${{ steps.version.outputs.raw }}" \
+            -o "${{ github.workspace }}/${{ env.ENGINE_DIR }}/${{ matrix.goos }}_${{ matrix.goarch }}/sqlrs-engine${{ matrix.exe }}" \
             ./cmd/sqlrs-engine
 
       - name: Build engine (windows)
@@ -160,18 +164,20 @@ jobs:
           $env:GOOS = "${{ matrix.goos }}"
           $env:GOARCH = "${{ matrix.goarch }}"
           $env:CGO_ENABLED = "0"
-          go build -o "$outDir\\sqlrs-engine${{ matrix.exe }}" ./cmd/sqlrs-engine
+          $ldflags = "-X main.buildVersion=${{ steps.version.outputs.raw }}"
+          go build -ldflags $ldflags -o "$outDir\\sqlrs-engine${{ matrix.exe }}" ./cmd/sqlrs-engine
 
           $linuxOutDir = "${{ github.workspace }}\\${{ env.ENGINE_DIR }}\\linux_${{ matrix.goarch }}"
           New-Item -ItemType Directory -Force -Path $linuxOutDir | Out-Null
           $env:GOOS = "linux"
-          go build -o "$linuxOutDir\\sqlrs-engine" ./cmd/sqlrs-engine
+          go build -ldflags $ldflags -o "$linuxOutDir\\sqlrs-engine" ./cmd/sqlrs-engine
 
       - name: Build local release (unix)
         if: runner.os != 'Windows'
         run: >
           node scripts/release-local.mjs
           --version "${{ steps.version.outputs.base }}"
+          --build-version "${{ steps.version.outputs.raw }}"
           --os "${{ matrix.goos }}"
           --arch "${{ matrix.goarch }}"
           --engine-bin "${{ github.workspace }}/${{ env.ENGINE_DIR }}/${{ matrix.goos }}_${{ matrix.goarch }}/sqlrs-engine${{ matrix.exe }}"
@@ -181,6 +187,7 @@ jobs:
         run: >
           node scripts/release-local.mjs
           --version "${{ steps.version.outputs.base }}"
+          --build-version "${{ steps.version.outputs.raw }}"
           --os "${{ matrix.goos }}"
           --arch "${{ matrix.goarch }}"
           --engine-bin "${{ github.workspace }}/${{ env.ENGINE_DIR }}/${{ matrix.goos }}_${{ matrix.goarch }}/sqlrs-engine${{ matrix.exe }}"

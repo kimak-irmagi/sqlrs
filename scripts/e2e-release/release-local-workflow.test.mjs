@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..", "..");
 const workflowPath = path.join(repoRoot, ".github", "workflows", "release-local.yml");
+const releaseScriptPath = path.join(repoRoot, "scripts", "release-local.mjs");
 const sakilaAliasPath = path.join(repoRoot, "examples", "sakila.prep.s9s.yaml");
 
 function run(name, fn) {
@@ -161,6 +162,26 @@ run("windows release archive is self-contained for native and WSL runtimes", () 
   const extract = (e2e.steps || []).find((step) => step.name === "Extract windows bundle");
   assert.match(String(extract?.run || ""), /libexec/);
   assert.match(String(extract?.run || ""), /linux-amd64/);
+});
+
+run("release binaries embed the full release candidate tag", () => {
+  const workflow = loadWorkflow();
+  const build = workflow.jobs?.["build-rc"];
+  const unixEngine = (build.steps || []).find((step) => step.name === "Build engine (unix)");
+  const windowsEngine = (build.steps || []).find((step) => step.name === "Build engine (windows)");
+  const unixRelease = (build.steps || []).find((step) => step.name === "Build local release (unix)");
+  const windowsRelease = (build.steps || []).find((step) => step.name === "Build local release (windows)");
+  const resolveVersion = (build.steps || []).find((step) => step.name === "Resolve release versions");
+
+  assert.match(String(resolveVersion?.run || ""), /vMAJOR\.MINOR\.PATCH-rc\.NUMBER/);
+  assert.match(String(unixEngine?.run || ""), /-X main\.buildVersion=\$\{\{ steps\.version\.outputs\.raw \}\}/);
+  assert.match(String(windowsEngine?.run || ""), /-X main\.buildVersion=\$\{\{ steps\.version\.outputs\.raw \}\}/);
+  assert.match(String(unixRelease?.run || ""), /--build-version "\$\{\{ steps\.version\.outputs\.raw \}\}"/);
+  assert.match(String(windowsRelease?.run || ""), /--build-version "\$\{\{ steps\.version\.outputs\.raw \}\}"/);
+
+  const releaseScript = fs.readFileSync(releaseScriptPath, "utf8");
+  assert.match(releaseScript, /args\["build-version"\] \|\| process\.env\.SQLRS_BUILD_VERSION \|\| version/);
+  assert.match(releaseScript, /-X github\.com\/sqlrs\/cli\/internal\/app\.Version=\$\{buildVersion\}/);
 });
 
 run("publish RC waits for unified e2e-happy job", () => {

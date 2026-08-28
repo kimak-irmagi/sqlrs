@@ -76,6 +76,7 @@ function copyDir(src, dest) {
 
 const args = parseArgs(process.argv.slice(2));
 const version = args.version || process.env.SQLRS_VERSION;
+const buildVersion = args["build-version"] || process.env.SQLRS_BUILD_VERSION || version;
 const goos = args.os || process.env.GOOS;
 const goarch = args.arch || process.env.GOARCH;
 const workspace = args.workspace ? path.resolve(args.workspace) : repoRoot;
@@ -118,7 +119,15 @@ const enginePath = path.resolve(engineBin);
 const wslEnginePath = wslEngineBin ? path.resolve(wslEngineBin) : "";
 
 await run({
-  cmd: ["go", "build", "-o", cliPath, "./cmd/sqlrs"],
+  cmd: [
+    "go",
+    "build",
+    "-ldflags",
+    `-X github.com/sqlrs/cli/internal/app.Version=${buildVersion}`,
+    "-o",
+    cliPath,
+    "./cmd/sqlrs"
+  ],
   cwd: cliRoot,
   env: { ...process.env, GOOS: goos, GOARCH: goarch, CGO_ENABLED: "0" }
 });

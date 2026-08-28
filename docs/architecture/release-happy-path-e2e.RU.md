@@ -40,6 +40,11 @@
 - архив: `sqlrs_<version>_<os>_<arch>.<ext>`
 - checksum: `sqlrs_<version>_<os>_<arch>.<ext>.sha256`
 
+В имени архива используется базовая версия (`vX.Y.Z`). И `sqlrs`, и каждый
+payload `sqlrs-engine` содержат полный исходный release tag (`vX.Y.Z-rc.N`) и
+показывают его во время выполнения. Сборки вне release workflow сохраняют
+явную версию `dev`.
+
 Также нужен дополнительный manifest-артефакт:
 
 - `release-manifest.json` со списком таргетов, checksums, `workflow run id` и

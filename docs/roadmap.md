@@ -92,6 +92,8 @@ gantt
   Chinook/Sakila with matrix expansion (incl. Btrfs), `init --btrfs` behaviour
   unified across Linux/Windows, Windows WSL/docker probe moved into release
   verification, and deterministic output/workspace handling was tightened.
+- **Done (release identity)**: RC bundles embed the full source tag in the CLI,
+  native engine, and bundled WSL engine while non-release builds remain `dev`.
 - **Done (MVP command surface)**: local MVP command set is stable around
   `init/config/ls/status/plan/prepare/run/rm`; legacy command naming is
   deprecated in docs.
