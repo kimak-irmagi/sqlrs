@@ -93,6 +93,8 @@ gantt
   для Chinook/Sakila с расширением матрицы (включая Btrfs), поведение
   `init --btrfs` выровнено между Linux и Windows, Windows WSL/docker probe
   встроен в release-проверки, усилена детерминированность output/workspace.
+- **Сделано (release identity)**: RC-бандлы содержат полный исходный tag в CLI,
+  native engine и встроенном WSL engine, а нерелизные сборки остаются `dev`.
 - **Сделано (MVP command surface)**: локальный MVP-набор команд стабилен вокруг
   `init/config/ls/status/plan/prepare/run/rm`; legacy-нейминг команд в
   документации считается устаревшим.

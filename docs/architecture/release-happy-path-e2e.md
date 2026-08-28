@@ -39,6 +39,11 @@ Per target, release output includes:
 - archive: `sqlrs_<version>_<os>_<arch>.<ext>`
 - checksum: `sqlrs_<version>_<os>_<arch>.<ext>.sha256`
 
+The archive name uses the base version (`vX.Y.Z`). Both `sqlrs` and every
+`sqlrs-engine` payload embed the full source release tag (`vX.Y.Z-rc.N`) and
+report it at runtime. Builds made outside the release workflow retain the
+explicit `dev` version.
+
 An additional manifest artifact is required:
 
 - `release-manifest.json` with target list, checksums, workflow run id,

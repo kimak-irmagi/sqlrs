@@ -364,6 +364,9 @@ var serverShutdownFn = func(server *http.Server, ctx context.Context) error {
 var isCharDeviceFn = isCharDevice
 var jsonMarshalIndent = json.MarshalIndent
 
+// buildVersion is injected by the release workflow. Development builds keep the explicit dev value.
+var buildVersion = "dev"
+
 func run(args []string) (int, error) {
 	fs := flag.NewFlagSet("sqlrs-engine", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -372,7 +375,7 @@ func run(args []string) (int, error) {
 	runDir := fs.String("run-dir", "", "runtime directory (unused in MVP)")
 	statePath := fs.String("write-engine-json", "", "path to engine.json")
 	idleTimeout := fs.Duration("idle-timeout", 30*time.Second, "shutdown after this idle duration")
-	version := fs.String("version", "dev", "engine version")
+	version := fs.String("version", buildVersion, "engine version")
 	if err := fs.Parse(args); err != nil {
 		return 2, err
 	}
