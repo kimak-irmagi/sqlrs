@@ -9,12 +9,16 @@ For common `plan` behavior and output formats, see [`sqlrs-plan.md`](sqlrs-plan.
 ## Command Syntax
 
 ```text
-sqlrs plan:psql [--image <image-id>] [--] [psql-args...]
+sqlrs plan:psql [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--image <image-id>] [--] [psql-args...]
 ```
 
 Where:
 
 - `--image <image-id>` overrides the base container image.
+- `--provenance-path <path>` writes a JSON provenance artifact.
+- `--ref`, `--ref-mode`, and `--ref-keep-worktree` select a Git revision
+  resolved by the CLI and its projection mode; see
+  [`sqlrs-ref.md`](sqlrs-ref.md).
 - `psql-args` are passed to `psql` and fully describe how the state is produced.
 
 If `--` is omitted, all remaining arguments are treated as `psql-args`.

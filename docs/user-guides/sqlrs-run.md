@@ -27,8 +27,8 @@ and test runners.
 ## Command Syntax
 
 ```text
-sqlrs run <run-ref> [--instance <id|name>]
-sqlrs run:<kind> [--instance <id|name>] [-- <command> ] [args...]
+sqlrs run [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <run-ref> --instance <id|name>
+sqlrs run:<kind> [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--instance <id|name>] [-- <command>] [args...]
 ```
 
 Where:
@@ -36,6 +36,10 @@ Where:
 - bare `run <run-ref>` resolves a repo-tracked run alias file
   from the current working directory (`<cwd>/<run-ref>.run.s9s.yaml`);
 - `:kind` selects raw mode and defines how the DSN is passed to the command;
+- `--ref <git-ref>` reads run inputs from a Git revision resolved by the CLI;
+- `--ref-mode` chooses `worktree` (default) or `blob`;
+- `--ref-keep-worktree` keeps the detached worktree after exit in `worktree`
+  mode;
 - `<command>` is executed verbatim after `--` (optional);
 - `OPTIONS` control instance resolution.
 
@@ -46,13 +50,14 @@ If `<command>` is omitted, `run:<kind>` uses its default command. In that case,
 `--` may be omitted as well, and any remaining arguments apply to the default
 command.
 
-Status note:
+Current status:
 
-- raw `run:<kind>` is implemented today;
+- raw `run:<kind>` is implemented;
 - alias-mode `run <run-ref>` and mixed `prepare ... run ...` composites are
-  implemented today;
-- the next Git-aware follow-up for standalone repository-backed runs is
-  documented separately in [`sqlrs-run-ref.md`](sqlrs-run-ref.md).
+  implemented;
+- standalone repository-backed `run --ref` is implemented and documented in
+  [`sqlrs-run-ref.md`](sqlrs-run-ref.md); ref-backed composite
+  `prepare ... run ...` remains unsupported.
 
 ---
 

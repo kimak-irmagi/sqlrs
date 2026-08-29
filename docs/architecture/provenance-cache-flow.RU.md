@@ -1,27 +1,27 @@
 # Provenance и Cache-Explain Flow
 
-Этот документ описывает утвержденный interaction flow для следующего bounded
-local slice после ref-backed `plan` / `prepare`:
+Этот документ описывает реализованный interaction flow для bounded
+diagnostics surface на основе ref-backed `plan` / `prepare`:
 
-- `--provenance-path <path>` у single-stage local `plan` / `prepare`
+- `--provenance-path <path>` у single-stage `plan` / `prepare`
 - `sqlrs cache explain prepare ...` для одного single-stage prepare-oriented
   решения
 
-Он следует принятым user-facing shapes в:
+Он следует реализованным user-facing shapes в:
 
 - [`../user-guides/sqlrs-provenance.md`](../user-guides/sqlrs-provenance.md)
 - [`../user-guides/sqlrs-cache-explain.md`](../user-guides/sqlrs-cache-explain.md)
 
 Этот slice намеренно узкий:
 
-- он поддерживает только single-stage local `plan` и `prepare`;
+- он поддерживает только single-stage `plan` и `prepare`;
 - он поддерживает raw и alias-backed prepare flows;
-- он поддерживает и обычное local filesystem execution, и bounded local `--ref`;
+- он поддерживает local и remote profiles, live inputs и client-side `--ref`
+  projection;
 - provenance остается только JSON side artifact;
 - `cache explain` остается read-only и только prepare-oriented;
 - он пока не поддерживает standalone `run`;
 - он пока не поддерживает composite `prepare ... run ...`;
-- он пока не поддерживает remote/server-side execution или explanation.
 
 ## 1. Участники
 
@@ -30,7 +30,9 @@ local slice после ref-backed `plan` / `prepare`:
 - **Command context** - резолвит cwd, workspace root, output mode и verbose
   settings.
 - **Stage binder** - привязывает raw или alias-backed prepare inputs, включая
-  bounded local `--ref` resolution через shared ref-context path.
+  client-side `--ref` resolution через shared ref-context path.
+- **Remote source sync** - при выбранном remote profile передает bound input
+  closure, необходимый для execution или cache explanation.
 - **Shared inputset collector** - вычисляет детерминированный local input graph
   и content hash-ы для выбранного prepare kind.
 - **Prepare trace helper** - объединяет local command metadata, ref metadata,
@@ -175,5 +177,4 @@ read-only explain call и реальным `prepare`, artifact всё равно
 - `sqlrs cache explain plan ...`
 - `sqlrs cache explain run ...`
 - советы по cache eviction или store-health diagnostics
-- remote/server-side provenance capture
-- remote/server-side cache explanation
+- server-side persistence provenance artifact или automatic upload

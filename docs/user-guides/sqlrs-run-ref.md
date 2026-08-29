@@ -2,33 +2,33 @@
 
 ## Overview
 
-**Status: approved next local CLI slice.**
+**Status: implemented in the current CLI.**
 
-This document defines the next bounded Git-aware local slice after landed
+This document describes the bounded Git-aware client-side surface that followed
 `plan` / `prepare --ref`, provenance, and `cache explain`: allow standalone
 `run` commands to read repository-backed alias files and file-bearing run inputs
 from a selected Git revision without changing the caller's working tree.
 
-This slice stays intentionally narrow:
+The current surface stays intentionally narrow:
 
 - supported: standalone `run <run-ref> --instance ...`
 - supported: standalone raw `run:psql` and `run:pgbench`
-- supported: plain local filesystem and bounded local `--ref`
+- supported: local and remote profiles with client-side `--ref` resolution
 - not supported yet: `prepare ... run ...` when the run stage carries `--ref`
 - not supported yet: `prepare --ref ... run ...`
 - not supported yet: provenance for `run`
 - not supported yet: `cache explain run ...`
-- not supported yet: remote/server-side Git semantics
+- not supported yet: server-side Git fetching or hosted-repository access
 
-The goal is to make repository-tracked query and benchmark workflows runnable
-from another revision without pulling composite multi-stage revision semantics
-into the same PR.
+The surface makes repository-tracked query and benchmark workflows runnable
+from another revision while leaving composite multi-stage revision semantics
+out of scope.
 
 ---
 
 ## Command Shape
 
-Approved public syntax:
+Public syntax:
 
 ```text
 sqlrs run [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <run-ref> --instance <id|name>
@@ -37,27 +37,31 @@ sqlrs run:<kind> [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktr
 
 Selection rules:
 
-- omitting `--ref` keeps today's filesystem behavior unchanged;
-- `--ref` is local-only and requires a Git repository context;
+- omitting `--ref` keeps live-filesystem behavior unchanged;
+- `--ref` is resolved by the CLI and requires a local Git repository context;
 - `--ref-mode` and `--ref-keep-worktree` are valid only when `--ref` is set;
 - `--ref-mode` defaults to `worktree`;
 - `--ref-keep-worktree` is valid only with `--ref-mode worktree`;
 - standalone alias mode still requires `--instance <id|name>`;
-- in this first slice, `run --ref` is standalone only.
+- `run --ref` is standalone only.
 
 The flag belongs to the `run` stage itself, not to global CLI options.
 
 ---
 
-## Scope of This Slice
+## Scope
 
-### Supported in this slice
+### Supported
 
 - `sqlrs run --ref <ref> <run-alias> --instance <id|name>`
 - `sqlrs run:psql --ref <ref> --instance <id|name> -- -f ...`
 - `sqlrs run:psql --ref <ref> --instance <id|name> -- -c ...`
 - `sqlrs run:pgbench --ref <ref> --instance <id|name> -- -f ...`
 - `sqlrs run:pgbench --ref <ref> --instance <id|name> -- -c ...`
+
+These shapes work with local and remote profiles. The CLI always resolves the
+ref and materializes file-bearing run inputs; the remote backend does not need
+repository access.
 
 ### Explicitly out of scope
 
@@ -66,11 +70,11 @@ The flag belongs to the `run` stage itself, not to global CLI options.
 - `sqlrs run --provenance-path ...`
 - `sqlrs cache explain run ...`
 - `sqlrs diff` syntax changes
-- remote runner Git fetching or hosted repository access
+- server-side Git fetching or hosted-repository access
 
-The main reason to defer composite shapes here is to avoid mixing one
-revision-sensitive `run` stage with instance hand-off, detach/no-watch rules,
-and already-deferred prepare-stage ref propagation in the same PR.
+Composite shapes remain deferred to avoid mixing one revision-sensitive `run`
+stage with instance hand-off, detach/no-watch rules, and prepare-stage ref
+propagation.
 
 ---
 
@@ -102,7 +106,7 @@ If that projected cwd does not exist at the selected ref, the command fails.
 
 ## Alias Mode Under `--ref`
 
-Alias mode keeps the same logical rules as today's `run`; only the filesystem
+Alias mode keeps the same logical rules as live-filesystem `run`; only the filesystem
 backing changes from the live working tree to the selected revision.
 
 For:
@@ -135,7 +139,7 @@ ref, the command fails explicitly.
 
 For raw `run:<kind>` invocations:
 
-- file-bearing arguments keep the same per-kind grammar they already have today;
+- file-bearing arguments keep their live-filesystem per-kind grammar;
 - relative paths are resolved from the projected cwd at the selected ref;
 - the shared `internal/inputset` semantics remain the source of truth for file
   discovery and runtime materialization.
@@ -147,12 +151,12 @@ sqlrs run:psql --ref origin/main --instance dev -- -f ./queries.sql
 sqlrs run:pgbench --ref HEAD~1 --instance perf -- -f ./bench.sql -T 30
 ```
 
-This first slice intentionally reuses today's run-kind materialization rules:
+Ref-backed execution reuses the normal run-kind materialization rules:
 
 - `run:psql` still turns file-backed `-f` inputs into the same step/stdin
   projection it already uses for live-filesystem runs;
 - `run:pgbench` still turns file-backed `-f` inputs into `/dev/stdin`
-  materialization the same way it already does today.
+  materialization in the same way as live-filesystem execution.
 
 The slice does not introduce a second run-only path parser or a new engine-side
 Git input mode.
@@ -173,7 +177,7 @@ The mode flags match the existing `sqlrs diff`, `plan --ref`, and
 - remove the temporary worktree after the command unless
   `--ref-keep-worktree` is set.
 
-This remains the default because it preserves the closest behavior to today's
+This remains the default because it most closely preserves
 local filesystem execution.
 
 ### `--ref-mode blob`
@@ -190,7 +194,7 @@ when full filesystem behavior matters.
 
 ## Instance Resolution and Output
 
-This slice does not change `run` instance-selection rules:
+Ref-backed execution does not change `run` instance-selection rules:
 
 - standalone `run --ref ...` still requires `--instance <id|name>`;
 - conflicting instance selection remains an error;
@@ -229,7 +233,7 @@ Examples of user-facing failures:
 - `run alias requires --instance`
 - `run --ref` used in a composite `prepare ... run ...` command
 
-These should remain regular command errors, not discover findings.
+These are regular command errors, not discover findings.
 
 ---
 
@@ -265,15 +269,15 @@ Use direct Git-object reads:
 sqlrs run:psql --ref origin/main --ref-mode blob --instance dev -- -f ./queries.sql
 ```
 
-Not in this slice:
+Not supported:
 
 ```bash
-# rejected in this slice
+# rejected
 sqlrs prepare chinook run --ref origin/main smoke
 ```
 
 ```bash
-# rejected in this slice
+# rejected
 sqlrs prepare --ref origin/main chinook run smoke
 ```
 
@@ -281,17 +285,17 @@ sqlrs prepare --ref origin/main chinook run smoke
 
 ## Rationale Summary
 
-This CLI shape keeps the next `run`-aware Git slice bounded:
+This CLI shape keeps `run`-aware Git execution bounded:
 
 - one explicit `--ref` flag family reused by `run` as-is;
 - the same `worktree` vs `blob` vocabulary already established by other
   repository-aware commands;
-- no new engine API or hosted Git dependency in the first slice;
-- no mixed-stage revision semantics in the same PR;
+- no new engine API or hosted Git dependency;
+- no mixed-stage revision semantics in the current surface;
 - raw mode and alias mode keep the same path-base rules they already have
-  today.
+  in live-filesystem execution.
 
-Accepted follow-up design documents:
+Implemented flow and component documents:
 
 - [`../architecture/run-ref-flow.md`](../architecture/run-ref-flow.md)
 - [`../architecture/run-ref-component-structure.md`](../architecture/run-ref-component-structure.md)

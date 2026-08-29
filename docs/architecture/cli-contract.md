@@ -201,12 +201,12 @@ See the user guide for the authoritative, up-to-date command semantics:
 - [`docs/user-guides/sqlrs-provenance.md`](../user-guides/sqlrs-provenance.md)
 - [`docs/user-guides/sqlrs-watch.md`](../user-guides/sqlrs-watch.md)
 
-Current behavior plus approved next-slice extension:
+Current behavior:
 
 - `prepare <prepare-ref>` resolves a repo-tracked `*.prep.s9s.yaml` file from
   the current working directory.
-- bounded local `prepare --ref <git-ref>` is the accepted next Git-aware slice
-  for local, single-stage prepare only; it keeps cwd-relative alias and raw
+- bounded client-side `prepare --ref <git-ref>` supports local and remote
+  profiles for single-stage prepare only; it keeps cwd-relative alias and raw
   path semantics by projecting the caller cwd into the selected ref context.
 - `prepare --ref-mode worktree|blob` and `--ref-keep-worktree` follow the same
   vocabulary and defaults already accepted for `sqlrs diff`:
@@ -222,8 +222,8 @@ Current behavior plus approved next-slice extension:
   or alias mode on each stage.
 - the bounded `--ref` slice does **not** yet extend to `prepare ... run ...`;
   a prepare stage carrying `--ref` remains single-stage only for now.
-- the approved next reproducibility slice adds
-  `--provenance-path <path>` to single-stage local `prepare` without changing
+- `--provenance-path <path>` is implemented for single-stage `prepare` with
+  local and remote profiles without changing
   the command's primary stdout/stderr contract; the JSON artifact is written as
   a side file resolved from the caller's current working directory.
 - file-bearing paths read from a prepare alias resolve relative to that alias
@@ -254,11 +254,11 @@ Current alias mode:
 
 - `sqlrs plan <prepare-ref>` resolves a repo-tracked prepare alias file from
   the current working directory.
-- bounded local `plan --ref <git-ref>` is the accepted next Git-aware slice for
-  local, single-stage plan only; it reuses the same projected-cwd, `worktree`,
+- bounded client-side `plan --ref <git-ref>` supports local and remote profiles
+  for single-stage plan only; it reuses the same projected-cwd, `worktree`,
   and explicit `blob` rules as bounded `prepare --ref`.
-- the approved next reproducibility slice also adds
-  `--provenance-path <path>` to single-stage local `plan`; it writes one JSON
+- `--provenance-path <path>` is implemented for single-stage `plan` with local
+  and remote profiles; it writes one JSON
   side artifact without changing the main human/JSON result payload.
 
 ---
@@ -270,18 +270,18 @@ See the user guide for the authoritative, up-to-date command semantics:
 - [`docs/user-guides/sqlrs-run.md`](../user-guides/sqlrs-run.md)
 - [`docs/user-guides/sqlrs-run-ref.md`](../user-guides/sqlrs-run-ref.md)
 
-Accepted ref-aware follow-up design documents:
+Implemented ref-aware flow and component documents:
 
 - [`run-ref-flow.md`](run-ref-flow.md)
 - [`run-ref-component-structure.md`](run-ref-component-structure.md)
 
-Current behavior plus approved next Git-aware follow-up:
+Current behavior:
 
 - standalone `sqlrs run <run-ref> --instance <id|name>` resolves a repo-tracked
   `*.run.s9s.yaml` file from the current working directory while keeping runtime
   instance selection explicit;
-- bounded local `run --ref <git-ref>` is the approved next Git-aware slice for
-  local, single-stage `run`; it applies to alias-backed `run <run-ref>` and raw
+- bounded client-side `run --ref <git-ref>` supports local and remote profiles
+  for single-stage `run`; it applies to alias-backed `run <run-ref>` and raw
   `run:psql` / `run:pgbench`, projecting the caller cwd into the selected ref
   context;
 - `run --ref-mode worktree|blob` and `--ref-keep-worktree` reuse the same
@@ -455,13 +455,13 @@ See the user guide for the authoritative, up-to-date command semantics:
 
 - [`docs/user-guides/sqlrs-cache-explain.md`](../user-guides/sqlrs-cache-explain.md)
 
-Current design direction:
+Current behavior:
 
 - `status --cache` remains the global operator-facing cache health command;
 - `ls --states --cache-details` remains the per-state cache metadata surface;
-- `cache explain prepare ...` is the approved next read-only cache-diagnostics
+- `cache explain prepare ...` is the implemented read-only cache-diagnostics
   command for one single-stage prepare-oriented decision;
-- `cache explain` reuses the same raw, alias-backed, and bounded local `--ref`
+- `cache explain` reuses the same raw, alias-backed, and client-side `--ref`
   binding semantics as single-stage `prepare`;
 - the first slice does **not** yet support wrapped `plan`, wrapped `run`, or
   composite `prepare ... run ...`.

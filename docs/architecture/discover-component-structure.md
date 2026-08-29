@@ -1,8 +1,7 @@
 # Discover Component Structure
 
-This document defines the approved internal component structure for the
-`sqlrs discover` generic-analyzer slice after the command grows beyond the
-initial aliases-only workflow.
+This document defines the implemented internal component structure for the
+generic-analyzer `sqlrs discover` command.
 
 The focus is on how analyzer selection, workspace scanning, kind-specific
 validation, repository-hygiene inspection, follow-up command rendering, and
@@ -66,7 +65,7 @@ report aggregation are split across modules.
 Without this split, the command would either duplicate `alias` logic or grow
 analyzer heuristics directly inside `internal/app`.
 
-The approved flow is:
+The implemented flow is:
 
 ```text
 analyzer selection

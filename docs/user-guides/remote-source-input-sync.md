@@ -11,12 +11,12 @@ command that users must run before every prepare request.
 The existing command syntax is unchanged:
 
 ```text
-sqlrs prepare:psql [--image <image-id>] [--] [psql-args...]
-sqlrs prepare:lb [--image <image-id>] [--] [liquibase-args...]
-sqlrs plan:psql [--image <image-id>] [--] [psql-args...]
-sqlrs plan:lb [--image <image-id>] [--] [liquibase-args...]
-sqlrs cache explain prepare:psql [--image <image-id>] [--] [psql-args...]
-sqlrs cache explain prepare:lb [--image <image-id>] [--] [liquibase-args...]
+sqlrs prepare:psql [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--watch|--no-watch] [--image <image-id>] [--] [psql-args...]
+sqlrs prepare:lb [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--watch|--no-watch] [--image <image-id>] -- [liquibase-args...]
+sqlrs plan:psql [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--image <image-id>] [--] [psql-args...]
+sqlrs plan:lb [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--image <image-id>] -- [liquibase-args...]
+sqlrs cache explain prepare:psql [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--image <image-id>] [--] [psql-args...]
+sqlrs cache explain prepare:lb [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--image <image-id>] -- [liquibase-args...]
 ```
 
 When the selected profile is `local`, the CLI does not transfer files. The

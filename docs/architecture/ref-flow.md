@@ -1,15 +1,16 @@
 # Ref-Backed Plan/Prepare Flow
 
-This document describes the approved local interaction flow for the bounded
-`--ref` slice after the CLI syntax for ref-backed `plan` / `prepare` has been
-accepted in [`../user-guides/sqlrs-ref.md`](../user-guides/sqlrs-ref.md).
+This document describes the implemented client-side interaction flow for bounded
+ref-backed `plan` / `prepare`, whose public syntax is documented in
+[`../user-guides/sqlrs-ref.md`](../user-guides/sqlrs-ref.md).
 
 This slice is intentionally narrow:
 
 - it applies to single-stage `plan` and `prepare`;
 - it supports both raw and alias-backed prepare flows;
 - it keeps ref-backed `prepare` in watch mode only;
-- it does not cover the later approved standalone `run --ref` follow-up;
+- standalone `run --ref` is implemented through the separate
+  [`run-ref-flow.md`](run-ref-flow.md);
 - it does not yet support `prepare ... run ...` composites carrying `--ref`.
 
 ## 1. Participants
@@ -168,6 +169,9 @@ existing command-kind implementations.
 
 Once the stage is fully bound, the existing app flow continues unchanged.
 
+- Local profiles let the local engine read the bound workspace view directly.
+- Remote profiles use source sync to send the bound ref-backed inputs; Git
+  resolution and filesystem projection still happen in the CLI.
 - `plan` keeps its current human/JSON output.
 - `prepare --ref` stays in watch mode and keeps DSN output.
 - plain `prepare` without `--ref` still supports `--no-watch` and job
@@ -204,12 +208,12 @@ cleanup errors are already surfaced in `sqlrs diff`.
   explicitly.
 - No ref-backed stage mutates the caller's live working tree.
 
-## 5. Out-of-scope follow-ups
+## 5. Related and out-of-scope surfaces
 
-This flow intentionally leaves the following to later slices:
+This flow intentionally does not cover:
 
 - `prepare ... run ...` with a ref-backed prepare stage;
-- standalone `run --ref` (covered by a later follow-up design);
+- standalone `run --ref` (covered by the implemented
+  [`run-ref-flow.md`](run-ref-flow.md));
 - provenance output for ref-backed runs;
-- `sqlrs cache explain` over ref-backed inputs;
-- remote runner or hosted Git semantics.
+- server-side Git fetching or hosted-repository access.

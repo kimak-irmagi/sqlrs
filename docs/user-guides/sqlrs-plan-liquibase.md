@@ -9,12 +9,16 @@ For common `plan` behavior and output formats, see [`sqlrs-plan.md`](sqlrs-plan.
 ## Command Syntax
 
 ```text
-sqlrs plan:lb [--image <db-image-id>] -- <liquibase-args...>
+sqlrs plan:lb [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--image <db-image-id>] -- <liquibase-args...>
 ```
 
 Where:
 
 - `--image <db-image-id>` overrides the DB base image (same as `prepare:psql`).
+- `--provenance-path <path>` writes a JSON provenance artifact.
+- `--ref`, `--ref-mode`, and `--ref-keep-worktree` select a Git revision
+  resolved by the CLI and its projection mode; see
+  [`sqlrs-ref.md`](sqlrs-ref.md).
 - `liquibase-args...` are passed to Liquibase CLI after `--`.
 
 ---
@@ -44,9 +48,11 @@ All other arguments are passed through as-is.
 
 ---
 
-## Path Handling (Windows host Liquibase)
+## Path Handling
 
-When Liquibase runs on the Windows host (WSL engine + host Liquibase):
+Liquibase runs as a host executable. Native mode uses paths for the engine's
+operating system. When a WSL engine invokes a Windows `.bat` or `.cmd`
+Liquibase launcher, sqlrs uses Windows-host mode:
 
 - `--changelog-file`, `--defaults-file`, and `--searchPath` are translated to
   Windows paths before execution.
@@ -55,6 +61,8 @@ When Liquibase runs on the Windows host (WSL engine + host Liquibase):
 - For alias-backed `plan:lb` invocations that declare a local `--searchPath`,
   sqlrs runs Liquibase from the first local search-path entry so the changelog
   path and include graph stay aligned.
+
+Container-based Liquibase execution is not implemented.
 
 ---
 

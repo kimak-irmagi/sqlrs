@@ -1,4 +1,4 @@
-# sqlrs local engine: WSL2 auto-start design (Windows)
+# sqlrs local engine: WSL2 auto-start (Windows)
 
 ## Goal
 
@@ -35,13 +35,13 @@ This document defines **CLI behavior**, **discovery rules**, and **configuration
 
 ---
 
-## Proposed CLI flow (Windows)
+## CLI flow (Windows)
 
 ### `sqlrs init local` (local setup)
 
 Purpose: one-time setup of WSL2 + btrfs + config for local engine auto-start.
 
-Proposed syntax:
+Public syntax:
 
 ```text
 sqlrs init local --snapshot btrfs [--store image] [--store-size <N>GB] [--distro <name>] [--no-start] [--reinit]
@@ -195,7 +195,7 @@ If any condition fails: **error** (no fallback).
 
 ---
 
-## Configuration (proposed)
+## Configuration
 
 ### 1) Snapshot backend
 
@@ -287,10 +287,6 @@ On startup, the engine validates that the systemd mount unit is active and that
 `SQLRS_STATE_STORE` is mounted as btrfs. It does **not** mount the device itself.
 If the mount is missing, the engine fails with a hint to run `sqlrs init local --snapshot btrfs`
 and restart WSL.
-
----
-
-## Open Decisions (need approval)
 
 ---
 

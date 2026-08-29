@@ -2,30 +2,23 @@
 
 ## Overview
 
-**Status: proposed generic-analyzer CLI design.**
+**Status: implemented in the current local CLI.**
 
-Current implementation only supports the first discovery slice:
-
-- `sqlrs discover`
-- `sqlrs discover --aliases`
-
-where bare `discover` behaves like `discover --aliases`.
-
-This document defines the **next CLI syntax slice** for turning `discover` into
-the general advisory workflow planned in M2:
+The stable analyzer set is:
 
 - `--aliases`
 - `--gitignore`
 - `--vscode`
 - `--prepare-shaping`
 
-The command remains local-only, advisory, and read-only.
+Bare `discover` runs all four in canonical order. The command is local-only,
+advisory, and read-only.
 
 ---
 
 ## Command Shape
 
-The proposed public syntax is:
+The public syntax is:
 
 ```text
 sqlrs discover [--aliases] [--gitignore] [--vscode] [--prepare-shaping]
@@ -47,8 +40,7 @@ Canonical analyzer order:
 3. `--vscode`
 4. `--prepare-shaping`
 
-This changes bare `discover` from "aliases only" into "run all stable
-analyzers" once the generic slice ships.
+Bare `discover` therefore means "run all stable analyzers".
 
 ---
 
@@ -65,7 +57,7 @@ analyzers" once the generic slice ships.
   `--update` behavior.
 - Execution commands never depend on prior `discover` output.
 
-The generic analyzer slice is intentionally advisory only. It should improve
+The generic analyzer surface is intentionally advisory only. It improves
 repository hygiene and workflow shaping without introducing mutation semantics
 that would need a second review surface.
 
@@ -165,7 +157,7 @@ layouts, but it does not rewrite workflows or create aliases automatically.
 
 Human output should stay block-oriented rather than table-oriented.
 
-Proposed rendering rules:
+Rendering rules:
 
 - findings are grouped by analyzer in canonical analyzer order;
 - each finding block starts with the analyzer name;
@@ -232,7 +224,7 @@ sqlrs discover --aliases --prepare-shaping
 Render machine-readable output for one analyzer:
 
 ```bash
-sqlrs discover --output json --gitignore
+sqlrs --output json discover --gitignore
 ```
 
 Example human follow-up shapes:
@@ -261,10 +253,9 @@ This CLI shape keeps `discover` simple:
 
 - one verb;
 - additive analyzer selectors;
-- stable default behavior once the generic slice lands;
-- no mutation modes in the first generic analyzer PR;
+- stable default behavior;
+- no mutation modes;
 - clear separation between discovery findings and execution semantics.
 
-The main deliberate UX change is that bare `discover` should evolve from
-"aliases only" to "run all stable analyzers" once the generic analyzer slice is
-implemented.
+Bare `discover` runs every stable analyzer; explicit analyzer flags provide a
+focused subset without changing output order.

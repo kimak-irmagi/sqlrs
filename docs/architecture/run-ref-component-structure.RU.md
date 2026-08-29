@@ -1,19 +1,20 @@
 # Ref-Backed Run - Структура Компонентов
 
-Этот документ определяет утвержденную внутреннюю компонентную структуру для
-bounded local standalone slice `run --ref`:
+Этот документ определяет реализованную внутреннюю компонентную структуру для
+bounded client-side standalone slice `run --ref`:
 
 - `sqlrs run --ref ...`
 - `sqlrs run:psql --ref ...`
 - `sqlrs run:pgbench --ref ...`
 
-Он опирается на принятый CLI shape из
+Он опирается на реализованный CLI shape из
 [`../user-guides/sqlrs-run-ref.md`](../user-guides/sqlrs-run-ref.md) и на
-принятый interaction flow из [`run-ref-flow.RU.md`](run-ref-flow.RU.md).
+реализованный interaction flow из [`run-ref-flow.RU.md`](run-ref-flow.RU.md).
 
 ## 1. Scope и assumptions
 
-- Slice остается CLI-only и local-only.
+- Git resolution и input materialization выполняются на стороне CLI; execution
+  работает с local и remote profiles.
 - Он применяется только к standalone `run`.
 - Он поддерживает raw и alias-backed run flow.
 - Он переиспользует ту же ref vocabulary `worktree` и `blob`, которая уже
@@ -30,7 +31,7 @@ bounded local standalone slice `run --ref`:
   - насильственного включения standalone `run` в prepare-oriented stage
     pipeline, когда transport и output behavior остаются другими
 
-## 2. Утвержденное разбиение компонентов
+## 2. Реализованное разбиение компонентов
 
 | Компонент | Ответственность | Caller |
 |-----------|-----------------|--------|
@@ -45,12 +46,12 @@ bounded local standalone slice `run --ref`:
 
 ## 3. Общий owner для этого slice: package-local run binding helper в `internal/app`
 
-Утвержденная структура оставляет ref-aware binding для standalone `run`
+Реализованная структура оставляет ref-aware binding для standalone `run`
 package-local внутри `internal/app`, а не вводит сразу новый top-level package.
 
 Обоснование:
 
-- slice все еще ограничен standalone local `run`;
+- slice все еще ограничен standalone `run`;
 - raw и alias-backed `run` уже сходятся в `internal/app` перед существующим
   transport call через `internal/cli`;
 - итоговое значение - это все еще существующий payload `cli.RunOptions` плюс
@@ -206,7 +207,7 @@ flowchart TB
 
 ## 8. Consequences для существующих документов
 
-Поскольку standalone `run --ref` теперь получил собственную утвержденную
+Поскольку standalone `run --ref` получил собственную реализованную
 internal structure:
 
 - `cli-component-structure.RU.md` должен описывать `internal/refctx` как

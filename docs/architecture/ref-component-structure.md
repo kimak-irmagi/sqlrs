@@ -1,29 +1,30 @@
 # Ref-Backed Plan/Prepare - Component Structure
 
-This document defines the approved internal component structure for the bounded
-local `--ref` slice for `sqlrs plan` and `sqlrs prepare`.
+This document defines the implemented internal component structure for bounded
+client-side `--ref` support in `sqlrs plan` and `sqlrs prepare`.
 
-It follows the accepted CLI shape in
-[`../user-guides/sqlrs-ref.md`](../user-guides/sqlrs-ref.md) and the accepted
+It follows the implemented CLI shape in
+[`../user-guides/sqlrs-ref.md`](../user-guides/sqlrs-ref.md) and the implemented
 interaction flow in [`ref-flow.md`](ref-flow.md).
 
 ## 1. Scope and assumptions
 
-- The slice is **CLI-only** and **local-only**.
+- Git resolution and revision projection are **CLI-side**; the resulting
+  commands work with both local and remote profiles.
 - It applies only to **single-stage** `plan` and `prepare`.
 - It supports both raw and alias-backed prepare flows.
 - Ref-backed `prepare` stays watch-only in this slice; asynchronous `--no-watch`
   semantics remain out of scope.
 - It reuses the same `worktree` and `blob` vocabulary already accepted for
   `sqlrs diff`.
-- It does not yet add:
-  - the later approved standalone `run --ref` follow-up
+- It does not own:
+  - standalone `run --ref`, which has a separate implemented component surface
   - `prepare ... run ...` with a ref-backed prepare stage
-  - provenance or `cache explain`
+  - run-side provenance or `cache explain run ...`
 - The architecture must avoid duplicating detached-worktree lifecycle and
   projected-cwd logic separately in `diff` and in `plan` / `prepare`.
 
-## 2. Approved component split
+## 2. Implemented component split
 
 | Component | Responsibility | Caller |
 |-----------|----------------|--------|
@@ -32,11 +33,12 @@ interaction flow in [`ref-flow.md`](ref-flow.md).
 | **Alias binder** | Resolve a prepare alias ref and load its YAML payload against the selected filesystem context, not just the live working tree. | Plan/prepare command handler |
 | **Shared inputset kind component** | Parse file-bearing args, bind them against the selected filesystem view, and collect deterministic per-kind input closures. | Plan/prepare command handler via `internal/inputset/*` |
 | **Plan/prepare app flow** | Run the existing deterministic plan or prepare flow once the stage is fully bound. | Plan/prepare command handler |
+| **Remote source sync** | For remote profiles, transfer the bound live- or ref-backed input closure without requiring backend repository access. | Existing stage pipeline and remote source transport |
 | **Cleanup handler** | Remove temporary worktrees unless the user requested `--ref-keep-worktree`. | Shared ref context resolver consumer |
 
 ## 3. New shared owner: `internal/refctx`
 
-The approved structure introduces one shared CLI-side owner for ref-backed
+The implemented structure introduces one shared CLI-side owner for ref-backed
 filesystem context:
 
 - repository-root discovery from caller cwd
@@ -54,7 +56,7 @@ Without a shared owner, `plan` / `prepare --ref` would either:
 - push execution concerns into `internal/diff`, which is the wrong dependency
   direction.
 
-The approved ownership rule is:
+The implemented ownership rule is:
 
 - `internal/diff` keeps **diff scope parsing, comparison, and rendering**;
 - `internal/refctx` owns **one ref-backed filesystem context**;
@@ -190,16 +192,15 @@ flowchart TB
 
 ## 8. Consequences for existing docs
 
-Because `internal/refctx` becomes the shared owner of ref-backed filesystem
-contexts:
+`internal/refctx` is the shared owner of ref-backed filesystem contexts, so:
 
-- `diff-component-structure.md` must stop treating generic ref-context setup as
-  a long-term `internal/diff` responsibility;
-- `cli-component-structure.md` must list `internal/refctx` alongside
+- `diff-component-structure.md` does not treat generic ref-context setup as a
+  long-term `internal/diff` responsibility;
+- `cli-component-structure.md` lists `internal/refctx` alongside
   `internal/diff`, `internal/discover`, and `internal/inputset`;
-- `cli-contract.md` must describe `plan` / `prepare --ref` as the accepted next
-  bounded slice, while later standalone `run --ref` is documented separately
-  and composite ref semantics stay out of this document's scope.
+- `cli-contract.md` describes implemented `plan` / `prepare --ref`, while
+  standalone `run --ref` is documented separately and composite ref semantics
+  stay out of this document's scope.
 
 ## 9. References
 

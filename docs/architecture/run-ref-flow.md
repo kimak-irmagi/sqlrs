@@ -1,13 +1,13 @@
 # Ref-Backed Run Flow
 
-This document describes the approved local interaction flow for the next
-bounded repository-aware slice after landed `plan` / `prepare --ref`,
-provenance, and cache explanation:
+This document describes the implemented client-side interaction flow for bounded
+repository-aware standalone run after `plan` / `prepare --ref`, provenance, and
+cache explanation:
 
 - standalone `sqlrs run --ref ...`
 - standalone raw `sqlrs run:psql --ref ...` and `sqlrs run:pgbench --ref ...`
 
-It follows the accepted CLI shape in
+It follows the implemented CLI shape in
 [`../user-guides/sqlrs-run-ref.md`](../user-guides/sqlrs-run-ref.md).
 
 This slice is intentionally narrow:
@@ -15,7 +15,8 @@ This slice is intentionally narrow:
 - it applies only to standalone `run`;
 - it supports both raw and alias-backed run flows;
 - it keeps the existing `worktree` and `blob` ref vocabulary;
-- it stays CLI-only and local-only;
+- Git resolution and input materialization stay CLI-side, while execution can
+  use a local or remote profile;
 - it does not yet support `prepare ... run ...` when the run stage carries
   `--ref`;
 - it does not yet add run-side provenance or `cache explain`.
@@ -175,6 +176,8 @@ would have produced for today's non-`--ref` flow.
 Once runtime args, steps, and stdin are fully materialized, the existing run
 flow continues unchanged.
 
+- Local and remote profiles receive the same transport-ready request; the
+  remote backend never needs repository access.
 - Instance resolution still requires `--instance` for standalone alias or raw
   runs.
 - Existing run-kind connection-arg validation stays unchanged.
@@ -220,4 +223,4 @@ This flow intentionally leaves the following to later slices:
 - `prepare --ref ... run ...`;
 - provenance output for ref-backed runs;
 - `sqlrs cache explain run ...`;
-- remote runner or hosted Git semantics.
+- server-side Git fetching or hosted-repository access.

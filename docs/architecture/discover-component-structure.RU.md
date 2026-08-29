@@ -1,8 +1,7 @@
 # Структура компонента Discover
 
-Этот документ определяет согласованную внутреннюю структуру для slice
-`sqlrs discover` в generic-analyzer slice после того, как команда выходит за
-рамки первоначального aliases-only workflow.
+Этот документ определяет реализованную внутреннюю структуру generic-analyzer
+команды `sqlrs discover`.
 
 Фокус документа: как разделены analyzer selection, workspace scanning,
 kind-specific validation, repository-hygiene inspection, follow-up command
@@ -67,7 +66,7 @@ rendering и report aggregation.
 Без такого разделения команда либо начнёт дублировать alias logic, либо
 разрастётся analyzer heuristics прямо внутри `internal/app`.
 
-Согласованный поток такой:
+Реализованный поток такой:
 
 ```text
 analyzer selection

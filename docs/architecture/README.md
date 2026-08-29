@@ -45,22 +45,22 @@ Entry points for Taidon architecture and service design.
   component structure for prepare events streaming and watch controls.
 - [`diff-component-structure.md`](diff-component-structure.md) - component
   structure and call flow for `sqlrs diff` (after CLI contract).
-- [`ref-flow.md`](ref-flow.md) - interaction flow for bounded local
+- [`ref-flow.md`](ref-flow.md) - interaction flow for bounded client-side
   `plan` / `prepare --ref`.
 - [`ref-component-structure.md`](ref-component-structure.md) - internal
-  component structure for bounded local ref-backed `plan` / `prepare`.
-- [`run-ref-flow.md`](run-ref-flow.md) - interaction flow for bounded local
+  component structure for bounded client-side ref-backed `plan` / `prepare`.
+- [`run-ref-flow.md`](run-ref-flow.md) - interaction flow for bounded client-side
   standalone `run --ref`.
 - [`run-ref-component-structure.md`](run-ref-component-structure.md) - internal
-  component structure for bounded local standalone `run --ref`.
+  component structure for bounded client-side standalone `run --ref`.
 - [`user-org-flow.md`](user-org-flow.md) - interaction flow for remote-only
   user and organization management.
 - [`user-org-component-structure.md`](user-org-component-structure.md) -
   internal component structure for remote-only user and organization
   management.
 - [`provenance-cache-flow.md`](provenance-cache-flow.md) - interaction flow for
-  `--provenance-path` and `sqlrs cache explain` on single-stage local
-  prepare-oriented workflows.
+  `--provenance-path` and `sqlrs cache explain` on single-stage
+  prepare-oriented workflows with local or remote profiles.
 - [`provenance-cache-component-structure.md`](provenance-cache-component-structure.md) -
   internal component structure for the provenance and cache-explain baseline.
 - [`alias-inspection-flow.md`](alias-inspection-flow.md) - interaction flow for

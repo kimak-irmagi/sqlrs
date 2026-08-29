@@ -1,8 +1,7 @@
 # Discover Flow
 
-This document describes the local-only interaction flow for `sqlrs discover`
-for the generic analyzer slice after `discover` grows beyond the initial
-aliases-only behavior.
+This document describes the implemented local-only interaction flow for the
+generic-analyzer `sqlrs discover` command.
 
 The command is advisory and read-only. It does not contact the engine, does not
 start containers, and does not depend on Git-ref resolution.

@@ -191,12 +191,12 @@ sqlrs
 - [`docs/user-guides/sqlrs-provenance.md`](../user-guides/sqlrs-provenance.md)
 - [`docs/user-guides/sqlrs-watch.md`](../user-guides/sqlrs-watch.md)
 
-Текущее поведение и утвержденное next-slice расширение:
+Текущее поведение:
 
 - `prepare <prepare-ref>` резолвит repo-tracked `*.prep.s9s.yaml` file от
   текущего рабочего каталога.
-- bounded local `prepare --ref <git-ref>` - это утвержденный следующий
-  Git-aware slice только для local single-stage prepare; он сохраняет
+- bounded client-side `prepare --ref <git-ref>` поддерживает local и remote
+  profiles только для single-stage prepare; он сохраняет
   cwd-relative semantics для alias и raw paths, проецируя caller cwd в
   context выбранного ref.
 - `prepare --ref-mode worktree|blob` и `--ref-keep-worktree` используют ту же
@@ -213,8 +213,8 @@ sqlrs
   каждая стадия может быть raw- или alias-mode.
 - bounded `--ref` slice пока **не** расширяется на `prepare ... run ...`;
   prepare-stage с `--ref` пока остается только single-stage.
-- утвержденный следующий reproducibility-slice добавляет
-  `--provenance-path <path>` в single-stage local `prepare`, не меняя основной
+- `--provenance-path <path>` реализован для single-stage `prepare` с local и
+  remote profiles, не меняя основной
   stdout/stderr контракт команды; JSON-артефакт записывается как side file,
   путь к которому резолвится от caller cwd.
 - file-bearing paths, прочитанные из prepare alias, резолвятся относительно
@@ -246,11 +246,11 @@ CLI должен предоставлять `plan:<kind>` для каждого 
 
 - `sqlrs plan <prepare-ref>` резолвит repo-tracked prepare alias file от
   текущего рабочего каталога.
-- bounded local `plan --ref <git-ref>` - это утвержденный следующий Git-aware
-  slice только для local single-stage plan; он переиспользует те же правила
+- bounded client-side `plan --ref <git-ref>` поддерживает local и remote
+  profiles только для single-stage plan; он переиспользует те же правила
   projected-cwd, `worktree` и явного `blob`, что и bounded `prepare --ref`.
-- утвержденный следующий reproducibility-slice также добавляет
-  `--provenance-path <path>` в single-stage local `plan`; он записывает один
+- `--provenance-path <path>` реализован для single-stage `plan` с local и remote
+  profiles; он записывает один
   JSON side artifact без изменения основного human/JSON result payload.
 
 ---
@@ -262,18 +262,18 @@ CLI должен предоставлять `plan:<kind>` для каждого 
 - [`docs/user-guides/sqlrs-run.md`](../user-guides/sqlrs-run.md)
 - [`docs/user-guides/sqlrs-run-ref.md`](../user-guides/sqlrs-run-ref.md)
 
-Утвержденные design-документы для ref-aware follow-up:
+Документы реализованных ref-aware flow и component structure:
 
 - [`run-ref-flow.RU.md`](run-ref-flow.RU.md)
 - [`run-ref-component-structure.RU.md`](run-ref-component-structure.RU.md)
 
-Текущее поведение и утвержденный следующий Git-aware follow-up:
+Текущее поведение:
 
 - standalone `sqlrs run <run-ref> --instance <id|name>` резолвит repo-tracked
   `*.run.s9s.yaml` file от текущего рабочего каталога, сохраняя явный выбор
   runtime instance;
-- bounded local `run --ref <git-ref>` - это утвержденный следующий Git-aware
-  slice для local single-stage `run`; он применяется к alias-backed
+- bounded client-side `run --ref <git-ref>` поддерживает local и remote
+  profiles для single-stage `run`; он применяется к alias-backed
   `run <run-ref>` и raw `run:psql` / `run:pgbench`, проецируя caller cwd в
   context выбранного ref;
 - `run --ref-mode worktree|blob` и `--ref-keep-worktree` переиспользуют ту же
@@ -454,9 +454,9 @@ runtime `names`.
   health;
 - `ls --states --cache-details` остается surface-ом для per-state cache
   metadata;
-- `cache explain prepare ...` - это утвержденная следующая read-only команда
+- `cache explain prepare ...` - это реализованная read-only команда
   cache-diagnostics для одного single-stage prepare-oriented решения;
-- `cache explain` переиспользует те же raw, alias-backed и bounded local
+- `cache explain` переиспользует те же raw, alias-backed и client-side
   `--ref` binding semantics, что и single-stage `prepare`;
 - первый slice пока **не** поддерживает wrapped `plan`, wrapped `run` или
   composite `prepare ... run ...`.

@@ -2,7 +2,8 @@
 
 ## Overview
 
-**Status: partially implemented.**
+**Status: implemented for the current local CLI, except for the name-binding
+follow-ups called out below.**
 
 Current local CLI support includes:
 
@@ -15,12 +16,12 @@ Current local CLI support includes:
 - cwd-relative alias-ref resolution
 - alias-file-relative resolution for file-bearing paths
 - mixed `prepare ... run ...` composite invocations across raw and alias modes
+- explicit `sqlrs alias create`, `sqlrs alias ls`, and `sqlrs alias check`
+- advisory `sqlrs discover` analysis for aliases, gitignore hygiene, VS Code
+  guidance, and prepare shaping
 
-Approved next slice:
+Remaining follow-ups:
 
-- explicit `sqlrs alias ...` management commands
-- explicit `sqlrs alias create`
-- `sqlrs discover ...`
 - alias-driven name binding flags such as `--name`
 
 This document defines how sqlrs should use **repo-tracked alias files** for
@@ -448,18 +449,18 @@ sqlrs alias check --run scripts/smoke.run.s9s.yaml.
 It is broader than alias generation and should remain a **verb**, not a
 subcommand under `alias`.
 
-The generic analyzer CLI design is tracked in
-[`sqlrs-discover.md`](sqlrs-discover.md). This document only captures the alias
-workflow interaction and the currently shipped `--aliases` slice.
+The complete analyzer CLI is documented in
+[`sqlrs-discover.md`](sqlrs-discover.md). This section focuses on how discovery
+interacts with aliases.
 
-Current slice:
+Current command shape:
 
 ```text
-sqlrs discover [--aliases]
+sqlrs discover [--aliases] [--gitignore] [--vscode] [--prepare-shaping]
 ```
 
-`discover` is advisory and read-only. In the current slice, bare `discover`
-behaves like `discover --aliases`.
+`discover` is advisory and read-only. Bare `discover` runs all stable analyzers
+in canonical order; passing analyzer flags selects exactly that subset.
 
 ### Intended analyzer roles
 
@@ -473,9 +474,6 @@ behaves like `discover --aliases`.
   - suggest editor integration files such as recommended extensions
 - `--prepare-shaping`
   - suggest decomposition opportunities that could improve cache reuse
-
-The non-alias analyzer flags are planned follow-ups and are not implemented in
-the current slice yet.
 
 ### Discover rules
 
@@ -499,10 +497,9 @@ the current slice yet.
 - JSON output should preserve the same findings and summary counts in a stable
   shape, including the suggested create command string
 
-`discover --aliases` is the first expected discover slice because it directly
-supports the alias-file workflow. It stays read-only and never writes alias
-files; the user materializes a suggestion by running the printed `alias
-create` command.
+`discover --aliases` directly supports the alias-file workflow. It stays
+read-only and never writes alias files; the user materializes a suggestion by
+running the printed `alias create` command.
 
 ---
 
@@ -595,5 +592,10 @@ Example discover output for a strong candidate should be copy-pasteable:
 sqlrs alias create chinook prepare:psql -- -f chinook/prepare.sql
 ```
 
-Future analyzer flags such as `--gitignore`, `--vscode`, and `--prepare-shaping`
-are reserved for later slices.
+Select repository-hygiene or workflow-shaping analyzers explicitly when a
+focused report is preferable:
+
+```bash
+sqlrs discover --gitignore --vscode
+sqlrs discover --prepare-shaping
+```

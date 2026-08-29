@@ -46,14 +46,14 @@
   компонентная структура стриминга prepare events и watch-контролов.
 - [`diff-component-structure.RU.md`](diff-component-structure.RU.md) - структура
   компонентов и поток вызовов для `sqlrs diff` (после контракта CLI).
-- [`ref-flow.RU.md`](ref-flow.RU.md) - поток взаимодействия для bounded local
+- [`ref-flow.RU.md`](ref-flow.RU.md) - поток взаимодействия для bounded client-side
   `plan` / `prepare --ref`.
 - [`ref-component-structure.RU.md`](ref-component-structure.RU.md) - внутренняя
-  компонентная структура bounded local ref-backed `plan` / `prepare`.
+  компонентная структура bounded client-side ref-backed `plan` / `prepare`.
 - [`run-ref-flow.RU.md`](run-ref-flow.RU.md) - поток взаимодействия для bounded
-  local standalone `run --ref`.
+  client-side standalone `run --ref`.
 - [`run-ref-component-structure.RU.md`](run-ref-component-structure.RU.md) -
-  внутренняя компонентная структура bounded local standalone `run --ref`.
+  внутренняя компонентная структура bounded client-side standalone `run --ref`.
 - [`user-org-flow.RU.md`](user-org-flow.RU.md) - поток взаимодействия для
   remote-only управления пользователями и организациями.
 - [`user-org-component-structure.RU.md`](user-org-component-structure.RU.md) -
@@ -61,7 +61,7 @@
   организациями.
 - [`provenance-cache-flow.RU.md`](provenance-cache-flow.RU.md) - поток
   взаимодействия для `--provenance-path` и `sqlrs cache explain` в
-  single-stage local prepare-oriented workflows.
+  single-stage prepare-oriented workflows с local или remote profiles.
 - [`provenance-cache-component-structure.RU.md`](provenance-cache-component-structure.RU.md) -
   внутренняя компонентная структура baseline-среза для provenance и
   cache-explain.

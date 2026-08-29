@@ -2,8 +2,8 @@
 
 ## Overview
 
-This guide defines the proposed CLI surface for the first user and organization
-management slice.
+This guide describes the implemented CLI surface for user and organization
+management.
 
 The slice is designed for a shared or cloud sqlrs deployment where the API sees
 an authenticated external OAuth/OIDC identity in the bearer token and can create
