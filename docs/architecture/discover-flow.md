@@ -1,250 +1,153 @@
 # Discover Flow
 
-This document describes the implemented local-only interaction flow for the
-generic-analyzer `sqlrs discover` command.
+This document describes the implemented local-only interaction flow for
+`sqlrs discover`.
 
-The command is advisory and read-only. It does not contact the engine, does not
-start containers, and does not depend on Git-ref resolution.
+The command is advisory and read-only. It does not contact the engine, start
+containers, resolve Git refs, or modify repository files.
 
 ## 1. Participants
 
 - **User** - invokes `sqlrs discover`.
-- **CLI parser** - parses analyzer flags and help.
-- **Command context** - resolves workspace root, cwd, shell family, and output
-  mode.
-- **Discover orchestrator** - selects analyzers and aggregates their findings.
-- **Analyzer registry** - defines the stable analyzers and their canonical
-  execution order.
-- **Alias coverage index** - reuses existing alias inventory to suppress
-  duplicate suggestions.
-- **Candidate scanner** - performs cheap path/content screening over workspace
-  files.
-- **Kind collector** - performs deeper closure validation for supported kinds.
-- **Topology analyzer** - builds dependency graphs and chooses likely root
-  files.
-- **Repository hygiene advisor** - inspects `.gitignore` and `.vscode/*` files
-  for missing local-workspace and editor guidance.
-- **Follow-up command renderer** - renders shell-ready follow-up commands for
-  analyzers that can suggest a safe next command.
-- **Renderer** - prints human block output or JSON findings.
-- **Progress reporter** - writes discovery progress to `stderr`.
+- **Command context** - supplies workspace root, cwd, shell family, output mode,
+  and progress rendering.
+- **Analyzer registry** - normalizes analyzer selection and canonical order.
+- **Discover orchestrator** - runs selected analyzers, isolates analyzer-level
+  failures, and aggregates reports.
+- **Aliases analyzer** - scans and validates likely workflow roots, suppresses
+  existing alias coverage, and renders `sqlrs alias create` suggestions.
+- **Gitignore analyzer** - checks ignore coverage for `.sqlrs/` and
+  `coverage-current` artifacts.
+- **VS Code analyzer** - checks the sqlrs YAML schema mapping in
+  `.vscode/settings.json`.
+- **Prepare-shaping analyzer** - reports directories whose filenames mix stable
+  and volatile preparation tokens.
+- **Renderer** - prints human blocks or the JSON report.
 
-## 2. Flow: `sqlrs discover`
+## 2. Interaction flow
 
 ```mermaid
 sequenceDiagram
   autonumber
+  actor User
+  participant APP as CLI app
   participant REG as Analyzer registry
-  participant FOLLOW as Follow-up command renderer
-  User->>CLI: sqlrs discover [--aliases] [--gitignore] [--vscode] [--prepare-shaping]
-  CLI->>CTX: resolve workspace root, cwd, shell family, and output mode
-  CTX-->>CLI: workspace root + cwd + shell family + output mode
-  CLI->>REG: select analyzers
-  REG-->>CLI: exact subset or all stable analyzers in canonical order
-  CLI->>DISCOVER: run selected analyzers
-  loop analyzers in canonical order
-    alt aliases
-      DISCOVER->>ALIAS: load existing alias coverage index
-      ALIAS-->>DISCOVER: existing prepare/run alias refs
-      DISCOVER->>SCAN: walk workspace files with cheap heuristics
-      SCAN-->>DISCOVER: scored candidate files
-      loop promising candidates
-        DISCOVER->>COLLECT: validate and collect closure for kind
-        COLLECT-->>DISCOVER: closure, validation outcome, signals
-      end
-      DISCOVER->>GRAPH: build topology and rank root files
-      GRAPH-->>DISCOVER: ordered alias candidates
-      DISCOVER->>FOLLOW: derive alias refs and render alias-create commands
-      FOLLOW-->>DISCOVER: alias findings with follow-up commands
-    else gitignore
-      DISCOVER->>SCAN: inspect workspace `.gitignore` coverage
-      SCAN-->>DISCOVER: missing or mislocated ignore rules
-      DISCOVER->>FOLLOW: render shell-aware append command
-      FOLLOW-->>DISCOVER: gitignore findings with follow-up commands
-    else vscode
-      DISCOVER->>SCAN: inspect `.vscode/*.json` guidance files
-      SCAN-->>DISCOVER: missing or incomplete VS Code guidance
-      DISCOVER->>FOLLOW: render shell-aware create/merge command
-      FOLLOW-->>DISCOVER: vscode findings with follow-up commands
-    else prepare-shaping
-      DISCOVER->>COLLECT: inspect workflow closures and dependency fan-in
-      COLLECT-->>DISCOVER: shaping opportunities and rationale
+  participant DISC as Discover orchestrator
+  participant A as Selected analyzer
+  participant OUT as Renderer
+
+  User->>APP: sqlrs discover [analyzer flags]
+  APP->>REG: normalize selected analyzers
+  REG-->>APP: exact subset or all four in canonical order
+  APP->>DISC: analyze(workspace, cwd, shell family)
+  loop selected analyzers
+    DISC->>A: run analyzer
+    alt analyzer succeeds
+      A-->>DISC: findings and counters
+    else analyzer returns an error
+      DISC-->>DISC: convert error to invalid finding
     end
   end
-  DISCOVER-->>CLI: discovery report
-  CLI-->>User: human blocks or JSON findings
+  DISC-->>APP: aggregated report
+  APP->>OUT: render human or JSON output
+  OUT-->>User: final report
 ```
 
-## 3. Stage breakdown
+## 3. Analyzer flows
 
 ### 3.1 Analyzer selection
 
-The command supports additive analyzer flags.
+- No analyzer flags selects `aliases`, `gitignore`, `vscode`, and
+  `prepare-shaping`.
+- Explicit flags are additive.
+- Duplicate flags are ignored.
+- Execution and output grouping always use canonical order.
+- Unknown discover options are usage errors.
 
-- If the user passes one or more analyzer flags, `discover` runs exactly that
-  subset.
-- If the user passes no analyzer flags, `discover` runs all stable analyzers in
-  canonical order.
-- Duplicate analyzer flags are ignored.
-- Output grouping remains stable regardless of flag order.
+### 3.2 `--aliases`
 
-This keeps bare `discover` useful as a full advisory pass once the generic
-slice ships, while still allowing narrow scripted runs such as
-`discover --gitignore`.
+The aliases analyzer:
 
-### 3.2 Aliases analyzer
+1. loads repo-tracked prepare/run alias coverage;
+2. walks workspace files and scores likely workflow roots;
+3. validates promising candidates with kind-specific input collection;
+4. ranks validated roots and suppresses candidates already covered by aliases;
+5. emits a suggested ref, alias path, rationale, and
+   `sqlrs alias create ...` command.
 
-The aliases analyzer keeps the current staged pipeline.
+The command is output only; the analyzer does not create the alias file.
 
-It starts with a low-cost scan over workspace files and uses path/content
-signals to assign candidate scores, for example:
+### 3.3 `--gitignore`
 
-- SQL-like extensions and SQL tokens;
-- Liquibase-like XML, YAML, JSON, class, or JAR references;
-- common entrypoint locations such as `db/`, `migrations/`, `sql/`, or
-  `queries/`;
-- file names that commonly signal roots, such as `master.xml`, `changelog.xml`,
-  `init.sql`, or `schema.sql`.
+The gitignore analyzer inspects artifacts that already exist:
 
-Promising candidates are then passed to kind-specific collectors:
+- if the workspace contains `.sqlrs/`, it checks the workspace-root
+  `.gitignore` for the exact `.sqlrs/` entry;
+- for every file named `coverage-current`, it checks a `.gitignore` in the same
+  directory for the exact `coverage-current` entry;
+- `.git`, `.sqlrs`, `node_modules`, and `vendor` trees are not traversed while
+  looking for coverage artifacts.
 
-- `psql` candidates use the shared `psql` collector;
-- Liquibase candidates use the shared Liquibase collector.
+Each missing entry produces a finding with the target path and a PowerShell or
+POSIX command that checks before appending.
 
-The collector stage verifies that the candidate parses as a supported workflow
-root and computes its reachable file closure.
+### 3.4 `--vscode`
 
-This is the stage where nested includes, changelog includes, and classpath or
-JAR-backed Liquibase references become visible to the analyzer.
+The VS Code analyzer reads `.vscode/settings.json` and ensures this mapping:
 
-The analyzer then builds a directed graph from the collected closures and favors
-files that:
+```json
+{
+  "yaml.schemas": {
+    "./.vscode/sqlrs-workspace-config.schema.json": [
+      "**/.sqlrs/config.yaml"
+    ]
+  }
+}
+```
 
-- have no meaningful inbound edges inside the candidate graph;
-- have a high path-score or content-score;
-- are not already covered by an existing repo-tracked alias;
-- sit in conventional workflow directories or filenames.
+A missing or empty file is treated as an empty JSON object. For an existing
+object, unrelated top-level settings are retained in the merged payload. The
+finding contains that complete payload and a shell-native command that writes
+it. Invalid JSON becomes an invalid advisory finding.
 
-Those roots become the main alias suggestions surfaced by `discover --aliases`.
+### 3.5 `--prepare-shaping`
 
-If the repository already contains a matching alias file, the analyzer suppresses
-the duplicate suggestion or downgrades it to an informational note.
+The prepare-shaping analyzer walks `.sql`, `.xml`, `.yaml`, `.yml`, and `.json`
+files outside `.git`, `.sqlrs`, `node_modules`, and `vendor` trees. Files are
+grouped by directory and classified by filename:
 
-This keeps `discover` focused on helping authors add missing alias coverage
-rather than restating inventory that `sqlrs alias ls` already provides.
+- stable tokens: `schema`, `init`, `ddl`, `base`;
+- volatile tokens: `seed`, `demo`, `sample`, `data`.
 
-Each surviving root suggestion is turned into a suggested alias ref, target
-alias path, and a ready-to-copy `sqlrs alias create ...` command.
+A directory containing both classes produces one advisory suggestion to split
+stable schema/bootstrap preparation from volatile seed/demo inputs. The
+analyzer does not parse include or changelog graphs and does not inspect alias
+layouts.
 
-That command is an output artifact only:
+## 4. Output and progress
 
-- `discover` never writes the file itself;
-- the command can be pasted into the shell as-is or edited before execution;
-- mutation happens only if the user runs `sqlrs alias create`.
+- Human output begins with selected analyzers and aggregate counters.
+- Findings are numbered and grouped by analyzer in canonical order.
+- Alias findings use alias-specific fields; other analyzers use the shared
+  target/action/reason/payload/command fields.
+- JSON output serializes `discover.Report`, including analyzer summaries and
+  findings.
+- Normal interactive mode uses a delayed spinner on `stderr`.
+- Verbose mode emits line-based analyzer/stage/candidate progress on `stderr`.
+- `stdout` is reserved for the final report.
 
-### 3.3 `--gitignore` analyzer
+## 5. Failure handling
 
-The `--gitignore` analyzer inspects repository ignore coverage for local-only
-workspace artifacts.
+- Parser and analyzer-selection errors terminate with a usage error.
+- An analyzer-level error is converted into an invalid finding; remaining
+  selected analyzers still run.
+- Candidate validation failures in the aliases analyzer remain candidate
+  findings.
+- Invalid VS Code JSON becomes a manual-inspection finding.
+- No failure path authorizes `discover` to write repository files.
 
-Its first slice focuses on:
+## 6. References
 
-- missing ignore rules for `.sqlrs/`;
-- missing ignore rules for other local-only sqlrs workspace artifacts;
-- rule placement where a nested `.gitignore` would communicate scope more
-  clearly than a broader root-level ignore.
-
-For each finding, the analyzer produces:
-
-- the target `.gitignore` path;
-- the missing ignore entries;
-- a shell-aware follow-up command that appends the entries.
-
-The follow-up command is an output artifact only. It should be idempotent where
-practical so that rerunning it does not blindly duplicate ignore lines.
-
-### 3.4 `--vscode` analyzer
-
-The `--vscode` analyzer inspects `.vscode/*.json` guidance files used for sqlrs
-workspace conventions.
-
-Its first slice focuses on:
-
-- missing or incomplete `.vscode/settings.json` entries related to
-  `.sqlrs/config.yaml`;
-- optional `.vscode/extensions.json` guidance where the repository lacks clear
-  editor recommendations for SQL/YAML-heavy workflows;
-- settings consistency with documented sqlrs workspace conventions.
-
-For each finding, the analyzer produces:
-
-- the target `.vscode/*.json` path;
-- the suggested JSON payload or fragment;
-- a shell-aware follow-up command that creates or merges the missing entries.
-
-When the file already exists, the suggested command must preserve unrelated user
-settings and only merge the missing sqlrs-relevant entries.
-
-### 3.5 `--prepare-shaping` analyzer
-
-The `--prepare-shaping` analyzer reports workflow-shaping opportunities intended
-to improve prepare reuse and cache friendliness.
-
-Its first slice focuses on:
-
-- large prepare roots that combine stable and volatile inputs;
-- repeated include/changelog fan-in that suggests a reusable shared base;
-- alias-layout opportunities where a repository would benefit from explicit
-  split prepare aliases.
-
-This analyzer remains purely advisory in the generic slice. It may recommend a
-split point or a root-selection change, but it does not emit a mutating
-follow-up command yet.
-
-### 3.6 Follow-up command synthesis
-
-Some analyzers emit copy-pasteable follow-up commands, but `discover` itself
-remains read-only.
-
-- `--aliases` emits `sqlrs alias create ...`.
-- `--gitignore` emits a shell-native append command.
-- `--vscode` emits a shell-native create-or-merge command.
-- `--prepare-shaping` stays advisory-only in the first generic slice.
-
-When shell syntax matters, follow-up commands are rendered for the current shell
-family:
-
-- PowerShell on Windows shells;
-- POSIX shell otherwise.
-
-### 3.7 Output channels and progress
-
-`discover` keeps `stdout` reserved for the final result and uses `stderr` for
-progress.
-
-- Human output is rendered as numbered multi-line blocks, not a wide table.
-- JSON output remains stable and machine-friendly.
-- Findings are grouped by analyzer in canonical analyzer order.
-- In normal interactive mode, progress is shown with a delayed spinner on
-  `stderr`.
-- In verbose mode, progress is written as line-based milestones on `stderr`.
-- Progress granularity is stage/candidate based and may also include analyzer
-  boundaries:
-  - analyzer start and completion;
-  - workspace scan start and summary;
-  - candidate promotion into deeper validation;
-  - candidate validation success, suppression, or invalidation;
-  - final summary.
-- Progress intentionally does not trace every folder or every scanned file.
-
-## 4. Failure handling
-
-- If workspace discovery fails, the command terminates before analysis.
-- If a candidate violates workspace boundaries, it is rejected.
-- If a collector cannot validate a candidate, the analyzer records the failure
-  as a finding instead of crashing the command.
-- If one analyzer encounters analyzer-specific validation problems, unrelated
-  analyzers still run and their findings remain visible.
-- If follow-up command rendering fails for one finding, the finding may still be
-  reported with its diagnostic payload and without a command string.
-- No discovery stage mutates runtime state or writes files.
+- User guide: [`../user-guides/sqlrs-discover.md`](../user-guides/sqlrs-discover.md)
+- Component structure: [`discover-component-structure.md`](discover-component-structure.md)
+- CLI contract: [`cli-contract.md`](cli-contract.md)

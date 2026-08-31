@@ -1,10 +1,15 @@
 # sqlrs prepare (liquibase)
 
 This document describes `sqlrs prepare:lb` and the Liquibase execution model.
-The command works with local and remote profiles; local engine configuration is
-shown explicitly below, while a remote backend owns its Liquibase executable
-configuration and receives project files through
+The command works with local and remote profiles. Project files are transferred
+to remote profiles through
 [`remote-source-input-sync.md`](remote-source-input-sync.md).
+
+In the current implementation, the CLI resolves `liquibase.exec`,
+`liquibase.exec_mode`, and Liquibase environment values locally and sends them
+to the selected backend. Those values therefore need to be valid for the
+backend host. Backend-owned executable configuration for remote profiles is
+tracked in [issue #89](https://github.com/kimak-irmagi/sqlrs/issues/89).
 
 ---
 
@@ -18,7 +23,6 @@ configuration and receives project files through
 
 ## Non-goals
 
-- Client-side control of the Liquibase executable used by a remote backend.
 - Custom Java extensions or classpath injection beyond the configured
   Liquibase distribution.
 - Container-based Liquibase execution (planned, not implemented yet).

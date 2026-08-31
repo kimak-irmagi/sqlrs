@@ -67,26 +67,26 @@ that would need a second review surface.
 
 ### `--aliases`
 
-This analyzer keeps the existing meaning:
+This analyzer:
 
 - scan the workspace for likely prepare/run workflow roots;
 - suppress suggestions already covered by repo-tracked alias files;
 - emit copy-pasteable `sqlrs alias create ...` commands.
 
-It remains the only analyzer that suggests an explicit follow-up command.
+The emitted command uses the detected shell family and materializes a
+repo-tracked alias file. The analyzer does not run the command.
 
 ### `--gitignore`
 
-This analyzer reports repository-hygiene suggestions related to local-only or
-generated workspace artifacts.
+This analyzer checks two kinds of existing local artifacts:
 
-Initial focus:
+- a workspace-root `.sqlrs/` directory;
+- files named `coverage-current` below the workspace, excluding `.git`,
+  `.sqlrs`, `node_modules`, and `vendor` directory trees.
 
-- missing ignore coverage for `.sqlrs/`;
-- missing ignore coverage for other local-only sqlrs workspace artifacts that
-  should not be committed;
-- placement issues where a nested `.gitignore` would express the rule more
-  narrowly than the workspace root.
+For `.sqlrs/`, the target is the workspace-root `.gitignore` and the suggested
+entry is `.sqlrs/`. For `coverage-current`, the target is a `.gitignore` in the
+artifact's own directory and the suggested entry is `coverage-current`.
 
 The analyzer prints:
 
@@ -100,28 +100,29 @@ matters:
 - PowerShell on Windows shells;
 - POSIX shell otherwise.
 
-The command should be idempotent where practical so that rerunning it does not
-blindly duplicate ignore lines. `discover` itself still does not edit files.
+The command checks for the exact entry before appending it. `discover` itself
+does not edit `.gitignore` files.
 
 ### `--vscode`
 
-This analyzer reports editor-integration suggestions for repositories that are
-already using or likely to benefit from sqlrs-oriented workspace conventions.
+This analyzer examines `.vscode/settings.json` and ensures that `yaml.schemas`
+contains this mapping:
 
-Initial focus:
-
-- presence and shape of `.vscode/settings.json` entries relevant to
-  `.sqlrs/config.yaml`;
-- optional `.vscode/extensions.json` recommendations when the repository lacks
-  obvious editor guidance for SQL/YAML-focused workflows;
-- consistency between existing VS Code workspace settings and documented sqlrs
-  workspace conventions.
+```json
+{
+  "yaml.schemas": {
+    "./.vscode/sqlrs-workspace-config.schema.json": [
+      "**/.sqlrs/config.yaml"
+    ]
+  }
+}
+```
 
 The analyzer prints:
 
-- the target `.vscode/*.json` path;
-- the suggested settings or extensions payload;
-- a copy-paste follow-up command for creating or updating that file.
+- the target `.vscode/settings.json` path;
+- the complete merged JSON payload;
+- a copy-paste follow-up command that writes that payload.
 
 When shell syntax matters, the follow-up command is rendered for the current
 shell family:
@@ -129,53 +130,56 @@ shell family:
 - PowerShell on Windows shells;
 - POSIX shell otherwise.
 
-When the target JSON file already exists, the suggested command should merge the
-missing sqlrs-related entries without overwriting unrelated user settings. When
-the file does not exist, the command may create it from scratch. `discover`
-itself still does not write `.vscode/*` files.
+When the file contains a JSON object, the analyzer preserves unrelated
+top-level settings while adding the missing schema mapping. A missing or empty
+file is treated as an empty object. Invalid JSON produces an advisory finding
+that asks the user to inspect the file manually. `discover` itself does not
+write `.vscode/settings.json`.
 
 ### `--prepare-shaping`
 
-This analyzer reports workflow-shaping suggestions intended to improve local
-prepare reuse and cache friendliness.
+This analyzer walks `.sql`, `.xml`, `.yaml`, `.yml`, and `.json` files, excluding
+`.git`, `.sqlrs`, `node_modules`, and `vendor` directory trees. It groups files
+by directory and classifies their base names with two token sets:
 
-Initial focus:
+- stable: `schema`, `init`, `ddl`, `base`;
+- volatile: `seed`, `demo`, `sample`, `data`.
 
-- likely prepare roots that combine stable and volatile inputs in one large
-  workflow;
-- repeated include/changelog fan-in patterns that suggest a reusable shared
-  base;
-- alias-layout opportunities where a repository would benefit from splitting a
-  single implicit prepare flow into multiple explicit repo-tracked aliases.
-
-The analyzer is advisory only. It may point to candidate split points or alias
-layouts, but it does not rewrite workflows or create aliases automatically.
+When one directory contains at least one file from each class, the analyzer
+suggests splitting stable schema/bootstrap preparation from volatile
+seed/demo inputs. It does not parse include or changelog graphs and does not
+create or inspect alias layouts.
 
 ---
 
 ## Output Model
 
-Human output should stay block-oriented rather than table-oriented.
+Human output is block-oriented rather than table-oriented. It starts with the
+selected analyzers and aggregate counters. Findings are then grouped under
+`[aliases]`, `[gitignore]`, `[vscode]`, and `[prepare-shaping]` headings in
+canonical analyzer order.
 
 Rendering rules:
 
 - findings are grouped by analyzer in canonical analyzer order;
-- each finding block starts with the analyzer name;
-- each finding states the target path or workflow root under discussion;
-- each finding includes one actionable suggestion;
-- analyzers may add analyzer-specific detail fields when needed, but the common
-  "what was found" and "what to do next" shape stays consistent.
+- alias findings include detected type, ref, kind, file, alias path, score,
+  reason or error, and create command;
+- generic findings include analyzer, target, action, and any available reason,
+  entries, JSON payload, follow-up command, shell family, or error;
+- when there are no findings, output ends with
+  `no advisory discover findings`.
 
 Examples of analyzer-specific actions:
 
 - `--aliases`: a copy-paste `sqlrs alias create ...` command;
 - `--gitignore`: one or more ignore lines plus a copy-paste shell command that
   appends them to a specific `.gitignore`;
-- `--vscode`: a suggested settings or extensions payload plus a copy-paste
-  shell command that creates or merges the target `.vscode/*.json` file;
-- `--prepare-shaping`: a suggested alias split or root-selection change.
+- `--vscode`: the merged settings payload plus a copy-paste shell command that
+  writes `.vscode/settings.json`;
+- `--prepare-shaping`: a suggestion to separate stable and volatile files in
+  the reported directory.
 
-JSON output should preserve:
+With `--output json`, sqlrs serializes the discover report with:
 
 - selected analyzers;
 - per-analyzer summary counts;
@@ -189,12 +193,12 @@ JSON output should preserve:
 
 ## Failure Handling
 
-- workspace resolution errors remain hard failures;
-- invalid analyzer flags remain usage errors;
-- analyzer-internal validation problems should become findings where practical
-  instead of terminating the whole command;
-- one analyzer failing to validate a candidate should not discard unrelated
-  findings from other selected analyzers.
+- invalid analyzer flags are usage errors;
+- an analyzer-level error is converted into an invalid finding for that
+  analyzer;
+- unrelated selected analyzers continue to run;
+- candidate-specific validation errors remain findings where the analyzer can
+  identify the affected candidate.
 
 This keeps `discover` useful as a broad advisory pass even when one repository
 area is malformed.
@@ -230,19 +234,21 @@ sqlrs --output json discover --gitignore
 Example human follow-up shapes:
 
 ```text
-Analyzer: gitignore
-Target: .gitignore
-Suggested entries:
-  .sqlrs/
-Suggested command:
-  Add-Content ...               # PowerShell example on Windows
+[gitignore]
+1. ADVISORY gitignore
+   Target        : .gitignore
+   Action        : add missing ignore entries
+   Entries       : .sqlrs/
+   Follow-up command: <shell-native append command>
 ```
 
 ```text
-Analyzer: vscode
-Target: .vscode/settings.json
-Suggested command:
-  <shell-native merge/create command for the current platform>
+[vscode]
+1. ADVISORY vscode
+   Target        : .vscode/settings.json
+   Action        : add missing VS Code yaml schema guidance
+   Payload       : <merged settings JSON>
+   Follow-up command: <shell-native write command>
 ```
 
 ---

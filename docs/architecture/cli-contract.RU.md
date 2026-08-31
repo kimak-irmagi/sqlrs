@@ -350,22 +350,20 @@ Diff-опции задают область сравнения; синтакси
 
 ### 3.10 `sqlrs discover`
 
-В post-MVP local design команда `discover` вводится как **advisory verb для
-анализа workspace**:
+`discover` — реализованный **local advisory verb для анализа workspace**:
 
 ```text
 sqlrs discover [--aliases] [--gitignore] [--vscode] [--prepare-shaping]
 ```
 
-Правила дизайна:
+Текущее поведение:
 
-- `discover` read-only по умолчанию;
-- `discover` не предоставляет флаг `--apply` в этом срезе;
+- `discover` read-only и не предоставляет флаг `--apply`;
 - execution commands никогда не зависят от предыдущего discovery output;
 - analyzer flags являются additive;
 - если analyzer flags не указаны, `discover` запускает все stable analyzers в
   canonical order;
-- первый stable analyzer set: `--aliases`, `--gitignore`, `--vscode` и
+- stable analyzer set: `--aliases`, `--gitignore`, `--vscode` и
   `--prepare-shaping`;
 - `--aliases` использует cheap prefilter,
   более глубокую специфичную для kind валидацию, ранжирование по топологии и
@@ -374,24 +372,26 @@ sqlrs discover [--aliases] [--gitignore] [--vscode] [--prepare-shaping]
   `*.run.s9s.yaml` для поддерживаемых SQL и Liquibase workflows и печатает готовую
   к копированию и запуску команду `sqlrs alias create ...` для каждого сильного
   кандидата;
-- `discover --gitignore` сообщает об отсутствии ignore coverage для local-only
-  workspace artifacts и может печатать shell-native follow-up command для
-  добавления недостающих ignore entries;
-- `discover --vscode` сообщает об отсутствующих или неполных `.vscode/*.json`
-  guidance files и может печатать shell-native follow-up command для создания
-  или merge недостающих entries без перезаписи unrelated settings;
-- `discover --prepare-shaping` сообщает advisory workflow-shaping opportunities
-  для лучшего prepare reuse и cache friendliness;
-- human output рендерится как numbered multi-line blocks с target, rationale и
-  при наличии follow-up command на отдельных строках;
+- `discover --gitignore` проверяет существующую workspace-root директорию
+  `.sqlrs/` и файлы с именем `coverage-current`, затем сообщает об отсутствии
+  точных ignore entries в соответствующем `.gitignore`;
+- `discover --vscode` проверяет, что `.vscode/settings.json` связывает sqlrs
+  workspace schema с `**/.sqlrs/config.yaml`, и печатает merged payload вместе
+  с shell-native write command;
+- `discover --prepare-shaping` группирует поддерживаемые SQL/XML/YAML/JSON файлы
+  по директориям и сообщает о директориях, где имена содержат одновременно
+  stable (`schema`, `init`, `ddl`, `base`) и volatile (`seed`, `demo`, `sample`,
+  `data`) tokens;
+- human output начинается с aggregate counters и рендерит numbered findings в
+  analyzer groups с analyzer-specific fields;
 - `discover` пишет progress в `stderr`: delayed spinner в обычном режиме и
   line-based milestones в verbose mode;
 - verbose progress использует analyzer/stage/candidate granularity и не
   трассирует каждый просмотренный файл;
 - если важен shell syntax, follow-up commands рендерятся для текущей shell
   family;
-- JSON output должен сохранять selected analyzers, стабильные per-analyzer
-  summary counts и любые follow-up command strings в стабильной форме.
+- JSON output содержит selected analyzers, per-analyzer summary counts,
+  findings и все созданные follow-up command strings.
 
 См.:
 
