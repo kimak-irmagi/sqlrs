@@ -19,6 +19,15 @@ func ValidateStore(kind string, root string) error {
 			return nil
 		}
 		return fmt.Errorf("state store is not mounted as btrfs: %s", root)
+	case "zfs":
+		root = strings.TrimSpace(root)
+		if root == "" {
+			return fmt.Errorf("state store root is required")
+		}
+		if zfsSupportedFn(root) {
+			return nil
+		}
+		return fmt.Errorf("state store is not mounted as zfs: %s", root)
 	default:
 		return nil
 	}
