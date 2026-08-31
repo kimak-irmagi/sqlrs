@@ -7303,7 +7303,7 @@ xor
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |decision|string|true|none|Final-state cache decision for the bound prepare invocation.|
-|reason_code|string|true|none|Best-known diagnostic reason. Initial values include<br>`exact_state_match`, `no_matching_state`, `input_hash_changed`,<br>`image_changed`, and `cache_lookup_unavailable`.|
+|reason_code|string|true|none|Diagnostic reason. The current implementation returns<br>`exact_state_match` for a hit and `no_matching_state` for a miss.<br>More specific miss classification is tracked in<br>https://github.com/kimak-irmagi/sqlrs/issues/92.|
 |signature|string|true|none|Engine-computed final prepare signature used for cache lookup.|
 |matched_state_id|any|false|none|Matching cached state id when `decision=hit`.|
 

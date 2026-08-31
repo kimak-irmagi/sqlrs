@@ -201,12 +201,12 @@ See the user guide for the authoritative, up-to-date command semantics:
 - [`docs/user-guides/sqlrs-provenance.md`](../user-guides/sqlrs-provenance.md)
 - [`docs/user-guides/sqlrs-watch.md`](../user-guides/sqlrs-watch.md)
 
-Current behavior plus approved next-slice extension:
+Current behavior:
 
 - `prepare <prepare-ref>` resolves a repo-tracked `*.prep.s9s.yaml` file from
   the current working directory.
-- bounded local `prepare --ref <git-ref>` is the accepted next Git-aware slice
-  for local, single-stage prepare only; it keeps cwd-relative alias and raw
+- bounded client-side `prepare --ref <git-ref>` supports local and remote
+  profiles for single-stage prepare only; it keeps cwd-relative alias and raw
   path semantics by projecting the caller cwd into the selected ref context.
 - `prepare --ref-mode worktree|blob` and `--ref-keep-worktree` follow the same
   vocabulary and defaults already accepted for `sqlrs diff`:
@@ -222,8 +222,8 @@ Current behavior plus approved next-slice extension:
   or alias mode on each stage.
 - the bounded `--ref` slice does **not** yet extend to `prepare ... run ...`;
   a prepare stage carrying `--ref` remains single-stage only for now.
-- the approved next reproducibility slice adds
-  `--provenance-path <path>` to single-stage local `prepare` without changing
+- `--provenance-path <path>` is implemented for single-stage `prepare` with
+  local and remote profiles without changing
   the command's primary stdout/stderr contract; the JSON artifact is written as
   a side file resolved from the caller's current working directory.
 - file-bearing paths read from a prepare alias resolve relative to that alias
@@ -254,11 +254,11 @@ Current alias mode:
 
 - `sqlrs plan <prepare-ref>` resolves a repo-tracked prepare alias file from
   the current working directory.
-- bounded local `plan --ref <git-ref>` is the accepted next Git-aware slice for
-  local, single-stage plan only; it reuses the same projected-cwd, `worktree`,
+- bounded client-side `plan --ref <git-ref>` supports local and remote profiles
+  for single-stage plan only; it reuses the same projected-cwd, `worktree`,
   and explicit `blob` rules as bounded `prepare --ref`.
-- the approved next reproducibility slice also adds
-  `--provenance-path <path>` to single-stage local `plan`; it writes one JSON
+- `--provenance-path <path>` is implemented for single-stage `plan` with local
+  and remote profiles; it writes one JSON
   side artifact without changing the main human/JSON result payload.
 
 ---
@@ -270,18 +270,18 @@ See the user guide for the authoritative, up-to-date command semantics:
 - [`docs/user-guides/sqlrs-run.md`](../user-guides/sqlrs-run.md)
 - [`docs/user-guides/sqlrs-run-ref.md`](../user-guides/sqlrs-run-ref.md)
 
-Accepted ref-aware follow-up design documents:
+Implemented ref-aware flow and component documents:
 
 - [`run-ref-flow.md`](run-ref-flow.md)
 - [`run-ref-component-structure.md`](run-ref-component-structure.md)
 
-Current behavior plus approved next Git-aware follow-up:
+Current behavior:
 
 - standalone `sqlrs run <run-ref> --instance <id|name>` resolves a repo-tracked
   `*.run.s9s.yaml` file from the current working directory while keeping runtime
   instance selection explicit;
-- bounded local `run --ref <git-ref>` is the approved next Git-aware slice for
-  local, single-stage `run`; it applies to alias-backed `run <run-ref>` and raw
+- bounded client-side `run --ref <git-ref>` supports local and remote profiles
+  for single-stage `run`; it applies to alias-backed `run <run-ref>` and raw
   `run:psql` / `run:pgbench`, projecting the caller cwd into the selected ref
   context;
 - `run --ref-mode worktree|blob` and `--ref-keep-worktree` reuse the same
@@ -359,22 +359,20 @@ See:
 
 ### 3.10 `sqlrs discover`
 
-Post-MVP local design introduces `discover` as an **advisory workspace-analysis
-verb**:
+`discover` is an implemented **local advisory workspace-analysis verb**:
 
 ```text
 sqlrs discover [--aliases] [--gitignore] [--vscode] [--prepare-shaping]
 ```
 
-Design rules:
+Current behavior:
 
-- `discover` is read-only by default;
-- `discover` does not expose an `--apply` flag in this slice;
+- `discover` is read-only and does not expose an `--apply` flag;
 - execution commands never depend on prior discovery output;
 - analyzer flags are additive;
 - if no analyzer flags are supplied, `discover` runs all stable analyzers in
   canonical order;
-- the first stable analyzer set is `--aliases`, `--gitignore`, `--vscode`, and
+- the stable analyzer set is `--aliases`, `--gitignore`, `--vscode`, and
   `--prepare-shaping`;
 - `--aliases` uses a cheap
   prefilter, deeper kind-specific validation, topology ranking, and existing
@@ -382,24 +380,26 @@ Design rules:
 - `discover --aliases` suggests likely `*.prep.s9s.yaml` / `*.run.s9s.yaml`
   candidates for supported SQL and Liquibase workflows and prints a
   copy-paste `sqlrs alias create ...` command for each strong suggestion;
-- `discover --gitignore` reports missing ignore coverage for local-only
-  workspace artifacts and may print a shell-native follow-up command for
-  appending missing ignore entries;
-- `discover --vscode` reports missing or incomplete `.vscode/*.json` guidance
-  and may print a shell-native follow-up command for creating or merging the
-  missing entries while preserving unrelated settings;
-- `discover --prepare-shaping` reports advisory workflow-shaping opportunities
-  for better prepare reuse and cache friendliness;
-- human output is rendered as numbered multi-line blocks with the ref, kind,
-  target, rationale, and any follow-up command on separate lines;
+- `discover --gitignore` checks an existing workspace-root `.sqlrs/` directory
+  and files named `coverage-current`, then reports missing exact ignore entries
+  at the corresponding `.gitignore` path;
+- `discover --vscode` ensures `.vscode/settings.json` maps the sqlrs workspace
+  schema to `**/.sqlrs/config.yaml` and prints the merged payload plus a
+  shell-native write command;
+- `discover --prepare-shaping` groups supported SQL/XML/YAML/JSON files by
+  directory and reports directories whose file names contain both stable
+  (`schema`, `init`, `ddl`, `base`) and volatile (`seed`, `demo`, `sample`,
+  `data`) tokens;
+- human output starts with aggregate counters and renders numbered findings in
+  analyzer groups with analyzer-specific fields;
 - `discover` writes progress to `stderr`: a delayed spinner in normal mode and
   line-based milestones in verbose mode;
 - verbose progress uses analyzer/stage/candidate granularity and does not trace
   every scanned file;
 - when shell syntax matters, follow-up commands are rendered for the current
   shell family;
-- JSON output should preserve selected analyzers, stable per-analyzer summary
-  counts, and any follow-up command strings in a stable shape.
+- JSON output contains selected analyzers, per-analyzer summary counts,
+  findings, and any emitted follow-up command strings.
 
 See:
 
@@ -455,13 +455,13 @@ See the user guide for the authoritative, up-to-date command semantics:
 
 - [`docs/user-guides/sqlrs-cache-explain.md`](../user-guides/sqlrs-cache-explain.md)
 
-Current design direction:
+Current behavior:
 
 - `status --cache` remains the global operator-facing cache health command;
 - `ls --states --cache-details` remains the per-state cache metadata surface;
-- `cache explain prepare ...` is the approved next read-only cache-diagnostics
+- `cache explain prepare ...` is the implemented read-only cache-diagnostics
   command for one single-stage prepare-oriented decision;
-- `cache explain` reuses the same raw, alias-backed, and bounded local `--ref`
+- `cache explain` reuses the same raw, alias-backed, and client-side `--ref`
   binding semantics as single-stage `prepare`;
 - the first slice does **not** yet support wrapped `plan`, wrapped `run`, or
   composite `prepare ... run ...`.

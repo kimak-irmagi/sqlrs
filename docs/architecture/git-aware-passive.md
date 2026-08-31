@@ -1,10 +1,10 @@
 # Git-aware semantics: passive features (CLI)
 
-Status: **mixed**. Scenario P1 is the delivered local ref baseline. Scenarios
-P4 and P6 capture the landed provenance and cache-explain slice. The approved
-next bounded local follow-up is standalone `run --ref`, currently documented in
+Status: **mixed**. Scenarios P1, P4, and P6 capture the delivered client-side ref,
+provenance, and cache-explain surfaces. Standalone `run --ref` is also
+implemented and documented in
 [`../user-guides/sqlrs-run-ref.md`](../user-guides/sqlrs-run-ref.md), with the
-accepted interaction flow in [`run-ref-flow.md`](run-ref-flow.md) and accepted
+implemented interaction flow in [`run-ref-flow.md`](run-ref-flow.md) and
 internal structure in
 [`run-ref-component-structure.md`](run-ref-component-structure.md); the rest of
 this document remains future design. Today, the public MVP CLI still relies on
@@ -19,15 +19,20 @@ Goal: add git-aware capabilities **without changing the user's work habits**. Al
   and `sqlrs diff ...`.
 - **Minimum side effects.** Prefer Git-object reads when they preserve command semantics, but keep compatibility first. Temporary `worktree` checkouts remain the default where full filesystem semantics matter and leave minimal traces under `.git/worktrees` that can be cleaned up.
 - **Fast path first.** Try to find a ready state in the Taidon cache by hashes of the involved files. If not found, build it.
-- **Everything is reproducible.** Any execution can save a manifest (provenance) to reproduce the same state 1:1.
-- **Remote mode requires repo access.** For `--ref` on a remote runner, the service must have a server-side mirror or VCS secrets; otherwise the CLI uploads sources to `source storage` and passes `source_id` (see [`sql-runner-api.md`](sql-runner-api.md)).
+- **Prepare-oriented execution is reproducible.** Single-stage `plan` and
+  `prepare` can save a provenance manifest; run-side provenance is not part of
+  the current surface.
+- **Remote mode keeps Git client-side.** The CLI resolves `--ref`, binds the
+  selected input graph, and transfers required source blobs through
+  [remote source sync](../user-guides/remote-source-input-sync.md). The backend
+  does not need a server-side mirror or VCS credentials.
 
 ---
 
 ## Scenario P1. Repository-backed plan/prepare by git ref: `--ref`
 
 Current public-slice note: this scenario describes the already-landed bounded
-`plan` / `prepare --ref` baseline. Later local follow-ups split out
+`plan` / `prepare --ref` baseline. Later follow-ups split out
 provenance/cache explanation and now standalone `run --ref` as separate slices.
 
 ### Motivation
@@ -38,8 +43,8 @@ state, open IDEs, parallel tasks).
 
 ### UX / CLI
 
-For the next public local slice, the existing `plan` / `prepare` command shapes
-gain one explicit stage-local flag family.
+The current public `plan` / `prepare` command shapes expose one explicit
+stage-local flag family.
 
 ```bash
 sqlrs plan --ref <git-ref> <prepare-alias>
@@ -50,8 +55,9 @@ sqlrs prepare:lb --ref <git-ref> -- update --changelog-file db/changelog.xml
 
 Where `<git-ref>` can be: `HEAD`, `origin/main`, `abc1234`, `v1.2.3`, `refs/pull/123/head` (if available locally).
 
-Important boundary for the next public slice: this is local-only. Remote-runner
-semantics remain future design.
+Important boundary for the current public surface: Git resolution and revision
+projection happen in the CLI. Both local and remote profiles are supported;
+remote profiles receive the selected input closure through source sync.
 
 Additional guardrail for the first public slice: `prepare --ref` remains
 watch-only, so `prepare --ref --no-watch` is rejected.
@@ -175,7 +181,7 @@ What `diff` compares:
 
 ---
 
-## Scenario P4. Provenance side artifact for local single-stage plan/prepare
+## Scenario P4. Provenance side artifact for single-stage plan/prepare
 
 ### Motivation
 
@@ -197,7 +203,7 @@ Boundaries of the first public slice:
 
 - single-stage `plan` and `prepare` only;
 - raw and alias-backed prepare flows;
-- plain local filesystem and bounded local `--ref`;
+- local and remote profiles, using live inputs or client-side `--ref`;
 - no standalone `run`;
 - no composite `prepare ... run ...`;
 - no automatic emission without the explicit flag;
@@ -282,8 +288,7 @@ an existing state now, and if not, why.
 
 ### UX / CLI
 
-For the approved next public slice, the command stays read-only and
-prepare-oriented:
+The current public command is read-only and prepare-oriented:
 
 ```bash
 sqlrs cache explain prepare <prepare-alias>
@@ -323,10 +328,10 @@ Store-health diagnostics remain separate:
 
 ## Minimal MVP for passive features
 
-1. bounded local `plan` / `prepare --ref` with `worktree` default and explicit
+1. bounded client-side `plan` / `prepare --ref` with `worktree` default and explicit
    `blob`
 2. `sqlrs diff --from-ref/--to-ref <wrapped-command...>` for one `plan:*` or
    `prepare:*` command
-3. provenance side artifact for bounded local single-stage `plan` / `prepare`
+3. provenance side artifact for bounded single-stage `plan` / `prepare`
 4. `cache explain prepare ...` (simple version)
 5. standalone `run --ref` for raw and alias-backed single-stage run flows

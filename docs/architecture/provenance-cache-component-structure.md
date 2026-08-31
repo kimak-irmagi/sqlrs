@@ -1,31 +1,32 @@
 # Provenance and Cache Explain - Component Structure
 
-This document defines the approved internal component structure for the next
-bounded local diagnostics slice:
+This document defines the implemented internal component structure for the
+bounded diagnostics surface:
 
-- `--provenance-path <path>` on single-stage local `plan` / `prepare`
+- `--provenance-path <path>` on single-stage `plan` / `prepare`
 - `sqlrs cache explain prepare ...`
 
-It follows the accepted CLI shapes in:
+It follows the implemented CLI shapes in:
 
 - [`../user-guides/sqlrs-provenance.md`](../user-guides/sqlrs-provenance.md)
 - [`../user-guides/sqlrs-cache-explain.md`](../user-guides/sqlrs-cache-explain.md)
 
-and the accepted interaction flow in
+and the implemented interaction flow in
 [`provenance-cache-flow.md`](provenance-cache-flow.md).
 
 ## 1. Scope and assumptions
 
-- The slice is local-only.
+- The slice works with local and remote profiles; artifact writing and optional
+  Git-ref resolution remain client-side.
 - Provenance applies only to single-stage `plan` and `prepare`.
 - `cache explain` applies only to single-stage prepare-oriented commands.
-- Raw, alias-backed, and bounded local `--ref` binding must stay identical to
+- Raw, alias-backed, and client-side `--ref` binding must stay identical to
   the existing `plan` / `prepare` path.
 - Provenance remains a JSON side artifact only.
 - `cache explain` remains read-only and does not create jobs or mutate cache.
 - The design should avoid a second command-binding path just for diagnostics.
 
-## 2. Approved component split
+## 2. Implemented component split
 
 | Component | Responsibility | Caller |
 |-----------|----------------|--------|
@@ -36,16 +37,17 @@ and the accepted interaction flow in
 | **Shared inputset kind components** | Apply per-kind parse/bind/collect semantics and compute deterministic input hashes. | Prepare-trace helper |
 | **Cache explain API client** | Submit a read-only bound prepare request to the engine and decode the cache decision response. | Prepare-trace helper |
 | **Plan/prepare app flow** | Run the existing normal `plan` / `prepare` pipeline after any optional pre-execution explain step. | Plan/prepare handlers |
+| **Remote source sync** | Transfer the bound input closure for remote execution and remote cache explanation. | Existing stage pipeline and cache-explain client path |
 | **CLI renderer** | Render human/JSON `cache explain` output; keep existing `plan` / `prepare` renderers unchanged. | `internal/app` handlers |
 
 ## 3. Shared owner for the new slice: a package-local trace helper in `internal/app`
 
-The approved baseline keeps the new trace-building logic package-local to
+The implemented baseline keeps the trace-building logic package-local to
 `internal/app` instead of introducing a new top-level CLI package immediately.
 
 Rationale:
 
-- the slice is still bounded to single-stage local prepare-oriented commands;
+- the slice is still bounded to single-stage prepare-oriented commands;
 - it needs direct access to the existing stage runtime and cleanup choreography;
 - the reusable domain objects are still CLI-orchestration concerns, not a
   second long-term source of truth for path binding.
@@ -63,8 +65,8 @@ Boundary rules for this helper:
 - it must not become a second renderer package; human/JSON formatting still
   belongs to `internal/cli`.
 
-If later slices extend provenance or cache explanation to `run`, remote
-profiles, or composite workflows, this helper can be promoted into a dedicated
+If later slices extend provenance or cache explanation to `run` or composite
+workflows, this helper can be promoted into a dedicated
 package. The current baseline does not need that extra boundary yet.
 
 ## 4. Suggested package/file layout
@@ -165,16 +167,13 @@ flowchart TB
 
 ## 8. Consequences for existing docs
 
-Because this slice adds a new diagnostics flow around the existing bound
-prepare path:
+The diagnostics flow is reflected across the existing bound prepare path:
 
-- `cli-contract.md` must describe `--provenance-path` and the new `cache`
-  command group;
-- `git-aware-passive.md` must align its provenance and cache-explain scenarios
-  with the approved user-facing syntax;
-- `m2-local-developer-experience-plan.md` must narrow PR8 to the approved
-  bounded baseline;
-- the engine OpenAPI spec must add `POST /v1/cache/explain/prepare`.
+- `cli-contract.md` describes `--provenance-path` and the `cache` command group;
+- `git-aware-passive.md` aligns its provenance and cache-explain scenarios with
+  the implemented user-facing syntax;
+- `m2-local-developer-experience-plan.md` records the bounded PR8 baseline;
+- the engine OpenAPI spec exposes `POST /v1/cache/explain/prepare`.
 
 ## 9. References
 

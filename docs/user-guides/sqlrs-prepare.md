@@ -26,8 +26,8 @@ All reproducibility guarantees in sqlrs rely on `prepare`.
 ## Command Syntax
 
 ```text
-sqlrs prepare [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--watch|--no-watch] <ref>
-sqlrs prepare:<kind> [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--watch|--no-watch] [--image <image-id>] [--] [tool-args...]
+sqlrs prepare [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--watch|--no-watch] <ref>
+sqlrs prepare:<kind> [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--watch|--no-watch] [--image <image-id>] [--] [tool-args...]
 ```
 
 Where:
@@ -35,7 +35,10 @@ Where:
 - bare `prepare <ref>` resolves a repo-tracked prepare alias file
   from the current working directory (`<cwd>/<ref>.prep.s9s.yaml`);
 - `:<kind>` selects the preparation variant (for example, `psql`, `lb`).
-- `--ref <git-ref>` reads prepare inputs from a selected local Git revision.
+- `--provenance-path <path>` writes a JSON provenance artifact for this
+  single-stage invocation.
+- `--ref <git-ref>` reads prepare inputs from a Git revision resolved by the
+  CLI.
 - `--ref-mode` chooses `worktree` (default) or `blob`.
 - `--ref-keep-worktree` keeps the detached worktree after exit in
   `worktree` mode.
@@ -51,16 +54,17 @@ directory.
 Alias-mode details are described in [`sqlrs-aliases.md`](sqlrs-aliases.md).
 Ref-backed details are described in [`sqlrs-ref.md`](sqlrs-ref.md).
 
-Status note:
+Current boundaries:
 
-- standalone `prepare <ref>` is already implemented;
-- mixed `prepare ... run ...` forms that combine alias mode and raw mode are an
-  approved next-slice extension and follow the syntax below;
-- the first bounded `prepare --ref` slice is local-only, single-stage only, and
-  preserves the caller's projected cwd inside the selected revision;
+- standalone alias preparation and mixed raw/alias `prepare ... run ...` forms
+  are implemented;
+- `prepare --ref` is single-stage only, works with local and remote profiles,
+  and preserves the caller's projected cwd inside the selected revision;
+- remote profiles receive the selected files through source sync; the backend
+  does not fetch the Git repository;
 - `prepare --ref` keeps `worktree` as the default ref mode and offers `blob` as
   an explicit opt-in;
-- `prepare --ref --no-watch` is rejected in this slice so ref-backed prepare
+- `prepare --ref --no-watch` is rejected, so ref-backed prepare
   remains watch-only for now.
 
 ### Composite `prepare ... run`
@@ -134,8 +138,8 @@ For local profiles, the engine performs real execution:
 - State data is stored under `<StateDir>/state-store` (outside containers).
 - Each task snapshots the DB state; the engine prefers OverlayFS on Linux, can use
   btrfs subvolume snapshots when configured, and falls back to full copy.
-- The prepare container stays running after the job; the instance is recorded as
-  warm and a future `sqlrs run` will decide when to stop it.
+- The prepare container stays running after the job and the instance is recorded
+  as warm. Automatic connection-count cleanup is not implemented yet.
 
 ---
 

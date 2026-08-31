@@ -2,29 +2,29 @@
 
 ## Overview
 
-**Status: approved bounded local CLI design.**
+**Status: implemented in the current CLI.**
 
-This document defines the next Git-aware local slice after `sqlrs diff`: allow
+This document describes the bounded Git-aware client-side surface that allows
 `plan` and `prepare` to read their repository-backed inputs from a selected Git
 revision without changing the caller's working tree.
 
-This slice is intentionally narrow:
+The current surface is intentionally narrow:
 
 - supported: single-stage `plan` and `prepare`
 - supported: raw and alias-backed prepare flows
-- standalone `run --ref` is designed separately in
+- standalone `run --ref` is implemented and documented separately in
   [`sqlrs-run-ref.md`](sqlrs-run-ref.md)
 - not supported yet: composite `prepare ... run ...` with `--ref`
-- not supported yet: provenance and `cache explain`
 
-The goal is to ship a bounded local `--ref` baseline before widening into
-explanation features or multi-stage revision semantics.
+The surface remains bounded: provenance and `cache explain` support the same
+single-stage prepare-oriented ref context, while multi-stage revision semantics
+remain out of scope.
 
 ---
 
 ## Command Shape
 
-Proposed public syntax:
+Public syntax:
 
 ```text
 sqlrs plan [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <prepare-ref>
@@ -36,12 +36,12 @@ sqlrs prepare:<kind> [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-wo
 
 Selection rules:
 
-- omitting `--ref` keeps today's filesystem behavior unchanged;
-- `--ref` is local-only and requires a Git repository context;
+- omitting `--ref` keeps live-filesystem behavior unchanged;
+- `--ref` is resolved by the CLI and requires a local Git repository context;
 - `--ref-mode` and `--ref-keep-worktree` are valid only when `--ref` is set;
 - `--ref-mode` defaults to `worktree`;
 - `--ref-keep-worktree` is valid only with `--ref-mode worktree`.
-- `prepare --ref --no-watch` is rejected in this first slice; ref-backed
+- `prepare --ref --no-watch` is rejected; ref-backed
   prepare remains watch-only.
 
 The flag belongs to the `plan` / `prepare` stage itself, not to global CLI
@@ -49,9 +49,9 @@ options.
 
 ---
 
-## Scope of This Slice
+## Scope
 
-### Supported in this slice
+### Supported
 
 - `sqlrs plan --ref <ref> <prepare-alias>`
 - `sqlrs plan:psql --ref <ref> -- -f ...`
@@ -59,6 +59,10 @@ options.
 - `sqlrs prepare --ref <ref> <prepare-alias>`
 - `sqlrs prepare:psql --ref <ref> -- -f ...`
 - `sqlrs prepare:lb --ref <ref> -- update --changelog-file ...`
+
+These shapes work with local and remote profiles. With a remote profile, the
+CLI resolves the ref locally and remote source sync transfers the selected
+inputs; the backend does not clone or fetch the repository.
 
 For `prepare`, this support is intentionally limited to watch mode.
 
@@ -69,14 +73,13 @@ For `prepare`, this support is intentionally limited to watch mode.
 - `sqlrs prepare ... run ...` when the prepare stage carries `--ref`
 - `sqlrs prepare --ref --no-watch ...`
 - `sqlrs diff` syntax changes
-- remote runner semantics
-- automatic provenance emission
-- `sqlrs cache explain`
+- server-side Git fetching or hosted-repository access
+- automatic provenance emission (provenance remains opt-in through
+  `--provenance-path`)
 
 The main reason to defer composite `prepare ... run ...` here is to avoid
 mixing one revision-sensitive prepare stage with a second run stage whose alias
-file or file-backed inputs would otherwise need separate per-stage revision
-rules in the same PR.
+file or file-backed inputs require separate per-stage revision rules.
 
 ---
 
@@ -109,7 +112,8 @@ If that projected cwd does not exist at the selected ref, the command fails.
 
 ## Alias Mode Under `--ref`
 
-Alias mode keeps the same logical rules as today; only the filesystem backing
+Alias mode keeps the same logical rules as live-filesystem execution; only the
+filesystem backing
 changes from the live working tree to the selected revision.
 
 For:
@@ -143,7 +147,7 @@ ref, the command fails explicitly.
 For raw `plan:<kind>` and `prepare:<kind>` invocations:
 
 - file-bearing arguments are still interpreted using the same per-kind rules as
-  today;
+  for live-filesystem execution;
 - relative paths are resolved from the projected cwd at the selected ref;
 - the shared `internal/inputset` semantics remain the source of truth for file
   discovery and closure collection.
@@ -172,7 +176,7 @@ The mode flags match the existing `sqlrs diff` contract.
 - remove the temporary worktree after the command unless
   `--ref-keep-worktree` is set.
 
-This is the default because it preserves the closest behavior to today's local
+This is the default because it most closely preserves local
 filesystem execution, including symlink-sensitive cases.
 
 ### `--ref-mode blob`
@@ -189,10 +193,9 @@ when full filesystem behavior matters.
 
 ## Output and UX
 
-This slice does not introduce a new top-level output mode.
+Ref-backed execution does not introduce a new top-level output mode.
 
-Successful `plan` and `prepare` output should remain the same shape they have
-today:
+Successful `plan` and `prepare` output retains its normal shape:
 
 - `plan` keeps its existing human/JSON structure;
 - `prepare --ref` stays in watch mode and keeps DSN output;
@@ -203,9 +206,9 @@ Ref context is surfaced through:
 
 - normal validation errors when ref resolution or projected-path lookup fails;
 - verbose logs (`-v`) that show the selected ref and ref mode;
-- future provenance work, not this slice.
+- the optional provenance artifact written by `--provenance-path`.
 
-No separate `source_context` payload is proposed in this slice.
+No separate `source_context` payload is added to the normal command result.
 
 ---
 
@@ -217,7 +220,7 @@ New validation rules:
 - `--ref-mode` without `--ref` is a usage error;
 - `--ref-keep-worktree` without `--ref` is a usage error;
 - `--ref-keep-worktree` with `--ref-mode blob` is a usage error;
-- `prepare --ref --no-watch` is a usage error in this slice;
+- `prepare --ref --no-watch` is a usage error;
 - the selected ref must resolve locally;
 - the caller's projected cwd must exist at that ref;
 - the selected alias file or raw file-bearing entrypoint must exist at that ref.
@@ -231,7 +234,7 @@ Examples of user-facing failures:
 - `-f` / `--changelog-file` target missing at ref
 - missing included file inside the ref-backed file graph
 
-These should remain regular command errors, not discover findings.
+These are regular command errors, not discover findings.
 
 ---
 
@@ -267,15 +270,15 @@ Use direct Git-object reads:
 sqlrs plan:psql --ref origin/main --ref-mode blob -- -f ./prepare.sql
 ```
 
-Not in this slice:
+Not supported:
 
 ```bash
-# rejected in this slice
+# rejected
 sqlrs prepare --ref origin/main chinook run:psql -- -f ./queries.sql
 ```
 
 ```bash
-# rejected in this slice
+# rejected
 sqlrs prepare --ref origin/main --no-watch chinook
 ```
 
@@ -283,16 +286,16 @@ sqlrs prepare --ref origin/main --no-watch chinook
 
 ## Rationale Summary
 
-This CLI shape keeps the next Git-aware slice bounded:
+This CLI shape keeps Git-aware execution bounded:
 
 - one explicit `--ref` flag reused by `plan` and `prepare`;
 - the same `worktree` vs `blob` vocabulary already established by `diff`;
 - no changes to successful `plan`/`prepare` output shape yet;
 - `prepare --ref` remains watch-only so async ref-backed prepare semantics stay
-  out of this first PR;
-- no mixed-stage revision semantics in the same PR;
-- alias mode and raw mode keep the same path-base rules they already have today.
+  out of the current surface;
+- no mixed-stage revision semantics in the current surface;
+- alias mode and raw mode keep their live-filesystem path-base rules.
 
-If approved, the next design step should move from this CLI shape into
-interaction flow and internal component structure for local ref-backed
-plan/prepare execution.
+The implemented interaction flow and internal component structure are captured
+in [`../architecture/ref-flow.md`](../architecture/ref-flow.md) and
+[`../architecture/ref-component-structure.md`](../architecture/ref-component-structure.md).

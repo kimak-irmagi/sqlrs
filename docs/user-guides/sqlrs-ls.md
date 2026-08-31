@@ -497,7 +497,7 @@ sqlrs ls --tasks --job <job_id>
 Machine-readable output for CI:
 
 ```bash
-sqlrs ls --all --output json
+sqlrs --output json ls --all
 ```
 
 ---

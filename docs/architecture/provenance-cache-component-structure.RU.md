@@ -1,31 +1,32 @@
 # Provenance и Cache Explain - Component Structure
 
-Этот документ определяет утвержденную внутреннюю компонентную структуру для
-следующего bounded local diagnostics slice:
+Этот документ определяет реализованную внутреннюю компонентную структуру для
+bounded diagnostics surface:
 
-- `--provenance-path <path>` у single-stage local `plan` / `prepare`
+- `--provenance-path <path>` у single-stage `plan` / `prepare`
 - `sqlrs cache explain prepare ...`
 
-Он следует принятым CLI shapes в:
+Он следует реализованным CLI shapes в:
 
 - [`../user-guides/sqlrs-provenance.md`](../user-guides/sqlrs-provenance.md)
 - [`../user-guides/sqlrs-cache-explain.md`](../user-guides/sqlrs-cache-explain.md)
 
-и принятому interaction flow в
+и реализованному interaction flow в
 [`provenance-cache-flow.RU.md`](provenance-cache-flow.RU.md).
 
 ## 1. Scope и assumptions
 
-- Slice остается local-only.
+- Slice работает с local и remote profiles; запись artifact и необязательный
+  Git-ref resolution остаются на стороне клиента.
 - Provenance применяется только к single-stage `plan` и `prepare`.
 - `cache explain` применяется только к single-stage prepare-oriented командам.
-- Raw, alias-backed и bounded local `--ref` binding должен оставаться
+- Raw, alias-backed и client-side `--ref` binding должен оставаться
   идентичным существующему пути `plan` / `prepare`.
 - Provenance остается только JSON side artifact.
 - `cache explain` остается read-only и не создает jobs и не мутирует cache.
 - Дизайн должен избегать второго command-binding path только ради diagnostics.
 
-## 2. Approved component split
+## 2. Реализованный component split
 
 | Component | Responsibility | Caller |
 |-----------|----------------|--------|
@@ -36,16 +37,17 @@
 | **Shared inputset kind components** | Применять per-kind parse/bind/collect semantics и вычислять deterministic input hash-ы. | Prepare-trace helper |
 | **Cache explain API client** | Отправлять read-only bound prepare request в engine и декодировать cache decision response. | Prepare-trace helper |
 | **Plan/prepare app flow** | Запускать существующий нормальный pipeline `plan` / `prepare` после любого опционального pre-execution explain step. | handlers plan/prepare |
+| **Remote source sync** | Передавать bound input closure для remote execution и remote cache explanation. | Существующий stage pipeline и cache-explain client path |
 | **CLI renderer** | Рендерить human/JSON `cache explain` output; существующие renderers `plan` / `prepare` оставить без изменений. | handlers в `internal/app` |
 
 ## 3. Shared owner нового slice: package-local trace helper в `internal/app`
 
-Утвержденный baseline оставляет новую trace-building логику package-local в
+Реализованный baseline оставляет новую trace-building логику package-local в
 `internal/app`, а не вводит сразу новый top-level CLI package.
 
 Rationale:
 
-- slice по-прежнему ограничен single-stage local prepare-oriented командами;
+- slice по-прежнему ограничен single-stage prepare-oriented командами;
 - ему нужен прямой доступ к существующему stage runtime и cleanup choreography;
 - переиспользуемые domain objects пока относятся к CLI-orchestration, а не к
   второму долгоживущему источнику истины для path binding.
@@ -64,8 +66,8 @@ Boundary rules для этого helper-а:
 - он не должен становиться вторым renderer package; human/JSON formatting всё
   так же принадлежит `internal/cli`.
 
-Если последующие slices расширят provenance или cache explanation до `run`,
-remote profiles или composite workflows, этот helper можно вынести в
+Если последующие slices расширят provenance или cache explanation до `run`
+или composite workflows, этот helper можно вынести в
 выделенный package. Текущий baseline пока не требует этой дополнительной
 границы.
 
@@ -168,16 +170,14 @@ flowchart TB
 
 ## 8. Consequences for existing docs
 
-Поскольку этот slice добавляет новый diagnostics flow поверх существующего
-bound prepare path:
+Diagnostics flow отражен во всех связанных документах и контрактах bound
+prepare path:
 
-- `cli-contract.RU.md` должен описывать `--provenance-path` и новую `cache`
-  command group;
-- `git-aware-passive.RU.md` должен синхронизировать свои сценарии provenance и
-  cache explain с утвержденным user-facing syntax;
-- `m2-local-developer-experience-plan.RU.md` должен сузить PR8 до
-  утвержденного bounded baseline;
-- engine OpenAPI spec должен получить `POST /v1/cache/explain/prepare`.
+- `cli-contract.RU.md` описывает `--provenance-path` и `cache` command group;
+- `git-aware-passive.RU.md` синхронизирует сценарии provenance и cache explain
+  с реализованным user-facing syntax;
+- `m2-local-developer-experience-plan.RU.md` фиксирует bounded PR8 baseline;
+- engine OpenAPI spec предоставляет `POST /v1/cache/explain/prepare`.
 
 ## 9. References
 

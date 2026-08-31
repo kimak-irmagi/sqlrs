@@ -1,7 +1,15 @@
 # sqlrs prepare (liquibase)
 
-This document describes how `sqlrs prepare:lb` should work in the **local**
-deployment profile.
+This document describes `sqlrs prepare:lb` and the Liquibase execution model.
+The command works with local and remote profiles. Project files are transferred
+to remote profiles through
+[`remote-source-input-sync.md`](remote-source-input-sync.md).
+
+In the current implementation, the CLI resolves `liquibase.exec`,
+`liquibase.exec_mode`, and Liquibase environment values locally and sends them
+to the selected backend. Those values therefore need to be valid for the
+backend host. Backend-owned executable configuration for remote profiles is
+tracked in [issue #89](https://github.com/kimak-irmagi/sqlrs/issues/89).
 
 ---
 
@@ -13,24 +21,30 @@ deployment profile.
 - Avoid mounting the entire workspace when possible.
 - Minimize new complexity in the CLI and engine.
 
-## Non-goals (initially)
+## Non-goals
 
-- Remote engine profiles (team/cloud).
-- Custom Java extensions / classpath injection beyond standard Liquibase image contents.
+- Custom Java extensions or classpath injection beyond the configured
+  Liquibase distribution.
 - Container-based Liquibase execution (planned, not implemented yet).
 
 ---
 
-## CLI Syntax (proposed)
+## CLI Syntax
 
 ```text
-sqlrs prepare:lb [--image <db-image-id>]
-                             -- <liquibase-args...>
+sqlrs prepare:lb [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--watch|--no-watch] [--image <db-image-id>] -- <liquibase-args...>
 ```
 
 ### Flags
 
 - `--image <db-image-id>` (optional): overrides the DB base image (same as `prepare:psql`).
+- `--provenance-path <path>` writes a JSON provenance artifact for a
+  single-stage invocation.
+- `--ref`, `--ref-mode`, and `--ref-keep-worktree` select a Git revision
+  resolved by the CLI and its projection mode; see
+  [`sqlrs-ref.md`](sqlrs-ref.md).
+- `--watch` waits for terminal status (default); `--no-watch` submits the job
+  and exits, except that ref-backed prepare remains watch-only.
 - `liquibase-args...` (required): passed to Liquibase CLI after `--`.
 
 ### Config fallback
@@ -41,14 +55,20 @@ resolved via PATH.
 ```yaml
 liquibase:
   exec: C:\Program Files\Liquibase\liquibase.exe
+  exec_mode: native
 ```
+
+`liquibase.exec_mode` accepts `auto` (default), `native`, or `windows-bat`.
+Use `windows-bat` when a WSL engine invokes a Windows `.bat`/`.cmd` launcher;
+use `native` when Liquibase runs on the same operating system as the engine.
 
 ---
 
-## Local Execution Model
+## Engine Execution Model
 
 1. Engine creates (or reuses) a base state for the DB image (same as `prepare:psql`).
-2. Engine launches **host Liquibase** (Windows executable) from WSL via interop.
+2. Engine launches **host Liquibase**. It normally uses native execution; a WSL
+   engine may launch a Windows batch wrapper through interop.
 3. User provides **Liquibase command line** after `--` (for example `update`).
 4. Engine executes **plan** via `updateSQL`, inspects the resulting changesets and
    builds a fine-grained plan.
@@ -75,8 +95,8 @@ User-provided `--url`, `--username`, `--password`, `--classpath`, etc. are rejec
 
 ## Path mapping (host Liquibase)
 
-The CLI passes **WSL paths** to the engine. When Liquibase runs on the host, the
-engine translates relevant arguments to **Windows paths**:
+In native mode, paths use the engine operating system's normal syntax. In
+`windows-bat` mode, the engine translates relevant WSL paths to Windows paths:
 
 - `--changelog-file`
 - `--defaults-file`
@@ -97,7 +117,7 @@ classpath paths and a configured search path. When `--search-path` is set, it
 overrides the default search locations. By default, Liquibase looks for a
 `liquibase.properties` file in the directory where it is run.
 
-**Proposed behavior in sqlrs**:
+**Current behavior in sqlrs**:
 
 - The Liquibase **working directory** is the CLI working directory, except for
   alias-backed `prepare:lb` / `plan:lb` invocations that set a local
@@ -191,7 +211,7 @@ All other arguments are passed through as-is.
 
 ---
 
-## Examples (proposed)
+## Examples
 
 ```bash
 sqlrs prepare:lb -- update \

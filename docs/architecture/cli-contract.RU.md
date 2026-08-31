@@ -191,12 +191,12 @@ sqlrs
 - [`docs/user-guides/sqlrs-provenance.md`](../user-guides/sqlrs-provenance.md)
 - [`docs/user-guides/sqlrs-watch.md`](../user-guides/sqlrs-watch.md)
 
-Текущее поведение и утвержденное next-slice расширение:
+Текущее поведение:
 
 - `prepare <prepare-ref>` резолвит repo-tracked `*.prep.s9s.yaml` file от
   текущего рабочего каталога.
-- bounded local `prepare --ref <git-ref>` - это утвержденный следующий
-  Git-aware slice только для local single-stage prepare; он сохраняет
+- bounded client-side `prepare --ref <git-ref>` поддерживает local и remote
+  profiles только для single-stage prepare; он сохраняет
   cwd-relative semantics для alias и raw paths, проецируя caller cwd в
   context выбранного ref.
 - `prepare --ref-mode worktree|blob` и `--ref-keep-worktree` используют ту же
@@ -213,8 +213,8 @@ sqlrs
   каждая стадия может быть raw- или alias-mode.
 - bounded `--ref` slice пока **не** расширяется на `prepare ... run ...`;
   prepare-stage с `--ref` пока остается только single-stage.
-- утвержденный следующий reproducibility-slice добавляет
-  `--provenance-path <path>` в single-stage local `prepare`, не меняя основной
+- `--provenance-path <path>` реализован для single-stage `prepare` с local и
+  remote profiles, не меняя основной
   stdout/stderr контракт команды; JSON-артефакт записывается как side file,
   путь к которому резолвится от caller cwd.
 - file-bearing paths, прочитанные из prepare alias, резолвятся относительно
@@ -246,11 +246,11 @@ CLI должен предоставлять `plan:<kind>` для каждого 
 
 - `sqlrs plan <prepare-ref>` резолвит repo-tracked prepare alias file от
   текущего рабочего каталога.
-- bounded local `plan --ref <git-ref>` - это утвержденный следующий Git-aware
-  slice только для local single-stage plan; он переиспользует те же правила
+- bounded client-side `plan --ref <git-ref>` поддерживает local и remote
+  profiles только для single-stage plan; он переиспользует те же правила
   projected-cwd, `worktree` и явного `blob`, что и bounded `prepare --ref`.
-- утвержденный следующий reproducibility-slice также добавляет
-  `--provenance-path <path>` в single-stage local `plan`; он записывает один
+- `--provenance-path <path>` реализован для single-stage `plan` с local и remote
+  profiles; он записывает один
   JSON side artifact без изменения основного human/JSON result payload.
 
 ---
@@ -262,18 +262,18 @@ CLI должен предоставлять `plan:<kind>` для каждого 
 - [`docs/user-guides/sqlrs-run.md`](../user-guides/sqlrs-run.md)
 - [`docs/user-guides/sqlrs-run-ref.md`](../user-guides/sqlrs-run-ref.md)
 
-Утвержденные design-документы для ref-aware follow-up:
+Документы реализованных ref-aware flow и component structure:
 
 - [`run-ref-flow.RU.md`](run-ref-flow.RU.md)
 - [`run-ref-component-structure.RU.md`](run-ref-component-structure.RU.md)
 
-Текущее поведение и утвержденный следующий Git-aware follow-up:
+Текущее поведение:
 
 - standalone `sqlrs run <run-ref> --instance <id|name>` резолвит repo-tracked
   `*.run.s9s.yaml` file от текущего рабочего каталога, сохраняя явный выбор
   runtime instance;
-- bounded local `run --ref <git-ref>` - это утвержденный следующий Git-aware
-  slice для local single-stage `run`; он применяется к alias-backed
+- bounded client-side `run --ref <git-ref>` поддерживает local и remote
+  profiles для single-stage `run`; он применяется к alias-backed
   `run <run-ref>` и raw `run:psql` / `run:pgbench`, проецируя caller cwd в
   context выбранного ref;
 - `run --ref-mode worktree|blob` и `--ref-keep-worktree` переиспользуют ту же
@@ -350,22 +350,20 @@ Diff-опции задают область сравнения; синтакси
 
 ### 3.10 `sqlrs discover`
 
-В post-MVP local design команда `discover` вводится как **advisory verb для
-анализа workspace**:
+`discover` — реализованный **local advisory verb для анализа workspace**:
 
 ```text
 sqlrs discover [--aliases] [--gitignore] [--vscode] [--prepare-shaping]
 ```
 
-Правила дизайна:
+Текущее поведение:
 
-- `discover` read-only по умолчанию;
-- `discover` не предоставляет флаг `--apply` в этом срезе;
+- `discover` read-only и не предоставляет флаг `--apply`;
 - execution commands никогда не зависят от предыдущего discovery output;
 - analyzer flags являются additive;
 - если analyzer flags не указаны, `discover` запускает все stable analyzers в
   canonical order;
-- первый stable analyzer set: `--aliases`, `--gitignore`, `--vscode` и
+- stable analyzer set: `--aliases`, `--gitignore`, `--vscode` и
   `--prepare-shaping`;
 - `--aliases` использует cheap prefilter,
   более глубокую специфичную для kind валидацию, ранжирование по топологии и
@@ -374,24 +372,26 @@ sqlrs discover [--aliases] [--gitignore] [--vscode] [--prepare-shaping]
   `*.run.s9s.yaml` для поддерживаемых SQL и Liquibase workflows и печатает готовую
   к копированию и запуску команду `sqlrs alias create ...` для каждого сильного
   кандидата;
-- `discover --gitignore` сообщает об отсутствии ignore coverage для local-only
-  workspace artifacts и может печатать shell-native follow-up command для
-  добавления недостающих ignore entries;
-- `discover --vscode` сообщает об отсутствующих или неполных `.vscode/*.json`
-  guidance files и может печатать shell-native follow-up command для создания
-  или merge недостающих entries без перезаписи unrelated settings;
-- `discover --prepare-shaping` сообщает advisory workflow-shaping opportunities
-  для лучшего prepare reuse и cache friendliness;
-- human output рендерится как numbered multi-line blocks с target, rationale и
-  при наличии follow-up command на отдельных строках;
+- `discover --gitignore` проверяет существующую workspace-root директорию
+  `.sqlrs/` и файлы с именем `coverage-current`, затем сообщает об отсутствии
+  точных ignore entries в соответствующем `.gitignore`;
+- `discover --vscode` проверяет, что `.vscode/settings.json` связывает sqlrs
+  workspace schema с `**/.sqlrs/config.yaml`, и печатает merged payload вместе
+  с shell-native write command;
+- `discover --prepare-shaping` группирует поддерживаемые SQL/XML/YAML/JSON файлы
+  по директориям и сообщает о директориях, где имена содержат одновременно
+  stable (`schema`, `init`, `ddl`, `base`) и volatile (`seed`, `demo`, `sample`,
+  `data`) tokens;
+- human output начинается с aggregate counters и рендерит numbered findings в
+  analyzer groups с analyzer-specific fields;
 - `discover` пишет progress в `stderr`: delayed spinner в обычном режиме и
   line-based milestones в verbose mode;
 - verbose progress использует analyzer/stage/candidate granularity и не
   трассирует каждый просмотренный файл;
 - если важен shell syntax, follow-up commands рендерятся для текущей shell
   family;
-- JSON output должен сохранять selected analyzers, стабильные per-analyzer
-  summary counts и любые follow-up command strings в стабильной форме.
+- JSON output содержит selected analyzers, per-analyzer summary counts,
+  findings и все созданные follow-up command strings.
 
 См.:
 
@@ -454,9 +454,9 @@ runtime `names`.
   health;
 - `ls --states --cache-details` остается surface-ом для per-state cache
   metadata;
-- `cache explain prepare ...` - это утвержденная следующая read-only команда
+- `cache explain prepare ...` - это реализованная read-only команда
   cache-diagnostics для одного single-stage prepare-oriented решения;
-- `cache explain` переиспользует те же raw, alias-backed и bounded local
+- `cache explain` переиспользует те же raw, alias-backed и client-side
   `--ref` binding semantics, что и single-stage `prepare`;
 - первый slice пока **не** поддерживает wrapped `plan`, wrapped `run` или
   composite `prepare ... run ...`.

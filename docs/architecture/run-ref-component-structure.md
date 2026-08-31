@@ -1,19 +1,20 @@
 # Ref-Backed Run - Component Structure
 
-This document defines the approved internal component structure for the bounded
-local standalone `run --ref` slice:
+This document defines the implemented internal component structure for the
+bounded client-side standalone `run --ref` slice:
 
 - `sqlrs run --ref ...`
 - `sqlrs run:psql --ref ...`
 - `sqlrs run:pgbench --ref ...`
 
-It follows the accepted CLI shape in
+It follows the implemented CLI shape in
 [`../user-guides/sqlrs-run-ref.md`](../user-guides/sqlrs-run-ref.md) and the
-accepted interaction flow in [`run-ref-flow.md`](run-ref-flow.md).
+implemented interaction flow in [`run-ref-flow.md`](run-ref-flow.md).
 
 ## 1. Scope and assumptions
 
-- The slice is CLI-only and local-only.
+- Git resolution and input materialization are CLI-side; execution works with
+  local and remote profiles.
 - It applies only to standalone `run`.
 - It supports both raw and alias-backed run flows.
 - It reuses the same `worktree` and `blob` ref vocabulary already accepted for
@@ -30,7 +31,7 @@ accepted interaction flow in [`run-ref-flow.md`](run-ref-flow.md).
   - forcing standalone `run` into the prepare-oriented stage pipeline when the
     transport and output behavior remain different
 
-## 2. Approved component split
+## 2. Implemented component split
 
 | Component | Responsibility | Caller |
 |-----------|----------------|--------|
@@ -45,12 +46,12 @@ accepted interaction flow in [`run-ref-flow.md`](run-ref-flow.md).
 
 ## 3. Shared owner for this slice: a package-local run binding helper in `internal/app`
 
-The approved structure keeps ref-aware standalone `run` binding package-local to
+The implemented structure keeps ref-aware standalone `run` binding package-local to
 `internal/app` instead of introducing a new top-level package immediately.
 
 Rationale:
 
-- the slice is still bounded to standalone local `run`;
+- the slice is still bounded to standalone `run`;
 - raw and alias-backed `run` already converge in `internal/app` before the
   existing `internal/cli` transport call;
 - the produced value is still the existing `cli.RunOptions` payload plus
@@ -202,7 +203,7 @@ flowchart TB
 
 ## 8. Consequences for existing docs
 
-Because standalone `run --ref` now has its own accepted internal structure:
+Because standalone `run --ref` has its own implemented internal structure:
 
 - `cli-component-structure.md` must describe `internal/refctx` as shared by
   standalone `run --ref`, not only `plan` / `prepare --ref` and `diff`;

@@ -1,29 +1,30 @@
 # Ref-Backed Plan/Prepare - структура компонентов
 
-Этот документ определяет утвержденную внутреннюю компонентную структуру для
-bounded local `--ref` slice у `sqlrs plan` и `sqlrs prepare`.
+Этот документ определяет реализованную внутреннюю компонентную структуру для
+bounded client-side `--ref` support в `sqlrs plan` и `sqlrs prepare`.
 
-Он опирается на принятый CLI shape из
-[`../user-guides/sqlrs-ref.md`](../user-guides/sqlrs-ref.md) и на утвержденный
+Он опирается на реализованный CLI shape из
+[`../user-guides/sqlrs-ref.md`](../user-guides/sqlrs-ref.md) и на реализованный
 interaction flow в [`ref-flow.RU.md`](ref-flow.RU.md).
 
 ## 1. Scope и предположения
 
-- Slice остается **CLI-only** и **local-only**.
+- Git resolution и revision projection выполняются **на стороне CLI**;
+  получившиеся команды работают и с local, и с remote profiles.
 - Он применяется только к **single-stage** `plan` и `prepare`.
 - Он поддерживает raw и alias-backed prepare flows.
 - Ref-backed `prepare` в этом slice остается только в watch mode; асинхронная
   semantics через `--no-watch` пока вне scope.
 - Он переиспользует ту же vocabulary `worktree` и `blob`, что уже принята для
   `sqlrs diff`.
-- Он пока не добавляет:
-  - более поздний утвержденный follow-up для standalone `run --ref`
+- Он не владеет:
+  - standalone `run --ref`, у которого есть отдельный реализованный component surface
   - `prepare ... run ...` с ref-backed prepare-stage
-  - provenance или `cache explain`
+  - run-side provenance или `cache explain run ...`
 - Архитектура не должна дублировать detached-worktree lifecycle и
   projected-cwd logic отдельно в `diff` и в `plan` / `prepare`.
 
-## 2. Утвержденное разделение компонентов
+## 2. Реализованное разделение компонентов
 
 | Компонент | Ответственность | Кто вызывает |
 |-----------|-----------------|--------------|
@@ -32,11 +33,12 @@ interaction flow в [`ref-flow.RU.md`](ref-flow.RU.md).
 | **Alias binder** | Разрешать prepare alias ref и загружать его YAML payload из выбранного filesystem context, а не только из live working tree. | Обработчик plan/prepare |
 | **Shared inputset kind component** | Парсить file-bearing args, привязывать их к выбранному filesystem view и собирать детерминированные per-kind input closures. | Обработчик plan/prepare через `internal/inputset/*` |
 | **Plan/prepare app flow** | Запускать существующий deterministic flow plan или prepare после полной привязки stage. | Обработчик plan/prepare |
+| **Remote source sync** | Для remote profiles передавать bound live- или ref-backed input closure без доступа backend к репозиторию. | Существующий stage pipeline и remote source transport |
 | **Cleanup handler** | Удалять временные worktree, если пользователь не задал `--ref-keep-worktree`. | Потребитель shared ref context resolver |
 
 ## 3. Новый общий владелец: `internal/refctx`
 
-Утвержденная структура вводит одного общего CLI-side владельца ref-backed
+Реализованная структура вводит одного общего CLI-side владельца ref-backed
 filesystem context:
 
 - поиск repo root от caller cwd
@@ -55,7 +57,7 @@ filesystem context:
 - тянули бы execution concerns внутрь `internal/diff`, что даёт неверное
   направление зависимостей.
 
-Утвержденное правило владения такое:
+Реализованное правило владения такое:
 
 - `internal/diff` сохраняет **парсинг diff scope, сравнение и рендеринг**;
 - `internal/refctx` владеет **одним ref-backed filesystem context**;
@@ -193,17 +195,16 @@ flowchart TB
 
 ## 8. Последствия для существующих документов
 
-Поскольку `internal/refctx` становится общим владельцем ref-backed filesystem
-contexts:
+`internal/refctx` является общим владельцем ref-backed filesystem contexts,
+поэтому:
 
-- `diff-component-structure.RU.md` должен перестать описывать generic
-  ref-context setup как долгосрочную ответственность `internal/diff`;
-- `cli-component-structure.RU.md` должен перечислять `internal/refctx` рядом с
+- `diff-component-structure.RU.md` не описывает generic ref-context setup как
+  долгосрочную ответственность `internal/diff`;
+- `cli-component-structure.RU.md` перечисляет `internal/refctx` рядом с
   `internal/diff`, `internal/discover` и `internal/inputset`;
-- `cli-contract.RU.md` должен описывать `plan` / `prepare --ref` как
-  утвержденный bounded slice, а более поздний standalone `run --ref` должен
-  быть описан отдельно; composite ref-semantics остаются вне scope этого
-  документа.
+- `cli-contract.RU.md` описывает реализованный `plan` / `prepare --ref`, а
+  standalone `run --ref` документирован отдельно; composite ref-semantics
+  остаются вне scope этого документа.
 
 ## 9. Ссылки
 

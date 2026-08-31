@@ -16,12 +16,19 @@ A `prepare:psql` invocation:
 ## Command Syntax
 
 ```text
-sqlrs prepare:psql [--image <image-id>] [--] [psql-args...]
+sqlrs prepare:psql [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--watch|--no-watch] [--image <image-id>] [--] [psql-args...]
 ```
 
 Where:
 
 - `--image <image-id>` overrides the base container image.
+- `--provenance-path <path>` writes a JSON provenance artifact for a
+  single-stage invocation.
+- `--ref`, `--ref-mode`, and `--ref-keep-worktree` select a Git revision
+  resolved by the CLI and its projection mode; see
+  [`sqlrs-ref.md`](sqlrs-ref.md).
+- `--watch` waits for terminal status (default); `--no-watch` submits the job
+  and exits, except that ref-backed prepare remains watch-only.
 - `psql-args` are passed to `psql` and fully describe how the state is produced.
 
 If `--` is omitted, all remaining arguments are treated as `psql-args`.
@@ -73,8 +80,8 @@ For local profiles, the engine performs real execution:
 - State data is stored under `<StateDir>/state-store` (outside containers).
 - Each task snapshots the DB state; the engine prefers OverlayFS on Linux, can use
   btrfs subvolume snapshots when configured, and falls back to full copy.
-- The prepare container stays running after the job; the instance is recorded as
-  warm and a future `sqlrs run` will decide when to stop it.
+- The prepare container stays running after the job and the instance is recorded
+  as warm. Automatic connection-count cleanup is not implemented yet.
 - When `-f/--file` inputs are present, the engine mounts the workspace scripts
   root into the container and rewrites file arguments to the container path.
 
@@ -124,7 +131,6 @@ Normalization rules (initial):
 
 - include directives are replaced by the **contents** of the referenced files.
 - traversal order is deterministic (depth-first, in include order).
-- the final content stream is hashed; include paths and command spelling are ignored.
 - the final content stream is hashed after path resolution; include paths and
   command spelling are ignored.
 

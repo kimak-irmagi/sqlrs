@@ -1,12 +1,11 @@
 # Git-aware semantics: пассивные функции (CLI)
 
-Статус: **смешанный**. Сценарий P1 - это уже доставленный local ref baseline.
-Сценарии P4 и P6 фиксируют уже реализованный slice для provenance и
-cache explanation. Следующий утвержденный bounded local follow-up - это
-standalone `run --ref`, который сейчас описан в
+Статус: **смешанный**. Сценарии P1, P4 и P6 фиксируют уже реализованные client-side
+ref, provenance и cache-explain surfaces. Standalone `run --ref` также
+реализован и описан в
 [`../user-guides/sqlrs-run-ref.md`](../user-guides/sqlrs-run-ref.md), с
-утвержденным interaction flow в [`run-ref-flow.RU.md`](run-ref-flow.RU.md) и
-утвержденной внутренней структурой в
+реализованным interaction flow в [`run-ref-flow.RU.md`](run-ref-flow.RU.md) и
+внутренней структурой в
 [`run-ref-component-structure.RU.md`](run-ref-component-structure.RU.md);
 остальная часть документа остается future design. Сейчас публичный MVP CLI
 по-прежнему опирается на вызовы вида `sqlrs prepare:psql ... run:psql ...`.
@@ -26,11 +25,13 @@ standalone `run --ref`, который сейчас описан в
   минимальные следы в `.git/worktrees`.
 - **Сначала быстрый путь.** Сначала пытаемся найти готовое состояние в кэше sqlrs
   по хешам задействованных файлов. Если не нашли — строим.
-- **Всё воспроизводимо.** Любое выполнение умеет сохранить манифест (provenance),
-  чтобы повторить то же состояние 1:1.
-- **Remote режим требует доступа к репозиторию.** Для `--ref` на удалённом раннере
-  нужен server-side mirror (зеркало репозитория на стороне сервиса) или VCS-секреты;
-  иначе CLI загружает исходники в `source storage` и передает `source_id` (см. [`sql-runner-api.md`](sql-runner-api.RU.md)).
+- **Prepare-oriented execution воспроизводим.** Single-stage `plan` и
+  `prepare` могут сохранить provenance manifest; run-side provenance не входит
+  в текущий surface.
+- **В remote-режиме Git остается на стороне клиента.** CLI разрешает `--ref`,
+  связывает выбранный input graph и передает необходимые source blobs через
+  [remote source sync](../user-guides/remote-source-input-sync.md). Backend не
+  нужен server-side mirror или VCS credentials.
 
 ---
 
@@ -38,7 +39,7 @@ standalone `run --ref`, который сейчас описан в
 
 Примечание по текущему публичному срезу: этот сценарий описывает уже
 реализованный bounded baseline для `plan` / `prepare --ref`. Более поздние
-local follow-up были вынесены в отдельные slice: сначала provenance/cache
+follow-up были вынесены в отдельные slice: сначала provenance/cache
 explanation, а теперь и standalone `run --ref`.
 
 ### Мотивация
@@ -49,8 +50,8 @@ explanation, а теперь и standalone `run --ref`.
 
 ### UX / CLI
 
-Для следующего публичного local slice существующие command shapes `plan` /
-`prepare` получают одно явное семейство stage-local флагов.
+Текущие публичные command shapes `plan` / `prepare` предоставляют одно
+явное семейство stage-local флагов.
 
 ```bash
 sqlrs plan --ref <git-ref> <prepare-alias>
@@ -62,8 +63,9 @@ sqlrs prepare:lb --ref <git-ref> -- update --changelog-file db/changelog.xml
 Где `<git-ref>`: `HEAD`, `origin/main`, `abc1234`, `v1.2.3`, `refs/pull/123/head`
 (если доступно локально).
 
-Важная граница следующего публичного slice: он остаётся только локальным.
-Семантика remote runner остаётся частью будущего дизайна.
+Важная граница текущего публичного surface: Git resolution и revision
+projection выполняются в CLI. Поддерживаются local и remote profiles; для
+remote profile выбранный input closure передается через source sync.
 
 Дополнительный guardrail первого публичного slice: `prepare --ref` остается
 только в watch mode, поэтому `prepare --ref --no-watch` отклоняется.
@@ -191,7 +193,7 @@ sqlrs diff --from-path <pathA> --to-path <pathB> prepare:psql -- -f ./prepare.sq
 
 ---
 
-## Сценарий P4. Provenance side artifact для local single-stage plan/prepare
+## Сценарий P4. Provenance side artifact для single-stage plan/prepare
 
 ### Мотивация
 
@@ -213,7 +215,7 @@ sqlrs prepare:psql --provenance-path ./artifacts/prepare.json -- -f ./prepare.sq
 
 - только single-stage `plan` и `prepare`;
 - raw- и alias-backed prepare flows;
-- обычная local ФС и bounded local `--ref`;
+- local и remote profiles, live inputs и client-side `--ref`;
 - без standalone `run`;
 - без composite `prepare ... run ...`;
 - без автоматической эмиссии без явного флага;
@@ -301,8 +303,7 @@ sqlrs compare \
 
 ### UX / CLI
 
-Для утвержденного следующего публичного slice команда остается read-only и
-prepare-oriented:
+Текущая публичная команда остается read-only и prepare-oriented:
 
 ```bash
 sqlrs cache explain prepare <prepare-alias>
@@ -343,10 +344,10 @@ Store-health diagnostics остаются отдельными:
 
 ## Минимальный MVP пассивных функций
 
-1. bounded local `plan` / `prepare --ref` с `worktree` по умолчанию и явным
+1. bounded client-side `plan` / `prepare --ref` с `worktree` по умолчанию и явным
    `blob`
 2. `sqlrs diff --from-ref/--to-ref <wrapped-command...>` для одной команды
    `plan:*` или `prepare:*`
-3. provenance side artifact для bounded local single-stage `plan` / `prepare`
+3. provenance side artifact для bounded single-stage `plan` / `prepare`
 4. `cache explain prepare ...` (простая версия)
 5. standalone `run --ref` для raw и alias-backed single-stage run flow

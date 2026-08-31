@@ -1,13 +1,13 @@
 # Поток Ref-Backed Run
 
-Этот документ описывает утвержденный локальный interaction flow для следующего
-bounded repository-aware slice после уже реализованных `plan` / `prepare --ref`,
-provenance и cache explanation:
+Этот документ описывает реализованный клиентский interaction flow для bounded
+repository-aware standalone run после `plan` / `prepare --ref`, provenance и
+cache explanation:
 
 - standalone `sqlrs run --ref ...`
 - standalone raw `sqlrs run:psql --ref ...` и `sqlrs run:pgbench --ref ...`
 
-Он опирается на принятый CLI shape из
+Он опирается на реализованный CLI shape из
 [`../user-guides/sqlrs-run-ref.md`](../user-guides/sqlrs-run-ref.md).
 
 Этот slice намеренно узкий:
@@ -15,7 +15,8 @@ provenance и cache explanation:
 - он применяется только к standalone `run`;
 - он поддерживает raw и alias-backed run flow;
 - он сохраняет существующую ref vocabulary `worktree` и `blob`;
-- он остается CLI-only и local-only;
+- Git resolution и input materialization остаются на стороне CLI, а execution
+  может использовать local или remote profile;
 - он пока не поддерживает `prepare ... run ...`, если run-stage несет `--ref`;
 - он пока не добавляет run-side provenance или `cache explain`.
 
@@ -174,6 +175,8 @@ input mode. Вместо этого он переиспользует те же 
 Как только runtime args, steps и stdin полностью materialized, существующий run
 flow продолжается без изменений.
 
+- Local и remote profiles получают один и тот же transport-ready request;
+  remote backend не нужен доступ к репозиторию.
 - Instance resolution по-прежнему требует `--instance` для standalone alias или
   raw run.
 - Существующая validation conflicting connection args для run kinds не меняется.
@@ -218,4 +221,4 @@ Cleanup зависит от режима.
 - `prepare --ref ... run ...`;
 - provenance output для ref-backed runs;
 - `sqlrs cache explain run ...`;
-- remote runner или hosted Git semantics.
+- server-side Git fetch или hosted-repository access.

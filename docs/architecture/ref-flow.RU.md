@@ -1,7 +1,7 @@
 # Поток Ref-Backed Plan/Prepare
 
-Этот документ описывает утвержденный локальный поток взаимодействия для
-bounded `--ref` slice после принятия CLI-синтаксиса в
+Этот документ описывает реализованный клиентский поток взаимодействия для
+bounded ref-backed `plan` / `prepare`, публичный синтаксис которых описан в
 [`../user-guides/sqlrs-ref.md`](../user-guides/sqlrs-ref.md).
 
 Этот slice намеренно узкий:
@@ -9,7 +9,8 @@ bounded `--ref` slice после принятия CLI-синтаксиса в
 - он применяется только к single-stage `plan` и `prepare`;
 - он поддерживает raw и alias-backed prepare flows;
 - ref-backed `prepare` в нем остается только в watch mode;
-- он не покрывает более поздний утвержденный follow-up для standalone `run --ref`;
+- standalone `run --ref` реализован через отдельный
+  [`run-ref-flow.RU.md`](run-ref-flow.RU.md);
 - он пока не поддерживает composite `prepare ... run ...` с `--ref`.
 
 ## 1. Участники
@@ -172,6 +173,9 @@ materialization остаётся рядом с текущими command-kind imp
 
 Как только stage полностью привязан, дальше продолжается обычный app flow.
 
+- Local profile позволяет local engine читать bound workspace view напрямую.
+- Remote profile использует source sync для передачи bound ref-backed inputs;
+  Git resolution и filesystem projection при этом остаются в CLI.
 - `plan` сохраняет свой текущий human/JSON output.
 - `prepare --ref` остается в watch mode и сохраняет DSN output.
 - обычный `prepare` без `--ref` по-прежнему поддерживает `--no-watch` и
@@ -208,12 +212,12 @@ cleanup detached worktree уже поднимаются в `sqlrs diff`.
   явно.
 - Ни один ref-backed stage не меняет live working tree вызывающего процесса.
 
-## 5. Follow-ups вне scope
+## 5. Связанные surfaces вне scope
 
-Этот flow намеренно оставляет на следующие slices:
+Этот flow намеренно не покрывает:
 
 - `prepare ... run ...` с ref-backed prepare-stage;
-- standalone `run --ref` (уже вынесен в более поздний follow-up design);
+- standalone `run --ref` (покрыт реализованным
+  [`run-ref-flow.RU.md`](run-ref-flow.RU.md));
 - provenance output для ref-backed runs;
-- `sqlrs cache explain` поверх ref-backed inputs;
-- remote runner или hosted Git semantics.
+- server-side Git fetch или hosted-repository access.

@@ -15,8 +15,8 @@ produces.
 ## Command Syntax
 
 ```text
-sqlrs plan [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <ref>
-sqlrs plan:<kind> [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--image <image-id>] [--] [tool-args...]
+sqlrs plan [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <ref>
+sqlrs plan:<kind> [--provenance-path <path>] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--image <image-id>] [--] [tool-args...]
 ```
 
 Where:
@@ -24,7 +24,8 @@ Where:
 - bare `plan <ref>` resolves a repo-tracked prepare alias file
   from the current working directory (`<cwd>/<ref>.prep.s9s.yaml`);
 - `:<kind>` selects the preparation variant (for example, `psql`, `lb`).
-- `--ref <git-ref>` reads plan inputs from a selected local Git revision.
+- `--provenance-path <path>` writes a JSON provenance artifact for this plan.
+- `--ref <git-ref>` reads plan inputs from a Git revision resolved by the CLI.
 - `--ref-mode` chooses `worktree` (default) or `blob`.
 - `--ref-keep-worktree` keeps the detached worktree after exit in
   `worktree` mode.
@@ -41,11 +42,14 @@ use `--` explicitly.
 Alias-mode details are described in [`sqlrs-aliases.md`](sqlrs-aliases.md).
 Ref-backed details are described in [`sqlrs-ref.md`](sqlrs-ref.md).
 
-Bounded local `plan --ref` notes:
+Client-side `plan --ref` notes:
 
-- this slice is local-only and single-stage only;
+- ref-backed plan is single-stage only and works with local and remote
+  profiles;
 - the caller's current working directory is projected into the selected
   revision, matching `sqlrs diff` ref-mode behavior;
+- remote profiles receive the selected files through source sync; the backend
+  does not fetch the Git repository;
 - `worktree` remains the default ref mode, with `blob` as an explicit opt-in;
 - successful plan output stays unchanged.
 
