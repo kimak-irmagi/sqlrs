@@ -96,7 +96,7 @@ sqlrs writes one JSON document with enough data to answer:
 2. Which local input graph and hashes were used?
 3. Was a Git ref involved, and if so which resolved revision?
 4. Why did sqlrs reuse cache or build new state?
-5. What was the terminal outcome?
+5. What outcome did the CLI observe before it returned?
 
 Artifact fields:
 
@@ -114,10 +114,19 @@ Artifact fields:
   - hit vs miss
   - matched state id when present
   - miss reason code when known
-- terminal outcome summary:
-  - succeeded / failed / canceled
+- observed command outcome summary:
+  - `succeeded` or `failed`
   - plan-only vs prepare execution
   - resulting state id / job id when available
+
+For watched `plan` and `prepare` commands, `succeeded` means the command reached
+its successful result. For `prepare --no-watch`, the current artifact is written
+after job acceptance and also uses `succeeded`; the presence of `jobId` identifies
+that submission-only case. It does not mean that the asynchronous prepare job
+has reached a terminal state.
+
+Distinct accepted and canceled outcome semantics are not implemented yet and
+are tracked in [#93](https://github.com/kimak-irmagi/sqlrs/issues/93).
 
 The artifact avoids ephemeral runtime credentials such as DSNs or auth
 tokens. The point is reproducibility and explanation, not secret capture.

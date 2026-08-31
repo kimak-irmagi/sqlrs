@@ -144,17 +144,25 @@ read-only explain call и реальным `prepare`, artifact всё равно
 - final-state decision (`hit` или `miss`)
 - engine-computed signature
 - matched state id при наличии
-- reason code, когда final state отсутствует
+- reason code: `exact_state_match` для hit или `no_matching_state` для miss
 - resolved image id, если engine умеет его сообщить
 
-### 4.3 Terminal outcome fields
+Более конкретная классификация причин miss отслеживается в
+[#92](https://github.com/kimak-irmagi/sqlrs/issues/92).
+
+### 4.3 Поля наблюдаемого результата команды
 
 Добавляются только для команд, пишущих provenance:
 
-- финальный статус команды (`succeeded`, `failed`, `canceled`)
+- наблюдаемый статус команды (`succeeded` или `failed`)
 - plan-only vs prepare execution mode
 - resulting state id или job id, если они доступны
 - краткая ошибка, если execution падает после binding
+
+Для `prepare --no-watch` текущий статус `succeeded` означает, что submission job
+принят; наличие `jobId` отличает этот случай от результата watched prepare.
+Отдельные состояния accepted и canceled отслеживаются в
+[#93](https://github.com/kimak-irmagi/sqlrs/issues/93).
 
 ## 5. Обработка ошибок
 
@@ -164,7 +172,7 @@ read-only explain call и реальным `prepare`, artifact всё равно
 - Ошибки `cache explain` остаются обычными command errors; команда не печатает
   partial diagnostic output.
 - Ошибки execution после построения trace всё равно должны писать provenance с
-  failed terminal outcome.
+  failed наблюдаемым результатом команды.
 - Если запись provenance падает уже после завершения основной команды, команда
   должна упасть и явно сообщить об этой write-ошибке.
 - Cleanup detached-worktree или blob-staging по-прежнему следует тем же

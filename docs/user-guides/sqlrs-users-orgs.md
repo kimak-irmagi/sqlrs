@@ -176,8 +176,11 @@ Rules:
 
 - The command requires a remote profile.
 - If the token is valid but no sqlrs user profile exists yet, the server returns
-  `404`; human output should suggest `sqlrs user register`.
+  `404`; the current CLI reports `current user is not registered`.
 - Memberships are read-only in this slice.
+
+An actionable `sqlrs user register` suggestion is not implemented yet and is
+tracked in [#94](https://github.com/kimak-irmagi/sqlrs/issues/94).
 
 Human output:
 
@@ -283,14 +286,12 @@ before local engine discovery or autostart.
 Example:
 
 ```text
-user and organization management requires a remote profile
+user and organization management commands require remote mode
 ```
 
-The CLI should include the selected profile name when available:
-
-```text
-profile "local" uses mode local; use --profile <remote-profile>
-```
+The current error does not include the selected profile name or a retry command.
+That actionable guidance is tracked in
+[#94](https://github.com/kimak-irmagi/sqlrs/issues/94).
 
 ## Error handling
 

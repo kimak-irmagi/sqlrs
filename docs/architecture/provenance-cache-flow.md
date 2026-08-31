@@ -143,17 +143,25 @@ Returned by the read-only cache explain endpoint:
 - final-state decision (`hit` or `miss`)
 - engine-computed signature
 - matched state id when present
-- reason code when the final state is absent
+- reason code: `exact_state_match` for a hit or `no_matching_state` for a miss
 - resolved image id when the engine can report it
 
-### 4.3 Terminal outcome fields
+More specific miss classification is tracked in
+[#92](https://github.com/kimak-irmagi/sqlrs/issues/92).
+
+### 4.3 Observed command outcome fields
 
 Added only for provenance-writing commands:
 
-- final command status (`succeeded`, `failed`, `canceled`)
+- observed command status (`succeeded` or `failed`)
 - plan-only vs prepare execution mode
 - resulting state id or job id when available
 - error summary when execution fails after binding
+
+For `prepare --no-watch`, `succeeded` currently means that job submission was
+accepted; `jobId` distinguishes this from a watched prepare result. Separate
+accepted and canceled states are tracked in
+[#93](https://github.com/kimak-irmagi/sqlrs/issues/93).
 
 ## 5. Failure handling
 
@@ -163,7 +171,7 @@ Added only for provenance-writing commands:
 - `cache explain` failures stay regular command errors; the command does not
   print partial diagnostic output.
 - Execution failures after the trace exists should still write provenance with a
-  failed terminal outcome.
+  failed observed command outcome.
 - If provenance writing fails after the main command completed, the command
   fails and reports that write error explicitly.
 - Detached-worktree or blob staging cleanup still follows the same cleanup rules

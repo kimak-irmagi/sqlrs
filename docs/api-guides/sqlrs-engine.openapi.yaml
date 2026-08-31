@@ -1749,9 +1749,10 @@ components:
         reason_code:
           type: string
           description: |
-            Best-known diagnostic reason. Initial values include
-            `exact_state_match`, `no_matching_state`, `input_hash_changed`,
-            `image_changed`, and `cache_lookup_unavailable`.
+            Diagnostic reason. The current implementation returns
+            `exact_state_match` for a hit and `no_matching_state` for a miss.
+            More specific miss classification is tracked in
+            https://github.com/kimak-irmagi/sqlrs/issues/92.
         signature:
           type: string
           description: Engine-computed final prepare signature used for cache lookup.

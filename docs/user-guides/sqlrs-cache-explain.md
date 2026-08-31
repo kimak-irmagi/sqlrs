@@ -120,12 +120,13 @@ input[1]: examples/chinook/prepare.sql sha256:...
 input[2]: examples/chinook/include.sql sha256:...
 ```
 
-For a miss, the output explains the best known reason, for example:
+For a miss, the current implementation returns:
 
 - `reasonCode: no_matching_state`
-- `reasonCode: image_changed`
-- `reasonCode: input_hash_changed`
-- `reasonCode: cache_lookup_unavailable`
+
+More specific miss classification, including image, input-hash, and lookup
+causes, is not implemented yet and is tracked in
+[#92](https://github.com/kimak-irmagi/sqlrs/issues/92).
 
 ### JSON output
 

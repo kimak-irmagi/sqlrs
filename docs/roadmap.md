@@ -74,7 +74,7 @@ gantt
 
 ---
 
-## Status (as of 2026-07-06)
+## Status (as of 2026-08-31)
 
 - **Done**: local engine API surface (health, config, names, instances, runs,
   states, prepare jobs, tasks), local runtime and lifecycle, end-to-end
@@ -127,7 +127,10 @@ gantt
   `--aliases` / `--gitignore` / `--vscode` / `--prepare-shaping` selection,
   stable default execution over all shipped analyzers, analyzer-grouped
   human/JSON output, failure isolation, and shell-aware follow-up commands for
-  `.gitignore` and `.vscode` remediation suggestions.
+  `.gitignore` and the sqlrs YAML schema mapping in `.vscode/settings.json`.
+  Extension recommendations and deeper input-graph shaping remain tracked in
+  [#90](https://github.com/kimak-irmagi/sqlrs/issues/90) and
+  [#91](https://github.com/kimak-irmagi/sqlrs/issues/91).
 - **Done (CLI maintainability PR4 stage pipeline)**: direct and alias-backed
   `plan` / `prepare` flows in `internal/app` now share one package-local stage
   pipeline for image resolution, kind-specific binding, terminal invocation,
@@ -162,6 +165,10 @@ gantt
   `sqlrs cache explain prepare ...` with matching raw/alias/ref binding
   semantics, plus a dedicated local engine `POST /v1/cache/explain/prepare`
   endpoint and regression coverage for hit/miss, rendering, and binding parity.
+  More specific cache-miss reasons and distinct accepted/canceled provenance
+  outcomes remain tracked in
+  [#92](https://github.com/kimak-irmagi/sqlrs/issues/92) and
+  [#93](https://github.com/kimak-irmagi/sqlrs/issues/93).
 - **Done (M2 standalone `run --ref` baseline)**: standalone local
   `run`, `run:psql`, and `run:pgbench` now support bounded `--ref` reads across
   raw and alias-backed flows, reusing the existing projected-cwd ref context and
@@ -179,7 +186,8 @@ gantt
   `sqlrs org create`, `sqlrs org ls`, and `sqlrs org get` flows backed by the
   documented users/organizations OpenAPI contract. The slice deliberately
   excludes local-engine support and server-side persistence/provider
-  implementation.
+  implementation. Actionable registration and remote-profile error guidance is
+  tracked in [#94](https://github.com/kimak-irmagi/sqlrs/issues/94).
 - **Done (Google OIDC CLI auth session slice)**: the CLI now has
   `sqlrs auth login google`, `sqlrs auth status`, and `sqlrs auth logout`
   backed by Google Authorization Code Flow with PKCE, loopback redirect
@@ -206,33 +214,41 @@ gantt
   Windows host paths from being rewritten into `/mnt/...` coordinates.
   Upload progress reports actual streamed bytes at bounded checkpoints, stable
   unique-upload ordinals, and a final transferred-byte total, and identifies
-  files only by workspace-relative path and shortened digest.
+  files only by workspace-relative path and shortened digest. The remote
+  Liquibase executable trust boundary remains tracked as a defect in
+  [#89](https://github.com/kimak-irmagi/sqlrs/issues/89).
 - **In progress (CI templates baseline)**: GitHub Actions-based release/e2e flows
   are active; broader team templates (e.g., GitLab and on-prem deployment variants)
   are still pending.
-- **Next public local focus (pending selection)**: choose the first
-  post-`run --ref` repository-aware follow-up, most likely between composite
-  ref-backed `prepare ... run` semantics and a run-side diagnostics slice
-  (`provenance` / `cache explain`) or zero-copy/cache-hit reuse.
+- **Tracked unfinished implementation work**: remote Liquibase executable
+  ownership (#89), richer discover analyzers (#90/#91), specific cache-miss
+  explanations (#92), asynchronous provenance outcomes (#93), and actionable
+  users/orgs error guidance (#94). Direct links are collected below.
 - **Planned**: ZFS snapshot backend, optional VS Code integration, team on-prem
   baseline, cloud sharing, education.
 
 ---
 
-## Immediate Next Step (Pending Selection)
+## Tracked Unfinished Work
 
-- **Direction**: continue the repository-aware local CLI after the landed
-  standalone `run --ref` baseline without widening scope blindly.
-- **Current decision point**: pick the first post-`run --ref` follow-up PR.
-- **Most likely candidates**:
-  - composite ref-backed `prepare ... run` semantics, including a dedicated
-    stage-boundary contract for run-side refs;
-  - run-side diagnostics parity, starting with `--provenance-path` and/or
-    `cache explain run ...` for raw and alias-backed flows;
-  - deeper runtime/cache reuse work, such as zero-copy/cache-hit follow-ups on
-    top of the existing repository-aware binding path.
-- **Still deferred beyond the next slice**: any hosted workflow expansion, Git
-  mutation flows, and broader team/cloud repository features.
+- [#89](https://github.com/kimak-irmagi/sqlrs/issues/89): make Liquibase runner
+  selection backend-owned at the remote API trust boundary.
+- [#90](https://github.com/kimak-irmagi/sqlrs/issues/90): extend
+  `discover --vscode` with extension recommendations.
+- [#91](https://github.com/kimak-irmagi/sqlrs/issues/91): deepen
+  `discover --prepare-shaping` with input-graph and alias-layout analysis.
+- [#92](https://github.com/kimak-irmagi/sqlrs/issues/92): explain concrete
+  cache-miss causes beyond `no_matching_state`.
+- [#93](https://github.com/kimak-irmagi/sqlrs/issues/93): distinguish accepted
+  asynchronous jobs and cancellation in provenance artifacts.
+- [#94](https://github.com/kimak-irmagi/sqlrs/issues/94): add actionable
+  registration and remote-profile guidance to users/orgs CLI errors.
+
+Additional unscheduled directions without dedicated issues remain composite
+ref-backed `prepare ... run`, run-side provenance/cache-explain parity, and
+zero-copy/cache-hit reuse. Hosted workflow expansion, Git mutation flows, and
+broader team/cloud repository features remain deferred beyond the next local
+slice.
 
 ---
 
@@ -248,10 +264,10 @@ gantt
 
 **Status**: Done (architecture captured via ADRs and the local engine OpenAPI spec).
 
-**Key documents to produce next**:
+**Completed baseline documents**:
 
-- [`api-contract.md`](api-contract.md)
-- [`instance-lifecycle.md`](instance-lifecycle.md)
+- [`sqlrs-engine.openapi.yaml`](api-guides/sqlrs-engine.openapi.yaml)
+- [`local-deployment-architecture.md`](architecture/local-deployment-architecture.md)
 - [`state-cache-design.md`](architecture/state-cache-design.md)
 
 ---
@@ -348,9 +364,13 @@ primarily in M2 developer experience and optional runtime extensions such as ZFS
 **Status**: Done (public/local baseline). Alias execution, inspection,
 authoring, generic advisory discovery, shared `internal/inputset` semantics,
 `sqlrs diff`, bounded local `plan` / `prepare` / standalone `run` `--ref`, and
-provenance/cache explain are landed. The next repository-aware follow-up has
-not been selected yet; broader ref-backed composites, run-side diagnostics, and
-zero-copy/cache-hit reuse now sit beyond the accepted M2 baseline.
+provenance/cache explain are landed. Tracked implementation follow-ups are
+[#90](https://github.com/kimak-irmagi/sqlrs/issues/90),
+[#91](https://github.com/kimak-irmagi/sqlrs/issues/91),
+[#92](https://github.com/kimak-irmagi/sqlrs/issues/92), and
+[#93](https://github.com/kimak-irmagi/sqlrs/issues/93). Broader ref-backed
+composites, run-side diagnostics, and zero-copy/cache-hit reuse remain outside
+the accepted M2 baseline and do not yet have dedicated issues.
 
 ---
 
@@ -368,14 +388,16 @@ zero-copy/cache-hit reuse now sit beyond the accepted M2 baseline.
 - Shared control-plane baseline for authenticated multi-user deployments
 - Remote users/orgs API contract and CLI client surface — **Done (client/API
   contract slice)**; server-side persistence/provider implementation remains in
-  the shared control-plane/auth baseline.
+  the shared control-plane/auth baseline. CLI error-guidance follow-up:
+  [#94](https://github.com/kimak-irmagi/sqlrs/issues/94).
 - Google OIDC CLI auth sessions — **Done (CLI slice)**; gateway accepted
   audiences and server-side auth/tenant policy remain in the shared
   control-plane/auth baseline.
 - Remote source input sync — **Done (client/API contract slice)** for remote
   prepare/plan/cache-explain retries and source blob uploads; server-side source
   resolution and storage implementation remain part of the shared control-plane
-  baseline.
+  baseline. Remote Liquibase trust-boundary defect:
+  [#89](https://github.com/kimak-irmagi/sqlrs/issues/89).
 - Team deployment gateway and service entrypoint baseline
 - Shared state, artifact, and audit handling with retention controls
 - Basic auth, tenant access, quotas, and policy enforcement
@@ -513,20 +535,23 @@ credentials or runtime connection details.
 
 ---
 
-## Next Documents to Detail
+## Detailed Architecture Documents
 
-- [`api-contract.md`](api-contract.md) (REST/gRPC + events)
+- [`sqlrs-engine.openapi.yaml`](api-guides/sqlrs-engine.openapi.yaml) (HTTP API + events)
 - [`sql-runner-api.md`](architecture/sql-runner-api.md) (timeouts, cancel,
   streaming, cache-aware planning)
-- [`runtime-and-isolation.md`](runtime-and-isolation.md) (local + k8s)
+- [`local-deployment-architecture.md`](architecture/local-deployment-architecture.md)
+  and [`k8s-architecture.md`](architecture/k8s-architecture.md) (local + k8s)
 - [`liquibase-integration.md`](architecture/liquibase-integration.md) (modes,
   config discovery)
 - [`state-cache-design.md`](architecture/state-cache-design.md) (snapshotting,
   hashing, retention)
-- [`cli-spec.md`](cli-spec.md) (commands and exit codes)
-- [`security-model.md`](security-model.md) (cloud-hardening, redaction, audit)
+- [`cli-contract.md`](architecture/cli-contract.md) (commands and exit codes)
 - [`runtime-snapshotting.md`](architecture/runtime-snapshotting.md) (details of
   the snapshot mechanics)
+
+Still unfinished without a dedicated GitHub issue: a consolidated security
+model covering cloud hardening, redaction, and audit.
 - [`git-aware-passive.md`](architecture/git-aware-passive.md) (CLI by ref,
   zero-copy, provenance)
 - [`git-aware-active.md`](architecture/git-aware-active.md) (PR automation,

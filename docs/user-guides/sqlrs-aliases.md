@@ -462,7 +462,7 @@ sqlrs discover [--aliases] [--gitignore] [--vscode] [--prepare-shaping]
 `discover` is advisory and read-only. Bare `discover` runs all stable analyzers
 in canonical order; passing analyzer flags selects exactly that subset.
 
-### Intended analyzer roles
+### Current analyzer roles
 
 - `--aliases`
   - detect candidate prepare/run workflows, rank likely start files, and
@@ -471,9 +471,19 @@ in canonical order; passing analyzer flags selects exactly that subset.
 - `--gitignore`
   - suggest repository hygiene changes such as ignoring `.sqlrs/`
 - `--vscode`
-  - suggest editor integration files such as recommended extensions
+  - check `.vscode/settings.json` and suggest the `yaml.schemas` mapping from
+    the sqlrs workspace schema to `**/.sqlrs/config.yaml`
 - `--prepare-shaping`
-  - suggest decomposition opportunities that could improve cache reuse
+  - group supported files by directory and report a split opportunity when
+    stable-name tokens (`schema`, `init`, `ddl`, `base`) coexist with
+    volatile-name tokens (`seed`, `demo`, `sample`, `data`)
+
+Broader analyzer behavior is tracked separately:
+
+- [#90](https://github.com/kimak-irmagi/sqlrs/issues/90) covers optional VS Code
+  extension recommendations and additional editor consistency checks;
+- [#91](https://github.com/kimak-irmagi/sqlrs/issues/91) covers input-graph and
+  alias-layout analysis beyond the current filename heuristic.
 
 ### Discover rules
 
@@ -487,15 +497,17 @@ in canonical order; passing analyzer flags selects exactly that subset.
   - suppression of suggestions already covered by existing repo-tracked aliases
 - the analyzer currently focuses on supported SQL and Liquibase workflow roots
 - analyzers may be added incrementally over time
-- human output is rendered as numbered multi-line blocks rather than a wide
-  table; each block shows the ref, kind, source file, alias path, score, and
-  copy-paste `sqlrs alias create ...` command;
+- aliases findings are rendered as numbered multi-line blocks rather than a
+  wide table; each alias block shows the ref, kind, source file, alias path,
+  score, and copy-paste `sqlrs alias create ...` command;
+- non-alias analyzers render their own finding details and suggested follow-up
+  commands under the analyzer heading;
 - `discover` writes progress to `stderr` so `stdout` can be redirected safely;
 - in normal interactive mode, progress is shown with a delayed spinner;
 - in verbose mode, progress is written as line-based stage/candidate milestones;
 - progress does not trace every scanned file or folder;
-- JSON output should preserve the same findings and summary counts in a stable
-  shape, including the suggested create command string
+- JSON output preserves analyzer-grouped findings and summary counts in a
+  stable shape; alias findings include the suggested create command string
 
 `discover --aliases` directly supports the alias-file workflow. It stays
 read-only and never writes alias files; the user materializes a suggestion by

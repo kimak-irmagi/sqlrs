@@ -1,6 +1,7 @@
 # M2 Local Developer Experience Plan
 
-Status: Accepted planning baseline (2026-03-16)
+Status: Completed public/local baseline (2026-08-31); broader follow-ups are
+listed explicitly below.
 
 This document defines the implementation plan for the **public/local** part of
 roadmap milestone M2 after the design shifted away from implicit repo-layout
@@ -56,6 +57,8 @@ bounded and testable.
 
 ### 4.1 PR1: File-Based Prepare Alias Baseline
 
+**Status: Completed.**
+
 **Goal**: make repo-tracked prepare recipes executable without mixing them into
 local workspace config.
 
@@ -90,6 +93,8 @@ local workspace config.
 - Git refs
 
 ### 4.2 PR2: Run Aliases, Alias Inspection, and Mixed Composition
+
+**Status: Completed.**
 
 **Goal**: complete the explicit alias execution surface and make normal
 `prepare ... run` pipelines work across raw and alias modes.
@@ -135,6 +140,8 @@ local workspace config.
 
 ### 4.3 PR3: `discover --aliases`
 
+**Status: Completed.**
+
 **Goal**: help repository authors bootstrap explicit alias files without making
 execution depend on heuristics.
 
@@ -166,6 +173,17 @@ execution depend on heuristics.
 
 ### 4.4 PR4: Generic Discover Analyzers
 
+**Status: Completed for the shipped analyzer baseline.** The current
+`--vscode` analyzer checks the sqlrs YAML schema mapping, and the current
+`--prepare-shaping` analyzer uses bounded filename heuristics.
+
+**Tracked follow-ups**:
+
+- [#90](https://github.com/kimak-irmagi/sqlrs/issues/90): VS Code extension
+  recommendations and additional editor checks
+- [#91](https://github.com/kimak-irmagi/sqlrs/issues/91): input-graph and
+  alias-layout analysis for prepare shaping
+
 **Goal**: turn `discover` into a general advisory workflow for local repository
 hygiene and cache-friendly shaping.
 
@@ -195,6 +213,8 @@ hygiene and cache-friendly shaping.
 - provenance
 
 ### 4.5 PR5: Shared Local InputSet Layer
+
+**Status: Completed.**
 
 **Goal**: establish one shared CLI-side source of truth for revision-sensitive
 local inputs.
@@ -229,12 +249,15 @@ local inputs.
 **Goal**: ship the first user-visible Git-aware workflow without requiring Git
 object access yet.
 
-**Status (partially delivered in `frontend/cli-go`)**: path mode and ref mode
-(worktree) work for a **single** wrapped `plan:psql` / `plan:lb` / `prepare:psql`
-/ `prepare:lb`; comparison is **file-list closures + hashes**, no engine.
-**Still open** vs this PR’s original wording: two-stage `prepare ... run`
-composite parsing, alias `prepare <ref>`, JSON/human **per-phase** layout, and
-migration from diff-owned builders to the shared PR5 `inputset` layer.
+**Status: Completed for the accepted input-graph comparison baseline.** Path and
+ref modes work for one wrapped `plan:psql` / `plan:lb` / `prepare:psql` /
+`prepare:lb`; comparison uses file-list closures and hashes through the shared
+inputset layer and does not contact the engine.
+
+**Not implemented from the broader design target**: two-stage
+`prepare ... run` parsing, alias-backed wrapped stages, engine task/payload
+comparison, and per-phase output. These are outside the completed baseline and
+do not currently have dedicated GitHub issues.
 
 **Primary outcome** (target):
 
@@ -262,6 +285,9 @@ migration from diff-owned builders to the shared PR5 `inputset` layer.
 - JSON shape tests
 
 ### 4.7 PR7: Git Ref Execution Baseline
+
+**Status: Completed.** The original single-stage `plan` / `prepare` baseline is
+landed; standalone `run --ref` was delivered as a later additive slice.
 
 **Goal**: let a user execute repository-aware workflows from a Git revision
 without touching the working tree.
@@ -298,6 +324,15 @@ without touching the working tree.
 - failure tests for bad refs, missing projected cwd, and missing files at ref
 
 ### 4.8 PR8: Provenance and Cache Explain
+
+**Status: Completed for the accepted single-stage baseline.**
+
+**Tracked follow-ups**:
+
+- [#92](https://github.com/kimak-irmagi/sqlrs/issues/92): specific cache-miss
+  reason classification beyond `no_matching_state`
+- [#93](https://github.com/kimak-irmagi/sqlrs/issues/93): distinct asynchronous
+  acceptance and cancellation semantics in provenance artifacts
 
 **Goal**: make repository-aware local workflows reproducible and explainable.
 
