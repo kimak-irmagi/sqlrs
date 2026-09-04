@@ -27,8 +27,8 @@ and test runners.
 ## Command Syntax
 
 ```text
-sqlrs run [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <run-ref> --instance <id|name>
-sqlrs run:<kind> [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--instance <id|name>] [-- <command>] [args...]
+sqlrs run [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <run-ref> --instance <id|id-prefix|name>
+sqlrs run:<kind> [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--instance <id|id-prefix|name>] [-- <command>] [args...]
 ```
 
 Where:
@@ -139,19 +139,24 @@ Before executing the command, `run` must resolve a target instance.
 Resolution order:
 
 1. Instance produced by a preceding `prepare` in the same invocation
-2. `--instance <id|name>`
+2. `--instance <id|id-prefix|name>`
 
 If resolution fails, `run` terminates with an error.
 
 If both `--instance` and a preceding `prepare` are present, `run` fails with an
 explicit ambiguity error.
 
-`--instance` accepts either an instance id or a name. If multiple candidates are
-found, `run` fails with an ambiguity error.
+`--instance` accepts a full instance id, an exact name, or a case-insensitive
+hex id prefix containing at least 8 characters. Resolution preserves existing
+exact-name behavior: a value that is syntactically eligible as a prefix is
+first checked as an exact id or name; only an exact miss is resolved through
+`GET /v1/instances?id_prefix=...`. A unique prefix is replaced with its full
+instance id before `POST /v1/runs`; no matches produce a not-found error and
+multiple matches produce an ambiguity error.
 
 For alias mode:
 
-- standalone `sqlrs run <run-ref>` requires `--instance <id|name>`;
+- standalone `sqlrs run <run-ref>` requires `--instance <id|id-prefix|name>`;
 - in a composite `prepare ... run <run-ref>` invocation, the run alias consumes
   the instance produced by the preceding `prepare`;
 - that composite form must not also pass `--instance`.
@@ -254,7 +259,7 @@ Hint: run sqlrs prepare:psql ... to create the instance.
 ## Options
 
 ```text
---instance <id>       Target a specific instance
+--instance <id|id-prefix|name>  Target a specific instance
 ```
 
 ---

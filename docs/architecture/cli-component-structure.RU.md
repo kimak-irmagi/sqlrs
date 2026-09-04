@@ -83,6 +83,10 @@
   - Исполнители клиентских команд и human/JSON renderers, включая auth command
     rendering, read-only cache-explain rendering и rendering remote-only
     управления пользователями и организациями.
+  - Владеет канонизацией target для run: сохраняет точные совпадения id/name,
+    разрешает подходящие 8+ hex-префиксы через фильтр списка instances в
+    `internal/client`, отклоняет отсутствующие или неоднозначные совпадения и
+    передает полный instance id в run endpoint.
 - `internal/cli/runkind`
   - Реестр поддерживаемых run kind.
 - `internal/authsession`
@@ -196,6 +200,9 @@
 - Состояние discovery локального engine (`engine.json`, daemon lock/process
   metadata) ведется через `internal/daemon`.
 - Rendered alias-create commands эфемерны и существуют только в CLI output.
+- Run target, разрешенный из `--instance`, эфемерен в рамках одного invocation;
+  CLI сохраняет только канонический полный instance id в исходящем run request
+  и не персистит результаты resolution.
 - Server config принадлежит engine-side storage и читается/изменяется по HTTP
   (`/v1/config*`), без локального кеширования в CLI.
 - Профили пользователей, external identities, организации и memberships

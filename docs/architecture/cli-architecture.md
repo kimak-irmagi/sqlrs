@@ -177,11 +177,18 @@ sequenceDiagram
     CLI->>ENG: GET /v1/prepare-jobs/{jobId} (on status events)
     ENG-->>CLI: terminal status + DSN
   else Explicit instance
-    CLI->>ENG: resolve instance by id or name
-    ENG-->>CLI: instance_id + DSN
+    alt Prefix-shaped value (8+ hex characters)
+      CLI->>ENG: GET /v1/instances/{idOrName}
+      ENG-->>CLI: exact instance or 404
+      opt Exact miss
+        CLI->>ENG: GET /v1/instances?id_prefix={prefix}
+        ENG-->>CLI: zero, one, or multiple instances
+      end
+    end
+    CLI->>CLI: require one instance and retain its full id
   end
 
-  CLI->>ENG: POST /v1/runs (kind, command or default, args)
+  CLI->>ENG: POST /v1/runs (full instance id, kind, command or default, args)
   opt Missing instance container
     ENG-->>CLI: event "run: container missing - recreating"
     ENG-->>CLI: event "run: restoring runtime"
@@ -203,6 +210,10 @@ Notes:
 - `run:psql` passes DSN as a positional connection string; `run:pgbench` uses
   `-h/-p/-U/-d`.
 - Commands run inside the instance container (same runtime as `prepare:psql`).
+- For an explicit 8+ character hexadecimal `--instance`, the CLI preserves an
+  exact id/name match, otherwise resolves the value through the existing
+  instance-list prefix filter. Zero matches fail as not found and multiple
+  matches fail as ambiguous; `POST /v1/runs` receives the canonical full id.
 - If the instance container is missing and `runtime_dir` exists, the engine
   recreates the container and emits run events before execution.
 - If `--instance` is provided together with a preceding `prepare`, the CLI fails

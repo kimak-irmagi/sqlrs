@@ -81,6 +81,10 @@ addition of a shared `inputset` layer for file-bearing command semantics.
   - Client-side command executors and human/JSON renderers, including
     auth command rendering, read-only cache-explain rendering, and remote-only
     user/organization management rendering.
+  - Owns run target canonicalization: preserve exact id/name matches, resolve
+    eligible 8+ hex prefixes through `internal/client` instance-list filtering,
+    reject ambiguous or missing matches, and send a full instance id to the run
+    endpoint.
 - `internal/cli/runkind`
   - Registry of supported run kinds.
 - `internal/authsession`
@@ -192,6 +196,9 @@ addition of a shared `inputset` layer for file-bearing command semantics.
 - Engine discovery state (`engine.json`, daemon lock/process metadata) is
   managed via `internal/daemon`.
 - Rendered alias-create commands are ephemeral and exist only in CLI output.
+- A run target resolved from `--instance` is ephemeral for one invocation; the
+  CLI retains only the canonical full instance id in the outgoing run request
+  and does not persist resolution results.
 - Server config is owned by engine-side storage and accessed via HTTP
   (`/v1/config*`), not cached by the CLI.
 - User profiles, external identities, organizations, and memberships are owned

@@ -60,6 +60,37 @@ func TestRunRunDefaultCommandWithArgs(t *testing.T) {
 	}
 }
 
+func TestRunRunResolvesInstancePrefixBeforeExecution(t *testing.T) {
+	const fullID = "abcdef1234567890abcdef1234567890"
+	var gotRequest map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances/abcdef12":
+			w.WriteHeader(http.StatusNotFound)
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances":
+			if got := r.URL.Query().Get("id_prefix"); got != "abcdef12" {
+				t.Errorf("id_prefix = %q, want abcdef12", got)
+			}
+			io.WriteString(w, `[{"instance_id":"`+fullID+`"}]`)
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/runs":
+			body, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(body, &gotRequest)
+			io.WriteString(w, `{"type":"exit","exit_code":0}`+"\n")
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	runOpts := cli.RunOptions{Mode: "remote", Endpoint: server.URL, Timeout: time.Second}
+	if err := runRun(&bytes.Buffer{}, &bytes.Buffer{}, runOpts, "psql", []string{"--instance", "abcdef12", "--", "-c", "select 1"}, "", ""); err != nil {
+		t.Fatalf("runRun: %v", err)
+	}
+	if gotRequest["instance_ref"] != fullID {
+		t.Fatalf("instance_ref = %v, want %s", gotRequest["instance_ref"], fullID)
+	}
+}
+
 func TestRunRunArgsWithoutCommand(t *testing.T) {
 	var gotRequest map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

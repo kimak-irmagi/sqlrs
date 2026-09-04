@@ -277,9 +277,12 @@ Implemented ref-aware flow and component documents:
 
 Current behavior:
 
-- standalone `sqlrs run <run-ref> --instance <id|name>` resolves a repo-tracked
+- standalone `sqlrs run <run-ref> --instance <id|id-prefix|name>` resolves a repo-tracked
   `*.run.s9s.yaml` file from the current working directory while keeping runtime
   instance selection explicit;
+- prefix-shaped `--instance` values preserve exact id/name matches, otherwise
+  resolve through `GET /v1/instances?id_prefix=...`; the run request receives
+  the unique full instance id, while zero or multiple matches fail;
 - bounded client-side `run --ref <git-ref>` supports local and remote profiles
   for single-stage `run`; it applies to alias-backed `run <run-ref>` and raw
   `run:psql` / `run:pgbench`, projecting the caller cwd into the selected ref

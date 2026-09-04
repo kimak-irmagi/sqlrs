@@ -63,6 +63,10 @@ func RunRun(ctx context.Context, opts RunOptions, stdout io.Writer, stderr io.Wr
 	if err != nil {
 		return RunResult{}, err
 	}
+	instanceRef, err := resolveRunInstanceRef(ctx, cliClient, opts.InstanceRef)
+	if err != nil {
+		return RunResult{}, err
+	}
 
 	var cmdPtr *string
 	if strings.TrimSpace(opts.Command) != "" {
@@ -70,7 +74,7 @@ func RunRun(ctx context.Context, opts RunOptions, stdout io.Writer, stderr io.Wr
 		cmdPtr = &value
 	}
 	body := client.RunRequest{
-		InstanceRef: opts.InstanceRef,
+		InstanceRef: instanceRef,
 		Kind:        kind,
 		Command:     cmdPtr,
 		Args:        append([]string{}, opts.Args...),
@@ -84,6 +88,34 @@ func RunRun(ctx context.Context, opts RunOptions, stdout io.Writer, stderr io.Wr
 	defer stream.Close()
 
 	return readRunStream(stream, stdout, stderr)
+}
+
+// resolveRunInstanceRef canonicalizes prefix-shaped run targets according to
+// docs/architecture/cli-architecture.md. Ordinary names remain engine-resolved;
+// eligible prefixes preserve an exact ID/name match before list-filter lookup.
+func resolveRunInstanceRef(ctx context.Context, cliClient *client.Client, instanceRef string) (string, error) {
+	value := strings.TrimSpace(instanceRef)
+	normalized, err := normalizeIDPrefix("instance", value)
+	if err != nil {
+		return value, nil
+	}
+
+	exact, found, err := cliClient.GetInstance(ctx, value)
+	if err != nil {
+		return "", err
+	}
+	if found {
+		return exact.InstanceID, nil
+	}
+
+	match, err := resolveInstancePrefix(ctx, cliClient, normalized, "", "")
+	if err != nil {
+		return "", err
+	}
+	if match.noMatch {
+		return "", fmt.Errorf("instance not found: %s", value)
+	}
+	return match.value, nil
 }
 
 type RunStep struct {

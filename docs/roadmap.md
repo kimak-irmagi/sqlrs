@@ -112,6 +112,11 @@ gantt
   `*.run.s9s.yaml` files, with exact-file escape via trailing `.`, cwd-relative
   alias-ref resolution, alias-file-relative file-bearing paths, and mixed raw
   and alias `prepare ... run` composition with `--instance` guardrails.
+- **Done ([#95](https://github.com/kimak-irmagi/sqlrs/issues/95), run instance
+  prefix resolution)**: standalone raw, alias, and ref-backed `run` commands
+  accept case-insensitive 8+ character hexadecimal instance ID prefixes. The
+  CLI preserves exact ID/name matches, rejects missing or ambiguous prefixes,
+  and sends the canonical full instance ID to the run endpoint.
 - **Done (M2 alias inspection baseline)**: the CLI now ships
   `sqlrs alias ls` and `sqlrs alias check [<ref>]` with bounded scan scope,
   default `cwd + recursive`, explicit `--from` / `--depth` controls, static
