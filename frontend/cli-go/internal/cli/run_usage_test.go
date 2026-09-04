@@ -11,10 +11,10 @@ func TestPrintRunUsageShowsAliasAndRawModes(t *testing.T) {
 	PrintRunUsage(&buf)
 
 	out := buf.String()
-	if !strings.Contains(out, "sqlrs run [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <run-ref> --instance <id|name>") {
+	if !strings.Contains(out, "sqlrs run [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <run-ref> --instance <id|id-prefix|name>") {
 		t.Fatalf("expected alias-mode usage, got %q", out)
 	}
-	if !strings.Contains(out, "sqlrs run[:kind] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--instance <id|name>] [-- <command> ] [args...]") {
+	if !strings.Contains(out, "sqlrs run[:kind] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--instance <id|id-prefix|name>] [-- <command> ] [args...]") {
 		t.Fatalf("expected raw-mode usage, got %q", out)
 	}
 	if !strings.Contains(out, "--ref-mode <mode>") {

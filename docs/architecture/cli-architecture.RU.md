@@ -177,11 +177,18 @@ sequenceDiagram
     CLI->>ENG: GET /v1/prepare-jobs/{jobId} (on status events)
     ENG-->>CLI: terminal status + DSN
   else Explicit instance
-    CLI->>ENG: resolve instance by id or name
-    ENG-->>CLI: instance_id + DSN
+    alt Значение в форме префикса (8+ hex-символов)
+      CLI->>ENG: GET /v1/instances/{idOrName}
+      ENG-->>CLI: точный instance или 404
+      opt Точное совпадение отсутствует
+        CLI->>ENG: GET /v1/instances?id_prefix={prefix}
+        ENG-->>CLI: ноль, один или несколько instances
+      end
+    end
+    CLI->>CLI: требует один instance и сохраняет его полный id
   end
 
-  CLI->>ENG: POST /v1/runs (kind, command or default, args)
+  CLI->>ENG: POST /v1/runs (полный instance id, kind, command or default, args)
   opt Missing instance container
     ENG-->>CLI: event "run: container missing - recreating"
     ENG-->>CLI: event "run: restoring runtime"
@@ -204,6 +211,10 @@ sequenceDiagram
   использует `-h/-p/-U/-d`.
 - Команды выполняются внутри контейнера инстанса (тот же runtime, что и
   `prepare:psql`).
+- Для явно заданного шестнадцатеричного `--instance` длиной 8+ символов CLI
+  сохраняет точное совпадение по id/name, а иначе разрешает значение через
+  существующий prefix filter списка instances. Ноль совпадений дает not-found,
+  несколько — ambiguity; `POST /v1/runs` получает канонический полный id.
 - Если контейнер инстанса отсутствует и `runtime_dir` существует, engine
   пересоздает контейнер и пишет run-события до выполнения команды.
 - Если `--instance` задан вместе с предыдущим `prepare`, CLI завершает работу с

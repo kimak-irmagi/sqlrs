@@ -31,8 +31,8 @@ out of scope.
 Public syntax:
 
 ```text
-sqlrs run [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <run-ref> --instance <id|name>
-sqlrs run:<kind> [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--instance <id|name>] [-- <command>] [args...]
+sqlrs run [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <run-ref> --instance <id|id-prefix|name>
+sqlrs run:<kind> [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--instance <id|id-prefix|name>] [-- <command>] [args...]
 ```
 
 Selection rules:
@@ -42,7 +42,7 @@ Selection rules:
 - `--ref-mode` and `--ref-keep-worktree` are valid only when `--ref` is set;
 - `--ref-mode` defaults to `worktree`;
 - `--ref-keep-worktree` is valid only with `--ref-mode worktree`;
-- standalone alias mode still requires `--instance <id|name>`;
+- standalone alias mode still requires `--instance <id|id-prefix|name>`;
 - `run --ref` is standalone only.
 
 The flag belongs to the `run` stage itself, not to global CLI options.
@@ -53,11 +53,11 @@ The flag belongs to the `run` stage itself, not to global CLI options.
 
 ### Supported
 
-- `sqlrs run --ref <ref> <run-alias> --instance <id|name>`
-- `sqlrs run:psql --ref <ref> --instance <id|name> -- -f ...`
-- `sqlrs run:psql --ref <ref> --instance <id|name> -- -c ...`
-- `sqlrs run:pgbench --ref <ref> --instance <id|name> -- -f ...`
-- `sqlrs run:pgbench --ref <ref> --instance <id|name> -- -c ...`
+- `sqlrs run --ref <ref> <run-alias> --instance <id|id-prefix|name>`
+- `sqlrs run:psql --ref <ref> --instance <id|id-prefix|name> -- -f ...`
+- `sqlrs run:psql --ref <ref> --instance <id|id-prefix|name> -- -c ...`
+- `sqlrs run:pgbench --ref <ref> --instance <id|id-prefix|name> -- -f ...`
+- `sqlrs run:pgbench --ref <ref> --instance <id|id-prefix|name> -- -c ...`
 
 These shapes work with local and remote profiles. The CLI always resolves the
 ref and materializes file-bearing run inputs; the remote backend does not need
@@ -112,7 +112,7 @@ backing changes from the live working tree to the selected revision.
 For:
 
 ```text
-sqlrs run --ref <git-ref> <run-ref> --instance <id|name>
+sqlrs run --ref <git-ref> <run-ref> --instance <id|id-prefix|name>
 ```
 
 rules are:
@@ -196,7 +196,9 @@ when full filesystem behavior matters.
 
 Ref-backed execution does not change `run` instance-selection rules:
 
-- standalone `run --ref ...` still requires `--instance <id|name>`;
+- standalone `run --ref ...` still requires `--instance <id|id-prefix|name>`
+  and uses the same exact-id/name-then-prefix resolution as live-filesystem
+  `run`;
 - conflicting instance selection remains an error;
 - `run` keeps forwarding stdout, stderr, and exit code of the executed command;
 - `run` itself still produces no additional success output.

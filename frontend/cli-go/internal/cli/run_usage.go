@@ -4,10 +4,10 @@ import "io"
 
 func PrintRunUsage(w io.Writer) {
 	io.WriteString(w, "Usage:\n")
-	io.WriteString(w, "  sqlrs run [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <run-ref> --instance <id|name>\n")
-	io.WriteString(w, "  sqlrs run[:kind] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--instance <id|name>] [-- <command> ] [args...]\n\n")
+	io.WriteString(w, "  sqlrs run [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] <run-ref> --instance <id|id-prefix|name>\n")
+	io.WriteString(w, "  sqlrs run[:kind] [--ref <git-ref>] [--ref-mode worktree|blob] [--ref-keep-worktree] [--instance <id|id-prefix|name>] [-- <command> ] [args...]\n\n")
 	io.WriteString(w, "Options:\n")
-	io.WriteString(w, "  --instance <id|name>  Target instance id or name\n")
+	io.WriteString(w, "  --instance <id|id-prefix|name>  Target instance by full id, 8+ hex prefix, or name\n")
 	io.WriteString(w, "  --ref <git-ref>       Read run inputs from a selected Git revision\n")
 	io.WriteString(w, "  --ref-mode <mode>     Ref mode: worktree (default) or blob\n")
 	io.WriteString(w, "  --ref-keep-worktree   Keep detached worktree after exit (worktree mode only)\n")

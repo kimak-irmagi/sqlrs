@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -84,6 +85,257 @@ func TestRunRunRemoteStreamsOutput(t *testing.T) {
 	}
 	if errOut.String() != "warn" {
 		t.Fatalf("unexpected stderr: %q", errOut.String())
+	}
+}
+
+func TestRunRunResolvesUniqueInstancePrefix(t *testing.T) {
+	const fullID = "abcdef1234567890abcdef1234567890"
+	var exactCalls, listCalls, runCalls int
+	var gotRequest client.RunRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances/ABCDEF12":
+			exactCalls++
+			w.WriteHeader(http.StatusNotFound)
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances":
+			listCalls++
+			if got := r.URL.Query().Get("id_prefix"); got != "abcdef12" {
+				t.Errorf("id_prefix = %q, want abcdef12", got)
+			}
+			_ = json.NewEncoder(w).Encode([]client.InstanceEntry{{InstanceID: fullID}})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/runs":
+			runCalls++
+			_ = json.NewDecoder(r.Body).Decode(&gotRequest)
+			w.Header().Set("Content-Type", "application/x-ndjson")
+			io.WriteString(w, `{"type":"exit","exit_code":0}`+"\n")
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	_, err := RunRun(context.Background(), RunOptions{
+		Mode:        "remote",
+		Endpoint:    server.URL,
+		Kind:        "psql",
+		InstanceRef: "ABCDEF12",
+	}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("RunRun: %v", err)
+	}
+	if exactCalls != 1 || listCalls != 1 || runCalls != 1 {
+		t.Fatalf("calls: exact=%d list=%d run=%d", exactCalls, listCalls, runCalls)
+	}
+	if gotRequest.InstanceRef != fullID {
+		t.Fatalf("instance_ref = %q, want %q", gotRequest.InstanceRef, fullID)
+	}
+}
+
+func TestRunRunPrefixShapedExactNameWins(t *testing.T) {
+	const fullID = "11111111111111111111111111111111"
+	var listCalls int
+	var gotRequest client.RunRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances/deadbeef":
+			_ = json.NewEncoder(w).Encode(client.InstanceEntry{InstanceID: fullID})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances":
+			listCalls++
+			_ = json.NewEncoder(w).Encode([]client.InstanceEntry{})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/runs":
+			_ = json.NewDecoder(r.Body).Decode(&gotRequest)
+			io.WriteString(w, `{"type":"exit","exit_code":0}`+"\n")
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	_, err := RunRun(context.Background(), RunOptions{
+		Mode:        "remote",
+		Endpoint:    server.URL,
+		Kind:        "psql",
+		InstanceRef: "deadbeef",
+	}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("RunRun: %v", err)
+	}
+	if listCalls != 0 {
+		t.Fatalf("prefix list called %d times after exact match", listCalls)
+	}
+	if gotRequest.InstanceRef != fullID {
+		t.Fatalf("instance_ref = %q, want %q", gotRequest.InstanceRef, fullID)
+	}
+}
+
+func TestRunRunRejectsAmbiguousInstancePrefix(t *testing.T) {
+	var runCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances/deadbeef":
+			w.WriteHeader(http.StatusNotFound)
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances":
+			_ = json.NewEncoder(w).Encode([]client.InstanceEntry{
+				{InstanceID: "deadbeef111111111111111111111111"},
+				{InstanceID: "deadbeef222222222222222222222222"},
+			})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/runs":
+			runCalls++
+			io.WriteString(w, `{"type":"exit","exit_code":0}`+"\n")
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	_, err := RunRun(context.Background(), RunOptions{
+		Mode:        "remote",
+		Endpoint:    server.URL,
+		Kind:        "psql",
+		InstanceRef: "deadbeef",
+	}, &bytes.Buffer{}, &bytes.Buffer{})
+	var ambiguous *AmbiguousPrefixError
+	if !errors.As(err, &ambiguous) {
+		t.Fatalf("expected AmbiguousPrefixError, got %v", err)
+	}
+	if runCalls != 0 {
+		t.Fatalf("run called %d times for ambiguous prefix", runCalls)
+	}
+}
+
+func TestRunRunRejectsMissingInstancePrefix(t *testing.T) {
+	var runCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances/cafebabe":
+			w.WriteHeader(http.StatusNotFound)
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances":
+			_ = json.NewEncoder(w).Encode([]client.InstanceEntry{})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/runs":
+			runCalls++
+			io.WriteString(w, `{"type":"exit","exit_code":0}`+"\n")
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	_, err := RunRun(context.Background(), RunOptions{
+		Mode:        "remote",
+		Endpoint:    server.URL,
+		Kind:        "psql",
+		InstanceRef: "cafebabe",
+	}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "instance not found") {
+		t.Fatalf("expected instance not found, got %v", err)
+	}
+	if runCalls != 0 {
+		t.Fatalf("run called %d times for missing prefix", runCalls)
+	}
+}
+
+func TestRunRunPropagatesInstanceLookupErrors(t *testing.T) {
+	tests := []struct {
+		name      string
+		exactCode int
+		listCode  int
+	}{
+		{name: "exact lookup", exactCode: http.StatusInternalServerError},
+		{name: "prefix list", exactCode: http.StatusNotFound, listCode: http.StatusInternalServerError},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var runCalls int
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.Method == http.MethodGet && r.URL.Path == "/v1/instances/deadbeef":
+					w.WriteHeader(test.exactCode)
+				case r.Method == http.MethodGet && r.URL.Path == "/v1/instances":
+					w.WriteHeader(test.listCode)
+				case r.Method == http.MethodPost && r.URL.Path == "/v1/runs":
+					runCalls++
+					io.WriteString(w, `{"type":"exit","exit_code":0}`+"\n")
+				default:
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer server.Close()
+
+			_, err := RunRun(context.Background(), RunOptions{
+				Mode:        "remote",
+				Endpoint:    server.URL,
+				Kind:        "psql",
+				InstanceRef: "deadbeef",
+			}, &bytes.Buffer{}, &bytes.Buffer{})
+			if err == nil {
+				t.Fatal("expected lookup error")
+			}
+			if runCalls != 0 {
+				t.Fatalf("run called %d times after lookup error", runCalls)
+			}
+		})
+	}
+}
+
+func TestRunRunLeavesNonPrefixNameUnchanged(t *testing.T) {
+	var requestCount int
+	var gotRequest client.RunRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/runs" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		_ = json.NewDecoder(r.Body).Decode(&gotRequest)
+		io.WriteString(w, `{"type":"exit","exit_code":0}`+"\n")
+	}))
+	defer server.Close()
+
+	_, err := RunRun(context.Background(), RunOptions{
+		Mode:        "remote",
+		Endpoint:    server.URL,
+		Kind:        "psql",
+		InstanceRef: "staging",
+	}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("RunRun: %v", err)
+	}
+	if requestCount != 1 || gotRequest.InstanceRef != "staging" {
+		t.Fatalf("requests=%d instance_ref=%q", requestCount, gotRequest.InstanceRef)
+	}
+}
+
+func TestRunRunPreservesExactFullInstanceID(t *testing.T) {
+	const fullID = "abcdef1234567890abcdef1234567890"
+	var listCalls int
+	var gotRequest client.RunRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances/"+fullID:
+			_ = json.NewEncoder(w).Encode(client.InstanceEntry{InstanceID: fullID})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/instances":
+			listCalls++
+			_ = json.NewEncoder(w).Encode([]client.InstanceEntry{})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/runs":
+			_ = json.NewDecoder(r.Body).Decode(&gotRequest)
+			io.WriteString(w, `{"type":"exit","exit_code":0}`+"\n")
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	_, err := RunRun(context.Background(), RunOptions{
+		Mode:        "remote",
+		Endpoint:    server.URL,
+		Kind:        "psql",
+		InstanceRef: fullID,
+	}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("RunRun: %v", err)
+	}
+	if listCalls != 0 || gotRequest.InstanceRef != fullID {
+		t.Fatalf("list calls=%d instance_ref=%q", listCalls, gotRequest.InstanceRef)
 	}
 }
 

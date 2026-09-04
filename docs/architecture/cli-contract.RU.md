@@ -269,9 +269,13 @@ CLI должен предоставлять `plan:<kind>` для каждого 
 
 Текущее поведение:
 
-- standalone `sqlrs run <run-ref> --instance <id|name>` резолвит repo-tracked
+- standalone `sqlrs run <run-ref> --instance <id|id-prefix|name>` резолвит repo-tracked
   `*.run.s9s.yaml` file от текущего рабочего каталога, сохраняя явный выбор
   runtime instance;
+- значения `--instance` в форме префикса сохраняют точные совпадения id/name,
+  а иначе разрешаются через `GET /v1/instances?id_prefix=...`; run request
+  получает единственный полный instance id, а ноль или несколько совпадений
+  приводят к ошибке;
 - bounded client-side `run --ref <git-ref>` поддерживает local и remote
   profiles для single-stage `run`; он применяется к alias-backed
   `run <run-ref>` и raw `run:psql` / `run:pgbench`, проецируя caller cwd в

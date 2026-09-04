@@ -9,7 +9,7 @@ Current local CLI support includes:
 
 - `sqlrs plan <prepare-ref>`
 - `sqlrs prepare <prepare-ref>`
-- `sqlrs run <run-ref> [--instance <id|name>]`
+- `sqlrs run <run-ref> [--instance <id|id-prefix|name>]`
 - `*.prep.s9s.yaml` prepare alias files
 - `*.run.s9s.yaml` run alias files
 - exact-file escape via a trailing `.`
@@ -102,7 +102,7 @@ Resolution rule:
 ### Run resolution
 
 ```text
-sqlrs run <ref> [--instance <id|name>]
+sqlrs run <ref> [--instance <id|id-prefix|name>]
 ```
 
 Resolution rule:
@@ -168,7 +168,7 @@ Alias mode uses the bare verb plus an alias ref as the subject:
 ```text
 sqlrs plan <prepare-ref>
 sqlrs prepare <prepare-ref>
-sqlrs run <run-ref> [--instance <id|name>]
+sqlrs run <run-ref> [--instance <id|id-prefix|name>]
 ```
 
 Examples:
@@ -201,9 +201,9 @@ freely:
 
 ```text
 sqlrs prepare <prepare-ref> run <run-ref>
-sqlrs prepare <prepare-ref> run:<kind> [--instance <id|name>] [-- <command>] [args...]
+sqlrs prepare <prepare-ref> run:<kind> [--instance <id|id-prefix|name>] [-- <command>] [args...]
 sqlrs prepare:<kind> ... run <run-ref>
-sqlrs prepare:<kind> ... run:<kind> [--instance <id|name>] [-- <command>] [args...]
+sqlrs prepare:<kind> ... run:<kind> [--instance <id|id-prefix|name>] [-- <command>] [args...]
 ```
 
 Examples:

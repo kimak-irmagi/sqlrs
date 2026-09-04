@@ -73,9 +73,9 @@ Current boundaries:
 
 ```text
 sqlrs prepare <prepare-ref> run <run-ref>
-sqlrs prepare <prepare-ref> run:<kind> [--instance <id|name>] [-- <command>] [args...]
+sqlrs prepare <prepare-ref> run:<kind> [--instance <id|id-prefix|name>] [-- <command>] [args...]
 sqlrs prepare:<kind> [--watch|--no-watch] [--image <image-id>] [--] [tool-args...] run <run-ref>
-sqlrs prepare:<kind> [--watch|--no-watch] [--image <image-id>] [--] [tool-args...] run:<kind> [--instance <id|name>] [-- <command>] [args...]
+sqlrs prepare:<kind> [--watch|--no-watch] [--image <image-id>] [--] [tool-args...] run:<kind> [--instance <id|id-prefix|name>] [-- <command>] [args...]
 ```
 
 Rules:

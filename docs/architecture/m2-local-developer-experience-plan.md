@@ -101,7 +101,7 @@ local workspace config.
 
 **Primary outcome**:
 
-- standalone `sqlrs run <run-ref> --instance <id|name>` resolves
+- standalone `sqlrs run <run-ref> --instance <id|id-prefix|name>` resolves
   `<run-ref>.run.s9s.yaml` from the current working directory
 - `prepare ... run ...` accepts mixed raw/alias combinations
 - `sqlrs alias ls [--prepare] [--run] [--from <workspace|cwd|path>] [--depth <self|children|recursive>]`
