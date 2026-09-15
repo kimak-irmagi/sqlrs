@@ -93,6 +93,12 @@ func TestManagedJobBindingSurvivesReopen(t *testing.T) {
 	if _, ok, err := st.GetJob(ctx, bad.JobID); err != nil || ok {
 		t.Fatal("partial job binding")
 	}
+	bad = job
+	bad.JobID = "invalid-image"
+	bad.ResolvedImageID = "invalid-prefix" + strings.TrimPrefix(image, "postgres@")
+	if err := st.CreateJob(ctx, bad); err == nil {
+		t.Fatal("malformed image accepted through suffix comparison")
+	}
 }
 
 func TestManagedQueueSchemaRejectsUnavailableTransaction(t *testing.T) {

@@ -163,7 +163,9 @@ The local native probe uses pgx/pgconn, pinned to the same version as izess.
 excluded from JSON. A fresh connection must negotiate SCRAM and prove the exact
 session/current role with LOGIN and SUPERUSER. Wrong and absent credentials must
 produce PostgreSQL password-authentication rejection; a network failure is not
-rejection evidence. The local endpoint is an explicit loopback TCP address.
+rejection evidence. SQL and physical-replication connections both require SCRAM;
+the replication connection must also execute IDENTIFY_SYSTEM successfully.
+The local endpoint is an explicit loopback TCP address.
 The engine must supply a clean PG* environment: ambient PostgreSQL configuration
 fails closed before service/pass files can affect parsing. Startup wiring and
 the physical-operation guard are still required before this probe can publish

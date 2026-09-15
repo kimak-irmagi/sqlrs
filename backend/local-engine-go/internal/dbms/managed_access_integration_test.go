@@ -81,10 +81,10 @@ func TestManagedNativePostgres17(t *testing.T) {
 			t.Fatal("fixture SQL failed")
 		}
 	}
-	setHBA := func(method string) {
+	setHBA := func(method, replicationMethod string) {
 		t.Helper()
 		command := exec.CommandContext(ctx, "docker", "exec", "-i", container, "sh", "-c", `cat > "$PGDATA/pg_hba.conf"`)
-		command.Stdin = strings.NewReader("local all all trust\nhost all all 0.0.0.0/0 " + method + "\nhost all all ::/0 " + method + "\nhost replication all 0.0.0.0/0 " + method + "\nhost replication all ::/0 " + method + "\n")
+		command.Stdin = strings.NewReader("local all all trust\nhost all all 0.0.0.0/0 " + method + "\nhost all all ::/0 " + method + "\nhost replication all 0.0.0.0/0 " + replicationMethod + "\nhost replication all ::/0 " + replicationMethod + "\n")
 		if command.Run() != nil {
 			t.Fatal("fixture HBA setup failed")
 		}
@@ -102,7 +102,11 @@ func TestManagedNativePostgres17(t *testing.T) {
 		t.Fatal("trust was counted as rejected password")
 	}
 	sql("ALTER ROLE " + request.Binding.Username + " PASSWORD '" + request.Password + "'")
-	setHBA("scram-sha-256")
+	setHBA("scram-sha-256", "trust")
+	if _, err := VerifyManagedAccess(ctx, request); err != ErrManagedAccessUnavailable {
+		t.Fatal("replication trust bypass was accepted")
+	}
+	setHBA("scram-sha-256", "scram-sha-256")
 	proof, err := VerifyManagedAccess(ctx, request)
 	if err != nil || proof.Binding != request.Binding {
 		t.Fatalf("native managed proof failed: %v", err)

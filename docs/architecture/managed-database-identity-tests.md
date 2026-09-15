@@ -77,6 +77,13 @@ The engine regression passed with `go test -p 1 ./... -timeout 2m`. The initial
 parallel run failed one HTTP job-completion test with SQLITE_BUSY; its focused
 rerun and full sequential rerun passed. The initial failure remains recorded.
 
+Subsequent review regressions reject a mismatched state image, malformed job image
+suffixes and silent fingerprint collisions. A real PostgreSQL regression first
+demonstrated that SQL-only proof accepted a physical-replication trust bypass.
+Native proof now also authenticates a replication connection, executes
+IDENTIFY_SYSTEM and rejects wrong/absent replication credentials. The dbms suite
+with the live integration test passes at 95.7%; IPv6 publication remains to verify.
+
 Environment restrictions are cleared: Go tests, Docker and GitHub are accessible.
 These helpers are not wired into startup or prepare/run. Complete schema
 installation, instanceaccess, secret storage, recovery, sealing and publication

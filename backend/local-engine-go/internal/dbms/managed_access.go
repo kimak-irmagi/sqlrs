@@ -58,11 +58,26 @@ func VerifyManagedAccess(ctx context.Context, request ManagedConnection) (Manage
 	if !valid {
 		return ManagedAccessProof{}, managedAccessError(ctx)
 	}
-	for _, password := range []string{wrongManagedPassword(request.Password), ""} {
-		negative := cfg.Copy()
-		negative.Password = password
-		if err := verifyRejectedCredential(ctx, negative); err != nil {
-			return ManagedAccessProof{}, err
+	// PostgreSQL's "all" database HBA rule excludes physical replication.
+	// Prove that the same managed role cannot bypass SCRAM through that route.
+	replication := cfg.Copy()
+	replication.RuntimeParams = map[string]string{"replication": "true"}
+	conn, err = pgconn.ConnectConfig(ctx, replication)
+	if err != nil {
+		return ManagedAccessProof{}, managedAccessError(ctx)
+	}
+	_, err = conn.Exec(ctx, "IDENTIFY_SYSTEM").ReadAll()
+	closeManagedConnection(conn)
+	if err != nil {
+		return ManagedAccessProof{}, managedAccessError(ctx)
+	}
+	for _, route := range []*pgconn.Config{cfg, replication} {
+		for _, password := range []string{wrongManagedPassword(request.Password), ""} {
+			negative := route.Copy()
+			negative.Password = password
+			if err := verifyRejectedCredential(ctx, negative); err != nil {
+				return ManagedAccessProof{}, err
+			}
 		}
 	}
 	if err := ctx.Err(); err != nil {

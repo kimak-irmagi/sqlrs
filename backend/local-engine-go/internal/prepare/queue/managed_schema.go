@@ -38,7 +38,7 @@ CREATE TRIGGER managed_job_insert BEFORE INSERT ON prepare_jobs
 WHEN NOT EXISTS (
  SELECT 1 FROM managed_base_lineages l JOIN managed_store_format f ON f.domain_ref=l.domain_ref
  WHERE f.slot=1 AND l.lineage_ref=NEW.lineage_ref AND l.identity_digest=NEW.identity_digest
- AND substr(NEW.resolved_image_id, -71)=l.image_digest
+ AND (NEW.resolved_image_id=l.image_digest OR substr(NEW.resolved_image_id,-72)='@'||l.image_digest)
 )
 BEGIN SELECT RAISE(ABORT,'invalid managed job binding'); END;
 CREATE TRIGGER managed_job_immutable BEFORE UPDATE OF resolved_image_id,lineage_ref,identity_digest ON prepare_jobs

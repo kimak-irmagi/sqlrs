@@ -41,6 +41,7 @@ BEGIN
  SELECT CASE WHEN NOT EXISTS (
   SELECT 1 FROM managed_base_lineages l JOIN managed_store_format f ON f.domain_ref=l.domain_ref
   WHERE f.slot=1 AND l.lineage_ref=NEW.lineage_ref AND l.identity_digest=NEW.identity_digest
+   AND (NEW.image_id=l.image_digest OR substr(NEW.image_id,-72)='@'||l.image_digest)
  ) THEN RAISE(ABORT,'invalid managed state binding') END;
  SELECT CASE WHEN NEW.parent_state_id IS NOT NULL AND NOT EXISTS (
   SELECT 1 FROM states p WHERE p.state_id=NEW.parent_state_id
@@ -53,6 +54,9 @@ BEGIN
    OR s.prepare_kind IS NOT NEW.prepare_kind OR s.prepare_args_normalized IS NOT NEW.prepare_args_normalized
   )
  ) THEN RAISE(ABORT,'conflicting managed state') END;
+ SELECT CASE WHEN EXISTS (
+  SELECT 1 FROM states s WHERE s.state_fingerprint=NEW.state_fingerprint AND s.state_id IS NOT NEW.state_id
+ ) THEN RAISE(ABORT,'conflicting managed state fingerprint') END;
 END;
 CREATE TRIGGER managed_state_immutable BEFORE UPDATE OF state_id,parent_state_id,image_id,prepare_kind,prepare_args_normalized,lineage_ref,identity_digest ON states
 WHEN OLD.state_id IS NOT NEW.state_id OR OLD.parent_state_id IS NOT NEW.parent_state_id

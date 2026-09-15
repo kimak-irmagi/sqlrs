@@ -59,6 +59,8 @@ func TestManagedStateBindingPersistenceAndIsolation(t *testing.T) {
 		func(s *store.StateCreate) { s.LineageRef = "" },
 		func(s *store.StateCreate) { s.IdentityDigest = strings.Repeat("0", 64) },
 		func(s *store.StateCreate) { s.LineageRef = "missing-lineage" },
+		func(s *store.StateCreate) { s.ImageID = "postgres@sha256:" + strings.Repeat("f", 64) },
+		func(s *store.StateCreate) { s.ImageID = "invalid-prefix" + record.Selector.ImageDigest },
 	} {
 		bad := state
 		bad.StateID = "rejected"
@@ -79,6 +81,11 @@ func TestManagedStateBindingPersistenceAndIsolation(t *testing.T) {
 	}
 	if got, ok, err := st.GetState(ctx, child.StateID); err != nil || !ok || got.LineageRef != state.LineageRef {
 		t.Fatal("child state was not persisted", err)
+	}
+	collision := child
+	collision.StateID = "fingerprint-collision"
+	if err := st.CreateState(ctx, collision); err == nil {
+		t.Fatal("fingerprint conflict was silently reported as successful publication")
 	}
 	other := lineageCandidate(t, 2)
 	other.Selector.DomainRef = format.DomainRef
