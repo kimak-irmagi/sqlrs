@@ -78,7 +78,8 @@ gantt
 
 - **In progress (managed database identity, update 2026-09-15)**: approved
   local/shared policy, durable lineage, identity-aware base-key primitives and
-  read-only upgrade checks are implemented as foundations. Native PostgreSQL 17
+  read-only upgrade checks are implemented as foundations. State/job binding
+  persistence and transactional schema helpers pass SQLite tests. Native PostgreSQL 17
   access verification is tested separately; prepare/run, instance secrets,
   startup migration and complete Sakila/Chinook acceptance remain pending.
   See the [implementation checkpoint](architecture/managed-database-identity-tests.md).

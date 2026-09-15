@@ -35,6 +35,9 @@ type InstanceEntry struct {
 }
 
 type StateEntry struct {
+	// Private provenance; see managed-database-identity-internals.md.
+	LineageRef        string  `json:"-"`
+	IdentityDigest    string  `json:"-"`
 	StateID           string  `json:"state_id"`
 	ParentStateID     *string `json:"parent_state_id,omitempty"`
 	ImageID           string  `json:"image_id"`
@@ -49,6 +52,9 @@ type StateEntry struct {
 }
 
 type StateCreate struct {
+	// Lineage and digest are written atomically with the state.
+	LineageRef            string
+	IdentityDigest        string
 	StateID               string
 	ParentStateID         *string
 	StateFingerprint      string

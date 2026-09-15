@@ -69,6 +69,14 @@ count as password rejection, cancellation is preserved, and the negative test
 credential always differs from the actual password. Remaining uncovered defensive
 branches are recorded in the per-line profiles; another iteration was requested.
 
+State and queue binding persistence now passes real SQLite tests: parent lineage,
+immutable identity, duplicate-ID conflicts, foreign-key protection, rollback and
+job reopen before task creation. Public state JSON is unchanged. SQLite coverage
+is 96.1% (state installation helper: 100%); queue coverage is 96.7%.
+The engine regression passed with `go test -p 1 ./... -timeout 2m`. The initial
+parallel run failed one HTTP job-completion test with SQLITE_BUSY; its focused
+rerun and full sequential rerun passed. The initial failure remains recorded.
+
 Environment restrictions are cleared: Go tests, Docker and GitHub are accessible.
 These helpers are not wired into startup or prepare/run. Complete schema
 installation, instanceaccess, secret storage, recovery, sealing and publication

@@ -123,6 +123,15 @@ to the store's lineage. Private StateCreate/lookup DTOs carry these fields; publ
 StateEntry JSON stays unchanged. Write the state and its binding in one transaction.
 Queue/job records retain the selected binding so recovery cannot choose again.
 
+Local installation helpers now add these constraints within the cutover
+transaction. A unique local lineage index supports the additive SQLite foreign
+key; an insert trigger checks the singleton domain and exact identity digest.
+State insertion also checks parent lineage and conflicting duplicate state IDs.
+Identity columns are immutable; deleting a state leaves lineage reservations.
+Jobs persist the resolved image ID, lineage reference and identity digest before
+tasks exist; updates cannot substitute another binding. These helpers are not
+yet installed by production startup or populated by prepare.
+
 Shared `state_snapshots` and `reusable_states` gain `lineage_ref` and
 `identity_digest`, scoped by organization and validated against the owning
 lineage table. Materializations inherit via snapshot_ref; their journal observations
