@@ -96,6 +96,11 @@ func TestManagedNativePostgres17(t *testing.T) {
 	if _, err := VerifyManagedAccess(ctx, request); err != ErrManagedAccessUnavailable {
 		t.Fatal("trust-only access was accepted")
 	}
+	// An inherited trust rule must also fail the negative-probe boundary even
+	// if it appears after an earlier positive proof (HBA configuration drift).
+	if err := verifyRejectedCredential(ctx, config); err != ErrManagedAccessUnavailable {
+		t.Fatal("trust was counted as rejected password")
+	}
 	sql("ALTER ROLE " + request.Binding.Username + " PASSWORD '" + request.Password + "'")
 	setHBA("scram-sha-256")
 	proof, err := VerifyManagedAccess(ctx, request)

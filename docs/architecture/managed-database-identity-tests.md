@@ -54,7 +54,9 @@ The managedidentity suite, including RuntimeBinding and BaseKey, passes at 100%.
 Physical inventory is implemented separately in the Docker adapter: platform
 resource directories and all container mounts, including stopped containers.
 Unrelated files survive; unknown Docker inventory fails closed. The runtime suite
-passes (coverage profile: 95.2%), but new inventory error paths still need coverage.
+passes at 96.2%. The approved additional tests cover tmpfs/unknown mounts, opaque
+WSL paths, invalid directories and cancellation. Review found and fixed accidental
+case folding of Linux `/mnt/Uppercase` paths; drive-letter paths still normalize.
 
 Native pgx verification passed on a disposable official PostgreSQL 17 container,
 resolved to `postgres@sha256:7352e0c4d62bbac8aa69d95e40220a60967c4a19f9c4f65b4d118175f7ce9e3b`.
@@ -62,7 +64,10 @@ It rejects trust-only access, proves SCRAM plus wrong/absent-password rejection,
 allows application postgres/sqlrs role lifecycles, and rejects reachable loss of
 managed SUPERUSER privileges without repairing the role. The secret canary was
 absent from container logs. The dbms suite with this integration test passes at
-92.8%; further negative-path coverage requires the requested additional plan.
+96.2%. The approved additional tests prove that trust and transport failure never
+count as password rejection, cancellation is preserved, and the negative test
+credential always differs from the actual password. Remaining uncovered defensive
+branches are recorded in the per-line profiles; another iteration was requested.
 
 Environment restrictions are cleared: Go tests, Docker and GitHub are accessible.
 These helpers are not wired into startup or prepare/run. Complete schema

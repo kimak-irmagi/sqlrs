@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -125,7 +126,43 @@ func TestManagedInventoryMountPathNormalization(t *testing.T) {
 			t.Fatalf("normalize %q: %q", input, got)
 		}
 	}
-	if got := managedMountPath("/var/lib/Store"); got != "/var/lib/Store" {
-		t.Fatalf("Linux case changed: %q", got)
+	for _, linux := range []string{"/var/lib/Store", "/mnt/Uppercase/Store", "/mnt/OtherMount/Store"} {
+		if got := managedMountPath(linux); got != linux {
+			t.Fatalf("Linux case changed: %q -> %q", linux, got)
+		}
+	}
+}
+
+func TestManagedInventoryAdditionalBoundaries(t *testing.T) {
+	root := t.TempDir()
+	for _, fixture := range []struct {
+		mounts string
+		want   error
+	}{
+		{`[{"Type":"tmpfs","Destination":"/scratch"}]`, nil},
+		{`[{"Type":"unsupported","Source":"/data"}]`, ErrManagedInventoryUnavailable},
+		{`[{"Type":"bind","Source":"/run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/Ubuntu/opaque"}]`, ErrManagedInventoryUnavailable},
+		{`[]`, nil},
+	} {
+		runner := &fakeRunner{responses: []runResponse{{output: strings.Repeat("a", 64)}, {output: fixture.mounts}}}
+		if err := NewDocker(Options{Runner: runner}).CheckEmptyManagedResources(context.Background(), root); err != fixture.want {
+			t.Fatalf("mount boundary: %v", err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "engines"), []byte("preserve"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := NewDocker(Options{Runner: &fakeRunner{}}).CheckEmptyManagedResources(context.Background(), root); err != ErrManagedInventoryUnavailable {
+		t.Fatalf("non-directory resource: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := managedInventoryError(ctx, errors.New("private-canary")); err != context.Canceled {
+		t.Fatalf("canceled runner: %v", err)
+	}
+	for _, known := range []error{context.Canceled, context.DeadlineExceeded} {
+		if err := managedInventoryError(context.Background(), fmt.Errorf("private-canary: %w", known)); err != known {
+			t.Fatalf("wrapped cancellation: %v", err)
+		}
 	}
 }

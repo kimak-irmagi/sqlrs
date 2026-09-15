@@ -58,28 +58,45 @@ func VerifyManagedAccess(ctx context.Context, request ManagedConnection) (Manage
 	if !valid {
 		return ManagedAccessProof{}, managedAccessError(ctx)
 	}
-	wrong := strings.Repeat("0", 64)
-	if wrong == request.Password {
-		wrong = strings.Repeat("1", 64)
-	}
-	for _, password := range []string{wrong, ""} {
+	for _, password := range []string{wrongManagedPassword(request.Password), ""} {
 		negative := cfg.Copy()
 		negative.Password = password
-		negative.RequireAuth = ""
-		conn, err := pgconn.ConnectConfig(ctx, negative)
-		if err == nil {
-			closeManagedConnection(conn)
-			return ManagedAccessProof{}, ErrManagedAccessUnavailable
-		}
-		var postgresError *pgconn.PgError
-		if !errors.As(err, &postgresError) || postgresError.Code != "28P01" || postgresError.SeverityUnlocalized != "FATAL" {
-			return ManagedAccessProof{}, managedAccessError(ctx)
+		if err := verifyRejectedCredential(ctx, negative); err != nil {
+			return ManagedAccessProof{}, err
 		}
 	}
 	if err := ctx.Err(); err != nil {
 		return ManagedAccessProof{}, err
 	}
 	return ManagedAccessProof{Binding: request.Binding}, nil
+}
+
+// wrongManagedPassword chooses a syntactically valid credential guaranteed to
+// differ from the actual one. No statistical uniqueness assumption is needed.
+func wrongManagedPassword(password string) string {
+	wrong := strings.Repeat("0", 64)
+	if wrong == password {
+		return strings.Repeat("1", 64)
+	}
+	return wrong
+}
+
+// verifyRejectedCredential tests the server's authentication decision, without
+// RequireAuth making a permissive trust rule look like rejected credentials.
+// It deliberately distinguishes password rejection from transport failure.
+func verifyRejectedCredential(ctx context.Context, cfg *pgconn.Config) error {
+	negative := cfg.Copy()
+	negative.RequireAuth = ""
+	conn, err := pgconn.ConnectConfig(ctx, negative)
+	if err == nil {
+		closeManagedConnection(conn)
+		return ErrManagedAccessUnavailable
+	}
+	var postgresError *pgconn.PgError
+	if !errors.As(err, &postgresError) || postgresError.Code != "28P01" || postgresError.SeverityUnlocalized != "FATAL" {
+		return managedAccessError(ctx)
+	}
+	return ctx.Err()
 }
 
 // managedConnectionConfig never inherits service/pass files or PostgreSQL

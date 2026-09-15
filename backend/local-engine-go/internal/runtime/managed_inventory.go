@@ -123,7 +123,7 @@ func managedMountPath(value string) string {
 		return ""
 	}
 	value = path.Clean(value)
-	if strings.HasPrefix(value, "/mnt/") && len(value) >= 6 && value[5] >= 'A' && value[5] <= 'Z' {
+	if strings.HasPrefix(value, "/mnt/") && len(value) >= 6 && value[5] >= 'A' && value[5] <= 'Z' && (len(value) == 6 || value[6] == '/') {
 		value = strings.ToLower(value)
 	}
 	if strings.HasPrefix(value, "/mnt/") && len(value) >= 6 && value[5] >= 'a' && value[5] <= 'z' && (len(value) == 6 || value[6] == '/') {
