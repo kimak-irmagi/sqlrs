@@ -76,6 +76,13 @@ gantt
 
 ## Status (as of 2026-08-31)
 
+- **In progress (managed database identity, update 2026-09-15)**: approved
+  local/shared policy, durable lineage, identity-aware base-key primitives and
+  read-only upgrade checks are implemented as foundations. Native PostgreSQL 17
+  access verification is tested separately; prepare/run, instance secrets,
+  startup migration and complete Sakila/Chinook acceptance remain pending.
+  See the [implementation checkpoint](architecture/managed-database-identity-tests.md).
+
 - **Done**: local engine API surface (health, config, names, instances, runs,
   states, prepare jobs, tasks), local runtime and lifecycle, end-to-end
   init/prepare/run pipeline, job/task persistence and events, StateFS abstraction,

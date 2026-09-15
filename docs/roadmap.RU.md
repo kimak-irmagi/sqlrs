@@ -77,6 +77,13 @@ gantt
 
 ## Статус (на 2026-08-31)
 
+- **В работе (служебная идентичность БД, уточнение 2026-09-15)**: согласованы
+  общая политика local/shared, постоянные линии, примитивы ключа с идентичностью
+  и проверки перехода без записи; реализован фундамент. Нативная проверка доступа
+  PostgreSQL 17 протестирована отдельно; prepare/run, секреты экземпляров,
+  переход схемы при запуске и полная приёмка Sakila/Chinook ещё впереди.
+  См. [состояние реализации](architecture/managed-database-identity-tests.RU.md).
+
 - **Сделано**: локальная поверхность API (health, config, names, instances, runs,
   states, prepare jobs, tasks), локальный runtime и lifecycle, end-to-end pipeline
   init/prepare/run, хранение job/task и события, абстракция StateFS, базовая часть
