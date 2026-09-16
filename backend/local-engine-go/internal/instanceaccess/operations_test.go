@@ -3,6 +3,7 @@ package instanceaccess
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -83,6 +84,92 @@ func TestPhysicalOperationsAndSeals(t *testing.T) {
 	}
 	if err := s.RecordSeal(ctx, "late-state", op, binding); err == nil {
 		t.Fatal("retired operation published")
+	}
+}
+
+func TestBaseAssignmentFailureKeepsDurableWinner(t *testing.T) {
+	for _, scenario := range []string{"invalid", "closed", "missing-operation", "mismatch", "retirement-write", "assignment-write", "head-write"} {
+		t.Run(scenario, func(t *testing.T) {
+			s, b := accessFixture(t)
+			ctx := context.Background()
+			target := filepath.Join(t.TempDir(), "base")
+			first, err := s.BaseOperation(ctx, "base", target, b.IdentityBinding, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := s.BaseReady(ctx, first); err != nil {
+				t.Fatal(err)
+			}
+			key := "base"
+			switch scenario {
+			case "invalid":
+				key = "../invalid"
+			case "closed":
+				s.db.Close()
+			case "missing-operation":
+				_, err = s.db.Exec("DELETE FROM managed_runtime_operations")
+			case "mismatch":
+				target = filepath.Join(t.TempDir(), "other")
+			case "retirement-write":
+				_, err = s.db.Exec(`CREATE TRIGGER refuse BEFORE UPDATE ON managed_runtime_operations BEGIN SELECT RAISE(ABORT,'canary'); END`)
+			case "assignment-write":
+				_, err = s.db.Exec(`CREATE TRIGGER refuse BEFORE INSERT ON managed_runtime_operations BEGIN SELECT RAISE(ABORT,'canary'); END`)
+			case "head-write":
+				_, err = s.db.Exec(`CREATE TRIGGER refuse BEFORE INSERT ON managed_base_targets BEGIN SELECT RAISE(ABORT,'canary'); END`)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.BaseOperation(ctx, key, target, b.IdentityBinding, false); err == nil || strings.Contains(err.Error(), "canary") {
+				t.Fatal("invalid assignment or unbounded failure", err)
+			}
+			if strings.HasSuffix(scenario, "write") {
+				current, err := s.operation(ctx, first.Ref)
+				if err != nil || current.Stage != "ready" {
+					t.Fatal("failed replacement retired winner", err)
+				}
+			}
+		})
+	}
+}
+
+func TestPublicationRecoveryRefusesLostEvidence(t *testing.T) {
+	for _, scenario := range []string{"missing-intent", "missing-operation", "retired-operation", "corrupt-operation", "missing-secret"} {
+		t.Run(scenario, func(t *testing.T) {
+			s, b := accessFixture(t)
+			ctx := context.Background()
+			op, err := s.Assign(ctx, "operation", filepath.Join(t.TempDir(), "target"), "source", b.IdentityBinding)
+			if err != nil {
+				t.Fatal(err)
+			}
+			b.PhysicalIdentity = op.PhysicalIdentity
+			if err := s.Attach(ctx, op, b); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Activate(ctx, "instance", b, func(Secret) error { return nil }, func() error { return nil }); err != nil {
+				t.Fatal(err)
+			}
+			ref := "instance"
+			switch scenario {
+			case "missing-intent":
+				ref = "missing"
+			case "missing-operation":
+				_, err = s.db.Exec("DELETE FROM managed_runtime_operations")
+			case "retired-operation":
+				err = s.RetireOperation(ctx, op)
+			case "corrupt-operation":
+				_, err = s.db.Exec("UPDATE managed_runtime_operations SET identity_json='broken'")
+			case "missing-secret":
+				sb := s.secretBinding(ref, b)
+				err = os.Remove(filepath.Join(s.secrets.path, sb.Ref()+".json"))
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, _, err := s.ResumePublication(ctx, ref); err == nil {
+				t.Fatal("lost ownership evidence recovered")
+			}
+		})
 	}
 }
 

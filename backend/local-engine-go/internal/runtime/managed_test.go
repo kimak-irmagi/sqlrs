@@ -36,6 +36,82 @@ func TestManagedMountRejectsSecretAlias(t *testing.T) {
 	}
 }
 
+func TestManagedExecBoundsErrorsAndCredentials(t *testing.T) {
+	root := t.TempDir()
+	secrets, err := instanceaccess.OpenSecrets(filepath.Join(root, "secrets"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer secrets.Close()
+	id, err := managedidentity.Generate(strings.NewReader(strings.Repeat("a", 16)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref := instanceaccess.SecretBinding{DomainRef: "domain", OwnerRef: "instance", IdentityDigest: id.IdentityDigest, Version: "physical", Purpose: "instance"}
+	secret, err := secrets.Reserve(ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &privateRunner{outputs: map[string]string{"exec": secret.Password + " SCRAM-SHA-256$4096:abcd$abcd:abcd"}}
+	rt := NewDocker(Options{Runner: runner, ManagedSecrets: secrets, ProtectedRoot: filepath.Join(root, "secrets")})
+	container := strings.Repeat("a", 64)
+	req := ExecRequest{Args: []string{"psql"}, Secret: &ref, Env: map[string]string{"LANG": "C"}, Dir: "/tmp"}
+	out, err := rt.Exec(context.Background(), container, req)
+	if err != nil || strings.Contains(out, secret.Password) || strings.Contains(out, "SCRAM-SHA-256$") {
+		t.Fatal("unredacted command output", err)
+	}
+	for _, test := range []string{"runtime", "missing-secret", "empty-command", "ambient-pg", "driver-error", "cancelled"} {
+		t.Run(test, func(t *testing.T) {
+			current := req
+			currentID := container
+			ctx := context.Background()
+			switch test {
+			case "runtime":
+				currentID = "invalid"
+			case "missing-secret":
+				missing := ref
+				missing.Version = "missing"
+				current.Secret = &missing
+			case "empty-command":
+				current.Args = nil
+			case "ambient-pg":
+				current.Env = map[string]string{"PGSERVICE": "ambient"}
+			case "driver-error":
+				runner.fail = true
+				defer func() { runner.fail = false }()
+			case "cancelled":
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+				runner.fail = true
+				defer func() { runner.fail = false }()
+			}
+			if _, err := rt.Exec(ctx, currentID, current); err == nil || strings.Contains(err.Error(), "canary") {
+				t.Fatal("execution admitted or leaked", err)
+			}
+		})
+	}
+	if err := rt.managedPaths("relative", nil); err == nil {
+		t.Fatal("relative managed path")
+	}
+	start := ManagedStartRequest{StartRequest: StartRequest{ImageID: "postgres:17", DataDir: filepath.Join(root, "data"), Mounts: []Mount{{HostPath: filepath.Join(root, "recipe")}}}, Identity: id, PhysicalIdentity: "physical"}
+	if _, err := rt.StartManaged(context.Background(), start); err == nil {
+		t.Fatal("empty container mount")
+	}
+	if _, err := rt.InspectManaged(context.Background(), managedidentity.RuntimeBinding{}); err == nil {
+		t.Fatal("invalid inspect binding")
+	}
+	if err := rt.StopManaged(context.Background(), managedidentity.RuntimeBinding{}); err == nil {
+		t.Fatal("invalid stop binding")
+	}
+	original := ensureMountFn
+	ensureMountFn = func() error { return errors.New("unavailable") }
+	defer func() { ensureMountFn = original }()
+	if _, err := rt.privateRun(context.Background(), []string{"ps"}, nil); err == nil {
+		t.Fatal("unavailable store admitted")
+	}
+}
+
 func (r *privateRunner) Run(_ context.Context, _ string, args []string, stdin *string) (string, error) {
 	r.calls = append(r.calls, append([]string(nil), args...))
 	if stdin != nil {
