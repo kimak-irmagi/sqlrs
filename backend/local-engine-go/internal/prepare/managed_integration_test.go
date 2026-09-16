@@ -5,6 +5,7 @@ package prepare
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/url"
 	"os"
 	"os/exec"
@@ -30,6 +31,20 @@ import (
 )
 
 type managedFixtureRunner struct{ t *testing.T }
+
+// Fail only capture, after the real native proof and durable seal have succeeded.
+type failOnceManagedSnapshot struct {
+	statefs.StateFS
+	failed bool
+}
+
+func (f *failOnceManagedSnapshot) Snapshot(ctx context.Context, source, target string) error {
+	if !f.failed {
+		f.failed = true
+		return errors.New("injected snapshot failure")
+	}
+	return f.StateFS.Snapshot(ctx, source, target)
+}
 
 func (r managedFixtureRunner) Run(ctx context.Context, name string, args []string, input *string) (string, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
@@ -248,6 +263,45 @@ func TestManagedPreparePostgres17(t *testing.T) {
 	if status.Status != StatusFailed || status.Result != nil {
 		t.Fatal("damaged role published")
 	}
+	t.Run("snapshot-failure-retry", func(t *testing.T) {
+		originalFS := m.statefs
+		m.statefs = &failOnceManagedSnapshot{StateFS: originalFS}
+		defer func() { m.statefs = originalFS }()
+		request := Request{PrepareKind: "psql", ImageID: "postgres:17", PsqlArgs: []string{"-v", "ON_ERROR_STOP=1", "-c", "CREATE TABLE retry_capture(id integer); INSERT INTO retry_capture VALUES(17);"}}
+		failed, err := m.Submit(ctx, request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		status, ok := m.Get(failed.JobID)
+		if !ok || status.Status != StatusFailed || status.Error == nil || status.Error.Message != "snapshot failed" {
+			t.Fatalf("did not reach injected capture failure: %+v", status.Error)
+		}
+		var stateID, oldOwner string
+		if err := db.QueryRowContext(ctx, `SELECT s.state_id,s.operation_ref FROM managed_state_seals s
+ JOIN managed_runtime_operations o ON o.operation_ref=s.operation_ref
+ WHERE o.target_path LIKE ? AND o.stage='retired'`, "%/jobs/"+failed.JobID+"/%").Scan(&stateID, &oldOwner); err != nil {
+			t.Fatal("failed capture ownership", err)
+		}
+		if _, found, err := st.GetState(ctx, stateID); err != nil || found {
+			t.Fatal("failed capture published state", err)
+		}
+		retry, err := m.Submit(ctx, request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		status, ok = m.Get(retry.JobID)
+		if !ok || status.Status != StatusSucceeded || status.Result == nil || status.Result.StateID != stateID {
+			t.Fatalf("capture retry failed: %+v", status.Error)
+		}
+		var newOwner string
+		if err := db.QueryRowContext(ctx, "SELECT operation_ref FROM managed_state_seals WHERE state_id=?", stateID).Scan(&newOwner); err != nil || newOwner == oldOwner {
+			t.Fatal("retry retained abandoned capture", err)
+		}
+		result, err := runManager.Run(ctx, managedRun.Request{InstanceRef: status.Result.InstanceID, Kind: "psql", Args: []string{"-At", "-c", "SELECT id FROM retry_capture"}})
+		if err != nil || strings.TrimSpace(result.Stdout) != "17" {
+			t.Fatal("retry did not publish usable data", err)
+		}
+	})
 	workspace, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatal(err)

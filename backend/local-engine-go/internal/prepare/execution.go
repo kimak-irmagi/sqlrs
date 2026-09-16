@@ -1447,7 +1447,9 @@ func (m *PrepareService) cleanupRuntime(ctx context.Context, runner *jobRunner) 
 	if rt == nil {
 		return nil
 	}
-	stopCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	// Job cancellation must not cancel resource cleanup. Keep the bounded stop
+	// required by managed-database-identity-internals.md, atomicity and recovery.
+	stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 	defer cancel()
 	if m.access != nil {
 		// Fence late seals before removal. Failed stop keeps the owned clone and

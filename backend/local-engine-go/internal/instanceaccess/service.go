@@ -70,15 +70,17 @@ type AccessBinding struct {
 	SecretRef     string
 }
 
-// Service serializes activation, authorized resolution and retirement. Startup
-// must hold the exclusive engine-store lock, so no second process can publish.
-// The mutex remains held through proof and publication: deletion cannot race a
-// successful proof into a resurrected public instance.
+// Service fences activation, authorized use and retirement per instance. Startup
+// holds the exclusive engine-store lock, so no second process can publish.
+// See managed-database-identity-internals.md, atomicity and recovery: runtime I/O
+// retains only its instance fence, never the shared metadata/registry mutexes.
 type Service struct {
-	db      *sql.DB
-	secrets *Secrets
-	domain  string
-	mu      sync.Mutex
+	db       *sql.DB
+	secrets  *Secrets
+	domain   string
+	mu       sync.Mutex
+	fencesMu sync.Mutex
+	fences   map[string]*instanceFence
 }
 
 func NewService(db *sql.DB, secrets *Secrets, domain string) (*Service, error) {
@@ -96,11 +98,11 @@ func (s *Service) secretBinding(ref string, b managedidentity.RuntimeBinding) Se
 // native adapter before invoking publication under the same exclusion. Failed
 // verification quarantines the intent and never repairs managed role privileges.
 func (s *Service) Activate(ctx context.Context, ref string, b managedidentity.RuntimeBinding, apply func(Secret) error, publish func() error) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if ctx.Err() != nil {
-		return ctx.Err()
+	unlock, err := s.lockInstance(ctx, ref)
+	if err != nil {
+		return err
 	}
+	defer unlock()
 	if b.Validate() != nil || !accessRefPattern.MatchString(ref) || apply == nil || publish == nil {
 		return ErrInvalid
 	}
@@ -158,8 +160,11 @@ func (s *Service) Activate(ctx context.Context, ref string, b managedidentity.Ru
 
 // Resolve returns credentials only for an exact verified live-runtime binding.
 func (s *Service) Resolve(ctx context.Context, ref string, b managedidentity.RuntimeBinding) (Secret, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlock, err := s.lockInstance(ctx, ref)
+	if err != nil {
+		return Secret{}, err
+	}
+	defer unlock()
 	binding, stage, err := s.load(ctx, ref)
 	if err != nil {
 		return Secret{}, err
@@ -173,8 +178,11 @@ func (s *Service) Resolve(ctx context.Context, ref string, b managedidentity.Run
 // Use retains the retirement fence until the authorized operation ends. The
 // callback receives a protected reference after its immutable record is checked.
 func (s *Service) Use(ctx context.Context, ref string, fn func(AccessBinding, SecretBinding) error) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlock, err := s.lockInstance(ctx, ref)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	b, stage, err := s.load(ctx, ref)
 	if err != nil {
 		return err
@@ -194,8 +202,11 @@ func (s *Service) Use(ctx context.Context, ref string, fn func(AccessBinding, Se
 
 // Lookup returns non-secret provenance for reconnecting after engine restart.
 func (s *Service) Lookup(ctx context.Context, ref string) (AccessBinding, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlock, err := s.lockInstance(ctx, ref)
+	if err != nil {
+		return AccessBinding{}, err
+	}
+	defer unlock()
 	binding, stage, err := s.load(ctx, ref)
 	if err != nil {
 		return AccessBinding{}, err
@@ -218,8 +229,11 @@ func (s *Service) Retire(ctx context.Context, ref string, remove func() error) e
 // RetireBound supplies the immutable binding under the same retirement fence,
 // including after restart or a failed physical cleanup.
 func (s *Service) RetireBound(ctx context.Context, ref string, remove func(AccessBinding) error) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	unlock, err := s.lockInstance(ctx, ref)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	binding, stage, err := s.load(ctx, ref)
 	if err != nil {
 		return err

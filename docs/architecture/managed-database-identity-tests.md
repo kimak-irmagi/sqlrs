@@ -7,6 +7,36 @@ Both repositories carry the same acceptance requirements, with their own harness
 
 ### Local acceptance, 2026-09-16
 
+Review regression plan (2026-09-16; approved by the user):
+
+- Cancel a job owning a managed runtime; assert bounded, uncancelled stop,
+  operation retirement and clone cleanup. Preserve uncertain-stop retry coverage.
+- Fail capture before state publication, retire the owner and retry with a new
+  physical operation for the same state key. Require successful resealing; reject
+  replacement of published seals, active owners or another identity. Reopen the
+  access service to prove that eligibility is durable.
+- Hold an authorized command open on instance A while accessing, activating and
+  retiring B and reading physical metadata. B must progress independently.
+- Retirement of A waits for its command; cancellation releases a waiting caller
+  without running its callback. Retired access remains unavailable.
+
+Existing physical-capture conflict and uncertain-stop tests retain their current
+assertions: active/published seals remain immutable and unconfirmed live clones
+must never be erased.
+
+Review regression results: all three defects reproduced before the fixes and
+passed afterward. Full Windows `instanceaccess`/`prepare` suites and run/deletion
+regressions pass; concurrency tests passed 20 consecutive repetitions. The full
+Linux prepare suite, including native PostgreSQL and a failed-capture/retry/run
+scenario, passes. Its coverage combines with the current Windows profile to
+cover 3773/3963 statements (95.206%). Initial cross-compiled harness failures were
+resolved with an absolute executable path, a subprocess `GOCOVERDIR`, and removal
+of inherited WSL path-mapping flags; no test assertions were weakened or skipped.
+Windows `-race` could not build with the installed CGo toolchain; repetitions are
+not claimed as a race-detector run. Fresh profiles, HTML and uncovered-block
+reports use the `coverage/review-*` prefix. The remaining fence gap is cancellation
+concurrent with acquiring an available gate; its defensive recheck is retained.
+
 The user also approved accelerating coverage fixtures in this PR. Generic prepare
 queue and HTTP server/route tests use isolated in-memory SQLite with the same
 schema and assertions. Persistence, migration, managed access, ACL and native
@@ -41,10 +71,10 @@ Per-package statement coverage with normal Go caches:
 | store/sqlite | 96.1% | Real SQLite preflight, corruption, immutable bindings |
 | prepare/queue | 96.7% | Durable job binding and reopen |
 | managedstore | 98.7% | Atomic cutover, rollback, cancellation, schema refusal |
-| instanceaccess | 95.5% | Protected files/ACLs, intents, recovery, retirement |
+| instanceaccess | 95.6% | Protected files/ACLs, intents, recovery, retirement, per-instance fences |
 | runtime | 95.1% | Inventory, protected mounts, exact runtime ownership |
 | dbms | 95.8% | Unit and native PostgreSQL integration |
-| prepare | 95.0% | Windows unit, Linux filesystem and live PostgreSQL suites |
+| prepare | 95.2% | Current Windows unit, Linux filesystem and live PostgreSQL suites |
 | run | 98.4% | Access and runtime binding fences |
 | deletion | 98.4% | Retirement and uncertain cleanup |
 | cmd/sqlrs-engine | 95.1% | Startup refusal and managed dependency wiring |

@@ -77,8 +77,10 @@ func (s *Service) Attach(ctx context.Context, op Operation, b managedidentity.Ru
 	return operationResult(ctx, result, err)
 }
 
-// RecordSeal consumes proof while the caller holds its runtime exclusion and
-// PostgreSQL is stopped. Capture and metadata publication follow this record.
+// RecordSeal consumes proof while the caller holds both the state build and
+// runtime exclusions and PostgreSQL is stopped. Capture/publication follow it.
+// Only an unpublished retired owner's seal can be replaced, as specified in
+// managed-database-identity-internals.md, atomicity and recovery.
 func (s *Service) RecordSeal(ctx context.Context, state string, op Operation, b managedidentity.RuntimeBinding) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -98,7 +100,23 @@ func (s *Service) RecordSeal(ctx context.Context, state string, op Operation, b 
 		return accessError(ctx)
 	}
 	if sealedBy != op.Ref || sealedBinding != string(raw) {
-		return ErrConflict
+		previous, err := s.operation(ctx, sealedBy)
+		if err != nil {
+			return err
+		}
+		if previous.Stage != "retired" || previous.Identity != current.Identity {
+			return ErrConflict
+		}
+		previousBinding, _ := json.Marshal(managedidentity.RuntimeBinding{RuntimeRef: previous.RuntimeRef, PhysicalIdentity: previous.PhysicalIdentity, IdentityBinding: previous.Identity})
+		if sealedBinding != string(previousBinding) {
+			return ErrConflict
+		}
+		// Compare the exact old capture and check publication in the same write.
+		// Retirement fences late seals; the caller's build lock fences publication.
+		result, err := s.db.ExecContext(ctx, `UPDATE managed_state_seals SET operation_ref=?,binding_json=?
+ WHERE state_id=? AND operation_ref=? AND binding_json=?
+ AND NOT EXISTS (SELECT 1 FROM states WHERE state_id=?)`, op.Ref, string(raw), state, sealedBy, sealedBinding, state)
+		return operationResult(ctx, result, err)
 	}
 	return nil
 }
@@ -130,6 +148,11 @@ func (s *Service) RetireOperation(ctx context.Context, op Operation) error {
 // ResumePublication restores only a pending/verified intent and its exact live
 // operation. It never reserves a replacement secret or adopts another runtime.
 func (s *Service) ResumePublication(ctx context.Context, ref string) (AccessBinding, Operation, error) {
+	unlock, err := s.lockInstance(ctx, ref)
+	if err != nil {
+		return AccessBinding{}, Operation{}, err
+	}
+	defer unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	b, stage, err := s.load(ctx, ref)

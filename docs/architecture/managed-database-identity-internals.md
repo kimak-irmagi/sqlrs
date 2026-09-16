@@ -183,6 +183,20 @@ after engine restart, with the same physical runtime and credential.
 
 ## Atomicity, cache and recovery
 
+Local review fixes (2026-09-16): failed-job cleanup uses its own bounded
+15-second context, independent of job cancellation. It retires the operation
+before stopping the container and removes the clone only after confirmed stop.
+An unpublished state seal may be replaced under the state build lock only when
+its previous operation is retired and has the same identity. The replacement
+checks absence of the `states` row atomically; published seals and live-operation
+seals remain immutable. Missing ownership evidence continues to fail closed.
+
+Access activation, use, resolution and retirement share an in-memory fence per
+instance reference. A command holds that instance's fence until it finishes;
+other instances and physical-operation metadata remain independent. Waiting for
+a fence honors context cancellation. The fence registry retains entries only
+while a holder or waiter exists; no runtime I/O holds its registry mutex.
+
 Persist lineage before init. Persist secret before the activation intent that
 references it, then intent before any external mutation. A crash after secret
 creation may leave an orphan: delete it only after proving no intent/runtime
