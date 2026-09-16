@@ -7,6 +7,18 @@ Both repositories carry the same acceptance requirements, with their own harness
 
 ### Local acceptance, 2026-09-16
 
+Image-alias review fix: regression tests reproduce the conflict before the fix
+and pass afterward. They cover short/qualified repository references, a renamed
+repository with the same digest, the stored snapshot location, bare-digest job
+restoration, different-digest rejection and a missing capture seal. After removing
+the sandbox restrictions, the full Windows prepare suite and full Linux suite
+with native PostgreSQL pass, including Sakila, Chinook, Liquibase and recovery.
+Fresh combined coverage is 3778/3966 statements (95.260%); `managedImageDigest`,
+`bindManagedRequest`, `isManagedStateCached` and `loadManagedState` have 100%.
+Profiles, HTML and uncovered-block reports use `coverage/image-alias-*`.
+The earlier restricted run's secret-fixture failures also reproduced on unchanged
+HEAD and are resolved by the unrestricted run; its partial profile is not merged.
+
 Review regression plan (2026-09-16; approved by the user):
 
 - Cancel a job owning a managed runtime; assert bounded, uncancelled stop,
@@ -74,7 +86,7 @@ Per-package statement coverage with normal Go caches:
 | instanceaccess | 95.6% | Protected files/ACLs, intents, recovery, retirement, per-instance fences |
 | runtime | 95.1% | Inventory, protected mounts, exact runtime ownership |
 | dbms | 95.8% | Unit and native PostgreSQL integration |
-| prepare | 95.2% | Current Windows unit, Linux filesystem and live PostgreSQL suites |
+| prepare | 95.3% | Current Windows unit, Linux filesystem and live PostgreSQL suites, including the image-alias fix |
 | run | 98.4% | Access and runtime binding fences |
 | deletion | 98.4% | Retirement and uncertain cleanup |
 | cmd/sqlrs-engine | 95.1% | Startup refusal and managed dependency wiring |

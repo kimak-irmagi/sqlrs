@@ -86,10 +86,13 @@ gantt
   remains unsupported and fails closed. See the [test report](architecture/managed-database-identity-tests.md).
   Generic prepare/HTTP test fixtures now use in-memory SQLite to reduce coverage
   runtime; durable storage and recovery tests retain real files.
+  Image-alias cache reads now compare immutable digests and use stored snapshot
+  paths. Regressions and full Windows/Linux suites with native PostgreSQL pass;
+  fresh combined prepare coverage is 95.26% after removing sandbox restrictions.
   Review fixes preserve cleanup after cancellation, permit retry of unpublished
   captures after owner retirement, and fence access per instance so long commands
   do not block unrelated databases. Regression and native PostgreSQL retry tests
-  pass; current coverage is 95.6% for access and 95.2% for prepare.
+  pass; current coverage is 95.6% for access and 95.3% for prepare.
 
 - **Done**: local engine API surface (health, config, names, instances, runs,
   states, prepare jobs, tasks), local runtime and lifecycle, end-to-end

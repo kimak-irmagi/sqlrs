@@ -140,6 +140,11 @@ func TestManagedPreparePlanningAndRecovery(t *testing.T) {
 	if err := m.bindManagedRequest(ctx, &restored, nil); err != nil {
 		t.Fatal(err)
 	}
+	bareDigest := restored
+	bareDigest.resolvedImageID = "sha256:" + strings.Repeat("a", 64)
+	if err := m.bindManagedRequest(ctx, &bareDigest, &job); err != nil || bareDigest.managed != restored.managed {
+		t.Fatal("bare resolved digest changed recovered binding", err)
+	}
 	if err := m.bindManagedRequest(ctx, nil, nil); err == nil {
 		t.Fatal("accepted nil request")
 	}
@@ -155,6 +160,16 @@ func TestManagedPreparePlanningAndRecovery(t *testing.T) {
 	second, err := m.CacheExplain(ctx, req)
 	if err != nil || second.Decision != "hit" || second.MatchedStateID != stateID || second.Signature != first.Signature {
 		t.Fatalf("plan/prepare cache parity: %+v %v", second, err)
+	}
+	for _, image := range []string{"docker.io/library/" + req.ImageID, "mirror.example/renamed@sha256:" + strings.Repeat("a", 64)} {
+		t.Run("cached image alias "+image, func(t *testing.T) {
+			alias := req
+			alias.ImageID = image
+			cached, err := m.CacheExplain(ctx, alias)
+			if err != nil || cached.Decision != "hit" || cached.MatchedStateID != stateID {
+				t.Fatalf("same digest did not reuse cached state: %+v %v", cached, err)
+			}
+		})
 	}
 	foreign := restored
 	foreign.resolvedImageID = "postgres@sha256:" + strings.Repeat("f", 64)

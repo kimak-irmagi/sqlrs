@@ -183,6 +183,12 @@ after engine restart, with the same physical runtime and credential.
 
 ## Atomicity, cache and recovery
 
+Cache validation compares the immutable image digest, as does lineage selection;
+repository aliases do not invalidate an existing state. Snapshot reads use the
+image reference stored with that state to locate its original directory, even
+when the request uses a different repository name. Lineage, identity digest and
+capture seal checks remain required; persisted image references are not rewritten.
+
 Local review fixes (2026-09-16): failed-job cleanup uses its own bounded
 15-second context, independent of job cancellation. It retires the operation
 before stopping the container and removes the clone only after confirmed stop.

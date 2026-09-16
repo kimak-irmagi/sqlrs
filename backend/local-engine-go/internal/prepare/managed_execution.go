@@ -91,14 +91,14 @@ func (e *taskExecutor) startManagedRuntime(ctx context.Context, jobID string, pr
 			}
 		}
 	case "state":
-		found, err := m.isManagedStateCached(input.ID, prepared)
+		entry, found, err := m.loadManagedState(ctx, input.ID, prepared)
 		if err != nil {
 			return fail(err)
 		}
 		if !found {
 			return fail(instanceaccess.ErrNotFound)
 		}
-		paths, err := resolveStatePaths(m.managedRoot, image, input.ID, m.statefs)
+		paths, err := resolveStatePaths(m.managedRoot, entry.ImageID, input.ID, m.statefs)
 		if err != nil {
 			return fail(err)
 		}

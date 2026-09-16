@@ -6,7 +6,19 @@ import (
 
 	"github.com/sqlrs/engine-local/internal/managedidentity"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/store"
 )
+
+// managedImageDigest uses the immutable image component shared by the lineage
+// selector and cache validation. Repository spelling is not part of identity;
+// see managed-database-identity-internals.md, atomicity, cache and recovery.
+// The identity owner validates the resulting digest before binding a request.
+func managedImageDigest(image string) string {
+	if at := strings.LastIndexByte(image, '@'); at >= 0 {
+		return image[at+1:]
+	}
+	return image
+}
 
 // bindManagedRequest selects metadata before hashing/publication and restores a
 // queued job by exact reference without a reservation fallback. The owner is a
@@ -16,10 +28,7 @@ func (m *PrepareService) bindManagedRequest(ctx context.Context, prepared *prepa
 	if m.identity == nil || prepared == nil {
 		return managedidentity.ErrUnavailable
 	}
-	image := prepared.effectiveImageID()
-	if at := strings.LastIndexByte(image, '@'); at >= 0 {
-		image = image[at+1:]
-	}
+	image := managedImageDigest(prepared.effectiveImageID())
 	var selected managedidentity.BaseSelection
 	var err error
 	if job != nil {
@@ -42,22 +51,30 @@ func (m *PrepareService) isManagedStateCached(stateID string, prepared preparedR
 	if m.identity == nil {
 		return m.isStateCached(stateID)
 	}
+	_, found, err := m.loadManagedState(context.Background(), stateID, prepared)
+	return found, err
+}
+
+// loadManagedState returns validated cache provenance, including the original
+// image reference needed to locate an existing snapshot. Digest aliases must
+// reuse that location without moving or relabelling persisted state metadata.
+func (m *PrepareService) loadManagedState(ctx context.Context, stateID string, prepared preparedRequest) (store.StateEntry, bool, error) {
 	if prepared.managed.Validate() != nil {
-		return false, managedidentity.ErrInvalid
+		return store.StateEntry{}, false, managedidentity.ErrInvalid
 	}
-	entry, found, err := m.store.GetState(context.Background(), stateID)
+	entry, found, err := m.store.GetState(ctx, stateID)
 	if err != nil || !found {
-		return false, err
+		return store.StateEntry{}, false, err
 	}
-	if entry.LineageRef != prepared.managed.LineageRef || entry.IdentityDigest != prepared.managed.IdentityDigest || entry.ImageID != prepared.effectiveImageID() {
-		return false, managedidentity.ErrInvalid
+	if entry.LineageRef != prepared.managed.LineageRef || entry.IdentityDigest != prepared.managed.IdentityDigest || managedImageDigest(entry.ImageID) != managedImageDigest(prepared.effectiveImageID()) {
+		return store.StateEntry{}, false, managedidentity.ErrInvalid
 	}
 	if m.access != nil {
-		if err := m.access.CheckSeal(context.Background(), stateID, prepared.managed.IdentityBinding); err != nil {
-			return false, err
+		if err := m.access.CheckSeal(ctx, stateID, prepared.managed.IdentityBinding); err != nil {
+			return store.StateEntry{}, false, err
 		}
 	}
-	return true, nil
+	return entry, true, nil
 }
 
 // validateManagedTasks rejects corrupted recovery metadata before cache access or

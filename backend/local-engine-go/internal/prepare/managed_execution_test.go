@@ -32,6 +32,56 @@ func (r *managedFailureRuntime) InitManagedBase(context.Context, engineRuntime.M
 	return r.initErr
 }
 
+// A digest alias may have a different layout name. Clone the published state's
+// recorded location, rather than deriving a new location from the request alias.
+func TestManagedCachedAliasUsesStoredSnapshotPath(t *testing.T) {
+	m, p, _, fs, _ := managedExecutionFixture(t)
+	lookup := &managedSnapshotLookup{fakeStateFS: fs}
+	m.statefs = lookup
+	ctx := context.Background()
+	stateID := strings.Repeat("d", 64)
+	image := p.effectiveImageID()
+	op, err := m.access.Assign(ctx, "capture", filepath.Join(m.stateStoreRoot, "capture"), p.managed.Key, p.managed.IdentityBinding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := managedidentity.RuntimeBinding{IdentityBinding: p.managed.IdentityBinding, PhysicalIdentity: op.PhysicalIdentity, RuntimeRef: "capture-container"}
+	if err := m.access.Attach(ctx, op, binding); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.store.CreateState(ctx, store.StateCreate{StateID: stateID, StateFingerprint: stateID, ImageID: image, PrepareKind: "psql", CreatedAt: "2026-09-16", LineageRef: p.managed.LineageRef, IdentityDigest: p.managed.IdentityDigest}); err != nil {
+		t.Fatal(err)
+	}
+	p.resolvedImageID = "mirror.example/renamed@sha256:" + strings.Repeat("a", 64)
+	if err := m.bindManagedRequest(ctx, &p, nil); err != nil {
+		t.Fatal(err)
+	}
+	if found, err := m.isManagedStateCached(stateID, p); err == nil || found {
+		t.Fatal("image alias bypassed missing snapshot seal", err)
+	}
+	if err := m.access.RecordSeal(ctx, stateID, op, binding); err != nil {
+		t.Fatal(err)
+	}
+	// Observe the storage boundary before private credentials or a container are
+	// needed. Native PostgreSQL authentication is covered by managedintegration.
+	if _, resp := m.executor.startRuntime(ctx, "alias-job", p, &TaskInput{Kind: "state", ID: stateID}); resp == nil {
+		t.Fatal("expected injected storage failure")
+	}
+	if len(lookup.images) != 1 || lookup.images[0] != image {
+		t.Fatalf("snapshot lookup images = %v, want stored image %s", lookup.images, image)
+	}
+}
+
+type managedSnapshotLookup struct {
+	*fakeStateFS
+	images []string
+}
+
+func (f *managedSnapshotLookup) StateDir(_ string, imageID, _ string) (string, error) {
+	f.images = append(f.images, imageID)
+	return "", errors.New("stop after source resolution")
+}
+
 func TestManagedPublicationReusesOnlyExactVerifiedInstance(t *testing.T) {
 	for _, scenario := range []string{"retry", "state-conflict", "missing-access", "missing-secret", "missing-adapter", "inspect", "retired", "metadata", "empty-state"} {
 		t.Run(scenario, func(t *testing.T) {
