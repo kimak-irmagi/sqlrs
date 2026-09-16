@@ -6,20 +6,35 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"net"
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+type nativeCancellationBoundary struct {
+	context.Context
+	cancel    context.CancelFunc
+	remaining atomic.Int32
+}
+
+func (c *nativeCancellationBoundary) Done() <-chan struct{} {
+	if c.remaining.Add(-1) == 0 {
+		c.cancel()
+	}
+	return c.Context.Done()
+}
+
 // This explicitly selected suite requires Docker and the official postgres:17
 // image. It does not skip when unavailable and never touches user store data.
 func TestManagedNativePostgres17(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 	defer cancel()
 	run := func(args ...string) string {
 		t.Helper()
@@ -141,6 +156,26 @@ func TestManagedNativePostgres17(t *testing.T) {
 	}
 	if _, err := VerifyManagedAccess(ctx, previous); err != ErrManagedAccessUnavailable {
 		t.Fatal("previous password remained usable")
+	}
+	// Cancellation can arrive before or after ALTER has reached PostgreSQL. A
+	// retry of the same version must succeed with no guessed replacement secret.
+	for boundary := int32(1); boundary <= 256; boundary++ {
+		candidate := strings.Repeat("e", 64)
+		if candidate == request.Password {
+			candidate = strings.Repeat("d", 64)
+		}
+		base, cancelAttempt := context.WithCancel(ctx)
+		attempt := &nativeCancellationBoundary{Context: base, cancel: cancelAttempt}
+		attempt.remaining.Store(boundary)
+		err := EnsureManagedPassword(attempt, request, candidate)
+		cancelAttempt()
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Fatalf("native cancellation boundary %d: %v", boundary, err)
+		}
+		if err := EnsureManagedPassword(ctx, request, candidate); err != nil {
+			t.Fatalf("retry after native cancellation boundary %d: %v", boundary, err)
+		}
+		request.Password = candidate
 	}
 	sql("CREATE ROLE fixture_recovery_admin LOGIN SUPERUSER PASSWORD '" + strings.Repeat("c", 64) + "'")
 	recoveryConfig := config.Copy()

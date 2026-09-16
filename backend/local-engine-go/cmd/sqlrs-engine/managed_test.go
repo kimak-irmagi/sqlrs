@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sqlrs/engine-local/internal/managedstore"
+
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
 	"github.com/sqlrs/engine-local/internal/store/sqlite"
 )
@@ -27,6 +29,55 @@ func TestMain(m *testing.M) {
 	}
 	checkManagedInventoryFn = func(context.Context, *engineRuntime.DockerRuntime, string) error { return nil }
 	os.Exit(m.Run())
+}
+
+func TestManagedStartupRefusesUnsafeOwnershipAndStorage(t *testing.T) {
+	for _, scenario := range []string{"store-owned", "database-owned", "secret-file", "database-parent"} {
+		t.Run(scenario, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, "state.db")
+			t.Setenv("SQLRS_STATE_STORE", root)
+			t.Setenv("SQLRS_STATE_DB", path)
+			switch scenario {
+			case "store-owned", "database-owned":
+				lockPath := filepath.Join(root, "engine.lock")
+				if scenario == "database-owned" {
+					lockPath = path + ".engine-lock"
+				}
+				lock, err := managedstore.Lock(lockPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer lock.Close()
+			case "secret-file":
+				db, err := sql.Open("sqlite", path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err = managedstore.Initialize(context.Background(), db, func(context.Context) error { return nil })
+				db.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(root, "managed-secrets"), []byte("preserve"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "database-parent":
+				if err := os.WriteFile(path, []byte("preserve"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				t.Setenv("SQLRS_STATE_DB", filepath.Join(path, "child.db"))
+			}
+			stateFile := filepath.Join(root, "engine.json")
+			code, err := run([]string{"--listen=127.0.0.1:0", "--write-engine-json=" + stateFile})
+			if code != 1 || err == nil {
+				t.Fatal("unsafe startup admitted", code, err)
+			}
+			if _, err := os.Stat(stateFile); !os.IsNotExist(err) {
+				t.Fatal("failed startup advertised endpoint", err)
+			}
+		})
+	}
 }
 
 func TestRunManagedLegacyRefusalPrecedesStoreConstructor(t *testing.T) {
