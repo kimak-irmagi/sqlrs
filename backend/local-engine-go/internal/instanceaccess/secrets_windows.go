@@ -21,7 +21,7 @@ func createPrivateDirectory(path string) error {
 	if err != nil {
 		return err
 	}
-	sd, err := windows.SecurityDescriptorFromString("D:P(A;OICI;FA;;;" + sid + ")")
+	sd, err := windows.SecurityDescriptorFromString("O:" + sid + "D:P(A;OICI;FA;;;" + sid + ")")
 	if err != nil {
 		return ErrUnavailable
 	}
@@ -31,6 +31,23 @@ func createPrivateDirectory(path string) error {
 	}
 	attrs := windows.SecurityAttributes{Length: uint32(unsafe.Sizeof(windows.SecurityAttributes{})), SecurityDescriptor: sd}
 	return windows.CreateDirectory(name, &attrs)
+}
+
+// Only newly created empty temporary files use this operation. Existing
+// credentials and their permissions are validated, never silently repaired.
+func ownPrivateFile(path string) error {
+	sid, err := currentSID()
+	if err != nil {
+		return err
+	}
+	owner, err := windows.StringToSid(sid)
+	if err != nil {
+		return ErrUnavailable
+	}
+	if err := windows.SetNamedSecurityInfo(path, windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION, owner, nil, nil, nil); err != nil {
+		return ErrUnavailable
+	}
+	return nil
 }
 
 func checkPrivatePath(path string, _ os.FileInfo) error {

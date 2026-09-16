@@ -8,6 +8,7 @@ import (
 )
 
 func createPrivateDirectory(path string) error { return os.Mkdir(path, 0700) }
+func ownPrivateFile(string) error              { return nil }
 func checkPrivatePath(_ string, info os.FileInfo) error {
 	st, ok := info.Sys().(*syscall.Stat_t)
 	if !ok || st.Uid != uint32(os.Geteuid()) || info.Mode().Perm()&0077 != 0 {

@@ -182,6 +182,12 @@ func (s *Secrets) Reserve(binding SecretBinding) (Secret, error) {
 		return Secret{}, ErrUnavailable
 	}
 	defer s.root.Remove(name)
+	// Set the owner of this newly created, still-empty temporary file before
+	// any credential bytes are written (elevated Windows tokens default to BA).
+	if err := ownPrivateFile(filepath.Join(s.path, name)); err != nil {
+		f.Close()
+		return Secret{}, err
+	}
 	if _, err = f.Write(raw); err != nil {
 		f.Close()
 		return Secret{}, ErrUnavailable

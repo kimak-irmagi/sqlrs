@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -15,6 +16,15 @@ import (
 // Unit startup tests use an empty physical inventory. Real Docker inventory has
 // its own adapter tests and the explicitly selected managedintegration suite.
 func TestMain(m *testing.M) {
+	if runtime.GOOS == "darwin" {
+		root, err := filepath.EvalSymlinks(os.TempDir())
+		if err != nil {
+			panic(err)
+		}
+		if err := os.Setenv("TMPDIR", root); err != nil {
+			panic(err)
+		}
+	}
 	checkManagedInventoryFn = func(context.Context, *engineRuntime.DockerRuntime, string) error { return nil }
 	os.Exit(m.Run())
 }
