@@ -82,13 +82,63 @@ suffixes and silent fingerprint collisions. A real PostgreSQL regression first
 demonstrated that SQL-only proof accepted a physical-replication trust bypass.
 Native proof now also authenticates a replication connection, executes
 IDENTIFY_SYSTEM and rejects wrong/absent replication credentials. The dbms suite
-with the live integration test passes at 95.7%; IPv6 publication remains to verify.
+with the live integration test passes at 95.7%. The fixture now publishes both
+IPv4 and IPv6 loopback endpoints and passes SQL/replication proof through both.
 
-Environment restrictions are cleared: Go tests, Docker and GitHub are accessible.
-These helpers are not wired into startup or prepare/run. Complete schema
-installation, instanceaccess, secret storage, recovery, sealing and publication
-remain pending. Native adapter acceptance is not Sakila/Chinook/CLI acceptance;
-no PR, CI success, cross-project acceptance or merge is claimed.
+The cache-owner selection API passes at 100% package coverage, including read-only
+restoration by the queued image/lineage/digest and failure without re-reservation.
+The first planner integration test also passes against real SQLite: metadata-only
+psql explanation, persisted plan-only job binding, matching cache keys, rejected
+recovery drift and cache separation after initialization-policy changes.
+The full prepare package passes at 94.4%, below the required 95%; an additional
+coverage plan was requested for execution cancellation/publication, recovery/cache
+failures, invalid bindings and moving test-only helpers out of production sources.
+Production startup still does not enable the managed path.
+
+### Approved prepare coverage iteration
+
+The per-line profile orders the remaining work as follows:
+
+1. `execution.go`: 72 uncovered statements across 61 blocks. Verify cancellation
+   during state publication, snapshot/resume failure and failed cleanup against
+   the lifecycle requirement: no success or usable publication after failure.
+2. `manager.go`: 58 statements across 50 blocks. Verify failed image/identity
+   resolution, unavailable recovered jobs and cache-read failures. Also reject a
+   recovered task chain whose first input or output hash differs from its selected
+   base binding; restoring only the job's lineage is not enough.
+3. `managed_request.go`: four statements across four blocks. Exercise changed or
+   absent binding, repeated binding without reservation, and mismatched cached
+   state identity through the planner boundary.
+4. Move `psql_test_helpers.go` to a `_test.go` filename: its only callers are tests
+   and its `testing.T` dependency must not enter the production binary/coverage.
+
+Keep defensive checks whose failure cannot be induced through a valid PostgreSQL
+or filesystem boundary; explain those gaps rather than manufacturing impossible
+states. The user authorized continuing and finishing the PR on 2026-09-16;
+this includes the proposed coverage iteration under AGENTS.md section 6.
+
+### Local integration checkpoint, 2026-09-16
+
+Startup now takes exclusive store/database locks and installs format, lineage,
+queue, access intents and runtime-operation/seal tables in one transaction before
+opening adapters or Recover. Reopen validates the installed DDL without repair.
+Private credentials use immutable files, owner-only Windows ACLs or Unix modes,
+separate bootstrap records and retirement fences. Native password activation and
+retry pass on PostgreSQL 17; old credentials and damaged administrative privileges
+are rejected. These tests do not yet establish crash-recovery completeness.
+
+The real prepare integration suite passes a SQL recipe, snapshot capture, cache
+reuse and two published instances with different credentials. It verifies real
+dataset reads and absence of those passwords from control metadata. Role damage
+fails before publication. Official-image initialization required protected tmpfs
+password delivery because initdb under gosu cannot reopen root-owned /dev/stdin.
+Sakila, Chinook and Liquibase acceptance is running separately from that checkpoint.
+
+Current coverage is provisional after integration: dbms 93.4%, engine startup
+94.0%; the new paths still require the approved failure/recovery tests and fresh
+per-line measurement. Runtime recreation, full recovery and final removal of the
+staging paths remain review work. No PR, green CI, cross-project acceptance or
+merge is claimed.
 
 ## 1. Identity, scope and durable reservation
 

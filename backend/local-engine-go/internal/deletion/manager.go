@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sqlrs/engine-local/internal/conntrack"
+	"github.com/sqlrs/engine-local/internal/instanceaccess"
 	"github.com/sqlrs/engine-local/internal/runtime"
 	"github.com/sqlrs/engine-local/internal/statefs"
 	"github.com/sqlrs/engine-local/internal/store"
@@ -26,6 +27,7 @@ const (
 )
 
 type Options struct {
+	Access         *instanceaccess.Service
 	Store          store.Store
 	Conn           conntrack.Tracker
 	Runtime        runtime.Runtime
@@ -34,6 +36,7 @@ type Options struct {
 }
 
 type Manager struct {
+	access         *instanceaccess.Service
 	store          store.Store
 	conn           conntrack.Tracker
 	runtime        runtime.Runtime
@@ -79,6 +82,7 @@ func NewManager(opts Options) (*Manager, error) {
 		tracker = conntrack.Noop{}
 	}
 	return &Manager{
+		access:         opts.Access,
 		store:          opts.Store,
 		conn:           tracker,
 		runtime:        opts.Runtime,
@@ -120,6 +124,18 @@ func (m *Manager) DeleteInstance(ctx context.Context, instanceID string, opts De
 	}
 	if blocked || opts.DryRun {
 		return result, true, nil
+	}
+	if m.access != nil {
+		err := m.access.Retire(ctx, instanceID, func() error {
+			if err := m.stopRuntime(ctx, entry.RuntimeID); err != nil {
+				return err
+			}
+			if err := m.removeRuntimeDir(entry.RuntimeDir); err != nil {
+				return err
+			}
+			return m.store.DeleteInstance(ctx, instanceID)
+		})
+		return result, true, err
 	}
 	if err := m.stopRuntime(ctx, entry.RuntimeID); err != nil {
 		return DeleteResult{}, true, err
@@ -278,6 +294,17 @@ func (m *Manager) deleteTree(ctx context.Context, node DeleteNode) error {
 	}
 	switch node.Kind {
 	case "instance":
+		if m.access != nil {
+			return m.access.Retire(ctx, node.ID, func() error {
+				if err := m.stopRuntime(ctx, node.RuntimeID); err != nil {
+					return err
+				}
+				if err := m.removeRuntimeDir(node.RuntimeDir); err != nil {
+					return err
+				}
+				return m.store.DeleteInstance(ctx, node.ID)
+			})
+		}
 		if err := m.stopRuntime(ctx, node.RuntimeID); err != nil {
 			return err
 		}

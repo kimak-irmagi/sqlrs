@@ -39,7 +39,7 @@ func TestManagedNativePostgres17(t *testing.T) {
 		t.Fatal("fixture entropy unavailable")
 	}
 	name := "sqlrs-managed-proof-test-" + hex.EncodeToString(entropy[:])
-	container := run("run", "--detach", "--rm", "--name", name, "--publish", "127.0.0.1::5432", "--env", "POSTGRES_USER="+request.Binding.Username, "--env", "POSTGRES_DB=postgres", "--env", "POSTGRES_HOST_AUTH_METHOD=trust", image)
+	container := run("run", "--detach", "--rm", "--name", name, "--publish", "127.0.0.1::5432", "--publish", "[::1]::5432", "--env", "POSTGRES_USER="+request.Binding.Username, "--env", "POSTGRES_DB=postgres", "--env", "POSTGRES_HOST_AUTH_METHOD=trust", image)
 	t.Cleanup(func() {
 		cleanup, done := context.WithTimeout(context.Background(), 15*time.Second)
 		defer done()
@@ -48,16 +48,22 @@ func TestManagedNativePostgres17(t *testing.T) {
 		}
 	})
 	request.Binding.RuntimeRef = container
-	address := strings.Split(run("port", container, "5432/tcp"), "\n")[0]
-	_, portText, err := net.SplitHostPort(address)
-	if err != nil {
-		t.Fatal("fixture port unavailable")
+	ports := map[string]uint16{}
+	for _, address := range strings.Split(run("port", container, "5432/tcp"), "\n") {
+		host, portText, err := net.SplitHostPort(strings.TrimSpace(address))
+		if err != nil {
+			t.Fatal("fixture port unavailable")
+		}
+		port, err := strconv.ParseUint(portText, 10, 16)
+		if err != nil {
+			t.Fatal("fixture port invalid")
+		}
+		ports[host] = uint16(port)
 	}
-	port, err := strconv.ParseUint(portText, 10, 16)
-	if err != nil {
-		t.Fatal("fixture port invalid")
+	if ports["127.0.0.1"] == 0 || ports["::1"] == 0 {
+		t.Fatal("both loopback IP families must be published")
 	}
-	request.Port = uint16(port)
+	request.Port = ports["127.0.0.1"]
 	config, err := managedConnectionConfig(request, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -111,6 +117,11 @@ func TestManagedNativePostgres17(t *testing.T) {
 	if err != nil || proof.Binding != request.Binding {
 		t.Fatalf("native managed proof failed: %v", err)
 	}
+	ipv6 := request
+	ipv6.Host, ipv6.Port = "::1", ports["::1"]
+	if proof, err := VerifyManagedAccess(ctx, ipv6); err != nil || proof.Binding != request.Binding {
+		t.Fatalf("IPv6 managed SQL/replication proof failed: %v", err)
+	}
 	wrong := request
 	wrong.Password = strings.Repeat("b", 64)
 	if _, err := VerifyManagedAccess(ctx, wrong); err != ErrManagedAccessUnavailable {
@@ -120,6 +131,16 @@ func TestManagedNativePostgres17(t *testing.T) {
 	sql("CREATE ROLE postgres LOGIN; CREATE ROLE sqlrs LOGIN; SET ROLE postgres; RESET ROLE; DROP ROLE postgres; DROP ROLE sqlrs")
 	if _, err := VerifyManagedAccess(ctx, request); err != nil {
 		t.Fatal("application role lifecycle damaged managed access")
+	}
+	previous := request
+	request.Password = strings.Repeat("d", 64)
+	for i := 0; i < 2; i++ {
+		if err := EnsureManagedPassword(ctx, previous, request.Password); err != nil {
+			t.Fatal("native password activation/retry", err)
+		}
+	}
+	if _, err := VerifyManagedAccess(ctx, previous); err != ErrManagedAccessUnavailable {
+		t.Fatal("previous password remained usable")
 	}
 	sql("CREATE ROLE fixture_recovery_admin LOGIN SUPERUSER PASSWORD '" + strings.Repeat("c", 64) + "'")
 	recoveryConfig := config.Copy()
@@ -139,6 +160,9 @@ func TestManagedNativePostgres17(t *testing.T) {
 	if _, err := VerifyManagedAccess(ctx, request); err != ErrManagedAccessUnavailable {
 		t.Fatal("lost administrative privilege was accepted")
 	}
+	if err := EnsureManagedPassword(ctx, request, strings.Repeat("e", 64)); err != ErrManagedAccessUnavailable {
+		t.Fatal("activation repaired damaged role", err)
+	}
 	// Verification must not silently restore the altered privilege.
 	rows := recovery.ExecParams(ctx, "SELECT rolsuper FROM pg_roles WHERE rolname=$1", [][]byte{[]byte(request.Binding.Username)}, nil, nil, nil)
 	if !rows.NextRow() || string(rows.Values()[0]) != "f" {
@@ -147,7 +171,7 @@ func TestManagedNativePostgres17(t *testing.T) {
 	if _, err := rows.Close(); err != nil {
 		t.Fatal("fixture role observation failed")
 	}
-	if strings.Contains(run("logs", container), request.Password) {
+	if logs := run("logs", container); strings.Contains(logs, request.Password) || strings.Contains(logs, previous.Password) {
 		t.Fatal("managed credential leaked into container logs")
 	}
 }

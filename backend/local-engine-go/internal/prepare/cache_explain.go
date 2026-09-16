@@ -26,6 +26,11 @@ func (m *PrepareService) CacheExplain(ctx context.Context, req Request) (result 
 	if errResp := m.ensureResolvedImageID(ctx, "", &prepared, nil); errResp != nil {
 		return CacheExplainPrepareResult{}, errorFromExplainResponse(errResp)
 	}
+	if m.identity != nil {
+		if err := m.bindManagedRequest(ctx, &prepared, nil); err != nil {
+			return CacheExplainPrepareResult{}, err
+		}
+	}
 
 	planner := m
 	jobID := ""
@@ -57,7 +62,7 @@ func (m *PrepareService) CacheExplain(ctx context.Context, req Request) (result 
 		return CacheExplainPrepareResult{}, errorFromExplainResponse(errResp)
 	}
 
-	cached, err := m.isStateCached(stateID)
+	cached, err := m.isManagedStateCached(stateID, prepared)
 	if err != nil {
 		return CacheExplainPrepareResult{}, err
 	}
@@ -85,6 +90,8 @@ func (m *PrepareService) newCacheExplainPlanner() (*PrepareService, string, func
 		return nil, "", nil, err
 	}
 	planner, err := NewPrepareService(Options{
+		Identity:       m.identity,
+		Access:         m.access,
 		Store:          m.store,
 		Queue:          cacheExplainQueueStore{Store: m.queue},
 		Runtime:        m.runtime,
@@ -105,6 +112,8 @@ func (m *PrepareService) newCacheExplainPlanner() (*PrepareService, string, func
 		_ = os.RemoveAll(tempRoot)
 		return nil, "", nil, err
 	}
+	planner.identity = m.identity
+	planner.managedRoot = m.managedRoot
 	return planner, cacheExplainLiquibaseJobID, func() error {
 		return os.RemoveAll(tempRoot)
 	}, nil

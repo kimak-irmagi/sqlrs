@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -29,6 +30,9 @@ import (
 	"github.com/sqlrs/engine-local/internal/dbms"
 	"github.com/sqlrs/engine-local/internal/deletion"
 	"github.com/sqlrs/engine-local/internal/httpapi"
+	"github.com/sqlrs/engine-local/internal/instanceaccess"
+	"github.com/sqlrs/engine-local/internal/managedidentity"
+	"github.com/sqlrs/engine-local/internal/managedstore"
 	"github.com/sqlrs/engine-local/internal/prepare"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
 	"github.com/sqlrs/engine-local/internal/registry"
@@ -351,6 +355,9 @@ var openDBFn = func(path string) (*sql.DB, error) {
 }
 var newStoreFn = sqlite.New
 var newQueueFn = queue.New
+var checkManagedInventoryFn = func(ctx context.Context, rt *engineRuntime.DockerRuntime, root string) error {
+	return rt.CheckEmptyManagedResources(ctx, root)
+}
 var newPrepareServiceFn = prepare.NewPrepareService
 var prepareRecoverFn = func(mgr *prepare.PrepareService) error {
 	return mgr.Recover(context.Background())
@@ -423,6 +430,10 @@ func run(args []string) (int, error) {
 	if stateStoreRoot == "" {
 		stateStoreRoot = filepath.Join(stateDir, "state-store")
 	}
+	stateStoreRoot, err = filepath.Abs(stateStoreRoot)
+	if err != nil {
+		return 1, fmt.Errorf("resolve state store: %v", err)
+	}
 	if err := ensureWSLMount(stateStoreRoot); err != nil {
 		return 1, fmt.Errorf("wsl mount: %v", err)
 	}
@@ -436,15 +447,58 @@ func run(args []string) (int, error) {
 	if err := os.MkdirAll(filepath.Dir(stateDBPath), 0o700); err != nil {
 		return 1, fmt.Errorf("create state db dir: %v", err)
 	}
+	stateDBPath, err = filepath.Abs(stateDBPath)
+	if err != nil {
+		return 1, fmt.Errorf("resolve state database: %v", err)
+	}
+	storeLock, err := managedstore.Lock(filepath.Join(stateStoreRoot, "engine.lock"))
+	if err != nil {
+		return 1, err
+	}
+	defer storeLock.Close()
+	dbLock, err := managedstore.Lock(stateDBPath + ".engine-lock")
+	if err != nil {
+		return 1, err
+	}
+	defer dbLock.Close()
+	configMgr, err := config.NewManager(config.Options{StateStoreRoot: stateStoreRoot})
+	if err != nil {
+		return 1, fmt.Errorf("config manager: %v", err)
+	}
+	containerMode := containerRuntimeFromConfig(configMgr)
+	containerBinary := resolveContainerRuntimeBinary(containerMode)
+	inventoryRuntime := engineRuntime.NewDocker(engineRuntime.Options{Binary: containerBinary})
 	db, err := openDBFn(stateDBPath)
 	if err != nil {
 		return 1, fmt.Errorf("open state db: %v", err)
 	}
 	defer db.Close()
+	format, err := managedstore.Initialize(context.Background(), db, func(ctx context.Context) error { return checkManagedInventoryFn(ctx, inventoryRuntime, stateStoreRoot) })
+	if err != nil {
+		return 1, fmt.Errorf("managed store upgrade refused; existing data is unchanged: %w", err)
+	}
+	secrets, err := instanceaccess.OpenSecrets(filepath.Join(stateStoreRoot, "managed-secrets"))
+	if err != nil {
+		return 1, fmt.Errorf("open protected access store: %w", err)
+	}
+	defer secrets.Close()
+	access, err := instanceaccess.NewService(db, secrets, format.DomainRef)
+	if err != nil {
+		return 1, err
+	}
 
 	store, err := newStoreFn(db)
 	if err != nil {
 		return 1, fmt.Errorf("open state db: %v", err)
+	}
+	identityService, err := managedidentity.NewService(store)
+	if err != nil {
+		return 1, err
+	}
+	initDigest := sha256.Sum256([]byte("postgres-managed-init.v1;initdb;postgres-database;local-role-scram;tcp-role-scram;replication-role-scram"))
+	identityOwner, err := managedidentity.NewOwner(identityService, format.DomainRef, hex.EncodeToString(initDigest[:]))
+	if err != nil {
+		return 1, err
 	}
 
 	queueStore, err := newQueueFn(db)
@@ -467,14 +521,8 @@ func run(args []string) (int, error) {
 
 	activity := newActivityTracker()
 	activity.Touch()
-	configMgr, err := config.NewManager(config.Options{StateStoreRoot: stateStoreRoot})
-	if err != nil {
-		return 1, fmt.Errorf("config manager: %v", err)
-	}
 	reg := registry.New(store)
-	containerMode := containerRuntimeFromConfig(configMgr)
-	containerBinary := resolveContainerRuntimeBinary(containerMode)
-	rt := engineRuntime.NewDocker(engineRuntime.Options{Binary: containerBinary})
+	rt := engineRuntime.NewDocker(engineRuntime.Options{Binary: containerBinary, ManagedSecrets: secrets, ProtectedRoot: filepath.Join(stateStoreRoot, "managed-secrets")})
 	stateFS := statefs.NewManager(statefs.Options{
 		Backend:        snapshotBackendFromConfig(configMgr),
 		StateStoreRoot: stateStoreRoot,
@@ -483,6 +531,8 @@ func run(args []string) (int, error) {
 		return logLevelFromConfig(configMgr)
 	}))
 	prepareSvc, err := newPrepareServiceFn(prepare.Options{
+		Identity:       identityOwner,
+		Access:         access,
 		Store:          store,
 		Queue:          queueStore,
 		Runtime:        rt,
@@ -501,6 +551,7 @@ func run(args []string) (int, error) {
 	}
 
 	deleteMgr, err := newDeletionManagerFn(deletion.Options{
+		Access:         access,
 		Store:          store,
 		Conn:           conntrack.Noop{},
 		Runtime:        rt,
@@ -512,6 +563,7 @@ func run(args []string) (int, error) {
 	}
 
 	runMgr, err := newRunManagerFn(runpkg.Options{
+		Access:   access,
 		Registry: reg,
 		Runtime:  rt,
 	})

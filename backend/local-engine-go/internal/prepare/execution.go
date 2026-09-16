@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sqlrs/engine-local/internal/instanceaccess"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
 	"github.com/sqlrs/engine-local/internal/statefs"
@@ -20,6 +21,7 @@ import (
 )
 
 type PsqlRunRequest struct {
+	Secret  *instanceaccess.SecretBinding
 	Args    []string
 	Env     map[string]string
 	Stdin   *string
@@ -27,14 +29,15 @@ type PsqlRunRequest struct {
 }
 
 type LiquibaseRunRequest struct {
-	ExecPath string
-	ExecMode string
-	ImageID  string
-	Args     []string
-	Env      map[string]string
-	WorkDir  string
-	Mounts   []engineRuntime.Mount
-	Network  string
+	Credential *instanceaccess.Secret
+	ExecPath   string
+	ExecMode   string
+	ImageID    string
+	Args       []string
+	Env        map[string]string
+	WorkDir    string
+	Mounts     []engineRuntime.Mount
+	Network    string
 }
 
 type psqlRunner interface {
@@ -67,11 +70,12 @@ func (r containerPsqlRunner) Run(ctx context.Context, instance engineRuntime.Ins
 		return "", fmt.Errorf("runtime is required")
 	}
 	return r.runtime.Exec(ctx, instance.ID, engineRuntime.ExecRequest{
-		User:  "postgres",
-		Args:  req.Args,
-		Env:   req.Env,
-		Dir:   req.WorkDir,
-		Stdin: req.Stdin,
+		Secret: req.Secret,
+		User:   "postgres",
+		Args:   req.Args,
+		Env:    req.Env,
+		Dir:    req.WorkDir,
+		Stdin:  req.Stdin,
 	})
 }
 
@@ -249,7 +253,7 @@ func (e *taskExecutor) executeStateTask(ctx context.Context, jobID string, prepa
 		}
 	}
 
-	cached, err := m.isStateCached(outputStateID)
+	cached, err := m.isManagedStateCached(outputStateID, prepared)
 	if err != nil {
 		return "", errorResponse("internal_error", "cannot check state cache", err.Error())
 	}
@@ -316,7 +320,7 @@ func (e *taskExecutor) executeStateTask(ctx context.Context, jobID string, prepa
 	lockPath := stateBuildLockPath(paths.stateDir, kind)
 	lockErr := withStateBuildLock(ctx, paths.stateDir, lockPath, kind, func() error {
 		if !forceRebuild {
-			cached, err := m.isStateCached(outputStateID)
+			cached, err := m.isManagedStateCached(outputStateID, prepared)
 			if err != nil {
 				errResp = errorResponse("internal_error", "cannot check state cache", err.Error())
 				return errStateBuildFailed
@@ -356,6 +360,14 @@ func (e *taskExecutor) executeStateTask(ctx context.Context, jobID string, prepa
 		}
 
 		m.appendLog(jobID, "pg_ctl: stop for snapshot")
+		if m.access != nil {
+			rt.mu.Lock()
+			defer rt.mu.Unlock()
+			if err := m.verifyManagedRuntime(ctx, rt); err != nil {
+				errResp = errorResponse("internal_error", "managed snapshot verification failed", err.Error())
+				return errStateBuildFailed
+			}
+		}
 		pgCtx := engineRuntime.WithLogSink(ctx, func(line string) {
 			m.appendLog(jobID, "pg_ctl: "+line)
 		})
@@ -368,6 +380,12 @@ func (e *taskExecutor) executeStateTask(ctx context.Context, jobID string, prepa
 			return errStateBuildFailed
 		}
 		resumed := false
+		if m.access != nil {
+			if err := m.access.RecordSeal(ctx, outputStateID, rt.operation, rt.instance.Binding); err != nil {
+				errResp = errorResponse("internal_error", "cannot seal managed state", err.Error())
+				return errStateBuildFailed
+			}
+		}
 		defer func() {
 			if resumed {
 				return
@@ -415,6 +433,8 @@ func (e *taskExecutor) executeStateTask(ctx context.Context, jobID string, prepa
 			stateSize = 0
 		}
 		entry := store.StateCreate{
+			LineageRef:            prepared.managed.LineageRef,
+			IdentityDigest:        prepared.managed.IdentityDigest,
 			StateID:               outputStateID,
 			ParentStateID:         parentID,
 			StateFingerprint:      outputStateID,
@@ -532,6 +552,9 @@ func (e *taskExecutor) executePsqlStep(ctx context.Context, jobID string, prepar
 	if m.psql == nil {
 		return errorResponse("internal_error", "psql runner is required", "")
 	}
+	if rt.bootstrap != nil {
+		psqlArgs[6] = rt.instance.Binding.Username
+	}
 	m.appendLog(jobID, "psql: start")
 	var sinkCalled atomic.Bool
 	psqlCtx := engineRuntime.WithLogSink(ctx, func(line string) {
@@ -539,6 +562,7 @@ func (e *taskExecutor) executePsqlStep(ctx context.Context, jobID string, prepar
 		m.appendLog(jobID, "psql: "+line)
 	})
 	output, err := m.psql.Run(psqlCtx, rt.instance, PsqlRunRequest{
+		Secret:  rt.bootstrap,
 		Args:    psqlArgs,
 		Env:     map[string]string{},
 		Stdin:   step.stdin,
@@ -608,6 +632,14 @@ func (e *taskExecutor) executeLiquibaseStep(ctx context.Context, jobID string, p
 	}
 	args = applyLiquibaseTaskArgs(args, task)
 	args = prependLiquibaseConnectionArgs(args, rt.instance, windowsMode)
+	var credential *instanceaccess.Secret
+	if m.access != nil {
+		connection, err := m.managedConnection(ctx, rt)
+		if err != nil {
+			return errorResponse("internal_error", "managed recipe access unavailable", err.Error())
+		}
+		credential = &instanceaccess.Secret{Password: connection.Password}
+	}
 	env, err := mapLiquibaseEnv(prepared.request.LiquibaseEnv, windowsMode)
 	if err != nil {
 		return errorResponse("internal_error", "cannot map liquibase env", err.Error())
@@ -623,13 +655,14 @@ func (e *taskExecutor) executeLiquibaseStep(ctx context.Context, jobID string, p
 		m.appendLog(jobID, "liquibase: "+line)
 	})
 	output, err := m.liquibase.Run(lbCtx, LiquibaseRunRequest{
-		ExecPath: execPath,
-		ExecMode: execMode,
-		Args:     args,
-		Env:      env,
-		WorkDir:  workDir,
-		Mounts:   prepared.liquibaseMounts,
-		Network:  "",
+		Credential: credential,
+		ExecPath:   execPath,
+		ExecMode:   execMode,
+		Args:       args,
+		Env:        env,
+		WorkDir:    workDir,
+		Mounts:     prepared.liquibaseMounts,
+		Network:    "",
 	})
 	if !sinkCalled.Load() && strings.TrimSpace(output) != "" {
 		m.appendLogLines(jobID, "liquibase", output)
@@ -673,6 +706,9 @@ func prependLiquibaseConnectionArgs(args []string, instance engineRuntime.Instan
 	conn := []string{
 		fmt.Sprintf("--url=jdbc:postgresql://%s:%d/postgres", host, port),
 		"--username=sqlrs",
+	}
+	if instance.Binding.Validate() == nil {
+		conn[1] = "--username=" + instance.Binding.Username
 	}
 	if len(args) == 0 {
 		return conn
@@ -785,6 +821,9 @@ func windowsPathDir(path string) string {
 
 func (e *taskExecutor) createInstance(ctx context.Context, jobID string, prepared preparedRequest, stateID string) (*Result, *ErrorResponse) {
 	m := e.m
+	if m.access != nil {
+		return e.createManagedInstance(ctx, jobID, prepared, stateID)
+	}
 	if ctx.Err() != nil {
 		return nil, errorResponse("cancelled", "job cancelled", "")
 	}
@@ -874,6 +913,9 @@ func (e *taskExecutor) ensureRuntime(ctx context.Context, jobID string, prepared
 
 func (e *taskExecutor) startRuntime(ctx context.Context, jobID string, prepared preparedRequest, input *TaskInput) (*jobRuntime, *ErrorResponse) {
 	m := e.m
+	if m.access != nil {
+		return e.startManagedRuntime(ctx, jobID, prepared, input)
+	}
 	if ctx.Err() != nil {
 		return nil, errorResponse("cancelled", "job cancelled", "")
 	}

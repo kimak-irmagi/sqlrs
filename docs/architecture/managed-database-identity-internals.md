@@ -103,8 +103,9 @@ startup caller's transaction: metadata reads, physical inventory, reservation
 and all schema installation must commit together. Rolling back a later migration
 must also roll back the format marker. Corrupt/unsupported markers and
 unversioned lineage tables fail closed; an existing valid format retains its
-DomainRef without rerunning empty-legacy checks. The helper is not yet wired
-into startup and does not by itself install the complete managed schema.
+DomainRef without rerunning empty-legacy checks. `internal/managedstore` now calls
+the helper under OS-held store/database locks, installs every local schema in the
+same transaction and checks expected DDL on reopen before adapters or Recover.
 
 Both cache owners add `managed_base_lineages`:
 
@@ -129,8 +130,10 @@ key; an insert trigger checks the singleton domain and exact identity digest.
 State insertion also checks parent lineage and conflicting duplicate state IDs.
 Identity columns are immutable; deleting a state leaves lineage reservations.
 Jobs persist the resolved image ID, lineage reference and identity digest before
-tasks exist; updates cannot substitute another binding. These helpers are not
-yet installed by production startup or populated by prepare.
+tasks exist; updates cannot substitute another binding. Planner integration now
+uses the selected base key and validates recovered job references in tests.
+Production startup now injects the owner and access service into prepare/run.
+Recovery completeness and removal of staging paths still require final review.
 
 Shared `state_snapshots` and `reusable_states` gain `lineage_ref` and
 `identity_digest`, scoped by organization and validated against the owning
@@ -167,9 +170,10 @@ rejection evidence. SQL and physical-replication connections both require SCRAM;
 the replication connection must also execute IDENTIFY_SYSTEM successfully.
 The local endpoint is an explicit loopback TCP address.
 The engine must supply a clean PG* environment: ambient PostgreSQL configuration
-fails closed before service/pass files can affect parsing. Startup wiring and
-the physical-operation guard are still required before this probe can publish
-instances or authorize snapshots.
+fails closed before service/pass files can affect parsing. Prepare now verifies
+access before recipes and under runtime exclusion before stopping for capture.
+The local access service records physical assignments/seals and fences activation
+against retirement. Crash recovery remains subject to the full acceptance suite.
 
 ## Atomicity, cache and recovery
 
