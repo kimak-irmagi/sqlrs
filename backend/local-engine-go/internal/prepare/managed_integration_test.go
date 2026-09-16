@@ -16,9 +16,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/sqlrs/engine-local/internal/dbms"
+	"github.com/sqlrs/engine-local/internal/deletion"
 	"github.com/sqlrs/engine-local/internal/instanceaccess"
 	"github.com/sqlrs/engine-local/internal/managedidentity"
+	"github.com/sqlrs/engine-local/internal/managedstore"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/registry"
+	managedRun "github.com/sqlrs/engine-local/internal/run"
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
 	"github.com/sqlrs/engine-local/internal/statefs"
 	"github.com/sqlrs/engine-local/internal/store"
@@ -67,20 +71,8 @@ func TestManagedPreparePostgres17(t *testing.T) {
 	}
 	defer db.Close()
 	db.SetMaxOpenConns(1)
-	tx, err := db.BeginTx(ctx, nil)
+	format, err := managedstore.Initialize(ctx, db, func(context.Context) error { return nil })
 	if err != nil {
-		t.Fatal(err)
-	}
-	format, err := storesqlite.EnsureManagedStoreFormat(ctx, tx, func(context.Context) error { return nil })
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, install := range []func(context.Context, *sql.Tx) error{storesqlite.InstallManagedStateSchema, queue.InstallManagedSchema, instanceaccess.InstallSchema} {
-		if err := install(ctx, tx); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
 	st, err := storesqlite.New(db)
@@ -124,10 +116,14 @@ func TestManagedPreparePostgres17(t *testing.T) {
 	}()
 	req := Request{PrepareKind: "psql", ImageID: "postgres:17", PsqlArgs: []string{"-v", "ON_ERROR_STOP=1", "-c", "CREATE ROLE postgres LOGIN; SET ROLE postgres; RESET ROLE; REASSIGN OWNED BY postgres TO CURRENT_USER; DROP OWNED BY postgres; DROP ROLE postgres; CREATE TABLE managed_acceptance(id integer); INSERT INTO managed_acceptance VALUES(17);"}}
 	results := []Result{}
+	var firstJob string
 	for i := 0; i < 2; i++ {
 		accepted, err := m.Submit(ctx, req)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if i == 0 {
+			firstJob = accepted.JobID
 		}
 		status, ok := m.Get(accepted.JobID)
 		if !ok || status.Status != StatusSucceeded || status.Result == nil {
@@ -172,6 +168,76 @@ func TestManagedPreparePostgres17(t *testing.T) {
 	b, _ := second.User.Password()
 	if a == b || len(a) != 64 || first.User.Username() != second.User.Username() {
 		t.Fatal("lineage or per-instance credentials mismatch")
+	}
+	// Recreate the durable crash window after native activation and before public
+	// metadata commit. Recovery must reuse the exact running clone and password.
+	if err := st.DeleteInstance(ctx, results[0].InstanceID); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.UpdateJob(ctx, firstJob, queue.JobUpdate{Status: strPtr(StatusRunning)}); err != nil {
+		t.Fatal(err)
+	}
+	reopenedAccess, err := instanceaccess.NewService(db, secrets, format.DomainRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reopenedRuntime := engineRuntime.NewDocker(engineRuntime.Options{ManagedSecrets: secrets, ProtectedRoot: filepath.Join(root, "managed-secrets"), Runner: managedFixtureRunner{t: t}})
+	reopened, err := NewPrepareService(Options{Store: st, Queue: q, Runtime: reopenedRuntime, StateFS: fs, DBMS: dbms.NewPostgres(reopenedRuntime), StateStoreRoot: root, Identity: owner, Access: reopenedAccess})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reopened.Recover(ctx); err != nil {
+		t.Fatal(err)
+	}
+	recovered, _ := reopened.Get(firstJob)
+	if recovered.Status != StatusSucceeded || recovered.Result == nil || recovered.Result.DSN != results[0].DSN {
+		t.Fatalf("activation recovery changed access: %+v", recovered.Error)
+	}
+	runManager, err := managedRun.NewManager(managedRun.Options{Registry: registry.New(st), Runtime: reopenedRuntime, Access: reopenedAccess})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runResult, err := runManager.Run(ctx, managedRun.Request{InstanceRef: results[0].InstanceID, Kind: "psql", Args: []string{"-At", "-c", "SELECT id FROM managed_acceptance"}})
+	if err != nil || strings.TrimSpace(runResult.Stdout) != "17" {
+		t.Fatal("authorized run after restart", err)
+	}
+	deleteManager, err := deletion.NewManager(deletion.Options{Store: st, Runtime: reopenedRuntime, Access: reopenedAccess, StateFS: fs, StateStoreRoot: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, found, err := deleteManager.DeleteInstance(ctx, results[0].InstanceID, deletion.DeleteOptions{}); err != nil || !found {
+		t.Fatal("managed deletion after restart", err)
+	}
+	if _, err := reopenedAccess.Lookup(ctx, results[0].InstanceID); err == nil {
+		t.Fatal("retired access remained available")
+	}
+	job, found, err := q.GetJob(ctx, firstJob)
+	if err != nil || !found {
+		t.Fatal("missing durable job", err)
+	}
+	prepared, err := m.prepareFromJob(job)
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths, err := resolveStatePaths(root, prepared.effectiveImageID(), "", fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.RemovePath(ctx, filepath.Join(paths.baseDir, prepared.managed.Key)); err != nil {
+		t.Fatal("physical base eviction", err)
+	}
+	evictionRequest := Request{PrepareKind: "psql", ImageID: "postgres:17", PsqlArgs: []string{"-v", "ON_ERROR_STOP=1", "-c", "CREATE ROLE sqlrs LOGIN; DROP ROLE sqlrs; SELECT 1;"}}
+	evictionJob, err := m.Submit(ctx, evictionRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rebuilt, _ := m.Get(evictionJob.JobID)
+	if rebuilt.Status != StatusSucceeded || rebuilt.Result == nil {
+		t.Fatalf("base recreation failed: %+v", rebuilt.Error)
+	}
+	rebuiltURL, err := url.Parse(rebuilt.Result.DSN)
+	if err != nil || rebuiltURL.User.Username() != first.User.Username() {
+		t.Fatal("physical eviction changed managed identity")
 	}
 	req.PsqlArgs = []string{"-v", "ON_ERROR_STOP=1", "-c", "UPDATE pg_catalog.pg_authid SET rolsuper=false WHERE rolname=current_user;"}
 	accepted, err := m.Submit(ctx, req)

@@ -93,7 +93,14 @@ func (s *Service) RecordSeal(ctx context.Context, state string, op Operation, b 
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO managed_state_seals(state_id,operation_ref,binding_json) VALUES(?,?,?) ON CONFLICT(state_id) DO NOTHING`, state, op.Ref, string(raw)); err != nil {
 		return accessError(ctx)
 	}
-	return s.checkSeal(ctx, state, op.Identity)
+	var sealedBy, sealedBinding string
+	if err := s.db.QueryRowContext(ctx, "SELECT operation_ref,binding_json FROM managed_state_seals WHERE state_id=?", state).Scan(&sealedBy, &sealedBinding); err != nil {
+		return accessError(ctx)
+	}
+	if sealedBy != op.Ref || sealedBinding != string(raw) {
+		return ErrConflict
+	}
+	return nil
 }
 
 func (s *Service) CheckSeal(ctx context.Context, state string, id managedidentity.IdentityBinding) error {
@@ -118,6 +125,35 @@ func (s *Service) RetireOperation(ctx context.Context, op Operation) error {
 	defer s.mu.Unlock()
 	result, err := s.db.ExecContext(ctx, `UPDATE managed_runtime_operations SET stage='retired' WHERE operation_ref=? AND physical_identity=?`, op.Ref, op.PhysicalIdentity)
 	return operationResult(ctx, result, err)
+}
+
+// ResumePublication restores only a pending/verified intent and its exact live
+// operation. It never reserves a replacement secret or adopts another runtime.
+func (s *Service) ResumePublication(ctx context.Context, ref string) (AccessBinding, Operation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	b, stage, err := s.load(ctx, ref)
+	if err != nil {
+		return AccessBinding{}, Operation{}, err
+	}
+	if stage != "reserved" && stage != "applying" && stage != "verified" {
+		return AccessBinding{}, Operation{}, ErrConflict
+	}
+	var opRef string
+	if err := s.db.QueryRowContext(ctx, "SELECT operation_ref FROM managed_runtime_operations WHERE physical_identity=?", b.PhysicalIdentity).Scan(&opRef); err != nil {
+		return AccessBinding{}, Operation{}, accessError(ctx)
+	}
+	op, err := s.operation(ctx, opRef)
+	if err != nil {
+		return AccessBinding{}, Operation{}, err
+	}
+	if op.Stage != "running" || op.RuntimeRef != b.RuntimeRef || op.Identity != b.IdentityBinding {
+		return AccessBinding{}, Operation{}, ErrConflict
+	}
+	if _, err := s.secrets.Resolve(s.secretBinding(ref, b.RuntimeBinding)); err != nil {
+		return AccessBinding{}, Operation{}, err
+	}
+	return b, op, nil
 }
 
 func operationResult(ctx context.Context, result sql.Result, err error) error {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"net"
 	"net/url"
 	"os"
@@ -204,6 +205,29 @@ func (e *taskExecutor) createManagedInstance(ctx context.Context, jobID string, 
 		defer m.cleanupRuntime(context.Background(), runner)
 	}
 	rt := runner.getRuntime()
+	if rt == nil {
+		binding, op, err := m.access.ResumePublication(ctx, instanceID)
+		if err == nil {
+			// Only this job's durable physical assignment may resume activation.
+			if filepath.Dir(op.Target) != filepath.Join(m.stateStoreRoot, "jobs", jobID) || op.Identity != prepared.managed.IdentityBinding {
+				return fail(instanceaccess.ErrConflict)
+			}
+			inspector, ok := m.runtime.(interface {
+				InspectManaged(context.Context, managedidentity.RuntimeBinding) (engineRuntime.Instance, error)
+			})
+			if !ok {
+				return fail(instanceaccess.ErrUnavailable)
+			}
+			instance, err := inspector.InspectManaged(ctx, binding.RuntimeBinding)
+			if err != nil {
+				return fail(err)
+			}
+			rt = &jobRuntime{stateID: stateID, instance: instance, runtimeDir: op.Target, operation: op, cleanup: func() error { return m.statefs.RemovePath(context.Background(), op.Target) }}
+			runner.setRuntime(rt)
+		} else if !errors.Is(err, instanceaccess.ErrNotFound) {
+			return fail(err)
+		}
+	}
 	if rt != nil && rt.stateID != stateID {
 		if err := m.cleanupRuntime(context.WithoutCancel(ctx), runner); err != nil {
 			return fail(err)

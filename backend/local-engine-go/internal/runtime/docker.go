@@ -578,7 +578,7 @@ func (r *DockerRuntime) Stop(ctx context.Context, id string) error {
 		return nil
 	}
 	if _, managed := r.managedContainers.Load(id); managed {
-		_, err := r.privateRun(ctx, []string{"exec", id, "sh", "-c", `gosu postgres pg_ctl -D "$PGDATA" -m fast -w stop >/dev/null 2>&1 || [ ! -f "$PGDATA/postmaster.pid" ]; chmod -R a+rwX "$PGDATA"`}, nil)
+		_, err := r.privateRun(ctx, []string{"exec", id, "sh", "-c", `set -e; gosu postgres pg_ctl -D "$PGDATA" -m fast -w stop >/dev/null 2>&1 || [ ! -f "$PGDATA/postmaster.pid" ]; chmod -R a+rwX "$PGDATA"`}, nil)
 		if err != nil {
 			return err
 		}

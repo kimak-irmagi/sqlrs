@@ -10,6 +10,7 @@ import (
 
 	"github.com/sqlrs/engine-local/internal/conntrack"
 	"github.com/sqlrs/engine-local/internal/instanceaccess"
+	"github.com/sqlrs/engine-local/internal/managedidentity"
 	"github.com/sqlrs/engine-local/internal/runtime"
 	"github.com/sqlrs/engine-local/internal/statefs"
 	"github.com/sqlrs/engine-local/internal/store"
@@ -126,8 +127,8 @@ func (m *Manager) DeleteInstance(ctx context.Context, instanceID string, opts De
 		return result, true, nil
 	}
 	if m.access != nil {
-		err := m.access.Retire(ctx, instanceID, func() error {
-			if err := m.stopRuntime(ctx, entry.RuntimeID); err != nil {
+		err := m.access.RetireBound(ctx, instanceID, func(binding instanceaccess.AccessBinding) error {
+			if err := m.stopManagedRuntime(ctx, entry.RuntimeID, binding); err != nil {
 				return err
 			}
 			if err := m.removeRuntimeDir(entry.RuntimeDir); err != nil {
@@ -295,8 +296,8 @@ func (m *Manager) deleteTree(ctx context.Context, node DeleteNode) error {
 	switch node.Kind {
 	case "instance":
 		if m.access != nil {
-			return m.access.Retire(ctx, node.ID, func() error {
-				if err := m.stopRuntime(ctx, node.RuntimeID); err != nil {
+			return m.access.RetireBound(ctx, node.ID, func(binding instanceaccess.AccessBinding) error {
+				if err := m.stopManagedRuntime(ctx, node.RuntimeID, binding); err != nil {
 					return err
 				}
 				if err := m.removeRuntimeDir(node.RuntimeDir); err != nil {
@@ -348,6 +349,19 @@ func (m *Manager) stopRuntime(ctx context.Context, runtimeID *string) error {
 		return err
 	}
 	return nil
+}
+
+func (m *Manager) stopManagedRuntime(ctx context.Context, id *string, b instanceaccess.AccessBinding) error {
+	if id == nil || *id != b.RuntimeRef {
+		return instanceaccess.ErrConflict
+	}
+	stopper, ok := m.runtime.(interface {
+		StopManaged(context.Context, managedidentity.RuntimeBinding) error
+	})
+	if !ok {
+		return instanceaccess.ErrUnavailable
+	}
+	return stopper.StopManaged(ctx, b.RuntimeBinding)
 }
 
 func (m *Manager) removeRuntimeDir(runtimeDir *string) error {

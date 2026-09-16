@@ -62,6 +62,17 @@ func TestPhysicalOperationsAndSeals(t *testing.T) {
 	if err := s.CheckSeal(ctx, "state", id); err != nil {
 		t.Fatal(err)
 	}
+	other, err := s.Assign(ctx, "other-operation", filepath.Join(t.TempDir(), "other"), "base", id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherBinding := managedidentity.RuntimeBinding{RuntimeRef: "other-container", PhysicalIdentity: other.PhysicalIdentity, IdentityBinding: id}
+	if err := s.Attach(ctx, other, otherBinding); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordSeal(ctx, "state", other, otherBinding); err != ErrConflict {
+		t.Fatal("seal adopted another physical capture", err)
+	}
 	bad := binding
 	bad.RuntimeRef = "other"
 	if err := s.RecordSeal(ctx, "other-state", op, bad); err == nil {
@@ -100,5 +111,45 @@ func TestBaseEvictionCreatesNewPhysicalOperationWithSameIdentity(t *testing.T) {
 	}
 	if _, err := s.BaseOperation(ctx, "unowned", target, b.IdentityBinding, true); err != ErrConflict {
 		t.Fatal("adopted existing target", err)
+	}
+}
+
+func TestPublicationRecoveryRetainsExactIntent(t *testing.T) {
+	s, b := accessFixture(t)
+	ctx := context.Background()
+	op, err := s.Assign(ctx, "operation", filepath.Join(t.TempDir(), "target"), "source", b.IdentityBinding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.PhysicalIdentity = op.PhysicalIdentity
+	if err := s.Attach(ctx, op, b); err != nil {
+		t.Fatal(err)
+	}
+	var password string
+	if err := s.Activate(ctx, "instance", b, func(secret Secret) error { password = secret.Password; return nil }, func() error { return ErrUnavailable }); err == nil {
+		t.Fatal("publication failure hidden")
+	}
+	// Fresh coordinator, durable binding and original secret after external mutation.
+	reopened, err := NewService(s.db, s.secrets, s.domain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	intent, actual, err := reopened.ResumePublication(ctx, "instance")
+	if err != nil || intent.RuntimeBinding != b || actual.Ref != op.Ref {
+		t.Fatal("recovery lost ownership", err)
+	}
+	if err := reopened.Activate(ctx, "instance", b, func(secret Secret) error {
+		if secret.Password != password {
+			t.Fatal("recovery rotated secret")
+		}
+		return nil
+	}, func() error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := reopened.Retire(ctx, "instance", func() error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := reopened.ResumePublication(ctx, "instance"); err == nil {
+		t.Fatal("retirement resurrected")
 	}
 }

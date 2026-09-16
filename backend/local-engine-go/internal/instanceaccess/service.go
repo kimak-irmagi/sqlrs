@@ -209,9 +209,18 @@ func (s *Service) Lookup(ctx context.Context, ref string) (AccessBinding, error)
 // Retire fences access before stopping/removing a physical instance. Failure
 // leaves a retryable retiring intent; it can never become verified again.
 func (s *Service) Retire(ctx context.Context, ref string, remove func() error) error {
+	if remove == nil {
+		return s.RetireBound(ctx, ref, nil)
+	}
+	return s.RetireBound(ctx, ref, func(AccessBinding) error { return remove() })
+}
+
+// RetireBound supplies the immutable binding under the same retirement fence,
+// including after restart or a failed physical cleanup.
+func (s *Service) RetireBound(ctx context.Context, ref string, remove func(AccessBinding) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, stage, err := s.load(ctx, ref)
+	binding, stage, err := s.load(ctx, ref)
 	if err != nil {
 		return err
 	}
@@ -226,7 +235,7 @@ func (s *Service) Retire(ctx context.Context, ref string, remove func() error) e
 	if remove == nil {
 		return ErrInvalid
 	}
-	if err := remove(); err != nil {
+	if err := remove(binding); err != nil {
 		return accessError(ctx)
 	}
 	return s.transition(ctx, ref, "retiring", "retired")

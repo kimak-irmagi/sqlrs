@@ -150,7 +150,9 @@ gosu postgres initdb -D "$d" --username="$1" --auth-local=trust --auth-host=scra
 `
 	_, err = r.privateRun(ctx, []string{"run", "--rm", "-i", "-v", dockerBindSpec(req.DataDir, PostgresDataDirRoot, false), req.ImageID, "sh", "-c", patch}, &hba)
 	if err == nil {
-		_, err = r.privateRun(ctx, []string{"run", "--rm", "-v", dockerBindSpec(req.DataDir, PostgresDataDirRoot, false), req.ImageID, "chmod", "-R", "a+rX", PostgresDataDir}, nil)
+		// The engine-owned parent remains private; stopped base files must permit
+		// host cloning and eviction even when initdb used the image's postgres UID.
+		_, err = r.privateRun(ctx, []string{"run", "--rm", "-v", dockerBindSpec(req.DataDir, PostgresDataDirRoot, false), req.ImageID, "chmod", "-R", "a+rwX", PostgresDataDir}, nil)
 	}
 	return err
 }
@@ -245,6 +247,29 @@ func (r *DockerRuntime) InspectManaged(ctx context.Context, b managedidentity.Ru
 }
 
 var managedVerifierPattern = regexp.MustCompile(`SCRAM-SHA-256\$[0-9]+:[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+:[A-Za-z0-9+/=]+`)
+
+// StopManaged proves ownership after process restart and distinguishes confirmed
+// absence from an unavailable daemon. A failed observation cannot authorize erase.
+func (r *DockerRuntime) StopManaged(ctx context.Context, b managedidentity.RuntimeBinding) error {
+	if b.Validate() != nil || !managedContainerID.MatchString(b.RuntimeRef) {
+		return ErrManagedRuntime
+	}
+	out, err := r.privateRun(ctx, []string{"ps", "--all", "--no-trunc", "--format", "{{.ID}}", "--filter", "id=" + b.RuntimeRef}, nil)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(out) == "" {
+		r.managedContainers.Delete(b.RuntimeRef)
+		return nil
+	}
+	if strings.TrimSpace(out) != b.RuntimeRef {
+		return ErrManagedRuntime
+	}
+	if _, err := r.InspectManaged(ctx, b); err != nil {
+		return err
+	}
+	return r.Stop(ctx, b.RuntimeRef)
+}
 
 // RedactManagedOutput applies before recipe output reaches logs or queue events.
 func RedactManagedOutput(output string, password string) string {

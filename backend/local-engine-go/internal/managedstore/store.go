@@ -66,6 +66,11 @@ func install(ctx context.Context, tx *sql.Tx) error {
 			return err
 		}
 	}
+	// Cache eviction retires the capture certificate, never the lineage. A later
+	// rebuild of the same logical key must record its own exact physical proof.
+	if _, err := tx.ExecContext(ctx, `CREATE TRIGGER managed_state_seal_eviction AFTER DELETE ON states BEGIN DELETE FROM managed_state_seals WHERE state_id=OLD.state_id; END`); err != nil {
+		return failure(ctx)
+	}
 	return nil
 }
 
