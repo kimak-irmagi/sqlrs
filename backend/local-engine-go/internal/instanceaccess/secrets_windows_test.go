@@ -8,6 +8,37 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+func TestWindowsPrivateDirectoryOwnership(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "private")
+	if err := createPrivateDirectory(path); err != nil {
+		t.Fatal(err)
+	}
+	secrets, err := OpenSecrets(path)
+	if err == nil {
+		secrets.Close()
+		return
+	}
+	sid, _ := currentSID()
+	sd, sdErr := windows.GetNamedSecurityInfo(path, windows.SE_FILE_OBJECT, windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION)
+	if sdErr == nil {
+		t.Logf("current owner SID=%s; descriptor=%s", sid, sd.String())
+	} else {
+		t.Logf("descriptor read: %v", sdErr)
+	}
+	for current := path; ; current = filepath.Dir(current) {
+		info, statErr := os.Lstat(current)
+		if statErr != nil {
+			t.Logf("ancestor %s: %v", current, statErr)
+		} else {
+			t.Logf("ancestor %s mode=%v", current, info.Mode())
+		}
+		if filepath.Dir(current) == current {
+			break
+		}
+	}
+	t.Fatal("new private directory rejected", err)
+}
+
 func TestSecretsRefuseBroadWindowsACLWithoutRepair(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "secrets")
 	secrets, err := OpenSecrets(path)
