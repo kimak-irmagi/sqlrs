@@ -7,6 +7,13 @@ Both repositories carry the same acceptance requirements, with their own harness
 
 ### Local acceptance, 2026-09-16
 
+The user also approved accelerating coverage fixtures in this PR. Generic prepare
+queue and HTTP server/route tests use isolated in-memory SQLite with the same
+schema and assertions. Persistence, migration, managed access, ACL and native
+recovery fixtures remain file-backed. See the [fixture ADR](../adr/2026-09-16-memory-sqlite-test-fixtures.md).
+Cache publication before the build lock has an explicit test boundary, without
+depending on disk latency to reach the second cache lookup.
+
 The local production path is wired through startup, planning, prepare, run and
 deletion. Guarded transactional cutover, immutable lineage/state/job bindings,
 protected bootstrap/instance secrets, native SCRAM proof and retirement fences

@@ -85,6 +85,8 @@ gantt
   затронутые пакеты достигли минимума покрытия 95%. До слияния PR #106 ожидает
   итогового CI и отдельной приёмки совместимости izess. Замена потерянного runtime
   не поддерживается: доступ закрывается. См. [отчёт тестов](architecture/managed-database-identity-tests.RU.md).
+  Общие фикстуры prepare/HTTP используют SQLite в памяти для ускорения покрытия;
+  проверки постоянного хранения и восстановления сохраняют настоящие файлы.
 
 - **Сделано**: локальная поверхность API (health, config, names, instances, runs,
   states, prepare jobs, tasks), локальный runtime и lifecycle, end-to-end pipeline

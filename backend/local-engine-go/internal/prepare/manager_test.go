@@ -2,6 +2,7 @@ package prepare
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -4453,14 +4454,17 @@ func newManagerWithDeps(t *testing.T, store store.Store, queueStore queue.Store,
 
 func newQueueStore(t *testing.T) queue.Store {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "state.db")
-	store, err := queue.Open(path)
+	// Orchestration tests need real SQL constraints, not disk durability. Queue
+	// reopen/migration tests and managed recovery fixtures use file-backed stores.
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open queue database: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	store, err := queue.New(db)
 	if err != nil {
 		t.Fatalf("open queue: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = store.Close()
-	})
 	return store
 }
 
