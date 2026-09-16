@@ -92,6 +92,8 @@ type jobRunner struct {
 }
 
 type jobRuntime struct {
+	// stateID is the last sealed state represented by this live clone; empty means base.
+	stateID     string
 	operation   instanceaccess.Operation
 	bootstrap   *instanceaccess.SecretBinding
 	mu          sync.Mutex

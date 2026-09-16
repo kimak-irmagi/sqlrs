@@ -139,6 +139,9 @@ func (e *taskExecutor) startManagedRuntime(ctx context.Context, jobID string, pr
 		return fail(err)
 	}
 	owned := &jobRuntime{instance: instance, dataDir: clone.MountDir, runtimeDir: target, cleanup: clone.Cleanup, scriptMount: mount, operation: op, bootstrap: &bootstrap}
+	if input.Kind == "state" {
+		owned.stateID = input.ID
+	}
 	if err := m.access.Attach(ctx, op, instance.Binding); err != nil {
 		_ = m.runtime.Stop(context.WithoutCancel(ctx), instance.ID)
 		return fail(err)
@@ -201,6 +204,12 @@ func (e *taskExecutor) createManagedInstance(ctx context.Context, jobID string, 
 		defer m.cleanupRuntime(context.Background(), runner)
 	}
 	rt := runner.getRuntime()
+	if rt != nil && rt.stateID != stateID {
+		if err := m.cleanupRuntime(context.WithoutCancel(ctx), runner); err != nil {
+			return fail(err)
+		}
+		rt = nil
+	}
 	if rt == nil {
 		var resp *ErrorResponse
 		rt, resp = e.startManagedRuntime(ctx, jobID, prepared, &TaskInput{Kind: "state", ID: stateID})

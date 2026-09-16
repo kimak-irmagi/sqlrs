@@ -469,6 +469,7 @@ func (e *taskExecutor) executeStateTask(ctx context.Context, jobID string, prepa
 			errResp = capErr
 			return errStateBuildFailed
 		}
+		rt.stateID = outputStateID
 		return nil
 	})
 	if errResp != nil {
@@ -901,7 +902,12 @@ func (e *taskExecutor) ensureRuntime(ctx context.Context, jobID string, prepared
 		return nil, errorResponse("internal_error", "job runner missing", "")
 	}
 	if rt := runner.getRuntime(); rt != nil {
-		return rt, nil
+		if e.m.access == nil || (input != nil && ((input.Kind == "state" && rt.stateID == input.ID) || (input.Kind == "image" && rt.stateID == "" && rt.operation.Source == input.ID))) {
+			return rt, nil
+		}
+		if err := e.m.cleanupRuntime(context.WithoutCancel(ctx), runner); err != nil {
+			return nil, errorResponse("internal_error", "managed runtime cleanup uncertain", err.Error())
+		}
 	}
 	rt, errResp := e.startRuntime(ctx, jobID, prepared, input)
 	if errResp != nil {
@@ -1433,23 +1439,41 @@ func resetStateDir(ctx context.Context, fs statefs.StateFS, stateDir string) err
 	return fs.EnsureStateDir(ctx, stateDir)
 }
 
-func (m *PrepareService) cleanupRuntime(ctx context.Context, runner *jobRunner) {
+func (m *PrepareService) cleanupRuntime(ctx context.Context, runner *jobRunner) error {
 	if runner == nil {
-		return
+		return nil
 	}
 	rt := runner.getRuntime()
 	if rt == nil {
-		return
+		return nil
 	}
-	runner.setRuntime(nil)
 	stopCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
+	if m.access != nil {
+		// Fence late seals before removal. Failed stop keeps the owned clone and
+		// journal available for retry; an unknown live mount must never be erased.
+		if err := m.access.RetireOperation(stopCtx, rt.operation); err != nil {
+			return err
+		}
+		if err := m.runtime.Stop(stopCtx, rt.instance.ID); err != nil {
+			return err
+		}
+		if rt.cleanup != nil {
+			if err := rt.cleanup(); err != nil {
+				return err
+			}
+		}
+		runner.setRuntime(nil)
+		return nil
+	}
+	runner.setRuntime(nil)
 	if err := m.runtime.Stop(stopCtx, rt.instance.ID); err != nil {
 		_ = m.runtime.Stop(context.Background(), rt.instance.ID)
 	}
 	if rt.cleanup != nil {
 		_ = rt.cleanup()
 	}
+	return nil
 }
 
 func (m *PrepareService) runnerForJob(jobID string) (*jobRunner, bool) {
