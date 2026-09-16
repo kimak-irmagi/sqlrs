@@ -3,6 +3,11 @@ package queue
 import "context"
 
 type JobRecord struct {
+	// Immutable recovery provenance, selected before job creation; see
+	// docs/architecture/managed-database-identity-internals.md.
+	ResolvedImageID       string
+	LineageRef            string
+	IdentityDigest        string
 	JobID                 string
 	Status                string
 	PrepareKind           string
@@ -67,13 +72,13 @@ type JobUpdate struct {
 }
 
 type TaskUpdate struct {
-	Status     *string
-	StartedAt  *string
-	FinishedAt *string
-	ErrorJSON  *string
-	TaskHash   *string
+	Status        *string
+	StartedAt     *string
+	FinishedAt    *string
+	ErrorJSON     *string
+	TaskHash      *string
 	OutputStateID *string
-	Cached     *bool
+	Cached        *bool
 }
 
 type Store interface {

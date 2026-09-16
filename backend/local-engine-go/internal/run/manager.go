@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sqlrs/engine-local/internal/instanceaccess"
 	"github.com/sqlrs/engine-local/internal/registry"
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
 	"github.com/sqlrs/engine-local/internal/store"
@@ -19,11 +20,13 @@ const (
 )
 
 type Options struct {
+	Access   *instanceaccess.Service
 	Registry *registry.Registry
 	Runtime  engineRuntime.Runtime
 }
 
 type Manager struct {
+	access   *instanceaccess.Service
 	registry *registry.Registry
 	runtime  engineRuntime.Runtime
 }
@@ -58,6 +61,7 @@ func NewManager(opts Options) (*Manager, error) {
 		return nil, fmt.Errorf("runtime is required")
 	}
 	return &Manager{
+		access:   opts.Access,
 		registry: opts.Registry,
 		runtime:  opts.Runtime,
 	}, nil
@@ -150,6 +154,9 @@ func (m *Manager) Run(ctx context.Context, req Request) (Result, error) {
 }
 
 func (m *Manager) execWithRecovery(ctx context.Context, entry store.InstanceEntry, runtimeID *string, args []string, stdin *string, events *[]Event) (string, error) {
+	if m.access != nil {
+		return m.execManaged(ctx, entry, *runtimeID, args, stdin)
+	}
 	output, err := m.runtime.Exec(ctx, *runtimeID, engineRuntime.ExecRequest{
 		User:  "postgres",
 		Args:  args,
@@ -193,9 +200,9 @@ func (m *Manager) recreateContainer(ctx context.Context, entry store.InstanceEnt
 	}
 	appendLogEvent(events, "run: restoring runtime")
 	instance, err := m.runtime.Start(ctx, engineRuntime.StartRequest{
-		ImageID: entry.ImageID,
-		DataDir: dataDir,
-		Name:    "sqlrs-run-" + entry.InstanceID,
+		ImageID:     entry.ImageID,
+		DataDir:     dataDir,
+		Name:        "sqlrs-run-" + entry.InstanceID,
 		AllowInitdb: false,
 	})
 	if err != nil {

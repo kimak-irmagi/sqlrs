@@ -76,6 +76,24 @@ gantt
 
 ## Status (as of 2026-08-31)
 
+- **Local implementation complete (managed database identity, 2026-09-16)**:
+  guarded startup cutover, durable lineage, identity-bound planning/cache,
+  protected instance credentials, native SQL/replication SCRAM, prepare/run/delete
+  and exact pending-activation recovery are implemented. PostgreSQL 17 Sakila,
+  Chinook and Liquibase, repeated cache use and base eviction/rebuild pass;
+  affected packages meet the 95% coverage minimum. PR #106 awaits final CI and
+  separate izess compatibility acceptance before merge. Missing-runtime replacement
+  remains unsupported and fails closed. See the [test report](architecture/managed-database-identity-tests.md).
+  Generic prepare/HTTP test fixtures now use in-memory SQLite to reduce coverage
+  runtime; durable storage and recovery tests retain real files.
+  Image-alias cache reads now compare immutable digests and use stored snapshot
+  paths. Regressions and full Windows/Linux suites with native PostgreSQL pass;
+  fresh combined prepare coverage is 95.26% after removing sandbox restrictions.
+  Review fixes preserve cleanup after cancellation, permit retry of unpublished
+  captures after owner retirement, and fence access per instance so long commands
+  do not block unrelated databases. Regression and native PostgreSQL retry tests
+  pass; current coverage is 95.6% for access and 95.3% for prepare.
+
 - **Done**: local engine API surface (health, config, names, instances, runs,
   states, prepare jobs, tasks), local runtime and lifecycle, end-to-end
   init/prepare/run pipeline, job/task persistence and events, StateFS abstraction,

@@ -17,6 +17,11 @@ var execCommand = exec.CommandContext
 type hostLiquibaseRunner struct{}
 
 func (r hostLiquibaseRunner) Run(ctx context.Context, req LiquibaseRunRequest) (string, error) {
+	if req.Credential != nil {
+		if sink := engineRuntime.LogSinkFromContext(ctx); sink != nil {
+			ctx = engineRuntime.WithLogSink(ctx, func(line string) { sink(engineRuntime.RedactManagedOutput(line, req.Credential.Password)) })
+		}
+	}
 	execPath := strings.TrimSpace(req.ExecPath)
 	if execPath == "" {
 		execPath = "liquibase"
@@ -54,10 +59,24 @@ func (r hostLiquibaseRunner) Run(ctx context.Context, req LiquibaseRunRequest) (
 	if len(req.Env) > 0 {
 		cmd.Env = append(os.Environ(), formatEnv(req.Env)...)
 	}
+	if req.Credential != nil {
+		base := cmd.Env
+		if base == nil {
+			base = os.Environ()
+		}
+		cmd.Env = mergeEnv(base, map[string]string{"LIQUIBASE_COMMAND_PASSWORD": req.Credential.Password})
+	}
 	if !useWindows && strings.TrimSpace(req.WorkDir) != "" {
 		cmd.Dir = req.WorkDir
 	}
-	return runCommandWithSink(ctx, cmd)
+	output, err := runCommandWithSink(ctx, cmd)
+	if req.Credential != nil {
+		output = engineRuntime.RedactManagedOutput(output, req.Credential.Password)
+		if err != nil {
+			return output, fmt.Errorf("managed Liquibase execution failed")
+		}
+	}
+	return output, err
 }
 
 func runCommandWithSink(ctx context.Context, cmd *exec.Cmd) (string, error) {

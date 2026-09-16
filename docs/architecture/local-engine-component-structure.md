@@ -1,5 +1,10 @@
 # Local Engine Component Structure
 
+Update, 2026-09-14: the approved [managed-identity flow](managed-database-identity.md)
+replaces fixed SQL-name assumptions. The [component/schema design](managed-database-identity-internals.md)
+and test plan are approved; implementation details below describe the current generation,
+not permission to infer or restore a fixed administrative role.
+
 This document defines the current internal component layout of the local `sqlrs-engine`.
 
 ## 1. Goals
@@ -39,7 +44,7 @@ This document defines the current internal component layout of the local `sqlrs-
   - Recovery for queued/running jobs and retention trimming by signature.
 - `internal/run`
   - Executes `run:psql` and `run:pgbench` against existing instances.
-  - Recreates missing runtime containers from `runtime_dir` when possible.
+  - Verifies managed runtime/access bindings; missing containers fail closed without adoption from `runtime_dir`.
 - `internal/deletion`
   - Builds and executes deletion trees for instances/states.
   - Applies `recurse`, `force`, `dry_run` rules.

@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -558,23 +557,10 @@ func TestPrepareJobEventsNotFound(t *testing.T) {
 
 func newTestServer(t *testing.T) (*httptest.Server, func()) {
 	t.Helper()
-	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "state.db")
-	st, err := sqlite.Open(dbPath)
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
-
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	if err := seedHTTPData(db); err != nil {
-		t.Fatalf("seed db: %v", err)
-	}
+	db, st, queueStore := newMemoryHTTPStore(t)
 
 	reg := registry.New(st)
-	prep := newPrepareManager(t, st, mustOpenQueue(t, dbPath))
+	prep := newPrepareManager(t, st, queueStore)
 	deleteMgr, err := deletion.NewManager(deletion.Options{
 		Store: st,
 		Conn:  conntrack.Noop{},
@@ -598,6 +584,30 @@ func newTestServer(t *testing.T) (*httptest.Server, func()) {
 		_ = st.Close()
 	}
 	return server, cleanup
+}
+
+// Route/handler tests retain SQLite constraints and isolated data without a
+// filesystem commit for every fixture row. Storage/reopen tests keep their own
+// file-backed databases. Store and queue share one connection, as in the engine.
+func newMemoryHTTPStore(t *testing.T) (*sql.DB, *sqlite.Store, queue.Store) {
+	t.Helper()
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	st, err := sqlite.New(db)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	queueStore, err := queue.New(db)
+	if err != nil {
+		t.Fatalf("open queue: %v", err)
+	}
+	if err := seedHTTPData(db); err != nil {
+		t.Fatalf("seed db: %v", err)
+	}
+	return db, st, queueStore
 }
 
 func seedHTTPData(db *sql.DB) error {

@@ -16,6 +16,8 @@ import (
 	"github.com/sqlrs/engine-local/internal/config"
 	"github.com/sqlrs/engine-local/internal/dbms"
 	"github.com/sqlrs/engine-local/internal/deletion"
+	"github.com/sqlrs/engine-local/internal/instanceaccess"
+	"github.com/sqlrs/engine-local/internal/managedidentity"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
 	"github.com/sqlrs/engine-local/internal/runtime"
 	"github.com/sqlrs/engine-local/internal/statefs"
@@ -30,6 +32,8 @@ const (
 )
 
 type Options struct {
+	Identity       *managedidentity.Owner
+	Access         *instanceaccess.Service
 	Store          store.Store
 	Queue          queue.Store
 	Runtime        runtime.Runtime
@@ -48,6 +52,11 @@ type Options struct {
 }
 
 type PrepareService struct {
+	access      *instanceaccess.Service
+	managedMu   sync.Mutex
+	managedRoot string
+	// Populated by the coordinated managed-store startup integration.
+	identity       *managedidentity.Owner
 	store          store.Store
 	queue          queue.Store
 	runtime        runtime.Runtime
@@ -83,6 +92,11 @@ type jobRunner struct {
 }
 
 type jobRuntime struct {
+	// stateID is the last sealed state represented by this live clone; empty means base.
+	stateID     string
+	operation   instanceaccess.Operation
+	bootstrap   *instanceaccess.SecretBinding
+	mu          sync.Mutex
 	instance    runtime.Instance
 	dataDir     string
 	runtimeDir  string
@@ -91,6 +105,7 @@ type jobRuntime struct {
 }
 
 type preparedRequest struct {
+	managed              managedidentity.BaseSelection
 	request              Request
 	normalizedArgs       []string
 	argsNormalized       string
@@ -149,6 +164,9 @@ func NewPrepareService(opts Options) (*PrepareService, error) {
 		}
 	}
 	m := &PrepareService{
+		identity:       opts.Identity,
+		access:         opts.Access,
+		managedRoot:    opts.StateStoreRoot,
 		store:          opts.Store,
 		queue:          opts.Queue,
 		runtime:        opts.Runtime,
@@ -208,6 +226,14 @@ func (m *PrepareService) Submit(ctx context.Context, req Request) (Accepted, err
 	if err != nil {
 		return Accepted{}, err
 	}
+	if m.identity != nil {
+		if errResp := m.ensureResolvedImageID(ctx, jobID, &prepared, nil); errResp != nil {
+			return Accepted{}, errorFromExplainResponse(errResp)
+		}
+		if err := m.bindManagedRequest(ctx, &prepared, nil); err != nil {
+			return Accepted{}, err
+		}
+	}
 	now := m.now().UTC().Format(time.RFC3339Nano)
 	reqJSON, err := json.Marshal(prepared.request)
 	if err != nil {
@@ -225,6 +251,9 @@ func (m *PrepareService) Submit(ctx context.Context, req Request) (Accepted, err
 		PrepareArgsNormalized: &argsNormalized,
 		RequestJSON:           strPtr(string(reqJSON)),
 		CreatedAt:             now,
+		ResolvedImageID:       prepared.resolvedImageID,
+		LineageRef:            prepared.managed.LineageRef,
+		IdentityDigest:        prepared.managed.IdentityDigest,
 	}
 	if err := m.queue.CreateJob(ctx, job); err != nil {
 		return Accepted{}, err
@@ -281,7 +310,9 @@ func (m *PrepareService) Get(jobID string) (Status, bool) {
 	if job.ResultJSON != nil {
 		var result Result
 		if err := json.Unmarshal([]byte(*job.ResultJSON), &result); err == nil {
-			status.Result = &result
+			if m.access == nil || m.hydrateManagedResult(context.Background(), &result) == nil {
+				status.Result = &result
+			}
 		}
 	}
 	if job.ErrorJSON != nil {
@@ -458,7 +489,13 @@ func (m *PrepareService) EventsSince(jobID string, index int) ([]Event, bool, bo
 	}
 	out := make([]Event, 0, len(events))
 	for _, event := range events {
-		out = append(out, eventFromRecord(event))
+		decoded := eventFromRecord(event)
+		if m.access != nil && decoded.Result != nil {
+			if err := m.hydrateManagedResult(context.Background(), decoded.Result); err != nil {
+				return nil, true, false, err
+			}
+		}
+		out = append(out, decoded)
 	}
 	done := job.Status == StatusSucceeded || job.Status == StatusFailed
 	return out, true, done, nil
@@ -501,7 +538,17 @@ func (m *PrepareService) prepareFromJob(job queue.JobRecord) (preparedRequest, e
 	if err := json.Unmarshal([]byte(*job.RequestJSON), &req); err != nil {
 		return preparedRequest{}, err
 	}
-	return m.prepareRequest(req)
+	prepared, err := m.prepareRequest(req)
+	if err != nil {
+		return preparedRequest{}, err
+	}
+	if m.identity != nil {
+		prepared.resolvedImageID = job.ResolvedImageID
+		if err := m.bindManagedRequest(context.Background(), &prepared, &job); err != nil {
+			return preparedRequest{}, err
+		}
+	}
+	return prepared, nil
 }
 
 func (c *jobCoordinator) runJob(prepared preparedRequest, jobID string) {
@@ -585,7 +632,7 @@ func (c *jobCoordinator) runJob(prepared preparedRequest, jobID string) {
 			return
 		}
 		if task.Type == "state_execute" && task.Cached != nil && *task.Cached && strings.TrimSpace(task.OutputStateID) != "" {
-			cached, err := m.isStateCached(task.OutputStateID)
+			cached, err := m.isManagedStateCached(task.OutputStateID, prepared)
 			if err != nil {
 				_ = m.failJob(jobID, errorResponse("internal_error", "cannot check state cache", err.Error()))
 				return
@@ -691,6 +738,9 @@ func (c *jobCoordinator) loadOrPlanTasks(ctx context.Context, jobID string, prep
 		m.trimCompletedJobs(ctx, prepared)
 		return taskStatesFromPlan(tasks), stateID, nil
 	}
+	if err := m.validateManagedTasks(prepared, taskRecords); err != nil {
+		return nil, "", errorResponse("internal_error", "invalid managed task chain", err.Error())
+	}
 	replanned, tasks, replannedStateID, errResp := c.replanTasksOnDrift(ctx, jobID, prepared, taskRecords)
 	if errResp != nil {
 		return nil, "", errResp
@@ -706,7 +756,11 @@ func (c *jobCoordinator) loadOrPlanTasks(ctx context.Context, jobID string, prep
 			continue
 		}
 		if task.Type == "state_execute" {
-			if exists, err := m.isStateCached(task.OutputStateID); err == nil && exists {
+			exists, err := m.isManagedStateCached(task.OutputStateID, prepared)
+			if err != nil {
+				return nil, "", errorResponse("internal_error", "cannot check recovered state cache", err.Error())
+			}
+			if exists {
 				finishedAt := m.now().UTC().Format(time.RFC3339Nano)
 				_ = m.updateTaskStatus(ctx, jobID, task.TaskID, StatusSucceeded, nil, &finishedAt, nil)
 				task.Status = StatusSucceeded
@@ -849,6 +903,9 @@ func (m *PrepareService) computeJobSignature(prepared preparedRequest) (string, 
 	hasher := newStateHasher()
 	hasher.write("task_hash", taskHash)
 	hasher.write("image_id", imageID)
+	if prepared.managed.Key != "" {
+		hasher.write("managed_base_key", prepared.managed.Key)
+	}
 	hasher.write("plan_only", fmt.Sprintf("%t", prepared.request.PlanOnly))
 	signature := hasher.sum()
 	if signature == "" {
@@ -864,6 +921,9 @@ func (m *PrepareService) computeJobSignatureFromPlan(prepared preparedRequest, t
 	}
 	hasher := newStateHasher()
 	hasher.write("image_id", imageID)
+	if prepared.managed.Key != "" {
+		hasher.write("managed_base_key", prepared.managed.Key)
+	}
 	hasher.write("plan_only", fmt.Sprintf("%t", prepared.request.PlanOnly))
 	hasher.write("engine_version", m.version)
 	for _, task := range tasks {
@@ -1066,6 +1126,9 @@ func (c *jobCoordinator) buildPlanPsql(prepared preparedRequest) ([]PlanTask, st
 
 	inputKind := "image"
 	inputID := imageID
+	if prepared.managed.Key != "" {
+		inputID = prepared.managed.Key
+	}
 	stateID := ""
 	for i, step := range steps {
 		digest, err := computePsqlContentDigest(step.inputs, prepared.psqlWorkDir)
@@ -1077,7 +1140,7 @@ func (c *jobCoordinator) buildPlanPsql(prepared preparedRequest) ([]PlanTask, st
 		if errResp != nil {
 			return nil, "", errResp
 		}
-		cached, err := m.isStateCached(outputStateID)
+		cached, err := m.isManagedStateCached(outputStateID, prepared)
 		if err != nil {
 			return nil, "", errorResponse("internal_error", "cannot check state cache", err.Error())
 		}
@@ -1140,6 +1203,9 @@ func (c *jobCoordinator) buildPlanLiquibase(ctx context.Context, jobID string, p
 
 	inputKind := "image"
 	inputID := imageID
+	if prepared.managed.Key != "" {
+		inputID = prepared.managed.Key
+	}
 	prevFingerprintID := inputID
 	stateID := ""
 
@@ -1149,7 +1215,7 @@ func (c *jobCoordinator) buildPlanLiquibase(ctx context.Context, jobID string, p
 		if errResp != nil {
 			return nil, "", errResp
 		}
-		cached, err := m.isStateCached(outputStateID)
+		cached, err := m.isManagedStateCached(outputStateID, prepared)
 		if err != nil {
 			return nil, "", errorResponse("internal_error", "cannot check state cache", err.Error())
 		}
@@ -1173,7 +1239,7 @@ func (c *jobCoordinator) buildPlanLiquibase(ctx context.Context, jobID string, p
 			if errResp != nil {
 				return nil, "", errResp
 			}
-			cached, err := m.isStateCached(outputStateID)
+			cached, err := m.isManagedStateCached(outputStateID, prepared)
 			if err != nil {
 				return nil, "", errorResponse("internal_error", "cannot check state cache", err.Error())
 			}
@@ -1225,16 +1291,20 @@ func (c *jobCoordinator) planLiquibaseChangesets(ctx context.Context, jobID stri
 	}
 
 	var rt *jobRuntime
+	baseInputID := imageID
+	if prepared.managed.Key != "" {
+		baseInputID = prepared.managed.Key
+	}
 	runner := m.getRunner(jobID)
 	if !prepared.request.PlanOnly && runner != nil {
-		planned, errResp := c.executor.ensureRuntime(ctx, jobID, prepared, &TaskInput{Kind: "image", ID: imageID}, runner)
+		planned, errResp := c.executor.ensureRuntime(ctx, jobID, prepared, &TaskInput{Kind: "image", ID: baseInputID}, runner)
 		if errResp != nil {
 			return nil, errResp
 		}
 		rt = planned
 	} else {
 		temp := &jobRunner{}
-		planned, errResp := c.executor.startRuntime(ctx, jobID, prepared, &TaskInput{Kind: "image", ID: imageID})
+		planned, errResp := c.executor.startRuntime(ctx, jobID, prepared, &TaskInput{Kind: "image", ID: baseInputID})
 		if errResp != nil {
 			return nil, errResp
 		}
@@ -1293,6 +1363,14 @@ func (e *taskExecutor) runLiquibaseUpdateSQL(ctx context.Context, jobID string, 
 	}
 	args = replaceLiquibaseCommand(args, "updateSQL")
 	args = prependLiquibaseConnectionArgs(args, rt.instance, windowsMode)
+	var credential *instanceaccess.Secret
+	if m.access != nil {
+		connection, err := m.managedConnection(ctx, rt)
+		if err != nil {
+			return nil, errorResponse("internal_error", "managed recipe access unavailable", err.Error())
+		}
+		credential = &instanceaccess.Secret{Password: connection.Password}
+	}
 	env, err := mapLiquibaseEnv(prepared.request.LiquibaseEnv, windowsMode)
 	if err != nil {
 		return nil, errorResponse("internal_error", "cannot map liquibase env", err.Error())
@@ -1306,13 +1384,14 @@ func (e *taskExecutor) runLiquibaseUpdateSQL(ctx context.Context, jobID string, 
 		m.appendLog(jobID, "liquibase: "+line)
 	})
 	output, err := m.liquibase.Run(lbCtx, LiquibaseRunRequest{
-		ExecPath: execPath,
-		ExecMode: execMode,
-		Args:     args,
-		Env:      env,
-		WorkDir:  workDir,
-		Mounts:   prepared.liquibaseMounts,
-		Network:  "",
+		Credential: credential,
+		ExecPath:   execPath,
+		ExecMode:   execMode,
+		Args:       args,
+		Env:        env,
+		WorkDir:    workDir,
+		Mounts:     prepared.liquibaseMounts,
+		Network:    "",
 	})
 	if err != nil {
 		if ctx.Err() != nil {
@@ -1500,6 +1579,9 @@ func (m *PrepareService) updateTaskStatus(ctx context.Context, jobID string, tas
 
 func (m *PrepareService) succeed(jobID string, result Result) error {
 	now := m.now().UTC().Format(time.RFC3339Nano)
+	if m.access != nil {
+		result.DSN = ""
+	}
 	payload, err := json.Marshal(result)
 	if err != nil {
 		return err
@@ -1591,6 +1673,11 @@ func (m *PrepareService) failJob(jobID string, errResp *ErrorResponse) error {
 }
 
 func (m *PrepareService) appendEvent(jobID string, event Event) error {
+	if m.access != nil && event.Result != nil {
+		projection := *event.Result
+		projection.DSN = ""
+		event.Result = &projection
+	}
 	record := eventRecordFromEvent(jobID, event)
 	if _, err := m.queue.AppendEvent(context.Background(), record); err != nil {
 		return err

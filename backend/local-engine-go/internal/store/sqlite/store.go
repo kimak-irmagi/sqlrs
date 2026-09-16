@@ -191,7 +191,7 @@ func (s *Store) ListStates(ctx context.Context, filters store.StateFilters) ([]s
 	query := strings.Builder{}
 	query.WriteString(`
 SELECT s.state_id, s.parent_state_id, s.image_id, s.prepare_kind, s.prepare_args_normalized, s.created_at, s.size_bytes,
-       s.last_used_at, s.use_count, s.min_retention_until,
+       s.last_used_at, s.use_count, s.min_retention_until, coalesce(s.lineage_ref,''), coalesce(s.identity_digest,''),
        (SELECT COUNT(1) FROM instances i WHERE i.state_id = s.state_id) as refcount
 FROM states s
 WHERE 1=1`)
@@ -224,6 +224,8 @@ WHERE 1=1`)
 			&lastUsedAt,
 			&useCount,
 			&minRetentionUntil,
+			&entry.LineageRef,
+			&entry.IdentityDigest,
 			&entry.RefCount,
 		); err != nil {
 			return nil, err
@@ -251,7 +253,7 @@ WHERE 1=1`)
 func (s *Store) GetState(ctx context.Context, stateID string) (store.StateEntry, bool, error) {
 	query := `
 SELECT s.state_id, s.parent_state_id, s.image_id, s.prepare_kind, s.prepare_args_normalized, s.created_at, s.size_bytes,
-       s.last_used_at, s.use_count, s.min_retention_until,
+       s.last_used_at, s.use_count, s.min_retention_until, coalesce(s.lineage_ref,''), coalesce(s.identity_digest,''),
        (SELECT COUNT(1) FROM instances i WHERE i.state_id = s.state_id) as refcount
 FROM states s
 WHERE s.state_id = ?`
@@ -272,6 +274,8 @@ WHERE s.state_id = ?`
 		&lastUsedAt,
 		&useCount,
 		&minRetentionUntil,
+		&entry.LineageRef,
+		&entry.IdentityDigest,
 		&entry.RefCount,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -298,9 +302,9 @@ func (s *Store) CreateState(ctx context.Context, entry store.StateCreate) error 
 	query := `
 INSERT OR IGNORE INTO states (
 	state_id, parent_state_id, state_fingerprint, image_id, prepare_kind, prepare_args_normalized, created_at,
-	size_bytes, last_used_at, use_count, status
+	size_bytes, last_used_at, use_count, status, lineage_ref, identity_digest
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	_, err := s.db.ExecContext(ctx, query,
 		entry.StateID,
 		entry.ParentStateID,
@@ -313,6 +317,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		entry.CreatedAt,
 		0,
 		entry.Status,
+		entry.LineageRef,
+		entry.IdentityDigest,
 	)
 	return err
 }
@@ -414,8 +420,17 @@ func initDB(db *sql.DB) error {
 	if err := ensureStateEvictionReasonColumn(db); err != nil {
 		return err
 	}
-	_, err := db.Exec(SchemaSQL())
-	return err
+	if _, err := db.Exec(SchemaSQL()); err != nil {
+		return err
+	}
+	// Transitional constructor support; production cutover installs the guarded
+	// schema in its preflight transaction before constructing the adapter.
+	for _, column := range []string{"lineage_ref", "identity_digest"} {
+		if _, err := db.Exec("ALTER TABLE states ADD COLUMN " + column + " TEXT"); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return err
+		}
+	}
+	return nil
 }
 
 func ensureParentStateColumn(db *sql.DB) error {

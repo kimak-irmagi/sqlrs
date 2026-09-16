@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sqlrs/engine-local/internal/instanceaccess"
 )
 
 var (
@@ -34,8 +36,10 @@ const (
 )
 
 type Options struct {
-	Binary string
-	Runner commandRunner
+	ManagedSecrets *instanceaccess.Secrets
+	ProtectedRoot  string
+	Binary         string
+	Runner         commandRunner
 }
 
 type DockerUnavailableError struct {
@@ -123,8 +127,11 @@ func (execRunner) RunStreaming(ctx context.Context, name string, args []string, 
 }
 
 type DockerRuntime struct {
-	binary string
-	runner commandRunner
+	managedContainers sync.Map
+	managedSecrets    *instanceaccess.Secrets
+	protectedRoot     string
+	binary            string
+	runner            commandRunner
 }
 
 func NewDocker(opts Options) *DockerRuntime {
@@ -145,7 +152,7 @@ func NewDocker(opts Options) *DockerRuntime {
 	if runner == nil {
 		runner = execRunner{}
 	}
-	return &DockerRuntime{binary: binary, runner: runner}
+	return &DockerRuntime{binary: binary, runner: runner, managedSecrets: opts.ManagedSecrets, protectedRoot: opts.ProtectedRoot}
 }
 
 func (r *DockerRuntime) InitBase(ctx context.Context, imageID string, dataDir string) error {
@@ -570,6 +577,12 @@ func (r *DockerRuntime) Stop(ctx context.Context, id string) error {
 	if id == "" {
 		return nil
 	}
+	if _, managed := r.managedContainers.Load(id); managed {
+		_, err := r.privateRun(ctx, []string{"exec", id, "sh", "-c", `set -e; gosu postgres pg_ctl -D "$PGDATA" -m fast -w stop >/dev/null 2>&1 || [ ! -f "$PGDATA/postmaster.pid" ]; chmod -R a+rwX "$PGDATA"`}, nil)
+		if err != nil {
+			return err
+		}
+	}
 	// Instances are ephemeral; force-remove is faster than graceful stop and
 	// avoids waiting on PostgreSQL shutdown during cleanup paths.
 	output, err := r.run(ctx, []string{"rm", "-f", id}, nil)
@@ -580,6 +593,9 @@ func (r *DockerRuntime) Stop(ctx context.Context, id string) error {
 }
 
 func (r *DockerRuntime) Exec(ctx context.Context, id string, req ExecRequest) (string, error) {
+	if req.Secret != nil {
+		return r.execManaged(ctx, id, req)
+	}
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return "", fmt.Errorf("container id is required")
