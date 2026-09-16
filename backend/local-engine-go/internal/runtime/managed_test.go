@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,6 +16,22 @@ type privateRunner struct {
 	calls  [][]string
 	inputs []string
 	fail   bool
+}
+
+func TestManagedMountRejectsSecretAlias(t *testing.T) {
+	root := t.TempDir()
+	protected := filepath.Join(root, "private")
+	if err := os.Mkdir(protected, 0700); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(root, "recipe")
+	if err := os.Symlink(protected, alias); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	rt := NewDocker(Options{ProtectedRoot: protected})
+	if err := rt.managedPaths(filepath.Join(root, "data"), []Mount{{HostPath: alias}}); err == nil {
+		t.Fatal("symbolic link exposed protected secrets")
+	}
 }
 
 func (r *privateRunner) Run(_ context.Context, _ string, args []string, stdin *string) (string, error) {

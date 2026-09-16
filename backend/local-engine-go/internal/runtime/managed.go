@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -59,12 +60,41 @@ func (r *DockerRuntime) managedPaths(data string, mounts []Mount) error {
 	if !filepath.IsAbs(data) || !filepath.IsAbs(r.protectedRoot) {
 		return ErrManagedRuntime
 	}
+	protected, err := canonicalManagedPath(r.protectedRoot)
+	if err != nil {
+		return ErrManagedRuntime
+	}
 	for _, path := range append([]Mount{{HostPath: data}}, mounts...) {
 		if !filepath.IsAbs(path.HostPath) || pathsOverlap(path.HostPath, r.protectedRoot) {
 			return ErrManagedRuntime
 		}
+		resolved, err := canonicalManagedPath(path.HostPath)
+		if err != nil || pathsOverlap(resolved, protected) {
+			return ErrManagedRuntime
+		}
 	}
 	return nil
+}
+
+// Resolve existing ancestors too: Docker may create the final bind directory.
+// A recipe alias must not expose the protected root or any of its ancestors.
+func canonicalManagedPath(path string) (string, error) {
+	resolved, err := filepath.EvalSymlinks(path)
+	if err == nil {
+		return resolved, nil
+	}
+	if !os.IsNotExist(err) {
+		return "", err
+	}
+	parent := filepath.Dir(path)
+	if parent == path {
+		return "", err
+	}
+	resolved, err = canonicalManagedPath(parent)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(resolved, filepath.Base(path)), nil
 }
 
 func pathsOverlap(a, b string) bool {
