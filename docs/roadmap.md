@@ -76,13 +76,14 @@ gantt
 
 ## Status (as of 2026-08-31)
 
-- **In progress (managed database identity, update 2026-09-15)**: approved
-  local/shared policy, durable lineage, identity-aware base-key primitives and
-  read-only upgrade checks are implemented as foundations. State/job binding
-  persistence and transactional schema helpers pass SQLite tests. Native PostgreSQL 17
-  access verification is tested separately; prepare/run, instance secrets,
-  startup migration and complete Sakila/Chinook acceptance remain pending.
-  See the [implementation checkpoint](architecture/managed-database-identity-tests.md).
+- **Local implementation complete (managed database identity, 2026-09-16)**:
+  guarded startup cutover, durable lineage, identity-bound planning/cache,
+  protected instance credentials, native SQL/replication SCRAM, prepare/run/delete
+  and exact pending-activation recovery are implemented. PostgreSQL 17 Sakila,
+  Chinook and Liquibase, repeated cache use and base eviction/rebuild pass;
+  affected packages meet the 95% coverage minimum. PR #106 awaits final CI and
+  separate izess compatibility acceptance before merge. Missing-runtime replacement
+  remains unsupported and fails closed. See the [test report](architecture/managed-database-identity-tests.md).
 
 - **Done**: local engine API surface (health, config, names, instances, runs,
   states, prepare jobs, tasks), local runtime and lifecycle, end-to-end

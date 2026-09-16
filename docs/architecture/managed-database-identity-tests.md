@@ -5,140 +5,59 @@ Status: test plan and proposed existing-test resolutions approved, 2026-09-14, @
 the user authorized writing these tests and updating conflicting expectations.
 Both repositories carry the same acceptance requirements, with their own harnesses.
 
-Implementation checkpoint: both initial identity modules passed at 100%, confirmed
-by the user. The metadata coordinator now passes in both repositories at 97.1%.
-Tests prove winner selection, no regeneration after failed/corrupt reads, scope
-checks, cancellation, and bounded diagnostics. Test execution outside the sandbox
-with the normal cache now works; cache paths were not overridden.
+### Local acceptance, 2026-09-16
 
-The local SQLite adapter also passes real temporary-database reservation, reopen,
-corruption and failure tests. Full SQLite regression passes at 95.8%; all new
-lineage.go blocks are covered. Its new schema is deliberately not installed by
-normal startup before the upgrade preflight exists. PostgreSQL persistence,
-runtime wiring and deployment remain unimplemented; this is not end-to-end acceptance.
+The local production path is wired through startup, planning, prepare, run and
+deletion. Guarded transactional cutover, immutable lineage/state/job bindings,
+protected bootstrap/instance secrets, native SCRAM proof and retirement fences
+are implemented. [PR #106](https://github.com/kimak-irmagi/sqlrs/pull/106) contains
+the implementation and separate review-fix commits. Shared izess acceptance must
+be confirmed by its separate session before merge; local results do not prove it.
 
-Update 2026-09-15: the user approved both cancellation cases. Deterministic tests
-now cancel after the missing lookup (no entropy read or write) and after generation
-(no write); both return cancellation without a partial identity. Both complete
-coordinator suites pass at 100% statement coverage with no uncovered blocks.
-Production coordinator code was unchanged in this iteration.
+The live suite uses official PostgreSQL 17.7,
+`postgres@sha256:7352e0c4d62bbac8aa69d95e40220a60967c4a19f9c4f65b4d118175f7ce9e3b`.
+Sakila (1000 films), Chinook (3503 tracks) and Liquibase (12 changesets) passed,
+including repeated cache reuse and distinct instance passwords. It also proves
+interrupted publication resumes with the same runtime/secret, run and deletion
+after engine restart, and physical base eviction/rebuild preserves lineage.
+Application postgres/sqlrs role lifecycles remain unchanged. Damaged managed
+privileges fail before publication. SQL and replication SCRAM, wrong/absent
+credentials, IPv4/IPv6 loopback and cancellation during password activation pass
+through native pgx against PostgreSQL. Passwords are absent from control metadata
+and the checked container logs.
 
-The shared PostgreSQL adapter now implements validated Find/Reserve/Get and bounded
-errors, using the existing state-store pool. Reservation uses INSERT ON CONFLICT
-DO NOTHING followed by a separate read of the committed winner. Its complete
-package suite passes at 97.1%, with every new lineage.go block covered; go vet passes.
-These adapter tests use a fake driver boundary, not a real PostgreSQL concurrency
-proof. That proof, PostgreSQL schema installation/preflight and runtime wiring are
-still pending. A Docker read-only availability check was denied by the sandbox;
-this does not establish that Docker itself is unavailable. No deployments changed.
+Per-package statement coverage with normal Go caches:
 
-### Local checkpoint, 2026-09-15: read-only metadata preflight
+| Package | Coverage | Evidence |
+| --- | ---: | --- |
+| managedidentity | 100% | Reservation, restoration, scope and cancellation |
+| store/sqlite | 96.1% | Real SQLite preflight, corruption, immutable bindings |
+| prepare/queue | 96.7% | Durable job binding and reopen |
+| managedstore | 98.7% | Atomic cutover, rollback, cancellation, schema refusal |
+| instanceaccess | 95.5% | Protected files/ACLs, intents, recovery, retirement |
+| runtime | 95.1% | Inventory, protected mounts, exact runtime ownership |
+| dbms | 95.8% | Unit and native PostgreSQL integration |
+| prepare | 95.0% | Windows unit, Linux filesystem and live PostgreSQL suites |
+| run | 98.4% | Access and runtime binding fences |
+| deletion | 98.4% | Retirement and uncertain cleanup |
+| cmd/sqlrs-engine | 95.1% | Startup refusal and managed dependency wiring |
 
-`sqlite.CheckEmptyManagedMetadata` and its tests now exist. The focused suite
-passed after first failing on the missing API. Each of states, instances, names,
-prepare_jobs, prepare_tasks, prepare_events and instance_access independently
-blocks cutover when populated. Tests compare database bytes before/after and use
-SQLite query-only mode; empty databases/tables and unrelated settings are preserved.
-Views/indexes under an expected table name fail closed, SQLite name casing cannot
-hide rows, nil/closed databases produce bounded errors, and cancellation is retained.
-Fixtures open `database/sql` directly, without Store.New migrations.
+Profiles and per-line HTML reports are local artifacts under
+`backend/local-engine-go/coverage/`. The prepare profile combines successful
+runs of identical production sources; test-only StateFS/psql helpers were moved
+to `_test.go`. Platform-specific secret code is measured separately, without
+merging incompatible Windows/Unix source ranges. Native integration tests require
+`-tags managedintegration`; normal cross-platform CI runs the unit suites.
 
-The user approved the additional corruption/cancellation coverage plan. Tests now
-corrupt real catalog/table b-tree pages, cancel a blocked connection acquisition,
-and verify bounded wrapped cancellation. All preflight and lineage blocks are
-covered. SQLite also has a transaction-owned format/DomainRef reservation helper
-with rollback, reopen, unsupported/corrupt marker and uncertain-inventory tests.
-The complete SQLite suite passes at 96.2%; the new format helper is at 97.1%.
-The managedidentity suite, including RuntimeBinding and BaseKey, passes at 100%.
-
-Physical inventory is implemented separately in the Docker adapter: platform
-resource directories and all container mounts, including stopped containers.
-Unrelated files survive; unknown Docker inventory fails closed. The runtime suite
-passes at 96.2%. The approved additional tests cover tmpfs/unknown mounts, opaque
-WSL paths, invalid directories and cancellation. Review found and fixed accidental
-case folding of Linux `/mnt/Uppercase` paths; drive-letter paths still normalize.
-
-Native pgx verification passed on a disposable official PostgreSQL 17 container,
-resolved to `postgres@sha256:7352e0c4d62bbac8aa69d95e40220a60967c4a19f9c4f65b4d118175f7ce9e3b`.
-It rejects trust-only access, proves SCRAM plus wrong/absent-password rejection,
-allows application postgres/sqlrs role lifecycles, and rejects reachable loss of
-managed SUPERUSER privileges without repairing the role. The secret canary was
-absent from container logs. The dbms suite with this integration test passes at
-96.2%. The approved additional tests prove that trust and transport failure never
-count as password rejection, cancellation is preserved, and the negative test
-credential always differs from the actual password. Remaining uncovered defensive
-branches are recorded in the per-line profiles; another iteration was requested.
-
-State and queue binding persistence now passes real SQLite tests: parent lineage,
-immutable identity, duplicate-ID conflicts, foreign-key protection, rollback and
-job reopen before task creation. Public state JSON is unchanged. SQLite coverage
-is 96.1% (state installation helper: 100%); queue coverage is 96.7%.
-The engine regression passed with `go test -p 1 ./... -timeout 2m`. The initial
-parallel run failed one HTTP job-completion test with SQLITE_BUSY; its focused
-rerun and full sequential rerun passed. The initial failure remains recorded.
-
-Subsequent review regressions reject a mismatched state image, malformed job image
-suffixes and silent fingerprint collisions. A real PostgreSQL regression first
-demonstrated that SQL-only proof accepted a physical-replication trust bypass.
-Native proof now also authenticates a replication connection, executes
-IDENTIFY_SYSTEM and rejects wrong/absent replication credentials. The dbms suite
-with the live integration test passes at 95.7%. The fixture now publishes both
-IPv4 and IPv6 loopback endpoints and passes SQL/replication proof through both.
-
-The cache-owner selection API passes at 100% package coverage, including read-only
-restoration by the queued image/lineage/digest and failure without re-reservation.
-The first planner integration test also passes against real SQLite: metadata-only
-psql explanation, persisted plan-only job binding, matching cache keys, rejected
-recovery drift and cache separation after initialization-policy changes.
-The full prepare package passes at 94.4%, below the required 95%; an additional
-coverage plan was requested for execution cancellation/publication, recovery/cache
-failures, invalid bindings and moving test-only helpers out of production sources.
-Production startup still does not enable the managed path.
-
-### Approved prepare coverage iteration
-
-The per-line profile orders the remaining work as follows:
-
-1. `execution.go`: 72 uncovered statements across 61 blocks. Verify cancellation
-   during state publication, snapshot/resume failure and failed cleanup against
-   the lifecycle requirement: no success or usable publication after failure.
-2. `manager.go`: 58 statements across 50 blocks. Verify failed image/identity
-   resolution, unavailable recovered jobs and cache-read failures. Also reject a
-   recovered task chain whose first input or output hash differs from its selected
-   base binding; restoring only the job's lineage is not enough.
-3. `managed_request.go`: four statements across four blocks. Exercise changed or
-   absent binding, repeated binding without reservation, and mismatched cached
-   state identity through the planner boundary.
-4. Move `psql_test_helpers.go` to a `_test.go` filename: its only callers are tests
-   and its `testing.T` dependency must not enter the production binary/coverage.
-
-Keep defensive checks whose failure cannot be induced through a valid PostgreSQL
-or filesystem boundary; explain those gaps rather than manufacturing impossible
-states. The user authorized continuing and finishing the PR on 2026-09-16;
-this includes the proposed coverage iteration under AGENTS.md section 6.
-
-### Local integration checkpoint, 2026-09-16
-
-Startup now takes exclusive store/database locks and installs format, lineage,
-queue, access intents and runtime-operation/seal tables in one transaction before
-opening adapters or Recover. Reopen validates the installed DDL without repair.
-Private credentials use immutable files, owner-only Windows ACLs or Unix modes,
-separate bootstrap records and retirement fences. Native password activation and
-retry pass on PostgreSQL 17; old credentials and damaged administrative privileges
-are rejected. These tests do not yet establish crash-recovery completeness.
-
-The real prepare integration suite passes a SQL recipe, snapshot capture, cache
-reuse and two published instances with different credentials. It verifies real
-dataset reads and absence of those passwords from control metadata. Role damage
-fails before publication. Official-image initialization required protected tmpfs
-password delivery because initdb under gosu cannot reopen root-owned /dev/stdin.
-Sakila, Chinook and Liquibase acceptance is running separately from that checkpoint.
-
-Current coverage is provisional after integration: dbms 93.4%, engine startup
-94.0%; the new paths still require the approved failure/recovery tests and fresh
-per-line measurement. Runtime recreation, full recovery and final removal of the
-staging paths remain review work. No PR, green CI, cross-project acceptance or
-merge is claimed.
+The approved coverage iterations covered failure/publication paths first, then
+startup/schema/filesystem failures and real cancellation boundaries. Remaining
+uncovered lines include defensive driver/scan/close errors with fixed SQL, the
+registered SQLite driver's fixed in-memory open, and cancellation between narrow
+stages. They remain requirements-backed fail-closed checks: no synthetic SQL
+results were added merely to exercise them. The 95% minimum is met; 100% is not
+claimed. Partial initialization, lost runtimes and uncertain cleanup remain
+closed to access and preserve evidence; automatic runtime replacement is outside
+the implemented recovery path. See [recovery limits](managed-database-identity-internals.md#local-recovery-limits).
 
 ## 1. Identity, scope and durable reservation
 

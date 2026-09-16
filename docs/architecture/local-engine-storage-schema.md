@@ -79,11 +79,11 @@ CREATE TABLE IF NOT EXISTS instances (
 Notes:
 
 - `instance_id` uses the engine-defined id format.
-- `runtime_id` stores the runtime/container identifier used to stop or inspect the instance;
-  it is updated when a missing container is recreated for `run`.
-- `runtime_dir` stores the absolute path to the per-job runtime data directory for cleanup
-  and for container recreation during `run`.
-- `status` is reserved for future use; current status is derived.
+- `runtime_id` stores the exact runtime/container identifier used to stop or inspect the instance;
+  managed access also verifies its durable physical binding. Missing containers fail closed.
+- `runtime_dir` stores the absolute path to the per-job runtime data directory for cleanup;
+  it does not authorize adopting or recreating a managed container.
+- Managed publication writes `status=active` only after native access verification.
 
 ### 3.3 `names`
 

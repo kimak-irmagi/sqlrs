@@ -7,9 +7,9 @@
 
 Unlike `prepare`, `run` **never constructs or restores database state**.
 It only consumes an already available instance and injects its DSN into
-the executed command. If the instance container is missing but the runtime
-data directory is still present, `run` may recreate the container using
-the preserved runtime data before executing the command.
+the executed command. Managed instances require the exact verified container
+and saved credentials. A missing container closes access even when its data
+directory remains present.
 
 `run` is designed to integrate sqlrs with arbitrary tools, applications,
 and test runners.
@@ -211,20 +211,15 @@ These behaviors are **implementation-specific** and not guaranteed by `run`.
 
 ## Instance Recovery (Missing Container)
 
-If an instance exists in the registry but its container is missing (for example,
-the runtime was restarted or the container was removed externally), `run` attempts to
-recreate the container **using the instance runtime data directory**.
+An engine restart can reuse an instance while its original container and protected
+credentials remain intact. The engine verifies the saved physical binding before
+executing the command.
 
-Rules:
-
-- The runtime data directory must exist and be readable.
-- The container is recreated from `runtime_dir` and the instance's `image_id`.
-- The instance `runtime_id` is updated to the new container id.
-- The `runtime_dir` path is preserved (it is not regenerated).
-- If `runtime_dir` is missing, `run` fails with an error (no fallback to state).
-
-This recovery is intended to be transparent to the CLI user and should not
-change command semantics, only reduce failures caused by missing containers.
+If the container is missing or stopped, ownership cannot be verified, or the
+saved secret is missing, the managed local path fails without recreating the
+container or generating a replacement password. The data directory alone does
+not authorize adoption. Existing data is retained for diagnosis; automatic
+replacement with a new runtime/access binding is not implemented.
 
 ---
 
@@ -302,7 +297,7 @@ sqlrs run smoke --instance dev
 ## Guarantees
 
 - `run` never modifies or creates states.
-- `run` may recreate a missing container when `runtime_dir` exists, but it never
-  rebuilds state from scratch.
+- Managed `run` requires the verified runtime and credential; it never rebuilds
+  state or adopts a replacement container from a data directory.
 - Instance resolution is explicit and deterministic.
 - Command execution semantics are fully transparent.

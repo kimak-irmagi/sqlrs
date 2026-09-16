@@ -2,8 +2,9 @@
 
 Status: direction, interaction/cache flow, component interfaces, storage schema,
 upgrade conditions and test plan approved by @evilguest, 2026-09-14, reconfirmed
-2026-09-15. Implementation is authorized and in progress; this document describes
-the target contract, not completed runtime integration or acceptance.
+2026-09-15. The local implementation passes live PostgreSQL 17 acceptance; see
+the [test report](managed-database-identity-tests.md) for evidence and recovery limits.
+This remains the shared target contract; izess acceptance is tracked separately.
 
 Local sqlrs and shared izess must implement one managed-identity policy. The
 current local SQL administrator `sqlrs` and shared administrator `postgres` are

@@ -5,7 +5,9 @@ Status: structure, schema and upgrade conditions approved, 2026-09-14, @evilgues
 and izess. Code and the [test plan](managed-database-identity-tests.md) are also
 approved, reconfirmed 2026-09-15. No data deletion is authorized.
 
-The sections below record the approved design, not implemented behavior.
+The sections below record the approved local/shared design. Local implementation
+and live acceptance are recorded in the [test report](managed-database-identity-tests.md);
+shared acceptance remains a separate merge gate.
 
 ## Ownership and module boundaries
 
@@ -133,7 +135,8 @@ Jobs persist the resolved image ID, lineage reference and identity digest before
 tasks exist; updates cannot substitute another binding. Planner integration now
 uses the selected base key and validates recovered job references in tests.
 Production startup now injects the owner and access service into prepare/run.
-Recovery completeness and removal of staging paths still require final review.
+Deletion uses the same access service. Physical base eviction removes its seal
+but preserves lineage; rebuilding allocates a new physical operation for that lineage.
 
 Shared `state_snapshots` and `reusable_states` gain `lineage_ref` and
 `identity_digest`, scoped by organization and validated against the owning
@@ -142,8 +145,10 @@ repeat the digest and physical identity. No separate mutable username columns in
 each state. State publication checks the exact physical seal and persisted binding.
 
 Local adds `instance_access` keyed by instance ID, containing lineage/digest,
-runtime/physical identity, access version, secret reference, operation ID,
-fingerprint, stage, timestamps and bounded failure code. Instance listing becomes
+runtime/physical identity, access version, secret reference and stage. The local
+physical operation is stored separately in `managed_runtime_operations` and
+joined by physical identity; timestamps/failure codes are not access-table columns.
+Instance listing becomes
 active only after verified access; internal pending intents are not public active
 instances. Shared extends existing access intents and leases with lineage/digest.
 Both use stages reserved, applying, verified, retiring, retired, quarantined.
@@ -173,7 +178,8 @@ The engine must supply a clean PG* environment: ambient PostgreSQL configuration
 fails closed before service/pass files can affect parsing. Prepare now verifies
 access before recipes and under runtime exclusion before stopping for capture.
 The local access service records physical assignments/seals and fences activation
-against retirement. Crash recovery remains subject to the full acceptance suite.
+against retirement. Native acceptance covers interrupted publication and access
+after engine restart, with the same physical runtime and credential.
 
 ## Atomicity, cache and recovery
 
@@ -195,6 +201,21 @@ On missing/mismatched identity, do not inspect all superusers and choose one.
 On altered managed privileges, do not repair. On uncertain cleanup or stale
 success, keep access closed. HBA, SQL quoting and native observations all use the
 bound name; restore inherited configuration only within existing isolation rules.
+
+## Local recovery limits
+
+Production startup always injects managed identity/access services. Earlier
+unbound constructors/runtime methods remain internal test adapters; startup does
+not admit legacy stores through them. A pending activation can resume only from
+its durable intent, exact job target, running operation and inspected container.
+The saved password is retried even if ALTER ROLE completed before the crash.
+
+An engine restart with the same container supports result hydration, run and
+delete. Missing/stopped containers, partial base initialization, unknown clone
+targets, missing secrets and uncertain ownership fail closed. The local managed
+path does not automatically replace a missing container or infer a new access
+binding from its data directory. Failed cleanup retains the physical evidence;
+it does not remove a directory still possibly mounted by an unconfirmed runtime.
 
 ## Approved upgrade conditions
 

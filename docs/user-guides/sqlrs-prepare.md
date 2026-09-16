@@ -14,6 +14,25 @@ A `prepare` invocation:
 
 All reproducibility guarantees in sqlrs rely on `prepare`.
 
+### Managed PostgreSQL access
+
+PostgreSQL 17 uses an engine-generated SQL administrator named
+`sqlrs_admin_<32 lowercase hex digits>`. Its name follows the cached base lineage;
+application roles such as `postgres` and `sqlrs` remain available to recipes.
+The database and container OS user remain `postgres`. Changing the managed role
+or removing its administrative privileges makes preparation fail before publication.
+
+Each published instance receives a separate password, including instances created
+from the same cached state. The returned DSN contains the working credentials:
+keep it private. The engine stores secrets separately from recipe mounts and does
+not persist password-bearing DSNs in job/event metadata. Successful access requires
+SCRAM authentication; a reachable trust-only endpoint is rejected.
+
+Existing stores with old states, jobs, instances or snapshots block format cutover
+without deleting or rewriting them. Use a separately approved migration/archive
+procedure or explicitly choose a new empty store. Do not run an older engine
+against the new format. See the [identity contract](../architecture/managed-database-identity.md).
+
 ---
 
 ## Terminology

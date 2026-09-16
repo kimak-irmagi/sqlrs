@@ -44,7 +44,7 @@
   - Recovery для queued/running jobs и retention trimming по сигнатуре.
 - `internal/run`
   - Выполняет `run:psql` и `run:pgbench` по существующим instances.
-  - При возможности пересоздает отсутствующий runtime container из `runtime_dir`.
+  - Проверяет managed-связи runtime/доступа; при потере контейнера закрывает доступ без принятия каталога `runtime_dir`.
 - `internal/deletion`
   - Строит и применяет delete tree для instances/states.
   - Учитывает `recurse`, `force`, `dry_run`.
