@@ -95,7 +95,13 @@ jobs:
               pkgs+=("$pkg")
             done < <(go list ./... | grep -v -E 'github.com/sqlrs/engine-local/internal/httpapi$|github.com/sqlrs/engine-local/internal/prepare$|github.com/sqlrs/engine-local/cmd/sqlrs-engine$|github.com/sqlrs/engine-local/internal/run$|github.com/sqlrs/engine-local/internal/store/sqlite$|github.com/sqlrs/engine-local/internal/prepare/queue$')
           fi
-          go test "${pkgs[@]}" -covermode=count -coverprofile=../../coverage-engine-${{ matrix.runner }}-${{ matrix.group }}.out -json \
+          test_timeout=10m
+          # SQLite/filesystem suites can exceed Go's default on Windows hosted
+          # runners. Keep all tests and a bounded timeout for this slower group.
+          if [[ "${{ matrix.runner }}" == "windows-latest" && "${{ matrix.group }}" == "slow" ]]; then
+            test_timeout=20m
+          fi
+          go test "${pkgs[@]}" -timeout="$test_timeout" -covermode=count -coverprofile=../../coverage-engine-${{ matrix.runner }}-${{ matrix.group }}.out -json \
             | tee "$json_log" "$test_log"
 
       - name: Print failed tests (${{ matrix.group }})
