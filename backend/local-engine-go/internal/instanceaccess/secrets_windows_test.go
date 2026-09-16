@@ -85,4 +85,23 @@ func TestSecretsRefuseBroadWindowsACLWithoutRepair(t *testing.T) {
 	if err := createPrivateDirectory(path + "\x00"); err != ErrInvalid {
 		t.Fatal(err)
 	}
+	if err := ownPrivateFile(filepath.Join(path, "missing")); err != ErrUnavailable {
+		t.Fatal("ownership failure must prevent secret publication", err)
+	}
+	for _, dacl := range []string{"D:P(A;OICI;FR;;;" + sid + ")", "D:P(A;OICIIO;FA;;;" + sid + ")", "D:P(A;OICI;FA;;;WD)"} {
+		descriptor, err := windows.SecurityDescriptorFromString(dacl)
+		if err != nil {
+			t.Fatal(err)
+		}
+		acl, _, err := descriptor.DACL()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := windows.SetNamedSecurityInfo(path, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, acl, nil); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := OpenSecrets(path); err != ErrInvalid {
+			t.Fatal("non-private ACL admitted", err)
+		}
+	}
 }

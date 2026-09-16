@@ -3,7 +3,6 @@ package instanceaccess
 import (
 	"golang.org/x/sys/windows"
 	"os"
-	"strings"
 	"unsafe"
 )
 
@@ -63,25 +62,28 @@ func checkPrivatePath(path string, _ os.FileInfo) error {
 	if err != nil || owner.String() != sid {
 		return ErrInvalid
 	}
-	// Only the current owner may have an allow ACE. Exact FA and bounded flags
-	// reject NULL DACLs, inherited broad grants and unrecognized ACL semantics.
-	text := sd.String()
-	at := strings.Index(text, "D:")
-	if at < 0 {
+	// Inspect the binary SID, not its SDDL spelling: Windows may abbreviate the
+	// local administrator as LA even though TokenUser returns its full SID.
+	acl, _, err := sd.DACL()
+	if err != nil || acl == nil || acl.AceCount != 1 {
 		return ErrInvalid
 	}
-	dacl := text[at+2:]
-	start := strings.IndexByte(dacl, '(')
-	if start < 0 {
+	var ace *windows.ACCESS_ALLOWED_ACE
+	if windows.GetAce(acl, 0, &ace) != nil || ace.Header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE || ace.Mask != windows.ACCESS_MASK(0x001f01ff) {
 		return ErrInvalid
 	}
-	ace := dacl[start:]
-	for _, flags := range []string{"OICI", "OICIID", "ID", ""} {
-		if ace == "(A;"+flags+";FA;;;"+sid+")" {
-			return nil
-		}
+	switch ace.Header.AceFlags {
+	case windows.OBJECT_INHERIT_ACE | windows.CONTAINER_INHERIT_ACE,
+		windows.OBJECT_INHERIT_ACE | windows.CONTAINER_INHERIT_ACE | windows.INHERITED_ACE,
+		windows.INHERITED_ACE, 0:
+	default:
+		return ErrInvalid
 	}
-	return ErrInvalid
+	allowed := (*windows.SID)(unsafe.Pointer(&ace.SidStart))
+	if !allowed.IsValid() || allowed.String() != sid {
+		return ErrInvalid
+	}
+	return nil
 }
 
 func syncPrivateDirectory(_ secretRoot, path string) error {

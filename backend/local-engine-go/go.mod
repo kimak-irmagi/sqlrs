@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/jackc/pgx/v5 v5.10.0
-	golang.org/x/sys v0.16.0
+	golang.org/x/sys v0.41.0
 	modernc.org/sqlite v1.29.0
 )
 
