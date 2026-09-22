@@ -935,6 +935,21 @@ func TestRunUsesExplicitStateDBPath(t *testing.T) {
 	}
 }
 
+func TestManagedStoreLockPathForWSLStore(t *testing.T) {
+	storeRoot := `\\wsl.localhost\Ubuntu-24.04\var\tmp\sqlrs\store`
+	stateDB := filepath.Join(t.TempDir(), "state.db")
+	got := managedStoreLockPath(storeRoot, stateDB)
+	want := filepath.Join(filepath.Dir(stateDB), "store.engine-lock")
+	if got != want {
+		t.Fatalf("managed store lock path = %q, want %q", got, want)
+	}
+
+	localStore := filepath.Join(t.TempDir(), "store")
+	if got := managedStoreLockPath(localStore, stateDB); got != filepath.Join(localStore, "engine.lock") {
+		t.Fatalf("local managed store lock path = %q", got)
+	}
+}
+
 func TestRunOpenQueueDBError(t *testing.T) {
 	prevNew := newQueueFn
 	newQueueFn = func(*sql.DB) (*queue.SQLiteStore, error) {
