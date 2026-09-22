@@ -36,6 +36,25 @@ func TestManagedMountRejectsSecretAlias(t *testing.T) {
 	}
 }
 
+func TestManagedPublishHostUsesRemoteDockerEndpoint(t *testing.T) {
+	for _, test := range []struct {
+		name, dockerHost, want string
+	}{
+		{name: "native", dockerHost: "", want: "127.0.0.1"},
+		{name: "local tcp", dockerHost: "tcp://127.0.0.1:2375", want: "127.0.0.1"},
+		{name: "remote tcp", dockerHost: "tcp://172.30.44.10:2375", want: "0.0.0.0"},
+		{name: "invalid", dockerHost: "tcp://missing-port", want: "127.0.0.1"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("DOCKER_HOST", test.dockerHost)
+			t.Setenv(dockerHostPathStyleEnv, "linux")
+			if got := managedPublishHost(); got != test.want {
+				t.Fatalf("managed publish host = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestManagedExecBoundsErrorsAndCredentials(t *testing.T) {
 	root := t.TempDir()
 	secrets, err := instanceaccess.OpenSecrets(filepath.Join(root, "secrets"))
