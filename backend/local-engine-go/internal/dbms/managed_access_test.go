@@ -34,6 +34,19 @@ func TestManagedAccessConfiguration(t *testing.T) {
 			t.Fatalf("ambient config accepted: %s %v", name, err)
 		}
 	}
+	remote := req
+	remote.Host = "172.30.44.10"
+	if _, err := managedConnectionConfig(remote, []string{"DOCKER_HOST=tcp://172.30.44.10:2375", "SQLRS_DOCKER_HOST_PATH_STYLE=linux"}); err != nil {
+		t.Fatalf("remote Docker endpoint rejected: %v", err)
+	}
+	for _, environment := range [][]string{
+		{"DOCKER_HOST=tcp://172.30.44.11:2375", "SQLRS_DOCKER_HOST_PATH_STYLE=linux"},
+		{"DOCKER_HOST=tcp://172.30.44.10:2375"},
+	} {
+		if _, err := managedConnectionConfig(remote, environment); err != ErrManagedAccessUnavailable {
+			t.Fatalf("remote Docker endpoint accepted with mismatched environment: %v", err)
+		}
+	}
 }
 
 func TestManagedAccessRejectsInvalidBindingAndEndpoint(t *testing.T) {

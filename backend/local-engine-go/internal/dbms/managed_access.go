@@ -119,7 +119,7 @@ func verifyRejectedCredential(ctx context.Context, cfg *pgconn.Config) error {
 // validation fails closed if that contract is not met, as in the shared probe.
 func managedConnectionConfig(request ManagedConnection, environment []string) (*pgconn.Config, error) {
 	address := net.ParseIP(request.Host)
-	if request.Binding.Validate() != nil || address == nil || !address.IsLoopback() || request.Port == 0 || len(request.Password) != 64 || strings.Trim(request.Password, "0123456789abcdef") != "" {
+	if request.Binding.Validate() != nil || address == nil || !managedEndpointAllowed(request.Host, environment) || request.Port == 0 || len(request.Password) != 64 || strings.Trim(request.Password, "0123456789abcdef") != "" {
 		return nil, ErrManagedAccessUnavailable
 	}
 	for _, entry := range environment {
@@ -139,6 +139,36 @@ func managedConnectionConfig(request ManagedConnection, environment []string) (*
 	cfg.RuntimeParams = map[string]string{}
 	cfg.RequireAuth = "scram-sha-256"
 	return cfg, nil
+}
+
+// managedEndpointAllowed accepts loopback for local daemons and the exact IP
+// of an explicitly configured remote Linux Docker daemon. The latter is
+// needed when a native Windows engine talks to a Docker daemon inside WSL;
+// arbitrary network destinations remain invalid managed endpoints.
+func managedEndpointAllowed(host string, environment []string) bool {
+	ip := net.ParseIP(host)
+	if ip == nil || ip.IsUnspecified() {
+		return false
+	}
+	if ip.IsLoopback() {
+		return true
+	}
+	values := make(map[string]string, len(environment))
+	for _, entry := range environment {
+		name, value, ok := strings.Cut(entry, "=")
+		if ok {
+			values[strings.ToUpper(name)] = strings.TrimSpace(value)
+		}
+	}
+	if strings.ToLower(values["SQLRS_DOCKER_HOST_PATH_STYLE"]) != "linux" || !strings.HasPrefix(strings.ToLower(values["DOCKER_HOST"]), "tcp://") {
+		return false
+	}
+	remote, _, err := net.SplitHostPort(strings.TrimPrefix(values["DOCKER_HOST"], "tcp://"))
+	if err != nil {
+		return false
+	}
+	remoteIP := net.ParseIP(strings.Trim(remote, "[]"))
+	return remoteIP != nil && !remoteIP.IsLoopback() && !remoteIP.IsUnspecified() && remoteIP.Equal(ip)
 }
 
 // managedRoleEvidence permits no recipe-provided SQL and reads at most one row.
