@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -166,7 +167,7 @@ func (r *DockerRuntime) StartManaged(ctx context.Context, req ManagedStartReques
 	if binding.Validate() != nil || req.ImageID == "" || req.AllowInitdb || r.managedPaths(req.DataDir, req.Mounts) != nil {
 		return Instance{}, ErrManagedRuntime
 	}
-	args := []string{"run", "-d", "--rm", "-p", "127.0.0.1::5432", "-v", dockerBindSpec(req.DataDir, PostgresDataDirRoot, false), "-e", "PGDATA=" + PostgresDataDir}
+	args := []string{"run", "-d", "--rm", "-p", managedPublishHost() + "::5432", "-v", dockerBindSpec(req.DataDir, PostgresDataDirRoot, false), "-e", "PGDATA=" + PostgresDataDir}
 	args = append(args, "--label", "sqlrs.managed.identity="+req.Identity.IdentityDigest, "--label", "sqlrs.managed.physical="+req.PhysicalIdentity)
 	for _, mount := range req.Mounts {
 		if mount.ContainerPath == "" {
@@ -222,6 +223,22 @@ func (r *DockerRuntime) StartManaged(ctx context.Context, req ManagedStartReques
 	r.managedContainers.Store(id, binding)
 	success = true
 	return Instance{ID: id, Host: "127.0.0.1", Port: port, Binding: binding}, nil
+}
+
+// managedPublishHost exposes a remote WSL Docker daemon's port on all of its
+// interfaces so Windows localhost forwarding can reach the published port.
+// Native daemons retain the loopback-only binding used by the access proof.
+func managedPublishHost() string {
+	host := strings.TrimSpace(os.Getenv("DOCKER_HOST"))
+	if strings.ToLower(strings.TrimSpace(os.Getenv(dockerHostPathStyleEnv))) != dockerHostPathLinux || !strings.HasPrefix(strings.ToLower(host), "tcp://") {
+		return "127.0.0.1"
+	}
+	endpoint := strings.TrimPrefix(host, "tcp://")
+	remote, _, err := net.SplitHostPort(endpoint)
+	if err != nil || remote == "" || remote == "127.0.0.1" || strings.EqualFold(remote, "localhost") || remote == "::1" {
+		return "127.0.0.1"
+	}
+	return "0.0.0.0"
 }
 
 // InspectManaged reconnects only to the exact recorded container and labels.
