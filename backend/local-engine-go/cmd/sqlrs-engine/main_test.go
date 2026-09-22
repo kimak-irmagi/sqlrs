@@ -948,6 +948,12 @@ func TestManagedStoreLockPathForWSLStore(t *testing.T) {
 	if got := managedStoreLockPath(localStore, stateDB); got != filepath.Join(localStore, "engine.lock") {
 		t.Fatalf("local managed store lock path = %q", got)
 	}
+	if got := managedSecretsPath(storeRoot, stateDB); got != filepath.Join(filepath.Dir(stateDB), "managed-secrets") {
+		t.Fatalf("managed secrets path = %q", got)
+	}
+	if got := managedSecretsPath(localStore, stateDB); got != filepath.Join(localStore, "managed-secrets") {
+		t.Fatalf("local managed secrets path = %q", got)
+	}
 }
 
 func TestRunOpenQueueDBError(t *testing.T) {

@@ -163,6 +163,16 @@ func managedStoreLockPath(storeRoot, stateDBPath string) string {
 	return filepath.Join(storeRoot, "engine.lock")
 }
 
+// managedSecretsPath keeps protected credentials on a local filesystem when a
+// Windows host exposes the Linux store through a WSL UNC path. Windows ACL
+// operations and os.Root are not reliable through that bridge.
+func managedSecretsPath(storeRoot, stateDBPath string) string {
+	if strings.HasPrefix(storeRoot, `\\`) && !strings.HasPrefix(stateDBPath, `\\`) {
+		return filepath.Join(filepath.Dir(stateDBPath), "managed-secrets")
+	}
+	return filepath.Join(storeRoot, "managed-secrets")
+}
+
 // resolveContainerRuntimeBinary returns the executable name or path for the container runtime
 // (docker/podman). Prefers config-based mode selection, with SQLRS_CONTAINER_RUNTIME as an
 // operational override. In auto mode, tries docker then podman.
@@ -488,7 +498,8 @@ func run(args []string) (int, error) {
 	if err != nil {
 		return 1, fmt.Errorf("managed store upgrade refused; existing data is unchanged: %w", err)
 	}
-	secrets, err := instanceaccess.OpenSecrets(filepath.Join(stateStoreRoot, "managed-secrets"))
+	managedSecretsRoot := managedSecretsPath(stateStoreRoot, stateDBPath)
+	secrets, err := instanceaccess.OpenSecrets(managedSecretsRoot)
 	if err != nil {
 		return 1, fmt.Errorf("open protected access store: %w", err)
 	}
@@ -533,7 +544,7 @@ func run(args []string) (int, error) {
 	activity := newActivityTracker()
 	activity.Touch()
 	reg := registry.New(store)
-	rt := engineRuntime.NewDocker(engineRuntime.Options{Binary: containerBinary, ManagedSecrets: secrets, ProtectedRoot: filepath.Join(stateStoreRoot, "managed-secrets")})
+	rt := engineRuntime.NewDocker(engineRuntime.Options{Binary: containerBinary, ManagedSecrets: secrets, ProtectedRoot: managedSecretsRoot})
 	stateFS := statefs.NewManager(statefs.Options{
 		Backend:        snapshotBackendFromConfig(configMgr),
 		StateStoreRoot: stateStoreRoot,
