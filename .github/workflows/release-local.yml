@@ -414,9 +414,9 @@ jobs:
               sudo rm -f /var/run/docker.pid
             fi
             if [ "$(id -u)" -eq 0 ]; then
-              nohup dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=vfs --iptables=false >/tmp/sqlrs-release-dockerd.log 2>&1 &
+              nohup dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=vfs >/tmp/sqlrs-release-dockerd.log 2>&1 &
             else
-              nohup sudo dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=vfs --iptables=false >/tmp/sqlrs-release-dockerd.log 2>&1 &
+              nohup sudo dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=vfs >/tmp/sqlrs-release-dockerd.log 2>&1 &
             fi
             ready=0
             for _ in $(seq 1 90); do
@@ -443,10 +443,10 @@ jobs:
             sleep 2
             if [ "$(id -u)" -eq 0 ]; then
               rm -f /var/run/docker.pid
-              nohup dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=vfs --iptables=false >/tmp/sqlrs-release-dockerd.log 2>&1 &
+              nohup dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=vfs >/tmp/sqlrs-release-dockerd.log 2>&1 &
             else
               sudo rm -f /var/run/docker.pid
-              nohup sudo dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=vfs --iptables=false >/tmp/sqlrs-release-dockerd.log 2>&1 &
+              nohup sudo dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=vfs >/tmp/sqlrs-release-dockerd.log 2>&1 &
             fi
             ready_tcp=0
             for _ in $(seq 1 90); do
