@@ -222,23 +222,40 @@ func (r *DockerRuntime) StartManaged(ctx context.Context, req ManagedStartReques
 	binding.RuntimeRef = id
 	r.managedContainers.Store(id, binding)
 	success = true
-	return Instance{ID: id, Host: "127.0.0.1", Port: port, Binding: binding}, nil
+	return Instance{ID: id, Host: managedEndpointHost(), Port: port, Binding: binding}, nil
 }
 
-// managedPublishHost exposes a remote WSL Docker daemon's port on all of its
-// interfaces so Windows localhost forwarding can reach the published port.
+// managedPublishHost exposes a remote Linux Docker daemon's port on all of its
+// interfaces so native clients can reach the published port at the daemon IP.
 // Native daemons retain the loopback-only binding used by the access proof.
 func managedPublishHost() string {
+	if managedEndpointHost() == "127.0.0.1" {
+		return "127.0.0.1"
+	}
+	return "0.0.0.0"
+}
+
+// managedEndpointHost is the address from which the engine can reach a
+// published managed port. A remote Linux Docker daemon publishes on its own
+// network namespace, so its exact IP is the endpoint for native clients such
+// as the Windows engine. Hostnames and unspecified addresses are rejected by
+// falling back to loopback; managed access verification applies the same
+// endpoint restriction.
+func managedEndpointHost() string {
 	host := strings.TrimSpace(os.Getenv("DOCKER_HOST"))
 	if strings.ToLower(strings.TrimSpace(os.Getenv(dockerHostPathStyleEnv))) != dockerHostPathLinux || !strings.HasPrefix(strings.ToLower(host), "tcp://") {
 		return "127.0.0.1"
 	}
 	endpoint := strings.TrimPrefix(host, "tcp://")
 	remote, _, err := net.SplitHostPort(endpoint)
-	if err != nil || remote == "" || remote == "127.0.0.1" || strings.EqualFold(remote, "localhost") || remote == "::1" {
+	if err != nil {
 		return "127.0.0.1"
 	}
-	return "0.0.0.0"
+	ip := net.ParseIP(strings.Trim(remote, "[]"))
+	if ip == nil || ip.IsLoopback() || ip.IsUnspecified() {
+		return "127.0.0.1"
+	}
+	return ip.String()
 }
 
 // InspectManaged reconnects only to the exact recorded container and labels.
@@ -260,7 +277,7 @@ func (r *DockerRuntime) InspectManaged(ctx context.Context, b managedidentity.Ru
 		return Instance{}, ErrManagedRuntime
 	}
 	r.managedContainers.Store(b.RuntimeRef, b)
-	return Instance{ID: b.RuntimeRef, Host: "127.0.0.1", Port: port, Binding: b}, nil
+	return Instance{ID: b.RuntimeRef, Host: managedEndpointHost(), Port: port, Binding: b}, nil
 }
 
 var managedVerifierPattern = regexp.MustCompile(`SCRAM-SHA-256\$[0-9]+:[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+:[A-Za-z0-9+/=]+`)

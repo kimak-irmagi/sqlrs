@@ -173,7 +173,11 @@ session/current role with LOGIN and SUPERUSER. Wrong and absent credentials must
 produce PostgreSQL password-authentication rejection; a network failure is not
 rejection evidence. SQL and physical-replication connections both require SCRAM;
 the replication connection must also execute IDENTIFY_SYSTEM successfully.
-The local endpoint is an explicit loopback TCP address.
+The local endpoint is an explicit loopback TCP address. When a native engine
+uses a Linux Docker daemon over an explicitly configured remote TCP endpoint
+(for example, Windows with Docker inside WSL), the endpoint IP is used instead;
+the access probe accepts only that exact daemon IP and rejects arbitrary remote
+destinations.
 The engine must supply a clean PG* environment: ambient PostgreSQL configuration
 fails closed before service/pass files can affect parsing. Prepare now verifies
 access before recipes and under runtime exclusion before stopping for capture.

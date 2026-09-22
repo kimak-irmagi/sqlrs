@@ -55,6 +55,26 @@ func TestManagedPublishHostUsesRemoteDockerEndpoint(t *testing.T) {
 	}
 }
 
+func TestManagedEndpointHostUsesExactRemoteDockerAddress(t *testing.T) {
+	for _, test := range []struct {
+		name, dockerHost, want string
+	}{
+		{name: "native", dockerHost: "", want: "127.0.0.1"},
+		{name: "remote ipv4", dockerHost: "tcp://172.30.44.10:2375", want: "172.30.44.10"},
+		{name: "remote ipv6", dockerHost: "tcp://[fd00::10]:2375", want: "fd00::10"},
+		{name: "hostname", dockerHost: "tcp://docker.internal:2375", want: "127.0.0.1"},
+		{name: "unspecified", dockerHost: "tcp://0.0.0.0:2375", want: "127.0.0.1"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("DOCKER_HOST", test.dockerHost)
+			t.Setenv(dockerHostPathStyleEnv, "linux")
+			if got := managedEndpointHost(); got != test.want {
+				t.Fatalf("managed endpoint host = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestManagedExecBoundsErrorsAndCredentials(t *testing.T) {
 	root := t.TempDir()
 	secrets, err := instanceaccess.OpenSecrets(filepath.Join(root, "secrets"))
