@@ -774,6 +774,13 @@ jobs:
             1> (Join-Path $outDir "dockerd-wsl.log") `
             2> $null
 
+      - name: Stop failed Windows engine before diagnostics
+        if: failure() && matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          Get-Process -Name sqlrs-engine -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 2
+
       - name: Upload Linux E2E diagnostics
         if: failure() && matrix.platform == 'linux'
         uses: actions/upload-artifact@v7
