@@ -152,6 +152,17 @@ func normalizeContainerRuntimeMode(mode string) string {
 	}
 }
 
+// managedStoreLockPath keeps the ownership lock on a local filesystem when a
+// Windows host exposes a Linux store through a WSL UNC path. Windows byte-range
+// locks are not reliable through the WSL 9P bridge, while the state database
+// path remains host-local in that configuration.
+func managedStoreLockPath(storeRoot, stateDBPath string) string {
+	if strings.HasPrefix(storeRoot, `\\`) && !strings.HasPrefix(stateDBPath, `\\`) {
+		return filepath.Join(filepath.Dir(stateDBPath), "store.engine-lock")
+	}
+	return filepath.Join(storeRoot, "engine.lock")
+}
+
 // resolveContainerRuntimeBinary returns the executable name or path for the container runtime
 // (docker/podman). Prefers config-based mode selection, with SQLRS_CONTAINER_RUNTIME as an
 // operational override. In auto mode, tries docker then podman.
@@ -451,7 +462,7 @@ func run(args []string) (int, error) {
 	if err != nil {
 		return 1, fmt.Errorf("resolve state database: %v", err)
 	}
-	storeLock, err := managedstore.Lock(filepath.Join(stateStoreRoot, "engine.lock"))
+	storeLock, err := managedstore.Lock(managedStoreLockPath(stateStoreRoot, stateDBPath))
 	if err != nil {
 		return 1, err
 	}

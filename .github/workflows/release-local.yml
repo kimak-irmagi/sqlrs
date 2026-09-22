@@ -664,7 +664,11 @@ jobs:
             $env:DOCKER_HOST = "tcp://${wslAddress}:2375"
             $env:SQLRS_DOCKER_HOST_PATH_STYLE = "linux"
 
-            $wslStoreRoot = "/var/tmp/sqlrs-release-e2e/$scenario-$env:SNAPSHOT_BACKEND/store"
+            $wslStoreRoot = "/var/tmp/sqlrs-release-e2e/$env:GITHUB_RUN_ID/$scenario-$env:SNAPSHOT_BACKEND/store"
+            wsl.exe -d "${{ matrix.wsl_distro }}" -- rm -rf -- $wslStoreRoot
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not remove a previous copy state store in the WSL filesystem; exit code $LASTEXITCODE"
+            }
             wsl.exe -d "${{ matrix.wsl_distro }}" -- mkdir -p $wslStoreRoot
             if ($LASTEXITCODE -ne 0) {
               throw "Could not create the copy state store in the WSL filesystem; exit code $LASTEXITCODE"
@@ -1065,7 +1069,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-latest
+          - runner: macos-15-intel
             os_family: darwin
     steps:
       - name: Checkout
@@ -1113,6 +1117,56 @@ jobs:
           fi
           echo "bundle_dir=$bundle_dir" >> "$GITHUB_OUTPUT"
 
+      - name: Install Podman
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v podman >/dev/null 2>&1; then
+            podman_version="v5.8.5"
+            podman_pkg="${RUNNER_TEMP}/podman-installer-macos-amd64.pkg"
+            podman_sha256="2677be9fa3bf75f7dbd4dfe5f5039cf105806f102af15ee6c6d174c70dcda3b8"
+            podman_url="https://github.com/podman-container-tools/podman/releases/download/${podman_version}/podman-installer-macos-amd64.pkg"
+            curl -fsSL "$podman_url" -o "$podman_pkg"
+            echo "${podman_sha256}  ${podman_pkg}" | shasum -a 256 -c -
+            sudo installer -pkg "$podman_pkg" -target /
+          fi
+          if ! command -v podman >/dev/null 2>&1; then
+            podman_bin_dir="$(head -n 1 /etc/paths.d/podman-pkg)"
+            echo "$podman_bin_dir" >> "$GITHUB_PATH"
+            export PATH="${podman_bin_dir}:${PATH}"
+          fi
+          podman --version
+
+      - name: Start Podman machine
+        shell: bash
+        run: |
+          set -euo pipefail
+          machine_name="podman-machine-default"
+          try_provider() {
+            local provider="${1:-}"
+            podman machine stop "$machine_name" || true
+            podman machine rm -f "$machine_name" || true
+            if [[ -n "$provider" ]]; then
+              export CONTAINERS_MACHINE_PROVIDER="$provider"
+            else
+              unset CONTAINERS_MACHINE_PROVIDER || true
+            fi
+            podman machine init --cpus 2 --memory 4096 --disk-size 20 "$machine_name"
+            podman machine start "$machine_name"
+            podman info
+          }
+          if ! try_provider "" && ! try_provider "libkrun" && ! try_provider "applehv"; then
+            echo "Podman machine could not be started on this macOS runner." >&2
+            exit 1
+          fi
+          socket_path="$(podman machine inspect "$machine_name" --format '{{.ConnectionInfo.PodmanSocket.Path}}')"
+          if [[ -z "$socket_path" ]]; then
+            echo "Podman machine did not expose a socket." >&2
+            exit 1
+          fi
+          echo "SQLRS_CONTAINER_RUNTIME=podman" >> "$GITHUB_ENV"
+          echo "CONTAINER_HOST=unix://${socket_path}" >> "$GITHUB_ENV"
+
       - name: Run darwin smoke checks
         if: matrix.os_family == 'darwin'
         id: smoke-darwin
@@ -1125,6 +1179,11 @@ jobs:
             --sqlrs "${{ steps.bundle-darwin.outputs.bundle_dir }}/sqlrs" \
             --engine "${{ steps.bundle-darwin.outputs.bundle_dir }}/sqlrs-engine" \
             --out-dir "$out_dir"
+
+      - name: Stop Podman machine
+        if: always()
+        shell: bash
+        run: podman machine stop podman-machine-default || true
 
       - name: Upload darwin smoke diagnostics
         if: failure() && matrix.os_family == 'darwin'
