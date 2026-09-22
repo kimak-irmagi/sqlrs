@@ -441,7 +441,45 @@ func TestExecuteStateTaskPathAndCapacityBranches(t *testing.T) {
 	})
 }
 
+// Another builder can publish while this request prepares its state directory.
+// Signal that boundary explicitly instead of relying on filesystem latency.
+type publishDuringStateSetup struct {
+	fakeStateFS
+	publish func()
+}
+
+func (f *publishDuringStateSetup) EnsureStateDir(ctx context.Context, path string) error {
+	if err := f.fakeStateFS.EnsureStateDir(ctx, path); err != nil {
+		return err
+	}
+	f.publish()
+	return nil
+}
+
 func TestExecuteStateTaskLockBranches(t *testing.T) {
+	t.Run("reuse state published before build lock", func(t *testing.T) {
+		st := &fakeStore{}
+		fs := &publishDuringStateSetup{publish: func() {
+			st.statesByID = map[string]store.StateEntry{
+				"state-1": {StateID: "state-1", ImageID: "image-1"},
+			}
+		}}
+		mgr := newManagerWithDeps(t, st, newQueueStore(t), &testDeps{statefs: &fs.fakeStateFS})
+		mgr.statefs = fs
+		task := taskState{PlanTask: PlanTask{
+			TaskID: "execute-0", OutputStateID: "state-1",
+			Input: &TaskInput{Kind: "image", ID: "image-1"},
+		}}
+		prepared := preparedRequest{request: Request{PrepareKind: "custom", ImageID: "image-1"}}
+		got, errResp := mgr.executeStateTask(context.Background(), "job-1", prepared, task)
+		if errResp != nil || got != "state-1" {
+			t.Fatalf("expected published cache state, got %q, %+v", got, errResp)
+		}
+		if len(fs.cloneCalls) != 0 || len(fs.snapshotCalls) != 0 || len(st.states) != 0 {
+			t.Fatal("rebuilt a state published before acquiring its build lock")
+		}
+	})
+
 	t.Run("cache lookup error inside state build lock", func(t *testing.T) {
 		store := &nthGetStateErrStore{
 			fakeStore: fakeStore{},

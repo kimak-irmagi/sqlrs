@@ -1,5 +1,10 @@
 # Local Engine Storage Schema (SQLite)
 
+Update, 2026-09-14: the approved [managed-identity flow](managed-database-identity.md)
+replaces fixed SQL-name assumptions. The [component/schema design](managed-database-identity-internals.md)
+and test plan are approved; implementation details below describe the current generation,
+not permission to infer or restore a fixed administrative role.
+
 This document defines the SQLite schema for persistent names/instances/states
 used by the local engine and exposed via `sqlrs ls`.
 
@@ -74,11 +79,11 @@ CREATE TABLE IF NOT EXISTS instances (
 Notes:
 
 - `instance_id` uses the engine-defined id format.
-- `runtime_id` stores the runtime/container identifier used to stop or inspect the instance;
-  it is updated when a missing container is recreated for `run`.
-- `runtime_dir` stores the absolute path to the per-job runtime data directory for cleanup
-  and for container recreation during `run`.
-- `status` is reserved for future use; current status is derived.
+- `runtime_id` stores the exact runtime/container identifier used to stop or inspect the instance;
+  managed access also verifies its durable physical binding. Missing containers fail closed.
+- `runtime_dir` stores the absolute path to the per-job runtime data directory for cleanup;
+  it does not authorize adopting or recreating a managed container.
+- Managed publication writes `status=active` only after native access verification.
 
 ### 3.3 `names`
 

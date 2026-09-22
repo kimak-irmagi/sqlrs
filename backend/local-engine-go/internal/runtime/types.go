@@ -2,15 +2,18 @@ package runtime
 
 import (
 	"context"
+	"github.com/sqlrs/engine-local/internal/instanceaccess"
+	"github.com/sqlrs/engine-local/internal/managedidentity"
 	"time"
 )
 
 type LogSink func(line string)
 
 type Instance struct {
-	ID   string
-	Host string
-	Port int
+	Binding managedidentity.RuntimeBinding
+	ID      string
+	Host    string
+	Port    int
 }
 
 type StartRequest struct {
@@ -23,11 +26,13 @@ type StartRequest struct {
 }
 
 type ExecRequest struct {
-	User  string
-	Args  []string
-	Env   map[string]string
-	Dir   string
-	Stdin *string
+	// Secret is a protected reference; it is resolved only at process delivery.
+	Secret *instanceaccess.SecretBinding
+	User   string
+	Args   []string
+	Env    map[string]string
+	Dir    string
+	Stdin  *string
 }
 
 type RunRequest struct {

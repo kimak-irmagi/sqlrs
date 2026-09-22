@@ -55,8 +55,8 @@ func (s *SQLiteStore) Close() error {
 
 func (s *SQLiteStore) CreateJob(ctx context.Context, job JobRecord) error {
 	query := `
-INSERT INTO prepare_jobs (job_id, status, prepare_kind, image_id, plan_only, snapshot_mode, prepare_args_normalized, signature, request_json, created_at, started_at, finished_at, result_json, error_json)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+INSERT INTO prepare_jobs (job_id, status, prepare_kind, image_id, plan_only, snapshot_mode, prepare_args_normalized, signature, request_json, created_at, started_at, finished_at, result_json, error_json, resolved_image_id, lineage_ref, identity_digest)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	_, err := s.db.ExecContext(ctx, query,
 		job.JobID,
 		job.Status,
@@ -72,6 +72,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		nullString(job.FinishedAt),
 		nullString(job.ResultJSON),
 		nullString(job.ErrorJSON),
+		job.ResolvedImageID,
+		job.LineageRef,
+		job.IdentityDigest,
 	)
 	return err
 }
@@ -130,7 +133,7 @@ func (s *SQLiteStore) UpdateJob(ctx context.Context, jobID string, update JobUpd
 func (s *SQLiteStore) GetJob(ctx context.Context, jobID string) (JobRecord, bool, error) {
 	query := `
 SELECT job_id, status, prepare_kind, image_id, plan_only, snapshot_mode, prepare_args_normalized, signature, request_json,
-       created_at, started_at, finished_at, result_json, error_json
+       created_at, started_at, finished_at, result_json, error_json, coalesce(resolved_image_id,''), coalesce(lineage_ref,''), coalesce(identity_digest,'')
 FROM prepare_jobs
 WHERE job_id = ?`
 	row := s.db.QueryRowContext(ctx, query, jobID)
@@ -148,7 +151,7 @@ func (s *SQLiteStore) ListJobs(ctx context.Context, jobID string) ([]JobRecord, 
 	query := strings.Builder{}
 	query.WriteString(`
 SELECT job_id, status, prepare_kind, image_id, plan_only, snapshot_mode, prepare_args_normalized, signature, request_json,
-       created_at, started_at, finished_at, result_json, error_json
+       created_at, started_at, finished_at, result_json, error_json, coalesce(resolved_image_id,''), coalesce(lineage_ref,''), coalesce(identity_digest,'')
 FROM prepare_jobs
 WHERE 1=1`)
 	args := []any{}
@@ -181,7 +184,7 @@ func (s *SQLiteStore) ListJobsByStatus(ctx context.Context, statuses []string) (
 	query := strings.Builder{}
 	query.WriteString(`
 SELECT job_id, status, prepare_kind, image_id, plan_only, snapshot_mode, prepare_args_normalized, signature, request_json,
-       created_at, started_at, finished_at, result_json, error_json
+       created_at, started_at, finished_at, result_json, error_json, coalesce(resolved_image_id,''), coalesce(lineage_ref,''), coalesce(identity_digest,'')
 FROM prepare_jobs
 WHERE status IN (`)
 	args := []any{}
@@ -220,7 +223,7 @@ func (s *SQLiteStore) ListJobsBySignature(ctx context.Context, signature string,
 	query := strings.Builder{}
 	query.WriteString(`
 SELECT job_id, status, prepare_kind, image_id, plan_only, snapshot_mode, prepare_args_normalized, signature, request_json,
-       created_at, started_at, finished_at, result_json, error_json
+       created_at, started_at, finished_at, result_json, error_json, coalesce(resolved_image_id,''), coalesce(lineage_ref,''), coalesce(identity_digest,'')
 FROM prepare_jobs
 WHERE signature = ?`)
 	args := []any{signature}
@@ -448,8 +451,15 @@ func initDB(db *sql.DB) error {
 	if err := ensureJobSignatureColumn(db); err != nil {
 		return err
 	}
-	_, err := db.Exec(SchemaSQL())
-	return err
+	if _, err := db.Exec(SchemaSQL()); err != nil {
+		return err
+	}
+	for _, column := range []string{"resolved_image_id", "lineage_ref", "identity_digest"} {
+		if _, err := db.Exec("ALTER TABLE prepare_jobs ADD COLUMN " + column + " TEXT"); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return err
+		}
+	}
+	return nil
 }
 
 func ensureTaskImageColumns(db *sql.DB) error {
@@ -542,6 +552,9 @@ func scanJob(scanner interface {
 		&finishedAt,
 		&resultJSON,
 		&errorJSON,
+		&record.ResolvedImageID,
+		&record.LineageRef,
+		&record.IdentityDigest,
 	); err != nil {
 		return JobRecord{}, err
 	}
