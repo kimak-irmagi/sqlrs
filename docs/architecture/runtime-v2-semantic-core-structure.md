@@ -186,6 +186,7 @@ func TransformFingerprint(transform ResolvedTransformIdentity) (Fingerprint, err
 func Derive(parent StateID, transform TransformProvenance) (LineageStep, error)
 func Build(recipe Recipe) (RecipeLineage, error)
 func Extend(anchor StateID, transforms []TransformProvenance) (RelativeLineage, error)
+func DecodeJSON(data []byte, target json.Unmarshaler) error
 ```
 
 `Recipe` is an ordered input consisting of factory provenance and transform
@@ -197,6 +198,12 @@ and represents the unchanged anchor without inventing a state or transform.
 `RelativeLineage.EndpointID()` returns its anchor or final step StateID. Validated
 JSON decoding recomputes every embedded fingerprint and StateID, and rejects a
 record at the first mismatch.
+
+Read-only accessors expose every resolved identity scalar and defensive copies of
+fields, declarations, resolver observations, recipe transforms, and lineage
+steps. `Recipe.Factory()`, `RecipeLineage.Factory()`, and
+`RelativeLineage.Anchor()` expose the immutable inputs needed by external engine
+implementations without revealing package storage.
 
 ## Validation contract
 
@@ -218,6 +225,11 @@ building DTOs.
 JSON decoding rejects unknown fields. Additive diagnostics therefore require a
 schema/API release rather than being silently ignored. Canonical hash encoding is
 independent of JSON member ordering and diagnostic representation.
+
+Trust boundaries use `DecodeJSON`, which invokes the package decoder directly and
+therefore returns `ValidationError` even for malformed syntax or trailing tokens.
+Ordinary `encoding/json.Unmarshal` remains supported for valid JSON, but Go may
+return its own syntax error before calling `UnmarshalJSON` on malformed input.
 
 ## Ownership and integration boundary
 

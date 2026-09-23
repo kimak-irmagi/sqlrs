@@ -74,7 +74,14 @@ gantt
 
 ---
 
-## Status (as of 2026-08-31)
+## Status (as of 2026-09-23)
+
+- **Done ([#107](https://github.com/kimak-irmagi/sqlrs/issues/107), Runtime v2
+  semantic core)**: the standalone `backend/libs/runtime-go` module now defines
+  versioned resolved identities, provenance, canonical SHA-256 state derivation,
+  recipe and relative lineages, strict JSON validation, and stable structured
+  errors. Checked-in golden vectors are verified in-process, in a fresh process,
+  and by an independent Node.js encoder; module coverage is 95.4%.
 
 - **Local implementation complete (managed database identity, 2026-09-16)**:
   guarded startup cutover, durable lineage, identity-bound planning/cache,
@@ -82,8 +89,9 @@ gantt
   and exact pending-activation recovery are implemented. PostgreSQL 17 Sakila,
   Chinook and Liquibase, repeated cache use and base eviction/rebuild pass;
   affected packages meet the 95% coverage minimum. PR #106 awaits final CI and
-  separate izess compatibility acceptance before merge. Missing-runtime replacement
-  remains unsupported and fails closed. See the [test report](architecture/managed-database-identity-tests.md).
+  separate izess compatibility acceptance before merge. Missing-runtime
+  replacement remains unsupported and fails closed. See the
+  [test report](architecture/managed-database-identity-tests.md).
   Generic prepare/HTTP test fixtures now use in-memory SQLite to reduce coverage
   runtime; durable storage and recovery tests retain real files.
   Image-alias cache reads now compare immutable digests and use stored snapshot
@@ -560,7 +568,8 @@ credentials or runtime connection details.
 
 ## Detailed Architecture Documents
 
-- [`sqlrs-engine.openapi.yaml`](api-guides/sqlrs-engine.openapi.yaml) (HTTP API + events)
+- [Engine OpenAPI](api-guides/sqlrs-engine.openapi.yaml) (HTTP API +
+  events)
 - [`sql-runner-api.md`](architecture/sql-runner-api.md) (timeouts, cancel,
   streaming, cache-aware planning)
 - [`local-deployment-architecture.md`](architecture/local-deployment-architecture.md)
@@ -575,6 +584,7 @@ credentials or runtime connection details.
 
 Still unfinished without a dedicated GitHub issue: a consolidated security
 model covering cloud hardening, redaction, and audit.
+
 - [`git-aware-passive.md`](architecture/git-aware-passive.md) (CLI by ref,
   zero-copy, provenance)
 - [`git-aware-active.md`](architecture/git-aware-active.md) (PR automation,

@@ -152,7 +152,9 @@ and optional members, and atomic decoding behavior.
 Decision: use the exact JSON shapes in the component-structure document. Object
 order is insignificant, but unknown and duplicate members, null required values,
 invalid UTF-8, and trailing tokens fail. `state_kind` discriminates factory and
-derived states. Failed unmarshal leaves an existing receiver unchanged.
+derived states. Failed unmarshal leaves an existing receiver unchanged. Trust
+boundaries use public `DecodeJSON` so malformed syntax is normalized before Go's
+`encoding/json` can return its own pre-`UnmarshalJSON` error.
 
 Rationale: persistence and remote consumers need a contract independent of Go
 field layout, and failed decoding must not expose a partially validated value.

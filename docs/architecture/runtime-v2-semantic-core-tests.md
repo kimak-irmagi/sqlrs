@@ -1,7 +1,6 @@
 # Runtime v2 semantic core: test design
 
-Status: proposed for issue #107 after the 2026-09-23 critical review; awaiting
-user approval before tests or implementation.
+Status: approved and implemented for issue #107 on 2026-09-23.
 
 This document defines conformance evidence for the approved
 [interaction flow](runtime-v2-semantic-core-flow.md) and
@@ -20,7 +19,9 @@ The suite has four layers:
 
 Golden expected values must not be generated or rewritten by the package under
 test. A fixture is a conformance envelope with separate `input` and `expected`
-objects; the nested `input.value` is one exact public JSON shape. `expected`
+objects. For `recipe`, the nested `input.value` is the exact public `Recipe`
+JSON shape. For `relative`, it is a test-only construction input containing
+`schema_version`, `anchor`, and public transform-provenance values. `expected`
 records every canonical hash preimage in lowercase hex, each resulting digest,
 all intermediate states, and the endpoint.
 
@@ -172,6 +173,11 @@ specific structural code and the exact field/index path.
 - **J08:** invalid UTF-8 is rejected before canonicalization.
 - **J09:** JSON matches the normative allowlist for every public shape; physical
   metadata and alternate state-union fields are rejected as unknown.
+
+J02-J09 use public `DecodeJSON` at the trust boundary. A compatibility test also
+proves that `encoding/json.Unmarshal` accepts every valid golden value; native Go
+syntax errors returned before `UnmarshalJSON` are not required to match
+`ErrInvalid`.
 
 Identifier and version validation is explicit:
 

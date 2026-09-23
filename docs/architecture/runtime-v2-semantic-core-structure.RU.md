@@ -184,6 +184,7 @@ func TransformFingerprint(transform ResolvedTransformIdentity) (Fingerprint, err
 func Derive(parent StateID, transform TransformProvenance) (LineageStep, error)
 func Build(recipe Recipe) (RecipeLineage, error)
 func Extend(anchor StateID, transforms []TransformProvenance) (RelativeLineage, error)
+func DecodeJSON(data []byte, target json.Unmarshaler) error
 ```
 
 `Recipe` — упорядоченный input из provenance фабрики и преобразований. Для
@@ -195,6 +196,12 @@ factory-only recipe `Build` возвращает корень и пустой с
 `RelativeLineage.EndpointID()` возвращает опору или StateID последнего step.
 Проверяемый JSON decoder пересчитывает каждый вложенный fingerprint и StateID и
 останавливается при первом несовпадении.
+
+Read-only accessor-ы открывают все scalar-поля resolved identity и defensive
+copies полей, declarations, resolver observations, recipe transforms и lineage
+steps. `Recipe.Factory()`, `RecipeLineage.Factory()` и
+`RelativeLineage.Anchor()` предоставляют immutable inputs, необходимые внешним
+реализациям engine, не раскрывая внутреннее хранение пакета.
 
 ## Контракт проверки
 
@@ -216,6 +223,11 @@ type ValidationError struct {
 JSON decoder отклоняет неизвестные поля. Добавление diagnostics требует релиза
 схемы/API и не игнорируется молча. Canonical hash encoding не зависит от порядка
 JSON members и представления diagnostics.
+
+На trust boundaries используется `DecodeJSON`: он вызывает package decoder
+напрямую и возвращает `ValidationError` даже для malformed syntax и trailing
+tokens. Обычный `encoding/json.Unmarshal` поддержан для valid JSON, но Go может
+вернуть собственный syntax error до вызова `UnmarshalJSON` на malformed input.
 
 ## Владение и граница интеграции
 

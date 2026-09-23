@@ -81,10 +81,43 @@ jobs:
         working-directory: backend/local-engine-go
         run: go test ./...
 
+  test-runtime-v2:
+    if: contains(github.event.inputs.version || github.ref_name, '-rc.')
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/libs/runtime-go/go.mod
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      - name: Run Runtime v2 tests
+        working-directory: backend/libs/runtime-go
+        run: go test ./...
+
+      - name: Verify Runtime v2 golden vectors independently
+        run: node scripts/maintenance/verify-runtime-v2-golden.mjs backend/libs/runtime-go/testdata/golden
+
+      - name: Test standalone Runtime v2 consumer
+        working-directory: test/runtime-v2-consumer
+        shell: bash
+        run: GOWORK=off go test ./...
+
   build-rc:
     if: contains(github.event.inputs.version || github.ref_name, '-rc.')
     runs-on: ${{ matrix.runner }}
-    needs: [test-cli, test-engine, lint-openapi]
+    needs: [test-cli, test-engine, test-runtime-v2, lint-openapi]
     env:
       RAW_VERSION: ${{ github.event.inputs.version || github.ref_name }}
       ENGINE_DIR: dist/engine

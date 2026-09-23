@@ -1,6 +1,7 @@
 go 1.25.0
 
 use (
+	./backend/libs/runtime-go
 	./backend/local-engine-go
 	./frontend/cli-go
 )

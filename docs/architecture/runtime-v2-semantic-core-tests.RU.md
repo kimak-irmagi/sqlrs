@@ -1,7 +1,6 @@
 # Семантическое ядро Runtime v2: проект тестов
 
-Статус: предложение для issue #107 после критического анализа 2026-09-23;
-ожидает согласования пользователя до создания тестов или реализации.
+Статус: согласован и реализован для issue #107 2026-09-23.
 
 Документ определяет conformance evidence для согласованных
 [потока взаимодействия](runtime-v2-semantic-core-flow.RU.md) и
@@ -19,9 +18,11 @@ Suite состоит из четырёх уровней:
 4. module-boundary tests из local engine и независимого Go-модуля.
 
 Golden expected values нельзя генерировать или переписывать тестируемым пакетом.
-Fixture — conformance envelope с раздельными объектами `input` и `expected`;
-вложенный `input.value` имеет точную публичную JSON shape. `expected` содержит
-каждый canonical hash preimage в lowercase hex, полученные digest, все
+Fixture — conformance envelope с раздельными объектами `input` и `expected`.
+Для `recipe` вложенный `input.value` имеет точную публичную JSON shape `Recipe`.
+Для `relative` это test-only construction input с `schema_version`, `anchor` и
+публичными transform-provenance values. `expected` содержит каждый canonical
+hash preimage в lowercase hex, полученные digest, все
 intermediate states и endpoint.
 
 Test-only envelope имеет точную форму:
@@ -166,6 +167,11 @@ Validated decoding отклоняет каждую mutation с `integrity_mismat
 - **J08:** invalid UTF-8 запрещается до canonicalization.
 - **J09:** JSON совпадает с нормативным allowlist каждой public shape; physical
   metadata и поля другого варианта State запрещены как unknown.
+
+J02-J09 используют public `DecodeJSON` на trust boundary. Compatibility test
+также доказывает, что `encoding/json.Unmarshal` принимает каждый valid golden
+value; native Go syntax errors до вызова `UnmarshalJSON` не обязаны совпадать с
+`ErrInvalid`.
 
 Identifier и version validation заданы явно:
 
