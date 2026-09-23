@@ -6,6 +6,7 @@ Key doc categories and entry points:
 - Requirements: [`requirements-architecture.md`](requirements-architecture.md)
 - Roadmap: [`roadmap.md`](roadmap.md)
 - ADRs: [`adr/`](adr/)
+- Public Runtime v2 Go module: [`../backend/libs/runtime-go/README.md`](../backend/libs/runtime-go/README.md)
 - API guides: [`api-guides/README.md`](api-guides/README.md)
 - Running experiments: [`experiments.md`](experiments.md)
 - Windows specifics: [`windows.md`](windows.md)

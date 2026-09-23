@@ -13,8 +13,10 @@ package runtimev2
 ```
 
 The path follows the renamed canonical repository. Add the module to root
-`go.work`. Releases of this nested module use repository tags prefixed with its
-subdirectory, for example `backend/libs/runtime-go/v0.1.0`. Runtime v2 is the
+`go.work`. Releases use repository tags prefixed with the module subdirectory.
+Tag `backend/libs/runtime-go/v0.1.0` points to the #107 merge commit `52bb255`,
+but was published before the complete declaration boundary and is superseded by
+the planned #108/#124 `backend/libs/runtime-go/v0.2.0` release. Runtime v2 is the
 semantic schema name; it does not force a Go module `/v2` suffix before the Go
 module itself reaches major version 2.
 
@@ -59,6 +61,12 @@ Identity-bearing semantic values are immutable:
 declaration/observation layers separate. Consequently, two provenance records may
 carry different declaration spelling while exposing equal resolved identities.
 
+These #107 declaration DTOs and their nested JSON remain the compatibility and
+golden baseline. New standalone inputs use the required-version documents and
+typed extension roles specified in
+[the declaration structure](runtime-v2-declaration-structure.md); they do not
+retrofit a version field into the legacy nested shape.
+
 Opaque semantic types use private fields. Constructors and validated JSON
 decoders copy slices and maps; accessors return values or defensive copies.
 Custom `MarshalJSON` and `UnmarshalJSON` provide the public persistence/transport
@@ -81,7 +89,8 @@ Resolved factory and transform identities share this shape:
 }
 ```
 
-`fields` is required and may be empty. Declaration and resolver diagnostics are:
+`fields` is required and may be empty. The legacy nested declaration and resolver
+diagnostics retained for #107 compatibility are:
 
 ```json
 {

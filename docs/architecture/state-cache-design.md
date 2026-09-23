@@ -106,9 +106,12 @@ This section documents the current MVP/local cache contract. Its composite key
 is not the normative Runtime v2 identity algorithm. The standalone Runtime v2
 semantic core is specified in
 [its flow](runtime-v2-semantic-core-flow.md) and
-[component structure](runtime-v2-semantic-core-structure.md). Issue #107 adds
-that module without migrating this cache; a later integration must replace the
-MVP derivation atomically rather than reinterpret existing IDs.
+[component structure](runtime-v2-semantic-core-structure.md). Issues #107, #108,
+and #124 add the semantic module, versioned declarations, and a resolver-local
+directory cache without migrating this engine state cache. The resolver cache
+stores resolution evidence, not materialized engine states. Issue #110 owns any
+later engine integration, which must replace the MVP derivation atomically rather
+than reinterpret existing IDs.
 
 ### 6.1 State identity
 

@@ -2,6 +2,7 @@
 
 Status: approved by @evilguest for issue #107, 2026-09-23. The critical-review
 corrections were approved in the same conversation before test design.
+The #108/#124 boundary clarification was approved 2026-09-24.
 
 Runtime v2 separates logical state identity from resolution, execution, and
 physical materialization. The semantic core is a pure, engine-neutral Go module.
@@ -14,12 +15,15 @@ checkpoint metadata.
 ```mermaid
 sequenceDiagram
     participant Caller as "Local/shared engine"
-    participant Resolver as "Resolver provider (out of scope)"
+    participant Resolver as "Extension resolver"
+    participant Adapter as "Role-specific adapter"
     participant Core as "Runtime v2 semantic core"
     participant Runtime as "Execution/materialization (out of scope)"
 
-    Caller->>Resolver: Resolve factory and transform declarations
-    Resolver-->>Caller: FactoryProvenance and ordered TransformProvenance values
+    Caller->>Resolver: Resolve typed extension declarations
+    Resolver-->>Caller: ResolvedExtensionIdentity values
+    Caller->>Adapter: Compose extensions with factory/transform base fields
+    Adapter-->>Caller: FactoryProvenance and ordered TransformProvenance values
     Caller->>Core: Build(Recipe)
     Core->>Core: Validate and copy immutable identities
     Core->>Core: Create factory/root State
@@ -61,10 +65,17 @@ Runtime v2 state formula.
 
 ## Resolved identity and diagnostics
 
-Resolvers return two explicitly separated layers:
+The semantic core and extension boundary expose explicitly separated layers:
 
 - `ResolvedFactoryIdentity` or `ResolvedTransformIdentity` is identity-bearing;
+- a resolver returns `ResolvedExtensionIdentity`, which becomes factory or
+  transform identity-bearing only through explicit adapter composition;
 - optional declaration and resolver-observation metadata is diagnostic.
+
+The versioned declaration, extension composition, and resolver contracts are
+specified separately in the [declaration flow](runtime-v2-declaration-flow.md)
+and [resolver flow](runtime-v2-resolver-flow.md). This clarification does not
+change the #107 fingerprint, StateID, or lineage algorithms.
 
 Each resolved identity contains `Provider`, `Kind`, `IdentitySchema`, and unique
 named `ResolvedField` values. `IdentitySchema` versions the provider's semantic

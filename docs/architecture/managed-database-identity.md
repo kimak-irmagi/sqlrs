@@ -47,8 +47,9 @@ access. It does not require deploying shared microservices locally.
 
 This statement describes the current managed-identity/cache integration. The
 standalone Runtime v2 core is engine-neutral and deterministic for identical
-resolved factory identities. Issue #107 does not yet map managed identities into
-that model; the later adapter boundary is documented in the Runtime v2 flow.
+resolved factory identities. Issues #124 and #108 provide the typed extension,
+composition, and resolution primitives, but do not map managed identities into
+that model. A managed-database adapter remains later integration work.
 
 No new CLI option or public identity field is proposed. The existing authorized
 DSN contains the actual username. Use the approved error envelope; introducing
