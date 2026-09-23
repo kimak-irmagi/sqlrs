@@ -41,9 +41,16 @@ func TestFactoryIdentitySensitivity(t *testing.T) {
 }
 
 func TestPhysicalMetadataIsRejectedByPublicJSONShapes(t *testing.T) {
-	factory, transform := requirementProvenance(t)
+	baseFactory, baseTransform := requirementProvenance(t)
+	factoryDeclaration := &FactoryDeclaration{Kind: "docker", Reference: "postgres:17", Arguments: []string{}, Attributes: map[string]string{}}
+	transformDeclaration := &TransformDeclaration{Kind: "psql", Reference: "one.sql", Arguments: []string{}, Attributes: map[string]string{}}
+	resolver := &ResolverObservation{Implementation: "builtin", Version: "v1"}
+	factory, _ := NewFactoryProvenance(FactoryProvenanceInput{Identity: baseFactory.Identity(), Declaration: factoryDeclaration, Resolver: resolver})
+	transform, _ := NewTransformProvenance(TransformProvenanceInput{Identity: baseTransform.Identity(), Declaration: transformDeclaration, Resolver: resolver})
 	recipe, _ := NewRecipe(factory, []TransformProvenance{transform})
 	lineage, _ := Build(recipe)
+	relative, _ := Extend(lineage.Root().ID(), []TransformProvenance{transform})
+	step := lineage.Steps()[0]
 	physical := []string{"runtime_id", "job_id", "timestamp", "physical_path", "snapshot_path", "checkpoint_backend", "materialization"}
 	shapes := []struct {
 		name   string
@@ -52,8 +59,16 @@ func TestPhysicalMetadataIsRejectedByPublicJSONShapes(t *testing.T) {
 	}{
 		{"factory identity", factory.Identity(), func() any { return &ResolvedFactoryIdentity{} }},
 		{"transform identity", transform.Identity(), func() any { return &ResolvedTransformIdentity{} }},
-		{"state", lineage.Root(), func() any { return &State{} }},
+		{"factory declaration", *factoryDeclaration, func() any { return &FactoryDeclaration{} }},
+		{"transform declaration", *transformDeclaration, func() any { return &TransformDeclaration{} }},
+		{"factory provenance", factory, func() any { return &FactoryProvenance{} }},
+		{"transform provenance", transform, func() any { return &TransformProvenance{} }},
+		{"factory state", lineage.Root(), func() any { return &State{} }},
+		{"derived state", step.State(), func() any { return &State{} }},
+		{"lineage step", step, func() any { return &LineageStep{} }},
+		{"recipe", recipe, func() any { return &Recipe{} }},
 		{"recipe lineage", lineage, func() any { return &RecipeLineage{} }},
+		{"relative lineage", relative, func() any { return &RelativeLineage{} }},
 	}
 	for _, shape := range shapes {
 		rawShape, _ := json.Marshal(shape.value)

@@ -62,7 +62,7 @@ func TestGoldenVectorsFreshProcess(t *testing.T) {
 	}
 }
 
-func loadGoldenFixtures(t *testing.T) []goldenFixture {
+func loadGoldenFixtures(t testing.TB) []goldenFixture {
 	t.Helper()
 	paths, err := filepath.Glob(filepath.Join("testdata", "golden", "*.json"))
 	if err != nil {

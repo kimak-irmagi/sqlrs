@@ -58,6 +58,7 @@ func FuzzLineageJSON(f *testing.F) {
 	relativeJSON, _ := json.Marshal(relative)
 	f.Add(lineageJSON, false)
 	f.Add(relativeJSON, true)
+	addGoldenLineageSeeds(f)
 	f.Add([]byte(`{}`), false)
 	f.Fuzz(func(t *testing.T, raw []byte, isRelative bool) {
 		if isRelative {
@@ -102,6 +103,50 @@ func FuzzLineageJSON(f *testing.F) {
 			t.Fatalf("accepted recipe lineage is not stable: %v", err)
 		}
 	})
+}
+
+func addGoldenLineageSeeds(f *testing.F) {
+	f.Helper()
+	for _, fixture := range loadGoldenFixtures(f) {
+		switch fixture.Input.Type {
+		case "recipe":
+			var recipe Recipe
+			if err := DecodeJSON(fixture.Input.Value, &recipe); err != nil {
+				f.Fatal(err)
+			}
+			lineage, err := Build(recipe)
+			if err != nil {
+				f.Fatal(err)
+			}
+			raw, err := json.Marshal(lineage)
+			if err != nil {
+				f.Fatal(err)
+			}
+			f.Add(raw, false)
+		case "relative":
+			var input relativeGoldenInput
+			if err := decodeStrict(fixture.Input.Value, &input); err != nil {
+				f.Fatal(err)
+			}
+			transforms := make([]TransformProvenance, len(input.Transforms))
+			for index := range input.Transforms {
+				if err := DecodeJSON(input.Transforms[index], &transforms[index]); err != nil {
+					f.Fatal(err)
+				}
+			}
+			lineage, err := Extend(input.Anchor, transforms)
+			if err != nil {
+				f.Fatal(err)
+			}
+			raw, err := json.Marshal(lineage)
+			if err != nil {
+				f.Fatal(err)
+			}
+			f.Add(raw, true)
+		default:
+			f.Fatalf("unknown golden input type %q", fixture.Input.Type)
+		}
+	}
 }
 
 func requirementProvenanceForFuzz(tb testing.TB) (FactoryProvenance, TransformProvenance) {

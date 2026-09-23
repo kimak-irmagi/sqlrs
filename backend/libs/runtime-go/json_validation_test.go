@@ -3,8 +3,6 @@ package runtimev2_test
 import (
 	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -139,17 +137,8 @@ func FuzzResolvedTransformJSON(f *testing.F) {
 	f.Add([]byte(`{"schema_version":"sqlrs.runtime.v2","provider":"sqlrs","kind":"psql","identity_schema":"schema.v1","fields":[]}`))
 	f.Add([]byte(`{"schema_version":"sqlrs.runtime.v2","provider":"` + strings.Repeat("a", runtimev2.MaxIdentifierBytes) + `","kind":"psql","identity_schema":"schema.v1","fields":[]}`))
 	f.Add([]byte(`{"schema_version":"sqlrs.runtime.v2","provider":"` + strings.Repeat("a", runtimev2.MaxIdentifierBytes+1) + `","kind":"psql","identity_schema":"schema.v1","fields":[]}`))
-	fixtures, err := filepath.Glob(filepath.Join("testdata", "golden", "*.json"))
-	if err != nil || len(fixtures) == 0 {
-		f.Fatalf("discover golden fuzz seeds: %v", err)
-	}
-	for _, fixture := range fixtures {
-		raw, err := os.ReadFile(fixture)
-		if err != nil {
-			f.Fatal(err)
-		}
-		f.Add(raw)
-	}
+	f.Add([]byte(`{"schema_version":"sqlrs.runtime.v2","provider":"sqlrs","kind":"psql","identity_schema":"schema.v1","fields":[{"name":"sql","value":"` + strings.Repeat("x", runtimev2.MaxResolvedValueBytes) + `"}]}`))
+	f.Add([]byte(`{"schema_version":"sqlrs.runtime.v2","provider":"sqlrs","kind":"psql","identity_schema":"schema.v1","fields":[{"name":"sql","value":"` + strings.Repeat("x", runtimev2.MaxResolvedValueBytes+1) + `"}]}`))
 	f.Fuzz(func(t *testing.T, raw []byte) {
 		var value runtimev2.ResolvedTransformIdentity
 		if err := runtimev2.DecodeJSON(raw, &value); err == nil {

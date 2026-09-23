@@ -82,8 +82,10 @@ gantt
   версионированные resolved identities, provenance, каноническое SHA-256
   выведение состояний, recipe и relative lineage, строгую JSON-валидацию и
   стабильные structured errors. Зафиксированные golden vectors проверяются
-  внутри процесса, в новом процессе и независимым Node.js encoder; покрытие
-  модуля составляет 95,4%.
+  внутри процесса, в новом процессе и независимым Node.js encoder. Точные
+  boundary-, factory-sensitivity-, physical-metadata- и fuzz-seed-тесты
+  выполняются в PR CI; настроены Linux race/dependency gates и scheduled/release
+  fuzz campaigns. Покрытие модуля составляет 97,1%.
 
 - **Локальная реализация завершена (служебная идентичность БД, 2026-09-16)**:
   реализованы защищённый переход при запуске, постоянная lineage, связанное с
