@@ -105,11 +105,9 @@ run("windows e2e cell provisions WSL and docker prerequisites", () => {
   assert.doesNotMatch(String(runStep.run || ""), /engine_windows_bin|engine_linux_bin/);
   assert.doesNotMatch(String(runStep.run || ""), /--engine|--wsl-engine/);
   assert.match(String(runStep.run || ""), /\$isBtrfs/);
-  assert.match(String(runStep.run || ""), /DOCKER_HOST/);
-  assert.match(String(runStep.run || ""), /SQLRS_DOCKER_HOST_PATH_STYLE = "linux"/);
-  assert.match(String(runStep.run || ""), /hostname -I/);
-  assert.match(String(runStep.run || ""), /\\\\wsl\.localhost/);
-  assert.match(String(runStep.run || ""), /\/var\/tmp\/sqlrs-release-e2e/);
+  assert.match(String(runStep.run || ""), /Remove-Item Env:DOCKER_HOST/);
+  assert.doesNotMatch(String(runStep.run || ""), /hostname -I/);
+  assert.doesNotMatch(String(runStep.run || ""), /\\\\wsl\.localhost/);
   assert.match(String(runStep.run || ""), /SQLRS_STATE_DB = Join-Path \$outDir "state\.db"/);
   assert.match(String(runStep.run || ""), /"--store", "dir", \$storeRoot/);
   assert.match(String(runStep.run || ""), /"--store", "image", \$storeImage/);

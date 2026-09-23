@@ -656,24 +656,6 @@ jobs:
           Remove-Item Env:SQLRS_STATE_DB -ErrorAction SilentlyContinue
 
           if (-not $isBtrfs) {
-            $wslAddresses = (wsl.exe -d "${{ matrix.wsl_distro }}" -- hostname -I) -split '\s+'
-            $wslAddress = $wslAddresses | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Select-Object -First 1
-            if ([string]::IsNullOrWhiteSpace($wslAddress)) {
-              throw "Could not determine the WSL IPv4 address for the Linux Docker daemon."
-            }
-            $env:DOCKER_HOST = "tcp://${wslAddress}:2375"
-            $env:SQLRS_DOCKER_HOST_PATH_STYLE = "linux"
-
-            $wslStoreRoot = "/var/tmp/sqlrs-release-e2e/$env:GITHUB_RUN_ID/$scenario-$env:SNAPSHOT_BACKEND/store"
-            wsl.exe -d "${{ matrix.wsl_distro }}" -- rm -rf -- $wslStoreRoot
-            if ($LASTEXITCODE -ne 0) {
-              throw "Could not remove a previous copy state store in the WSL filesystem; exit code $LASTEXITCODE"
-            }
-            wsl.exe -d "${{ matrix.wsl_distro }}" -- mkdir -p $wslStoreRoot
-            if ($LASTEXITCODE -ne 0) {
-              throw "Could not create the copy state store in the WSL filesystem; exit code $LASTEXITCODE"
-            }
-            $storeRoot = "\\wsl.localhost\${{ matrix.wsl_distro }}" + $wslStoreRoot.Replace("/", "\")
             $env:SQLRS_STATE_DB = Join-Path $outDir "state.db"
           }
 
