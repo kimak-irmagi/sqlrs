@@ -20,10 +20,26 @@ type canonicalField struct {
 
 func encodeString(value string) []byte { return encodeBytes([]byte(value)) }
 
+func encodeUint16(value uint16) []byte {
+	result := make([]byte, 2)
+	binary.BigEndian.PutUint16(result, value)
+	return result
+}
+
+func encodeUint32(value uint32) []byte {
+	result := make([]byte, 4)
+	binary.BigEndian.PutUint32(result, value)
+	return result
+}
+
+func encodeUint64(value uint64) []byte {
+	result := make([]byte, 8)
+	binary.BigEndian.PutUint64(result, value)
+	return result
+}
+
 func encodeBytes(value []byte) []byte {
-	result := make([]byte, 8+len(value))
-	binary.BigEndian.PutUint64(result[:8], uint64(len(value)))
-	copy(result[8:], value)
+	result := append(encodeUint64(uint64(len(value))), value...)
 	return result
 }
 
@@ -31,21 +47,16 @@ func encodeRecord(domain string, fields []canonicalField) []byte {
 	ordered := append([]canonicalField(nil), fields...)
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].tag < ordered[j].tag })
 	result := encodeString(domain)
-	var count [4]byte
-	binary.BigEndian.PutUint32(count[:], uint32(len(ordered)))
-	result = append(result, count[:]...)
+	result = append(result, encodeUint32(uint32(len(ordered)))...)
 	for _, field := range ordered {
-		var tag [2]byte
-		binary.BigEndian.PutUint16(tag[:], field.tag)
-		result = append(result, tag[:]...)
+		result = append(result, encodeUint16(field.tag)...)
 		result = append(result, encodeBytes(field.payload)...)
 	}
 	return result
 }
 
 func encodeFieldSet(fields []ResolvedField) []byte {
-	result := make([]byte, 4)
-	binary.BigEndian.PutUint32(result, uint32(len(fields)))
+	result := encodeUint32(uint32(len(fields)))
 	for _, field := range fields {
 		result = append(result, encodeString(field.Name)...)
 		result = append(result, encodeString(field.Value)...)

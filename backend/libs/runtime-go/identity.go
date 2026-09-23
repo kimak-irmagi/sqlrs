@@ -73,7 +73,8 @@ func newIdentity(input FactoryIdentityInput) (*identityData, error) {
 	if len(input.Fields) > MaxResolvedFields {
 		return nil, invalid(CodeTooLarge, "fields")
 	}
-	fields := append([]ResolvedField(nil), input.Fields...)
+	fields := make([]ResolvedField, len(input.Fields))
+	copy(fields, input.Fields)
 	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
 	for index, field := range fields {
 		path := "fields[" + itoa(index) + "]"
@@ -178,7 +179,9 @@ func (i ResolvedFactoryIdentity) Fields() []ResolvedField {
 	if i.data == nil {
 		return nil
 	}
-	return append([]ResolvedField(nil), i.data.fields...)
+	fields := make([]ResolvedField, len(i.data.fields))
+	copy(fields, i.data.fields)
+	return fields
 }
 
 // Fields returns a defensive copy in canonical name order.
@@ -186,7 +189,9 @@ func (i ResolvedTransformIdentity) Fields() []ResolvedField {
 	if i.data == nil {
 		return nil
 	}
-	return append([]ResolvedField(nil), i.data.fields...)
+	fields := make([]ResolvedField, len(i.data.fields))
+	copy(fields, i.data.fields)
+	return fields
 }
 
 type identityWire struct {
@@ -198,7 +203,8 @@ type identityWire struct {
 }
 
 func identityToWire(data *identityData) identityWire {
-	fields := append([]ResolvedField(nil), data.fields...)
+	fields := make([]ResolvedField, len(data.fields))
+	copy(fields, data.fields)
 	return identityWire{SchemaVersion: &data.schemaVersion, Provider: &data.provider, Kind: &data.kind, IdentitySchema: &data.identitySchema, Fields: &fields}
 }
 

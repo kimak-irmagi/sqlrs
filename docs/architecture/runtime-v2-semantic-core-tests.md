@@ -1,6 +1,7 @@
 # Runtime v2 semantic core: test design
 
-Status: approved and implemented for issue #107 on 2026-09-23.
+Status: approved and implementation evidence reverified for issue #107 on
+2026-09-23.
 
 This document defines conformance evidence for the approved
 [interaction flow](runtime-v2-semantic-core-flow.md) and
@@ -280,3 +281,11 @@ I01-I07, D01-D04, L01-L08, T01-T08, J01-J09, V01-V06, B01-B06, E01-E04,
 A01-A05, P01-P02, the fuzz seed corpus, M01-M03, and the independent verifier
 pass. Timed fuzz campaigns are nightly/release gates. M04 becomes mandatory at
 publication time.
+
+The current implementation maps these gates to
+`backend/libs/runtime-go/*_test.go`, the independent verifier at
+`scripts/maintenance/verify-runtime-v2-golden.mjs`, the PR job in
+`.github/workflows/ci.yml`, the scheduled campaign in
+`.github/workflows/runtime-v2-fuzz.yml`, and the RC gate in
+`.github/workflows/release-local.yml`. This evidence mapping is descriptive;
+the requirement IDs and acceptance criteria above remain normative.

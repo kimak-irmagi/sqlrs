@@ -88,6 +88,26 @@ jobs:
           echo "Runtime v2 coverage: ${total}%"
           awk -v total="$total" 'BEGIN { if (total + 0 < 95) exit 1 }'
 
+      - name: Check Runtime v2 dependency boundary
+        if: matrix.runner == 'ubuntu-latest'
+        working-directory: backend/libs/runtime-go
+        shell: bash
+        run: |
+          set -euo pipefail
+          unexpected="$(go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' . \
+            | grep -v '^$' \
+            | grep -v '^github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go\($\|/\)' || true)"
+          if [[ -n "$unexpected" ]]; then
+            echo "Unexpected non-standard Runtime v2 dependencies:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+
+      - name: Run Runtime v2 race detector
+        if: matrix.runner == 'ubuntu-latest'
+        working-directory: backend/libs/runtime-go
+        run: go test -race -count=1 ./...
+
       - name: Verify Runtime v2 golden vectors independently
         run: node scripts/maintenance/verify-runtime-v2-golden.mjs backend/libs/runtime-go/testdata/golden
 

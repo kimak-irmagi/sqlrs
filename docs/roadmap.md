@@ -81,7 +81,10 @@ gantt
   versioned resolved identities, provenance, canonical SHA-256 state derivation,
   recipe and relative lineages, strict JSON validation, and stable structured
   errors. Checked-in golden vectors are verified in-process, in a fresh process,
-  and by an independent Node.js encoder; module coverage is 95.4%.
+  and by an independent Node.js encoder. Exact boundary, factory-sensitivity,
+  physical-metadata exclusion, and fuzz-seed tests are enforced in PR CI;
+  Linux race/dependency gates and scheduled/release fuzz campaigns are wired.
+  Module coverage is 97.1%.
 
 - **Local implementation complete (managed database identity, 2026-09-16)**:
   guarded startup cutover, durable lineage, identity-bound planning/cache,

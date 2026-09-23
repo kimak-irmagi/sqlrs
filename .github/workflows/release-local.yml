@@ -84,6 +84,7 @@ jobs:
   test-runtime-v2:
     if: contains(github.event.inputs.version || github.ref_name, '-rc.')
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -104,7 +105,28 @@ jobs:
 
       - name: Run Runtime v2 tests
         working-directory: backend/libs/runtime-go
-        run: go test ./...
+        run: go test -count=1 ./...
+
+      - name: Run Runtime v2 race detector
+        if: matrix.runner == 'ubuntu-latest'
+        working-directory: backend/libs/runtime-go
+        run: go test -race -count=1 ./...
+
+      - name: Run Runtime v2 release fuzz campaign
+        if: matrix.runner == 'ubuntu-latest'
+        working-directory: backend/libs/runtime-go
+        shell: bash
+        run: |
+          set -euo pipefail
+          targets=(
+            FuzzResolvedTransformJSON
+            FuzzDigestAndCanonicalScalars
+            FuzzFieldPermutations
+            FuzzLineageJSON
+          )
+          for target in "${targets[@]}"; do
+            go test -run '^$' -fuzz "^${target}$" -fuzztime=5m -timeout=6m .
+          done
 
       - name: Verify Runtime v2 golden vectors independently
         run: node scripts/maintenance/verify-runtime-v2-golden.mjs backend/libs/runtime-go/testdata/golden

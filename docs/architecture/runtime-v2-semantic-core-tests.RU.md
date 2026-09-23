@@ -1,6 +1,7 @@
 # Семантическое ядро Runtime v2: проект тестов
 
-Статус: согласован и реализован для issue #107 2026-09-23.
+Статус: согласован; evidence реализации повторно проверены для issue #107
+2026-09-23.
 
 Документ определяет conformance evidence для согласованных
 [потока взаимодействия](runtime-v2-semantic-core-flow.RU.md) и
@@ -270,3 +271,11 @@ Issue #107 готова к implementation review, когда проходят G0
 I01-I07, D01-D04, L01-L08, T01-T08, J01-J09, V01-V06, B01-B06, E01-E04,
 A01-A05, P01-P02, seed corpus fuzz, M01-M03 и independent verifier. Timed fuzz
 campaigns — nightly/release gates. M04 становится обязательным при публикации.
+
+Текущая реализация связывает эти gates с
+`backend/libs/runtime-go/*_test.go`, независимым verifier
+`scripts/maintenance/verify-runtime-v2-golden.mjs`, PR job в
+`.github/workflows/ci.yml`, scheduled campaign в
+`.github/workflows/runtime-v2-fuzz.yml` и RC gate в
+`.github/workflows/release-local.yml`. Эта evidence mapping носит описательный
+характер; requirement IDs и acceptance criteria выше остаются нормативными.
