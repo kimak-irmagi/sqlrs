@@ -13,6 +13,12 @@
   engine.
 - [`runtime-snapshotting.RU.md`](runtime-snapshotting.RU.md) - модель хранения,
   snapshot/backends (OverlayFS/копирование/etc).
+- [Поток semantic core Runtime v2](runtime-v2-semantic-core-flow.RU.md) -
+  согласованный независимый от движка поток resolved-state и lineage Runtime v2.
+- [Структура semantic core Runtime v2](runtime-v2-semantic-core-structure.RU.md) -
+  согласованная граница публичного Go-модуля, типы и владение Runtime v2.
+- [Тесты semantic core Runtime v2](runtime-v2-semantic-core-tests.RU.md) -
+  предлагаемый план golden, validation, lineage, boundary и import tests.
 - [`state-cache-design.RU.md`](state-cache-design.RU.md) - cache keys, триггеры,
   retention, локальный layout.
 - [`state-cache-capacity-control.RU.md`](state-cache-capacity-control.RU.md) -

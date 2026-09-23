@@ -12,6 +12,12 @@ Entry points for Taidon architecture and service design.
   engine.
 - [`runtime-snapshotting.md`](runtime-snapshotting.md) — runtime storage model,
   snapshot/backends (OverlayFS/copy/etc).
+- [Runtime v2 semantic-core flow](runtime-v2-semantic-core-flow.md) -
+  approved engine-neutral resolved-state and lineage interaction flow.
+- [Runtime v2 semantic-core structure](runtime-v2-semantic-core-structure.md) -
+  approved public Go module, semantic types, and ownership for Runtime v2.
+- [Runtime v2 semantic-core tests](runtime-v2-semantic-core-tests.md) - proposed
+  golden, validation, lineage, boundary, and import-conformance test design.
 - [`state-cache-design.md`](state-cache-design.md) — cache keys, triggers,
   retention, local store layout.
 - [`state-cache-capacity-control.md`](state-cache-capacity-control.md) -
