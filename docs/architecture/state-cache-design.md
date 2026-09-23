@@ -102,6 +102,14 @@ Taidon aims to snapshot "as often as possible" at safe boundaries.
 
 ## 6. State Identity and Cache Keys
 
+This section documents the current MVP/local cache contract. Its composite key
+is not the normative Runtime v2 identity algorithm. The standalone Runtime v2
+semantic core is specified in
+[its flow](runtime-v2-semantic-core-flow.md) and
+[component structure](runtime-v2-semantic-core-structure.md). Issue #107 adds
+that module without migrating this cache; a later integration must replace the
+MVP derivation atomically rather than reinterpret existing IDs.
+
 ### 6.1 State identity
 
 A State is uniquely identified by:

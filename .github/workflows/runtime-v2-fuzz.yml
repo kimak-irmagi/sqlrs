@@ -1,0 +1,37 @@
+name: runtime-v2-fuzz
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/libs/runtime-go/go.mod
+
+      - name: Run Runtime v2 nightly fuzz campaign
+        working-directory: backend/libs/runtime-go
+        shell: bash
+        run: |
+          set -euo pipefail
+          targets=(
+            FuzzResolvedTransformJSON
+            FuzzDigestAndCanonicalScalars
+            FuzzFieldPermutations
+            FuzzLineageJSON
+          )
+          for target in "${targets[@]}"; do
+            go test -run '^$' -fuzz "^${target}$" -fuzztime=30s -timeout=90s .
+          done

@@ -1,8 +1,8 @@
 # Taidon
 
-[![CI](https://github.com/kimak-irmagi/taidon/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kimak-irmagi/taidon/actions/workflows/ci.yml)
-[![release-local](https://github.com/kimak-irmagi/taidon/actions/workflows/release-local.yml/badge.svg)](https://github.com/kimak-irmagi/taidon/actions/workflows/release-local.yml)
-[![Coverage Status](https://coveralls.io/repos/github/kimak-irmagi/taidon/badge.svg?branch=main)](https://coveralls.io/github/kimak-irmagi/taidon?branch=main)
+[![CI](https://github.com/kimak-irmagi/sqlrs/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kimak-irmagi/sqlrs/actions/workflows/ci.yml)
+[![release-local](https://github.com/kimak-irmagi/sqlrs/actions/workflows/release-local.yml/badge.svg)](https://github.com/kimak-irmagi/sqlrs/actions/workflows/release-local.yml)
+[![Coverage Status](https://coveralls.io/repos/github/kimak-irmagi/sqlrs/badge.svg?branch=main)](https://coveralls.io/github/kimak-irmagi/sqlrs?branch=main)
 
 Taidon — это open-source платформа для безопасных и воспроизводимых SQL‑экспериментов.  
 Она предоставляет изолированные окружения, быстрые снапшотные базы и единый API для выполнения SQL‑нагрузок без побочных эффектов.

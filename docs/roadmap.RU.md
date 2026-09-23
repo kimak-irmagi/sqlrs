@@ -75,13 +75,24 @@ gantt
 
 ---
 
-## Статус (на 2026-08-31)
+## Статус (на 2026-09-23)
+
+- **Сделано ([#107](https://github.com/kimak-irmagi/sqlrs/issues/107), Runtime v2
+  semantic core)**: отдельный модуль `backend/libs/runtime-go` теперь задаёт
+  версионированные resolved identities, provenance, каноническое SHA-256
+  выведение состояний, recipe и relative lineage, строгую JSON-валидацию и
+  стабильные structured errors. Зафиксированные golden vectors проверяются
+  внутри процесса, в новом процессе и независимым Node.js encoder. Точные
+  boundary-, factory-sensitivity-, physical-metadata- и fuzz-seed-тесты
+  выполняются в PR CI; настроены Linux race/dependency gates и scheduled/release
+  fuzz campaigns. Покрытие модуля составляет 97,1%.
 
 - **Локальная реализация завершена (служебная идентичность БД, 2026-09-16)**:
   реализованы защищённый переход при запуске, постоянная lineage, связанное с
   идентичностью планирование/кэш, закрытые секреты, нативный SCRAM SQL/репликации,
   prepare/run/delete и точное возобновление прерванной активации. Пройдены Sakila,
-  Chinook и Liquibase на PostgreSQL 17, повторный кэш и пересоздание физической базы;
+  Chinook и Liquibase на PostgreSQL 17, повторный кэш и пересоздание физической
+  базы;
   затронутые пакеты достигли минимума покрытия 95%. До слияния PR #106 ожидает
   итогового CI и отдельной приёмки совместимости izess. Замена потерянного runtime
   не поддерживается: доступ закрывается. См. [отчёт тестов](architecture/managed-database-identity-tests.RU.md).
@@ -569,7 +580,8 @@ credentials или runtime connection details.
 
 ## Детализированные Архитектурные Документы
 
-- [`sqlrs-engine.openapi.yaml`](api-guides/sqlrs-engine.openapi.yaml) (HTTP API + events)
+- [OpenAPI движка](api-guides/sqlrs-engine.openapi.yaml) (HTTP API +
+  events)
 - [`sql-runner-api.md`](architecture/sql-runner-api.RU.md) (timeouts, cancel,
   streaming, cache-aware planning)
 - [`local-deployment-architecture.RU.md`](architecture/local-deployment-architecture.RU.md)
@@ -584,6 +596,7 @@ credentials или runtime connection details.
 
 Без отдельного GitHub issue остаётся незавершённым сводный security model для
 cloud hardening, redaction и audit.
+
 - [`git-aware-passive.md`](architecture/git-aware-passive.RU.md) (CLI by ref,
   zero-copy, provenance)
 - [`git-aware-active.md`](architecture/git-aware-active.RU.md) (PR automation,

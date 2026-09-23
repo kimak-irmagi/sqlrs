@@ -47,7 +47,12 @@ CREATE TABLE IF NOT EXISTS states (
 <!--ref:end-->
 
 Примечания:
+
 - `state_id` имеет формат UUID (см. state-cache design).
+- Это текущий storage format local engine. Самостоятельный модуль Runtime v2
+  использует content-derived StateID с префиксом `sha256:`, но issue #107 не
+  меняет эту таблицу и не переосмысливает её строки. Для внедрения нужен отдельно
+  спроектированный переход схемы и интеграции.
 - `parent_state_id` nullable и задает иерархию состояний для рекурсивного удаления.
 - `state_fingerprint` может совпадать с `state_id`; он нужен для name binding
   даже при эвикшне state.

@@ -3,10 +3,13 @@ module github.com/sqlrs/engine-local
 go 1.25.0
 
 require (
+	github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go v0.0.0
 	github.com/jackc/pgx/v5 v5.10.0
 	golang.org/x/sys v0.41.0
 	modernc.org/sqlite v1.29.0
 )
+
+replace github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go => ../libs/runtime-go
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
