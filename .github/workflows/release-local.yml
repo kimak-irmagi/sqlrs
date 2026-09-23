@@ -285,6 +285,8 @@ jobs:
             scenario: hp-lb-jhipster
           - platform: windows
             scenario: cache-pressure-chinook
+          - platform: windows
+            snapshot_backend: copy
           - platform: linux
             scenario: hp-lb-jhipster
             snapshot_backend: btrfs

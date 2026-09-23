@@ -167,3 +167,24 @@ Status: Obsolete; superseded by [Decision Record 9](#decision-record-9-remove-th
 - Rationale: The standalone workflow was removed in commit `ab0bedf`, so its
   test could only fail on a missing file. The release workflow and its tests
   now own the same Windows/WSL contract.
+
+## Decision Record 10: keep hosted Windows release gating on WSL btrfs
+
+- Timestamp: 2026-09-23T11:30:00+07:00
+- User: @evilguest
+- Agent: Codex (GPT-6)
+- Question: Should the hosted Windows release gate retain the native `copy`
+  cell when its runner cannot provide a Linux Docker image runtime and cannot
+  route WSL-published ports to the native engine?
+- Alternatives:
+  - Keep the native copy cell and accept a permanently failing release gate.
+  - Run the copy scenario with a Windows Docker daemon that cannot run the
+    Linux PostgreSQL image.
+  - Gate Windows releases with the validated WSL `btrfs` cell and cover native
+    copy through platform tests until a Linux-image-capable host runner exists.
+- Decision: Exclude the Windows `copy` cell from the hosted release matrix;
+  retain the Windows `btrfs` cell and native copy platform coverage.
+- Rationale: The hosted Windows Docker daemon reports no Linux `postgres:17`
+  manifest, while WSL port publication is not reachable from the native
+  engine. Removing the impossible cell keeps the release gate meaningful and
+  preserves the supported WSL validation path.

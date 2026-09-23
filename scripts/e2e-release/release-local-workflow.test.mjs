@@ -39,7 +39,7 @@ run("happy e2e matrix includes platform and snapshot backend axes", () => {
   assert.deepEqual(job.strategy?.matrix?.snapshot_backend, ["copy", "btrfs"]);
 });
 
-run("happy e2e keeps the Windows copy backend covered", () => {
+run("happy e2e keeps Windows release coverage on the supported WSL backend", () => {
   const workflow = loadWorkflow();
   const job = workflow.jobs?.["e2e-happy"];
   const excluded = job.strategy?.matrix?.exclude || [];
@@ -47,7 +47,8 @@ run("happy e2e keeps the Windows copy backend covered", () => {
     excluded.some((entry) => entry.platform === "windows" && entry.scenario === "hp-psql-sakila"),
     "missing windows/sakila exclusion"
   );
-  assert.ok(!excluded.some((entry) => entry.platform === "windows" && entry.snapshot_backend === "copy"));
+  assert.ok(excluded.some((entry) => entry.platform === "windows" && entry.snapshot_backend === "copy"));
+  assert.ok(!excluded.some((entry) => entry.platform === "windows" && entry.snapshot_backend === "btrfs"));
 });
 
 run("linux e2e cell passes snapshot backend to run-scenario", () => {
