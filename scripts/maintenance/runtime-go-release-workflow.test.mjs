@@ -30,10 +30,11 @@ test("manual validation checks out the requested commit and gates each package",
 });
 
 test("Runtime v2 workflows use Node 24 actions and explicit Go cache inputs", () => {
-  const runtimeWorkflows = [ci, workflow, fuzz];
+  const runtimeWorkflows = [ci, workflow, fuzz, product];
   const deprecatedActions = /actions\/(?:checkout@v4|setup-go@v5|setup-node@v4|upload-artifact@v4|download-artifact@v4)/;
   for (const source of runtimeWorkflows) {
     assert.doesNotMatch(source, deprecatedActions);
+    assert.doesNotMatch(source, /ubuntu-latest/);
   }
 
   assert.match(ci, /go-version-file: backend\/libs\/runtime-go\/go\.mod\s+cache: false/);

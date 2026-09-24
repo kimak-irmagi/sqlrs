@@ -9,7 +9,7 @@ on:
 jobs:
   docs-sync:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, macos-latest, windows-latest]
+        runner: [ubuntu-24.04, macos-latest, windows-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -96,7 +96,7 @@ jobs:
           tail -n +2 coverage-resolver.out >> "$profile"
 
       - name: Check Runtime v2 dependency boundary
-        if: matrix.runner == 'ubuntu-latest'
+        if: matrix.runner == 'ubuntu-24.04'
         working-directory: backend/libs/runtime-go
         shell: bash
         run: |
@@ -111,7 +111,7 @@ jobs:
           fi
 
       - name: Run Runtime v2 race detector
-        if: matrix.runner == 'ubuntu-latest'
+        if: matrix.runner == 'ubuntu-24.04'
         working-directory: backend/libs/runtime-go
         run: go test -race -count=1 ./...
 
@@ -122,7 +122,7 @@ jobs:
           node scripts/maintenance/verify-runtime-v2-extension-golden.mjs backend/libs/runtime-go/testdata/extension-golden.json
 
       - name: Verify Runtime v2 release workflow contract
-        if: matrix.runner == 'ubuntu-latest'
+        if: matrix.runner == 'ubuntu-24.04'
         run: node --test scripts/maintenance/runtime-go-release-workflow.test.mjs
 
       - name: Test standalone Runtime v2 consumer
@@ -141,7 +141,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, macos-latest, windows-latest]
+        runner: [ubuntu-24.04, macos-latest, windows-latest]
         group: [fast, slow]
     steps:
       - name: Checkout
@@ -225,7 +225,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, macos-latest, windows-latest]
+        runner: [ubuntu-24.04, macos-latest, windows-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -283,7 +283,7 @@ jobs:
           path: coverage-cli-${{ matrix.runner }}.out
 
   coverage-merge:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - coverage-engine
       - coverage-cli
