@@ -54,6 +54,10 @@ flowchart TD
 ## 3. Процесс и поток запросов
 
 - Клиенты (CLI/IDE/UI) вызывают Gateway по аутентифицированному REST/gRPC для prepare jobs и cache/snapshot операций.
+- До authentication CLI получает installation-owned connection и provider
+  metadata через public bootstrap routes на root или любом syntactically valid
+  candidate organization prefix. Эти handlers не запрашивают organization
+  storage и не раскрывают существование slug.
 - Gateway проверяет authN/authZ, rate limits, org quotas; prepare и
   cache/snapshot операции форвардит в Orchestrator.
 - Gateway форвардит запросы управления пользователями и организациями в
@@ -78,6 +82,12 @@ flowchart TD
 ## 5. Изоляция и безопасность
 
 - Auth: OIDC/JWT через Gateway; runner получает principal/org из токена.
+- Provider configuration рекламируется, только когда Gateway trust принимает
+  точную issuer/client-ID pair. Несогласованная configuration делает bootstrap
+  readiness failed, а routes возвращают `503`.
+- Gateway отображает validated issuer/client-ID pair в stable advertised
+  provider ID (например, `google`). User identity keys используют этот provider
+  ID; protocol adapter names вроде `oidc` не являются identity-provider values.
 - User Profile Service выводит current-user identity key для
   `PUT /v1/users/me` из проверенных OAuth/OIDC claims, может отклонять
   self-registration при отключенной политике и обеспечивает уникальность

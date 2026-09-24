@@ -1,5 +1,9 @@
 # ADR: Redesign `sqlrs init` (local/remote + snapshot/store)
 
+Status: Partially obsolete. The local-init design remains accepted; the remote
+`--url` plus `--token` syntax is superseded by
+[2026-09-24 Remote Connection Bootstrap](2026-09-24-remote-connection-bootstrap.md).
+
 ## Conversation timestamp
 
 2026-02-10

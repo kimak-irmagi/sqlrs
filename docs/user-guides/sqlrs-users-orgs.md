@@ -15,20 +15,31 @@ actionable remote-profile message.
 
 ## Authentication prerequisite
 
-The first CLI slice reuses the existing remote-profile bearer-token model:
+Normal onboarding starts by discovering a shared installation and logging in
+through one provider advertised by that installation:
+
+```text
+sqlrs init remote https://api.taidon.dev
+sqlrs auth login google
+```
+
+The workspace profile stores stable installation/routing metadata rather than
+provider client configuration:
 
 ```yaml
 profiles:
   remote-dev:
     mode: remote
-    endpoint: "https://sqlrs.example.org"
+    installationID: taidon-production
+    installationEndpoint: "https://api.taidon.dev"
+    endpoint: "https://api.taidon.dev"
     auth:
-      mode: bearer
+      mode: remoteSession
       tokenEnv: SQLRS_TOKEN
 ```
 
 The token can come from the explicit `SQLRS_TOKEN` override, from a legacy
-static bearer profile, or from the Google OIDC session managed by
+static bearer profile, or from the active provider session managed by
 [`sqlrs auth`](sqlrs-auth.md). The CLI sends the effective token as
 `Authorization: Bearer <token>` and never prints it.
 
@@ -36,7 +47,7 @@ static bearer profile, or from the Google OIDC session managed by
 
 ```text
 sqlrs user register [--display-name <name>] [--email <email>]
-sqlrs user create --identity-issuer <issuer> --identity-subject <subject> [--identity-provider <provider>] [--display-name <name>] [--email <email>]
+sqlrs user create --identity-provider <provider> --identity-issuer <issuer> --identity-subject <subject> [--display-name <name>] [--email <email>]
 sqlrs user me
 
 sqlrs org create <slug> [--name <display-name>]
@@ -65,6 +76,9 @@ Rules:
 - The command requires a remote profile.
 - The command requires a bearer token.
 - The server derives the external identity from validated token claims.
+- The gateway maps the token's trusted issuer/client-ID pair to the stable
+  service provider ID, such as `google`; `oidc` is an adapter name, not an
+  identity provider ID.
 - If the external identity is already linked to a user profile, the command is
   idempotent and returns the existing profile.
 - If the external identity is not linked yet and server-side self-registration
@@ -72,6 +86,9 @@ Rules:
 - `--display-name` and `--email` are profile hints. The server may normalize or
   ignore them if trusted identity-provider claims are authoritative.
 - The command does not create an organization.
+- If registration returns exactly one membership while the selected profile is
+  still installation-scoped, the CLI atomically switches that profile to the
+  canonical organization endpoint returned by the service and warns on stderr.
 
 Human output:
 
@@ -97,8 +114,8 @@ JSON output:
   },
   "identities": [
     {
-      "provider": "oidc",
-      "issuer": "https://idp.example.org",
+      "provider": "google",
+      "issuer": "https://accounts.google.com",
       "subject": "248289761001"
     }
   ],
@@ -111,14 +128,16 @@ JSON output:
 Creates a sqlrs user profile for another external identity.
 
 ```text
-sqlrs user create --identity-issuer <issuer> --identity-subject <subject> [--identity-provider <provider>] [--display-name <name>] [--email <email>]
+sqlrs user create --identity-provider <provider> --identity-issuer <issuer> --identity-subject <subject> [--display-name <name>] [--email <email>]
 ```
 
 Rules:
 
 - The command requires a remote profile.
 - The command requires a bearer token with administrative permission.
-- `--identity-provider` defaults to `oidc`.
+- `--identity-provider` is required and names a stable service provider ID such
+  as `google`, never an adapter name such as `oidc`. The server rejects a
+  provider that is not enabled and mapped by installation gateway trust.
 - `--identity-issuer` and `--identity-subject` are required and identify the
   external OAuth/OIDC identity that will be allowed to use the created profile.
 - The server creates the user profile and links that external identity in one
@@ -137,7 +156,7 @@ user: usr_01J...
 status: created
 displayName: New User
 email: new.user@example.com
-identity: oidc https://idp.example.org 248289761001
+identity: google https://accounts.google.com 248289761001
 ```
 
 JSON output:
@@ -154,8 +173,8 @@ JSON output:
   },
   "identities": [
     {
-      "provider": "oidc",
-      "issuer": "https://idp.example.org",
+      "provider": "google",
+      "issuer": "https://accounts.google.com",
       "subject": "248289761001"
     }
   ],
@@ -210,6 +229,10 @@ Rules:
   characters; no leading, trailing, or repeated hyphen.
 - If `--name` is omitted, the server uses the slug as the display name.
 - The created membership role is `admin`.
+- The response includes the canonical organization endpoint.
+- After successful creation, the CLI atomically switches the selected profile
+  from the installation root to that endpoint and writes the same profile-switch
+  warning to stderr in human and JSON modes.
 
 Human output:
 
@@ -217,6 +240,7 @@ Human output:
 organization: acme
 id: org_01J...
 name: Acme
+endpoint: https://api.taidon.dev/acme
 role: admin
 ```
 
@@ -228,6 +252,7 @@ JSON output:
     "id": "org_01J...",
     "slug": "acme",
     "display_name": "Acme",
+    "endpoint": "https://api.taidon.dev/acme",
     "created_at": "2026-06-19T09:00:00Z",
     "updated_at": "2026-06-19T09:00:00Z"
   },
@@ -311,6 +336,74 @@ That actionable guidance is tracked in
 - `409` from `org create` means the slug is already taken or the current first
   slice policy forbids organization creation for a user that already has an
   organization membership.
+- If a remote registration or organization creation succeeds but the local
+  profile cannot be updated, the CLI reports partial-success exit code `1`,
+  a warning, and an explicit `sqlrs init remote <organization-endpoint>
+  --update` recovery command. It must not claim that the remote operation
+  failed or silently overwrite a concurrently changed config file.
+  Human and JSON stdout retain the complete successful remote result; warnings
+  and recovery remain on stderr, so JSON stdout is one valid document.
+- When the effective bearer token comes from `SQLRS_TOKEN` or another explicit
+  override, `user register` and `org create` do not persist an automatic profile
+  switch. They print the canonical endpoint and an explicit `sqlrs init remote
+  <organization-endpoint> --update` command instead and exit successfully, so a
+  temporary identity cannot reroute the stored session's profile.
+
+## Onboarding flows
+
+### First user of an organization
+
+```text
+sqlrs init remote https://api.taidon.dev
+sqlrs auth login google
+sqlrs user register
+sqlrs org create nsu --name "NSU"
+```
+
+The first three commands use the installation control endpoint. Organization
+creation returns the canonical `https://api.taidon.dev/nsu` endpoint and the CLI
+switches the same profile to it. Before switching, the CLI requires the control
+origin, exactly one valid slug segment, and no userinfo, query, or fragment; an
+untrusted endpoint is never persisted or sent a bearer token. The auth session
+remains valid because its credential key is scoped to the stable installation,
+including its canonical control endpoint, not the mutable request endpoint.
+
+### Existing member starting from the installation root
+
+```text
+sqlrs init remote https://api.taidon.dev
+sqlrs auth login google
+```
+
+After login, the CLI reads the current user through the control endpoint. When
+that identity is already registered with exactly one organization membership,
+the CLI switches the profile to the canonical organization endpoint. Re-running
+`sqlrs user register` remains safe and returns the existing profile.
+
+### User starting from an organization URL
+
+```text
+sqlrs init remote https://api.taidon.dev/nsu
+sqlrs auth login google
+```
+
+The candidate-prefixed connection-info and provider routes are public before
+login even when `/nsu` does not exist. Discovery returns the normalized current
+bootstrap base and stable installation control base, but no organization
+identity or existence signal. Login does not strip or guess the `/nsu` prefix.
+
+After login, the first protected current-user request verifies the candidate
+prefix and membership. When `/nsu` exists and is visible to the user, the CLI
+binds the returned authenticated organization metadata to the profile. The URL
+does not change, so no switch warning is printed. A nonexistent or non-visible
+candidate produces the protected endpoint's `404`, retains the valid session,
+and exits with partial-success code `1` and an actionable message to reinitialize with the
+installation root or the correct organization URL. A root current-user `404`
+instead exits successfully and invites the user to register.
+
+If an installation-root profile has no memberships, it stays at the root. If
+it has multiple memberships, the CLI does not select one implicitly; explicit
+organization selection is a later CLI slice.
 
 ## Identity uniqueness
 

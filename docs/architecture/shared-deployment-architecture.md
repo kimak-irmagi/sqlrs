@@ -54,6 +54,10 @@ flowchart TD
 ## 3. Process and Request Flow
 
 - Clients (CLI/IDE/UI) call Gateway with authenticated REST/gRPC for prepare jobs and cache/snapshot operations.
+- Before authentication, CLI clients obtain installation-owned connection and
+  provider metadata from public bootstrap routes at the root or any
+  syntactically valid candidate organization prefix. These handlers do not
+  query organization storage or disclose slug existence.
 - Gateway enforces authN/authZ, rate limits, org quotas; forwards prepare and
   cache/snapshot operations to Orchestrator.
 - Gateway forwards user and organization management requests to User Profile
@@ -78,6 +82,12 @@ flowchart TD
 ## 5. Isolation and Security
 
 - Auth: OIDC/JWT via Gateway; runner receives principal/org in token.
+- Provider configuration is advertised only when Gateway trust accepts its
+  exact issuer/client-ID pair. Inconsistent configuration makes bootstrap
+  readiness fail and its routes return `503`.
+- Gateway maps a validated issuer/client-ID pair to the stable advertised
+  provider ID (for example `google`). User identity keys use that provider ID;
+  protocol adapter names such as `oidc` are not identity-provider values.
 - User Profile Service derives the current-user identity key for
   `PUT /v1/users/me` from validated OAuth/OIDC claims, can reject
   self-registration when disabled, and enforces external identity uniqueness

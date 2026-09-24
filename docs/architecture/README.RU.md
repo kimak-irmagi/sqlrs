@@ -32,7 +32,7 @@
 - [`cli-contract.RU.md`](cli-contract.RU.md) - CLI контракт и команды.
 - [`cli-architecture.RU.md`](cli-architecture.RU.md) - CLI флоу для local vs
   remote и загрузки исходников.
-- [`cli-auth-flow.RU.md`](cli-auth-flow.RU.md) - CLI flow для Google OIDC
+- [`cli-auth-flow.RU.md`](cli-auth-flow.RU.md) - CLI flow для service-discovered OIDC
   login, status, logout и token resolution для защищенных запросов.
 - [`cli-auth-component-structure.RU.md`](cli-auth-component-structure.RU.md) -
   границы CLI auth packages, credential storage и владение данными.

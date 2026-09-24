@@ -19,6 +19,9 @@ API контракту в
   он local или remote/shared.
 - **Auth resolver** - разрешает effective bearer token для выбранного remote
   profile, включая `SQLRS_TOKEN` override и refresh stored OIDC session.
+- **Endpoint reconciler** - проверяет canonical organization endpoint и
+  атомарно обновляет installation-scoped profile только для stored session, но
+  никогда для explicit token override.
 - **HTTP client** - отправляет аутентифицированные `/v1/*` запросы и маппит
   HTTP ошибки в command errors.
 - **Gateway** - проверяет bearer token-ы, выводит actor claims, применяет
@@ -70,6 +73,8 @@ sequenceDiagram
   participant GW as Gateway
   participant UPS as User Profile Service
   participant STATE as Remote user/org state
+  participant RECON as Endpoint reconciler
+  participant CONFIG as Workspace config
   User->>CLI: sqlrs user register [--display-name ...] [--email ...]
   CLI->>PROFILE: resolve selected profile
   PROFILE-->>CLI: remote base URL + auth settings
@@ -84,6 +89,8 @@ sequenceDiagram
     UPS-->>GW: 201 Created + Location + ETag
     GW-->>CLIENT: 201
     CLIENT-->>CLI: status=created payload
+    CLI->>RECON: reconcile memberships + token source
+    RECON->>CONFIG: atomic switch if one trusted org and no override
     CLI-->>User: rendered created profile
   else identity already linked
     UPS-->>GW: 412 Precondition Failed
@@ -96,6 +103,8 @@ sequenceDiagram
     UPS-->>GW: 200 OK + ETag
     GW-->>CLIENT: 200
     CLIENT-->>CLI: status=existing payload
+    CLI->>RECON: reconcile memberships + token source
+    RECON->>CONFIG: atomic switch if one trusted org and no override
     CLI-->>User: rendered existing profile
   else self-registration disabled
     UPS-->>GW: 403 Forbidden
@@ -107,7 +116,15 @@ sequenceDiagram
 
 В этом потоке сервер, а не CLI, выводит identity key из проверенных
 bearer-token claims. CLI не должен принимать явные identity flags для
-`user register`.
+`user register`. Gateway trust отображает validated issuer/client-ID pair в
+stable service provider ID; adapter name `oidc` не входит в identity key.
+
+Successful reconciliation проверяет returned endpoint относительно
+installation control base. Successful switch пишет warning в stderr. Если
+remote registration успешна, но config update failed, stdout сохраняет success
+result, stderr содержит recovery guidance, а команда завершается с code `1`.
+При `SQLRS_TOKEN` или другом explicit token override reconciler не сохраняет
+switch, вместо этого печатает explicit init/update command и выходит с code `0`.
 
 ## 5. Поток: `sqlrs user create`
 
@@ -119,7 +136,7 @@ sequenceDiagram
   participant GW as Gateway
   participant UPS as User Profile Service
   participant STATE as Remote user/org state
-  User->>CLI: sqlrs user create --identity-issuer ... --identity-subject ...
+  User->>CLI: sqlrs user create --identity-provider ... --identity-issuer ... --identity-subject ...
   CLI->>PROFILE: resolve selected profile
   PROFILE-->>CLI: remote base URL + auth settings
   CLI->>AUTH: resolve effective bearer token
@@ -163,6 +180,8 @@ sequenceDiagram
   participant GW as Gateway
   participant UPS as User Profile Service
   participant STATE as Remote user/org state
+  participant RECON as Endpoint reconciler
+  participant CONFIG as Workspace config
   User->>CLI: sqlrs org create <slug> [--name ...]
   CLI->>PROFILE: resolve selected profile
   PROFILE-->>CLI: remote base URL + auth settings
@@ -178,6 +197,8 @@ sequenceDiagram
     UPS-->>GW: 201 Created
     GW-->>CLIENT: 201
     CLIENT-->>CLI: organization payload
+    CLI->>RECON: validate canonical endpoint + token source
+    RECON->>CONFIG: atomic switch if no token override
     CLI-->>User: rendered organization
   else current profile is missing
     UPS-->>GW: 404 Not Found
@@ -195,6 +216,11 @@ sequenceDiagram
 Первый срез намеренно допускает одну organization membership на пользователя
 на момент создания. Более поздние срезы membership и invitations смогут
 ослабить эту политику без изменения формы команды.
+
+Если creation успешен, но local switch fails, organization остается созданной,
+а команда возвращает partial-success exit `1` с successful stdout и recovery в
+stderr. Explicit token override подавляет persistent switching и печатает ту же
+recovery command с exit `0`, не объявляя creation failed.
 
 ## 7. Поток: чтение
 
@@ -249,12 +275,15 @@ sequenceDiagram
   precondition.
 - `409` на `org create` означает, что organization slug занят или политика
   первого среза отклонила еще одну organization для текущего user.
+- Successful remote write с failed local reconciliation возвращает exit `1`;
+  human и JSON stdout остаются полным success result, а warning и recovery
+  command выводятся в stderr.
 
 ## 9. Follow-ups вне scope
 
 - Поддержка user или organization endpoint-ов в local engine.
 - Email invitations, membership changes, роли кроме `admin`, удаление
   organization или user.
-- Изменения CLI login/session management; user/org команды потребляют
-  effective bearer token, выбранный auth slice.
+- Login и refresh-token management остаются во владении auth slice. User/org
+  commands потребляют effective token и разделяют только endpoint reconciliation.
 - Organization-scoped authorization changes для prepare/run workflows.

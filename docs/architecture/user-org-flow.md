@@ -21,6 +21,9 @@ autostart.
 - **Auth resolver** - resolves the effective bearer token for the selected
   remote profile, including `SQLRS_TOKEN` override and stored OIDC session
   refresh.
+- **Endpoint reconciler** - validates canonical organization endpoints and
+  atomically updates an installation-scoped profile only for a stored session,
+  never for an explicit token override.
 - **HTTP client** - sends authenticated `/v1/*` requests and maps HTTP errors
   into command errors.
 - **Gateway** - validates bearer tokens, derives actor claims, applies coarse
@@ -72,6 +75,8 @@ sequenceDiagram
   participant GW as Gateway
   participant UPS as User Profile Service
   participant STATE as Remote user/org state
+  participant RECON as Endpoint reconciler
+  participant CONFIG as Workspace config
   User->>CLI: sqlrs user register [--display-name ...] [--email ...]
   CLI->>PROFILE: resolve selected profile
   PROFILE-->>CLI: remote base URL + auth settings
@@ -86,6 +91,8 @@ sequenceDiagram
     UPS-->>GW: 201 Created + Location + ETag
     GW-->>CLIENT: 201
     CLIENT-->>CLI: status=created payload
+    CLI->>RECON: reconcile memberships + token source
+    RECON->>CONFIG: atomic switch if one trusted org and no override
     CLI-->>User: rendered created profile
   else identity already linked
     UPS-->>GW: 412 Precondition Failed
@@ -98,6 +105,8 @@ sequenceDiagram
     UPS-->>GW: 200 OK + ETag
     GW-->>CLIENT: 200
     CLIENT-->>CLI: status=existing payload
+    CLI->>RECON: reconcile memberships + token source
+    RECON->>CONFIG: atomic switch if one trusted org and no override
     CLI-->>User: rendered existing profile
   else self-registration disabled
     UPS-->>GW: 403 Forbidden
@@ -109,7 +118,15 @@ sequenceDiagram
 
 The server, not the CLI, derives the identity key for this flow from validated
 bearer-token claims. The CLI must not accept explicit identity flags on
-`user register`.
+`user register`. Gateway trust maps the validated issuer/client-ID pair to the
+stable service provider ID; adapter name `oidc` is not part of the identity key.
+
+Successful reconciliation validates the returned endpoint against the
+installation control base. A successful switch warns on stderr. If the remote
+registration succeeded but config update failed, stdout still contains the
+success result, stderr contains recovery guidance, and the command exits `1`.
+With `SQLRS_TOKEN` or another explicit token override, the reconciler never
+persists a switch, prints an explicit init/update command, and exits zero.
 
 ## 5. Flow: `sqlrs user create`
 
@@ -121,7 +138,7 @@ sequenceDiagram
   participant GW as Gateway
   participant UPS as User Profile Service
   participant STATE as Remote user/org state
-  User->>CLI: sqlrs user create --identity-issuer ... --identity-subject ...
+  User->>CLI: sqlrs user create --identity-provider ... --identity-issuer ... --identity-subject ...
   CLI->>PROFILE: resolve selected profile
   PROFILE-->>CLI: remote base URL + auth settings
   CLI->>AUTH: resolve effective bearer token
@@ -180,6 +197,8 @@ sequenceDiagram
     UPS-->>GW: 201 Created
     GW-->>CLIENT: 201
     CLIENT-->>CLI: organization payload
+    CLI->>RECON: validate canonical endpoint + token source
+    RECON->>CONFIG: atomic switch if no token override
     CLI-->>User: rendered organization
   else current profile is missing
     UPS-->>GW: 404 Not Found
@@ -197,6 +216,12 @@ sequenceDiagram
 The first slice intentionally allows one organization membership per user at
 creation time. Later membership and invitation slices can relax that policy
 without changing the command shape.
+
+If creation succeeds but the local switch fails, the organization remains
+created and the command returns partial-success exit `1` with successful stdout
+and recovery on stderr. An explicit token override suppresses persistent
+switching, produces the same recovery command, and exits zero without treating
+creation as failed.
 
 ## 7. Flow: Reads
 
@@ -251,12 +276,15 @@ instead of a visibility leak.
   precondition.
 - `409` on `org create` means the organization slug is taken or the first-slice
   membership policy rejected another organization for the current user.
+- A successful remote write followed by failed local reconciliation returns
+  exit `1`; human and JSON stdout remain a complete success result, while the
+  warning and recovery command go to stderr.
 
 ## 9. Out-of-Scope Follow-Ups
 
 - Local engine support for user or organization endpoints.
 - Email invitations, membership changes, roles beyond `admin`, organization
   deletion, or user deletion.
-- Changes to CLI login/session management; user/org commands consume the
-  effective bearer token selected by the auth slice.
+- Login and refresh-token management remain owned by the auth slice. User/org
+  commands consume the effective token and share only endpoint reconciliation.
 - Organization-scoped authorization changes for prepare/run workflows.

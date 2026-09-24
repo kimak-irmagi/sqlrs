@@ -481,14 +481,33 @@ Current design direction:
 
 - `auth` manages local CLI authentication sessions for remote/shared
   deployments.
-- `auth login google` uses Google Authorization Code Flow with PKCE, a
-  loopback redirect listener, and OS credential storage for the refresh token.
+- `auth login <provider>` fetches versioned adapter configuration from the
+  selected installation. The OIDC adapter uses the service-advertised
+  authorization/token endpoints, Authorization Code Flow with PKCE, a loopback
+  redirect listener, and OS credential storage for the refresh token.
+- Connection-info and provider discovery routes are available without login at
+  the installation root and every candidate organization prefix, including a
+  nonexistent slug. Bootstrap responses never confirm organization existence;
+  protected onboarding requests perform that validation later.
+- Candidate URLs contain at most one valid slug segment and use HTTPS except
+  literal-loopback development HTTP. Redirects and canonical endpoints remain
+  inside the installation trust boundary.
 - `auth status` reports safe session metadata and never prints raw tokens.
 - `auth logout` deletes local credentials and attempts refresh-token revocation.
 - Protected remote API commands keep `SQLRS_TOKEN` as the highest-priority
-  override, then use a stored OIDC session when the selected profile has
-  `auth.mode: oidcSession`, then fall back to legacy static bearer profile
+  override, then use the active provider session when the selected profile has
+  `auth.mode: remoteSession`, then fall back to legacy static bearer profile
   behavior.
+- One active session is keyed by profile, stable installation ID, and canonical
+  installation control endpoint; provider and account identity live in its
+  value. `oidcSession` is a deprecated read alias migrated by
+  explicit `init remote --update`; until then existing auth commands resolve
+  its legacy credential with a deprecation warning and do not rewrite config.
+- Login reconciliation returns partial-success exit `1`, without deleting the
+  session, for candidate `404`, network/5xx, or local config-write failure. A
+  root current-user `404` succeeds and suggests registration.
+- The provider component of an external identity is the advertised service
+  provider ID such as `google`, never adapter name `oidc`.
 - The gateway still receives only a short-lived Google ID token as
   `Authorization: Bearer <id-token>`.
 

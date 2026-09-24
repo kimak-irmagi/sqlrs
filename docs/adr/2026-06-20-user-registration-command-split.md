@@ -1,5 +1,11 @@
 # 2026-06-20 User Registration Command Split
 
+> **Partially superseded (2026-09-24):** the optional
+> `--identity-provider` default is superseded by
+> [`2026-09-24-remote-connection-bootstrap.md`](2026-09-24-remote-connection-bootstrap.md).
+> `user create` now requires the stable service provider ID explicitly; `oidc`
+> is an adapter name, not an external identity provider ID.
+
 - Conversation timestamp: 2026-06-20T09:47:44.4613773+07:00
 - GitHub user id: @evilguest
 - Agent name/version: Codex / GPT-5

@@ -40,10 +40,10 @@ requests, error mapping и rendering.
 
 | Модуль | Ответственность |
 | --- | --- |
-| `internal/app` | Dispatch command groups `user` и `org`; парсить command arguments; резолвить выбранный profile; отклонять local mode до daemon discovery/autostart; маппить usage и transport failures в exit codes. |
+| `internal/app` | Dispatch command groups `user` и `org`; парсить command arguments; резолвить выбранный profile; отклонять local mode до daemon discovery/autostart; вызывать shared endpoint reconciler после successful registration или organization creation; маппить usage, transport и partial-success failures в exit codes. |
 | `internal/cli` | Оркестрировать выполнение user/org команд и рендерить human/JSON output. Реализовать command-level поведение вроде follow-up `GET /v1/users/me` после `412` у `user register`. |
 | `internal/client` | Владеть typed HTTP methods, request/response structs, обработкой ETag/Location, conditional headers и decoding remote errors для user/org endpoints. |
-| `internal/config` | Предоставлять данные выбранного remote profile: base URL, non-secret auth settings и profile mode. Не владеет user/org records или OIDC credentials. |
+| `internal/config` | Предоставлять данные выбранного remote profile и atomic compare-before-write profile updates. Не владеет user/org records или OIDC credentials. |
 | `internal/daemon` | Не используется этими командами; local-mode rejection должен происходить до вызова этого package. |
 
 ### Local engine (`backend/local-engine-go`)
@@ -74,13 +74,19 @@ config components сохраняют текущие обязанности бе�
   - Определяет `sqlrs user`.
   - Маршрутизирует `me`, `register` и `create`.
   - Запрещает identity flags на `register`.
-  - Требует identity issuer/subject на `create`.
+  - Требует service provider ID, identity issuer и subject на `create`.
   - Отклоняет все `user` subcommands в local mode до local engine discovery.
 - `org_command.go`
   - Определяет `sqlrs org`.
   - Маршрутизирует `create`, `ls` и `get`.
   - Парсит `<slug>`, `<org-ref>` и `--name`.
   - Отклоняет все `org` subcommands в local mode до local engine discovery.
+- `endpoint_reconcile.go`
+  - Проверяет canonical endpoint относительно installation identity/control base.
+  - Переключает только installation-scoped profile с одним unambiguous result.
+  - Подавляет persistent switching для explicit token overrides.
+  - Сохраняет successful stdout и возвращает exit `1` с stderr recovery, если
+    remote operation успешна, но local reconciliation failed.
 
 ### `frontend/cli-go/internal/cli`
 
@@ -138,6 +144,10 @@ config components сохраняют текущие обязанности бе�
 Gateway проверяет token-ы и выводит actor claims, но не создает и не мутирует
 user/org records напрямую.
 
+Gateway отображает каждую accepted issuer/client-ID pair в stable provider ID
+installation, например `google`. `IdentityKey.provider` — этот provider ID;
+`oidc` является adapter name и никогда не является identity-provider value.
+
 ### User Profile Service
 
 - `IdentityClaimsMapper`
@@ -170,7 +180,8 @@ user/org records напрямую.
 ## 5. Ключевые типы и interfaces
 
 - `IdentityKey`
-  - `provider`, `issuer` и `subject`.
+  - Stable advertised service `provider` ID, `issuer` и `subject`; adapter names
+    не принимаются как provider IDs.
 - `ActorContext`
   - Authenticated principal data, derived current `IdentityKey` и
     authorization attributes.
@@ -187,6 +198,10 @@ user/org records напрямую.
   - Slug и optional display name.
 - `OrganizationMembershipView`
   - Organization плюс membership текущего user.
+- `EndpointReconciler`
+  - Shared CLI service после login, self-registration и organization creation.
+    Получает token source, installation identity/control base, current profile
+    snapshot и authenticated organization results.
 - `UserProfileManager`
   - Service-facing interface для user reads и conditional writes.
 - `OrganizationManager`
@@ -197,6 +212,9 @@ user/org records напрямую.
 ## 6. Владение данными
 
 - **CLI profile config** является file-based и принадлежит `internal/config`.
+- **Endpoint reconciliation state** invocation-local. Только validated endpoint
+  и organization metadata сохраняются через atomic compare-before-write update;
+  explicit token overrides никогда его не запускают.
 - **CLI command options, HTTP requests и ETag-и** являются in-memory data одного
   invocation. CLI не кеширует user profiles, organizations, memberships или
   ETag-и persistent-но.
