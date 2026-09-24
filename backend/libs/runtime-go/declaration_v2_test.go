@@ -239,7 +239,31 @@ func TestDiagnosticsNeverBecomeIdentity(t *testing.T) {
 	}
 }
 
-func workspaceInput(t *testing.T, path string) runtimev2.InputDeclaration {
+func FuzzExtensionDeclarations(f *testing.F) {
+	seed, _ := json.Marshal(workspaceInput(f, "input.sql"))
+	f.Add(seed)
+	f.Add([]byte(`{"schema_version":"sqlrs.runtime.v2","owner":"x","kind":"y","specification_schema":"x.y.v1","fields":[]}`))
+	f.Fuzz(func(t *testing.T, raw []byte) {
+		var value runtimev2.InputDeclaration
+		err := runtimev2.DecodeJSON(raw, &value)
+		if err != nil {
+			if !errors.Is(err, runtimev2.ErrInvalid) || value.Owner() != "" {
+				t.Fatalf("decode = %+v, %v", value, err)
+			}
+			return
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var roundTrip runtimev2.InputDeclaration
+		if err := runtimev2.DecodeJSON(encoded, &roundTrip); err != nil || roundTrip.Owner() != value.Owner() {
+			t.Fatalf("round trip: %v", err)
+		}
+	})
+}
+
+func workspaceInput(t testing.TB, path string) runtimev2.InputDeclaration {
 	t.Helper()
 	value, err := runtimev2.NewInputDeclaration(runtimev2.ExtensionSpecificationInput{
 		SchemaVersion: runtimev2.SchemaVersion, Owner: "sqlrs.workspace", Kind: "file",

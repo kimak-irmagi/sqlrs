@@ -99,7 +99,9 @@ func canonicalDeclarationFields(source []DeclarationField, path string) ([]Decla
 }
 
 func copyDeclarationFields(source []DeclarationField) []DeclarationField {
-	return append([]DeclarationField(nil), source...)
+	result := make([]DeclarationField, len(source))
+	copy(result, source)
+	return result
 }
 
 func (d *extensionSpecificationData) clone() *extensionSpecificationData {

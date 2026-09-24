@@ -1,0 +1,138 @@
+package resolver
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"hash"
+	"io"
+	"os"
+	"path/filepath"
+)
+
+type ArtifactStore interface {
+	PublishVerified(context.Context, io.Reader, string) (Artifact, error)
+}
+type DirectoryArtifactStore struct{ root string }
+
+func NewDirectoryArtifactStore(root string) (*DirectoryArtifactStore, error) {
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		return nil, err
+	}
+	info, err := os.Lstat(root)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return nil, ErrUnsafePath
+	}
+	_ = os.Chmod(root, 0o700)
+	abs, err := filepath.Abs(root)
+	return &DirectoryArtifactStore{root: abs}, err
+}
+func (s *DirectoryArtifactStore) PublishVerified(ctx context.Context, source io.Reader, expected string) (Artifact, error) {
+	if !validDigest(expected) {
+		return nil, ErrInvalidDeclaration
+	}
+	target := filepath.Join(s.root, expected[7:])
+	if existing, err := os.Open(target); err == nil {
+		got, hashErr := hashReader(ctx, existing)
+		if hashErr == nil && got == expected {
+			_, _ = existing.Seek(0, io.SeekStart)
+			return &fileArtifact{File: existing}, nil
+		}
+		existing.Close()
+		_ = os.Remove(target)
+	}
+	temporary, err := os.CreateTemp(s.root, ".tmp-")
+	if err != nil {
+		return nil, err
+	}
+	name := temporary.Name()
+	committed := false
+	defer func() {
+		_ = temporary.Close()
+		if !committed {
+			_ = os.Remove(name)
+		}
+	}()
+	_ = temporary.Chmod(0o600)
+	hashWriter := newHashingWriter(temporary)
+	if _, err := copyContext(ctx, hashWriter, source); err != nil {
+		return nil, err
+	}
+	if hashWriter.digest() != expected {
+		return nil, ErrChanged
+	}
+	if err := temporary.Sync(); err != nil {
+		return nil, err
+	}
+	if err := temporary.Chmod(0o400); err != nil {
+		return nil, err
+	}
+	if err := temporary.Close(); err != nil {
+		return nil, err
+	}
+	if err := replaceFile(name, target); err != nil {
+		return nil, err
+	}
+	committed = true
+	file, err := os.Open(target)
+	if err != nil {
+		return nil, err
+	}
+	got, err := hashReader(ctx, file)
+	if err != nil || got != expected {
+		file.Close()
+		return nil, ErrChanged
+	}
+	_, _ = file.Seek(0, io.SeekStart)
+	return &fileArtifact{File: file}, nil
+}
+
+type fileArtifact struct{ *os.File }
+
+func (*fileArtifact) Kind() string { return "file" }
+
+type hashingWriter struct {
+	writer io.Writer
+	hash   hash.Hash
+}
+
+func newHashingWriter(writer io.Writer) *hashingWriter {
+	return &hashingWriter{writer: writer, hash: sha256.New()}
+}
+func (w *hashingWriter) Write(p []byte) (int, error) {
+	n, err := w.writer.Write(p)
+	if n > 0 {
+		_, _ = w.hash.Write(p[:n])
+	}
+	return n, err
+}
+func (w *hashingWriter) digest() string { return "sha256:" + hex.EncodeToString(w.hash.Sum(nil)) }
+func copyContext(ctx context.Context, dst io.Writer, src io.Reader) (int64, error) {
+	buffer := make([]byte, 64*1024)
+	var total int64
+	for {
+		if err := ctx.Err(); err != nil {
+			return total, err
+		}
+		n, rerr := src.Read(buffer)
+		if n > 0 {
+			written, werr := dst.Write(buffer[:n])
+			total += int64(written)
+			if werr != nil {
+				return total, werr
+			}
+			if written != n {
+				return total, io.ErrShortWrite
+			}
+		}
+		if rerr == io.EOF {
+			return total, nil
+		}
+		if rerr != nil {
+			return total, rerr
+		}
+	}
+}
