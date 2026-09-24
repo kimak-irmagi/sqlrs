@@ -3,7 +3,6 @@
 package resolver
 
 import (
-	"os"
 	"syscall"
 	"time"
 	"unsafe"
@@ -32,5 +31,3 @@ func replaceFile(source, target string) error {
 	return callErr
 }
 func syncDirectory(string) error { return nil }
-
-var _ = os.ErrNotExist

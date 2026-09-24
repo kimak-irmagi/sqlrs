@@ -25,6 +25,18 @@ type snapshotStub struct {
 	phase       int
 }
 
+func TestWorkspaceProviderNormalizesTypedNilArtifactStore(t *testing.T) {
+	var store *DirectoryArtifactStore
+	providerValue, err := NewWorkspaceFileResolver(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := providerValue.(*workspaceFileResolver)
+	if provider.artifacts != nil {
+		t.Fatal("typed nil artifact store retained")
+	}
+}
+
 func (s *snapshotStub) Read(p []byte) (int, error) {
 	if s.readErr != nil && s.phase == s.failPhase {
 		return 0, s.readErr
@@ -142,6 +154,7 @@ func TestWorkspaceProviderNormalizationAndValidationBranches(t *testing.T) {
 		{Identity: validIdentity, Evidence: []byte(`{"schema_version":"bad","path":"x","size":1}`)},
 		{Identity: validIdentity, Evidence: []byte(`{"schema_version":"sqlrs.workspace-file.evidence.v1","path":"../x","size":1}`)},
 		{Identity: validIdentity, Evidence: []byte(`{"schema_version":"sqlrs.workspace-file.evidence.v1","path":"x","size":1,"extra":true}`)},
+		{Identity: validIdentity, Evidence: []byte(`{"schema_version":"sqlrs.workspace-file.evidence.v1","path":"x","size":1,"size":2,"filesystem_class":"unsupported"}`)},
 		{Identity: validIdentity, Evidence: []byte(`{"schema_version":"sqlrs.workspace-file.evidence.v1","path":"x","size":1} {}`)},
 		{Identity: validIdentity, Evidence: []byte(`{"schema_version":"sqlrs.workspace-file.evidence.v1","path":"a/../x","size":1}`)},
 		{Identity: validIdentity, Evidence: []byte(`{"schema_version":"sqlrs.workspace-file.evidence.v1","path":"x","size":-1}`)},

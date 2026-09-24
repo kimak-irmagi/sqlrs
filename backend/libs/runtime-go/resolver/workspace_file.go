@@ -40,6 +40,9 @@ type workspaceFileResolver struct{ artifacts ArtifactStore }
 
 // NewWorkspaceFileResolver constructs the reference rooted-file provider.
 func NewWorkspaceFileResolver(artifacts ArtifactStore) (Resolver, error) {
+	if nilInterface(artifacts) {
+		artifacts = nil
+	}
 	return &workspaceFileResolver{artifacts: artifacts}, nil
 }
 func (r *workspaceFileResolver) Descriptor() Descriptor {
@@ -129,6 +132,9 @@ func (r *workspaceFileResolver) ValidateResolution(value Resolution) error {
 	}
 	var evidence fileEvidence
 	if len(value.Evidence) == 0 || len(value.Evidence) > maxProviderEvidenceBytes {
+		return ErrInvalidDeclaration
+	}
+	if rejectDuplicateJSON(value.Evidence) != nil {
 		return ErrInvalidDeclaration
 	}
 	decoder := json.NewDecoder(strings.NewReader(string(value.Evidence)))

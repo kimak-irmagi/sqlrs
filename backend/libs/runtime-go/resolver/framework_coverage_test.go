@@ -86,8 +86,16 @@ func TestManagerFailureBranches(t *testing.T) {
 	if _, err := NewManager(Registry{}, nil); err == nil {
 		t.Fatal("nil cache accepted")
 	}
+	var typedNilCache *coverageCache
+	if _, err := NewManager(Registry{}, typedNilCache); err == nil {
+		t.Fatal("typed nil cache accepted")
+	}
 	if _, err := NewRegistry(nil); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("nil resolver: %v", err)
+	}
+	var typedNilResolver *coverageResolver
+	if _, err := NewRegistry(typedNilResolver); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("typed nil resolver: %v", err)
 	}
 	if _, err := NewRegistry(&coverageResolver{}); !errors.Is(err, ErrInvalidDeclaration) {
 		t.Fatalf("invalid descriptor: %v", err)
@@ -158,6 +166,16 @@ func TestManagerFailureBranches(t *testing.T) {
 	manager, _ = NewManager(registry, &coverageCache{load: CacheLoad{Hit: true, Resolution: resolution}})
 	if _, err := manager.ResolveCurrent(context.Background(), workspace, declaration); err == nil {
 		t.Fatal("invalid refreshed evidence accepted")
+	}
+}
+
+func TestNilInterfaceHandlesNilableAndValueTypes(t *testing.T) {
+	var pointer *int
+	if !nilInterface(pointer) {
+		t.Fatal("typed nil pointer not detected")
+	}
+	if nilInterface(1) {
+		t.Fatal("non-nilable value classified as nil")
 	}
 }
 

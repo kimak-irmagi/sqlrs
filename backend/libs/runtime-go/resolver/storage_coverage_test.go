@@ -409,6 +409,9 @@ func TestArtifactStoreAndCopyFailureBranches(t *testing.T) {
 	if _, err := openVerifiedArtifact(context.Background(), blockedTarget, blockedDigest); !errors.Is(err, ErrUnsafePath) {
 		t.Fatalf("verified directory object: %v", err)
 	}
+	if _, err := openVerifiedArtifact(context.Background(), filepath.Join(store.root, "missing"), blockedDigest); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("verified missing object: %v", err)
+	}
 	corruptPath := filepath.Join(store.root, strings.Repeat("a", 64))
 	if err := os.WriteFile(corruptPath, []byte("corrupt"), 0o600); err != nil {
 		t.Fatal(err)

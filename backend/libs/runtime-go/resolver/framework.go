@@ -12,6 +12,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"unicode/utf8"
 
@@ -149,7 +150,7 @@ func descriptorKey(value Descriptor) dispatchKey {
 func NewRegistry(values ...Resolver) (Registry, error) {
 	result := Registry{resolvers: make(map[dispatchKey]registryEntry, len(values))}
 	for _, value := range values {
-		if value == nil {
+		if nilInterface(value) {
 			return Registry{}, ErrUnsupported
 		}
 		descriptor := value.Descriptor()
@@ -187,10 +188,23 @@ type Manager struct {
 }
 
 func NewManager(registry Registry, cache Cache) (Manager, error) {
-	if cache == nil {
+	if nilInterface(cache) {
 		return Manager{}, errors.New("resolver: nil cache")
 	}
 	return Manager{registry, cache}, nil
+}
+
+func nilInterface(value any) bool {
+	if value == nil {
+		return true
+	}
+	reflected := reflect.ValueOf(value)
+	switch reflected.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
+	}
 }
 
 func outcomeFor(resolution Resolution, key CacheKey, status RevalidationStatus, reason string, cacheHit bool) Outcome {
