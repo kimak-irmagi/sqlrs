@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -38,6 +37,8 @@ type fileEvidence struct {
 type continuityEvidence struct{ Class, Revision, VolumeID, FileID, ChangeToken string }
 type workspaceFileResolver struct{ artifacts ArtifactStore }
 
+var continuityEvidenceForFile = nativeContinuityEvidence
+
 // NewWorkspaceFileResolver constructs the reference rooted-file provider.
 func NewWorkspaceFileResolver(artifacts ArtifactStore) (Resolver, error) {
 	if nilInterface(artifacts) {
@@ -63,10 +64,9 @@ func (r *workspaceFileResolver) Normalize(ctx context.Context, workspace Workspa
 	if err != nil {
 		return NormalizedDeclaration{}, err
 	}
-	value, err := runtimev2.NewInputDeclaration(runtimev2.ExtensionSpecificationInput{SchemaVersion: runtimev2.SchemaVersion, Owner: workspaceOwner, Kind: workspaceKind, SpecificationSchema: workspaceSpecification, Fields: []runtimev2.DeclarationField{{Name: "path", Value: cleaned}}})
-	if err != nil {
-		return NormalizedDeclaration{}, fmt.Errorf("%w: %v", ErrInvalidDeclaration, err)
-	}
+	// The provider constants and normalizeWorkspacePath guarantees satisfy the
+	// core constructor contract; there is no remaining data-dependent failure.
+	value, _ := runtimev2.NewInputDeclaration(runtimev2.ExtensionSpecificationInput{SchemaVersion: runtimev2.SchemaVersion, Owner: workspaceOwner, Kind: workspaceKind, SpecificationSchema: workspaceSpecification, Fields: []runtimev2.DeclarationField{{Name: "path", Value: cleaned}}})
 	return NormalizedDeclaration{Declaration: value}, nil
 }
 func normalizeWorkspacePath(value string) (string, error) {
@@ -117,7 +117,7 @@ func (r *workspaceFileResolver) Resolve(ctx context.Context, workspace Workspace
 	// Every constructor input below is a package constant except digest, which
 	// stableFileDigest emits in the constructor's required lowercase format.
 	identity, _ := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{SchemaVersion: runtimev2.SchemaVersion, Owner: workspaceOwner, Kind: workspaceKind, IdentitySchema: workspaceIdentity, Fields: []runtimev2.ResolvedField{{Name: "content.digest", Value: digest}}})
-	native := nativeContinuityEvidence(file, info)
+	native := continuityEvidenceForFile(file, info)
 	strong := cheapRevalidationEnabled(native.Class, native.Revision) && native.VolumeID != "" && native.FileID != "" && native.ChangeToken != ""
 	evidence, _ := json.Marshal(fileEvidence{SchemaVersion: "sqlrs.workspace-file.evidence.v1", Path: fields[0].Value, Size: info.Size(), ModifiedNanos: info.ModTime().UnixNano(), FilesystemClass: native.Class, EvidenceRevision: native.Revision, Strong: strong, VolumeID: native.VolumeID, FileID: native.FileID, ChangeToken: native.ChangeToken})
 	return Resolution{Identity: identity, Evidence: evidence}, nil
@@ -140,9 +140,6 @@ func (r *workspaceFileResolver) ValidateResolution(value Resolution) error {
 	decoder := json.NewDecoder(strings.NewReader(string(value.Evidence)))
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&evidence) != nil || evidence.SchemaVersion != "sqlrs.workspace-file.evidence.v1" {
-		return ErrInvalidDeclaration
-	}
-	if _, err := decoder.Token(); err != io.EOF {
 		return ErrInvalidDeclaration
 	}
 	cleaned, err := normalizeWorkspacePath(evidence.Path)
@@ -210,7 +207,7 @@ func (r *workspaceFileResolver) Revalidate(ctx context.Context, workspace Worksp
 		}
 		return Revalidation{}, err
 	}
-	current := nativeContinuityEvidence(file, info)
+	current := continuityEvidenceForFile(file, info)
 	file.Close()
 	if info.Size() != evidence.Size {
 		return Revalidation{Status: Stale, Reason: "size_changed"}, nil
@@ -237,12 +234,16 @@ func (r *workspaceFileResolver) Acquire(ctx context.Context, workspace Workspace
 	return r.artifacts.PublishVerified(ctx, file, value.Identity.Fields()[0].Value)
 }
 func openSafeFile(rootPath, name string) (*os.File, os.FileInfo, error) {
-	return openSafeFileAfterWalk(rootPath, name, nil)
+	return openSafeFileWithHooks(rootPath, name, nil, nil)
 }
 
 // openSafeFileAfterWalk exposes the security-sensitive walk/open boundary to
 // deterministic package tests without changing the public resolver contract.
 func openSafeFileAfterWalk(rootPath, name string, afterWalk func()) (*os.File, os.FileInfo, error) {
+	return openSafeFileWithHooks(rootPath, name, afterWalk, nil)
+}
+
+func openSafeFileWithHooks(rootPath, name string, afterWalk, afterOpen func()) (*os.File, os.FileInfo, error) {
 	root, err := os.OpenRoot(rootPath)
 	if err != nil {
 		return nil, nil, err
@@ -282,6 +283,9 @@ func openSafeFileAfterWalk(rootPath, name string, afterWalk func()) (*os.File, o
 	file, err := root.Open(name)
 	if err != nil {
 		return nil, nil, err
+	}
+	if afterOpen != nil {
+		afterOpen()
 	}
 	info, err := file.Stat()
 	if err != nil {

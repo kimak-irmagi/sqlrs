@@ -201,8 +201,9 @@ uncovered statements:
 
 ## 9. Результат coverage и критического ревью
 
-Согласованная remediation достигла 95,5% для package core и 95,1% для
-package resolver на Windows при раздельном измерении. Ревью также добавило
+Согласованная remediation достигла 95,5% для package core. Coverage resolver
+при раздельном измерении составляет 96,0% на Windows и 95,0% в Linux parity
+container. Ревью также добавило
 subprocess publication cache/CAS, resolver fuzz targets, отдельные CI/release
 thresholds по package, bounded cache reads/writes, strict canonical evidence,
 закрытый набор revalidation statuses, валидацию refreshed evidence для `CURRENT`,

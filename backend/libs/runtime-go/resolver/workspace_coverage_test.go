@@ -243,6 +243,14 @@ func TestWorkspaceResolveRevalidateAcquireFailureBranches(t *testing.T) {
 	}
 	directory := filepath.Join(workspace.Root, "directory")
 	_ = os.Mkdir(directory, 0o700)
+	if err := os.WriteFile(filepath.Join(directory, "nested"), []byte("nested"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	nested, _, err := openSafeFile(workspace.Root, "directory/nested")
+	if err != nil {
+		t.Fatalf("nested file: %v", err)
+	}
+	nested.Close()
 	if _, _, err := openSafeFile(workspace.Root, "directory/missing"); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("missing nested: %v", err)
 	}
@@ -261,6 +269,40 @@ func TestWorkspaceResolveRevalidateAcquireFailureBranches(t *testing.T) {
 	}
 	if _, err := provider.Revalidate(context.Background(), Workspace{Root: rootFile}, resolution); err == nil {
 		t.Fatal("file workspace root accepted")
+	}
+}
+
+func TestWorkspaceRevalidateStrongContinuityOnEveryPlatform(t *testing.T) {
+	workspace := Workspace{Root: t.TempDir()}
+	path := filepath.Join(workspace.Root, "input")
+	if err := os.WriteFile(path, []byte("content"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	native := continuityEvidence{Class: "ntfs-usn", Revision: "ntfs-usn-v1", VolumeID: "volume", FileID: "file", ChangeToken: "change"}
+	original := continuityEvidenceForFile
+	continuityEvidenceForFile = func(*os.File, os.FileInfo) continuityEvidence { return native }
+	t.Cleanup(func() { continuityEvidenceForFile = original })
+	evidence, _ := json.Marshal(fileEvidence{
+		SchemaVersion: "sqlrs.workspace-file.evidence.v1", Path: "input", Size: info.Size(), ModifiedNanos: info.ModTime().UnixNano(),
+		FilesystemClass: native.Class, EvidenceRevision: native.Revision, Strong: true,
+		VolumeID: native.VolumeID, FileID: native.FileID, ChangeToken: native.ChangeToken,
+	})
+	resolvedIdentity, err := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{
+		SchemaVersion: runtimev2.SchemaVersion, Owner: workspaceOwner, Kind: workspaceKind, IdentitySchema: workspaceIdentity,
+		Fields: []runtimev2.ResolvedField{{Name: "content.digest", Value: digestOf([]byte("content"))}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolution := Resolution{Identity: resolvedIdentity, Evidence: evidence}
+	providerValue, _ := NewWorkspaceFileResolver(nil)
+	result, err := providerValue.Revalidate(context.Background(), workspace, resolution)
+	if err != nil || result.Status != Current || result.Reason != "strong_filesystem_continuity" {
+		t.Fatalf("strong continuity = %+v, %v", result, err)
 	}
 }
 
@@ -285,6 +327,39 @@ func TestOpenSafeFileRejectsReplacementBetweenWalkAndOpen(t *testing.T) {
 	})
 	if !errors.Is(err, ErrUnsafePath) {
 		t.Fatalf("replacement error = %v", err)
+	}
+}
+
+func TestOpenSafeFileRejectsDisappearanceBetweenWalkAndOpen(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "target.sql")
+	if err := os.WriteFile(target, []byte("first"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := openSafeFileAfterWalk(root, "target.sql", func() {
+		if removeErr := os.Remove(target); removeErr != nil {
+			t.Fatalf("remove target: %v", removeErr)
+		}
+	})
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("disappearance error = %v", err)
+	}
+}
+
+func TestOpenSafeFileRejectsRenameAfterOpen(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "target.sql")
+	retired := filepath.Join(root, "retired.sql")
+	if err := os.WriteFile(target, []byte("first"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := openSafeFileWithHooks(root, "target.sql", nil, func() {
+		if renameErr := os.Rename(target, retired); renameErr != nil {
+			t.Fatalf("rename opened target: %v", renameErr)
+		}
+	})
+	if !errors.Is(err, ErrUnsafePath) {
+		t.Fatalf("post-open rename error = %v", err)
 	}
 }
 

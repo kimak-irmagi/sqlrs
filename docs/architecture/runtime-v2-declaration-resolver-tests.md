@@ -254,8 +254,9 @@ behavior is proposed. Address files in uncovered-statement order:
 
 ## 9. Coverage and critical-review outcome
 
-The approved remediation reached 95.5% for the core package and 95.1%
-for the resolver package on Windows, measured separately. The review also added
+The approved remediation reached 95.5% for the core package. Resolver coverage
+is 96.0% on Windows and 95.0% in the Linux parity container, measured
+separately. The review also added
 subprocess cache/CAS publication, resolver fuzz targets, per-package CI/release
 thresholds, bounded cache reads/writes, strict canonical evidence, closed
 revalidation statuses, validated refreshed `CURRENT` evidence, NTFS reparse
