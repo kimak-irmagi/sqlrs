@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.commit || github.ref }}
       - uses: actions/setup-go@v5
         with:
           go-version-file: backend/libs/runtime-go/go.mod
@@ -57,16 +58,34 @@ jobs:
           test -z "$(git status --porcelain)"
           echo "value=$version" >> "$GITHUB_OUTPUT"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - name: Verify protected nested-tag policy before publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          matched=false
+          for id in $(gh api "repos/${GITHUB_REPOSITORY}/rulesets" --jq '.[] | select(.enforcement == "active") | .id'); do
+            rule=$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/$id")
+            protects=$(jq -r '[.rules[].type] | (index("deletion") != null and index("update") != null)' <<<"$rule")
+            matches=$(jq -r '[.conditions.ref_name.include[]?] | any(. == "refs/tags/backend/libs/runtime-go/v*" or . == "~ALL")' <<<"$rule")
+            if [[ "$protects" == true && "$matches" == true ]]; then matched=true; fi
+          done
+          [[ "$matched" == true ]]
       - name: Unit, coverage, race, and fuzz smoke
         working-directory: backend/libs/runtime-go
         shell: bash
         run: |
           set -euo pipefail
-          go test -count=1 -coverprofile=coverage.out ./...
-          total=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
-          awk -v total="$total" 'BEGIN { if (total + 0 < 95) exit 1 }'
+          go test -count=1 -coverprofile=coverage-core.out .
+          go test -count=1 -coverprofile=coverage-resolver.out ./resolver
+          core=$(go tool cover -func=coverage-core.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
+          resolver=$(go tool cover -func=coverage-resolver.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
+          awk -v value="$core" 'BEGIN { if (value + 0 < 95) exit 1 }'
+          awk -v value="$resolver" 'BEGIN { if (value + 0 < 95) exit 1 }'
           go test -race -count=1 ./...
           go test -run '^$' -fuzz '^FuzzResolvedTransformJSON$' -fuzztime=2s -timeout=30s .
+          go test -run '^$' -fuzz '^FuzzWorkspacePathAndEvidence$' -fuzztime=2s -timeout=30s ./resolver
       - name: Verify independent goldens and dependencies
         shell: bash
         run: |
@@ -139,7 +158,13 @@ jobs:
             test "$attempt" -lt 20
             sleep 15
           done
-          grep -Fq "\"Version\": \"$VERSION\"" download.json
+          jq -e --arg version "$VERSION" '
+            .Version == $version and
+            (.Sum | startswith("h1:")) and
+            (.GoModSum | startswith("h1:")) and
+            (.Zip | length > 0) and
+            (.GoMod | length > 0)
+          ' download.json >/dev/null
           GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go get "$module@$VERSION"
           cat > runtime_test.go <<'EOF'
           package consumer

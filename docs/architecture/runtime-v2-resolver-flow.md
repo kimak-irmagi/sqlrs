@@ -124,8 +124,11 @@ Unsupported or incomplete evidence yields `UNKNOWN` and a new hash. Thus a
 replacement preserving weak size/timestamp metadata cannot reuse stale identity.
 
 Evidence strength is classified per filesystem, not merely per operating
-system. Candidate strong classes are NTFS on Windows, APFS on macOS, and
-ext4/XFS/Btrfs on Linux. A class is enabled for the cheap path only after its
+system. The first enabled class is `ntfs-usn` revision `ntfs-usn-v1` on
+NTFS Windows. It combines volume/file identity with the per-file
+USN and last-write metadata; its native test overwrites same-size bytes and
+restores mtime before proving the result is not `CURRENT`. Candidate future
+classes are APFS on macOS and ext4/XFS/Btrfs on Linux. A class is enabled only after its
 native live integration gate proves the required replacement and change-token
 behavior; until then it returns `UNKNOWN`. OverlayFS requires the same explicit
 evidence. Network, virtual, unknown, coarse-timestamp, or otherwise unverified

@@ -226,3 +226,43 @@ conformance, fuzz-smoke, race, required native-filesystem enablement for every
 class left enabled, local clean-consumer, and workflow-contract tests. RC
 acceptance requires its public-consumer gate. GA/issue-#123 closure requires the
 same-commit proof and final GA public-consumer gate.
+
+## 8. Proposed coverage-remediation iteration
+
+Measured on Windows after the four buildable implementation commits: core 83.0%,
+resolver 70.1%. The approved requirements are present, but their negative and
+failure branches are not yet sufficiently exercised. No undocumented production
+behavior is proposed. Address files in uncovered-statement order:
+
+1. `extension_identity.go` (54), `diagnostics.go` (47), and
+   `extension_declaration.go` (41): strict round trips for every role, zero/nil
+   values, atomic failed decode, all accessors, duplicate/boundary inputs, and
+   composition mutation isolation.
+2. `workspace_file.go` (36), `directory_cache.go` (34), and `framework.go` (24):
+   complete the approved path/type/cancellation matrix, cache corruption and
+   size/version/key failures, and every manager orchestration row.
+3. `artifact_store.go` (23), `cache_prune.go` (14), and `errors.go` (10): inject
+   read/write/cancel/digest/existing-object failures, age/version/link pruning,
+   cleanup, stable codes, and `errors.Is`/`errors.As` behavior.
+4. Declaration documents/recipe and existing semantic files (65 combined): test
+   the documented defensive-copy, nil receiver, strict decoder, integrity, and
+   legacy compatibility branches. Remove a branch only if line review proves it
+   has no corresponding requirement.
+5. Re-measure per platform. Target 100%; acceptance requires at least 95% for
+   core and resolver separately. Windows replacement error paths and native-only
+   Unix paths are measured in their native jobs and merged, not fabricated.
+
+## 9. Coverage and critical-review outcome
+
+The approved remediation reached 95.5% for the core package and 95.1%
+for the resolver package on Windows, measured separately. The review also added
+subprocess cache/CAS publication, resolver fuzz targets, per-package CI/release
+thresholds, bounded cache reads/writes, strict canonical evidence, closed
+revalidation statuses, validated refreshed `CURRENT` evidence, NTFS reparse
+handling, cross-filesystem detection where native device IDs exist, and
+same-size/restored-mtime NTFS USN continuity tests. `ntfs-usn-v1` is the only
+enabled cheap-revalidation class; all unlisted classes remain `UNKNOWN`.
+
+The repository ruleset prohibiting nested-tag update/deletion is active. It
+remains an external publication prerequisite: the release job checks the live
+GitHub policy on every run and fails closed if that protection changes.

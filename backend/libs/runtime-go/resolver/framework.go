@@ -12,6 +12,8 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"strings"
+	"unicode/utf8"
 
 	runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
 )
@@ -21,6 +23,7 @@ var (
 	ErrDuplicate          = errors.New("resolver: duplicate descriptor")
 	ErrInvalidDeclaration = errors.New("resolver: invalid declaration")
 	ErrUnsafePath         = errors.New("resolver: unsafe path")
+	ErrNotRegular         = errors.New("resolver: not a regular file")
 	ErrChanged            = errors.New("resolver: source changed")
 	ErrCorruptCache       = errors.New("resolver: corrupt cache")
 	ErrIncompatibleCache  = errors.New("resolver: incompatible cache")
@@ -52,11 +55,28 @@ type Revalidation struct {
 	Reason   string
 	Evidence json.RawMessage
 }
+
+// Provenance identifies the resolver and normalized declaration that produced
+// an outcome without placing mutable declaration spelling in logical identity.
+type Provenance struct {
+	Resolver              Descriptor
+	NormalizedDeclaration json.RawMessage
+}
+
+// Freshness exposes the exact revalidation result and provider evidence used by
+// the outcome. Evidence remains provider-owned and non-identity-bearing.
+type Freshness struct {
+	Status   RevalidationStatus
+	Reason   string
+	Evidence json.RawMessage
+}
 type Outcome struct {
 	Resolution  Resolution
 	PriorStatus RevalidationStatus
 	Reason      string
 	CacheHit    bool
+	Provenance  Provenance
+	Freshness   Freshness
 }
 type CacheKey struct {
 	digest, workspaceScope string
@@ -116,32 +136,49 @@ type Cache interface {
 }
 
 type dispatchKey struct{ Role, Owner, Kind, SpecificationSchema string }
-type Registry struct{ resolvers map[dispatchKey]Resolver }
+type registryEntry struct {
+	descriptor Descriptor
+	resolver   Resolver
+}
+type Registry struct{ resolvers map[dispatchKey]registryEntry }
 
 func descriptorKey(value Descriptor) dispatchKey {
 	return dispatchKey{value.Role, value.Owner, value.Kind, value.SpecificationSchema}
 }
 
 func NewRegistry(values ...Resolver) (Registry, error) {
-	result := Registry{resolvers: make(map[dispatchKey]Resolver, len(values))}
+	result := Registry{resolvers: make(map[dispatchKey]registryEntry, len(values))}
 	for _, value := range values {
 		if value == nil {
 			return Registry{}, ErrUnsupported
 		}
-		key := descriptorKey(value.Descriptor())
+		descriptor := value.Descriptor()
+		if !validDescriptor(descriptor) {
+			return Registry{}, ErrInvalidDeclaration
+		}
+		key := descriptorKey(descriptor)
 		if _, ok := result.resolvers[key]; ok {
 			return Registry{}, ErrDuplicate
 		}
-		result.resolvers[key] = value
+		result.resolvers[key] = registryEntry{descriptor: descriptor, resolver: value}
 	}
 	return result, nil
+}
+
+func validDescriptor(value Descriptor) bool {
+	for _, component := range []string{value.Role, value.Owner, value.Kind, value.SpecificationSchema, value.SemanticVersion} {
+		if component == "" || !utf8.ValidString(component) || component != strings.TrimSpace(component) {
+			return false
+		}
+	}
+	return true
 }
 func (r Registry) Lookup(key Descriptor) (Resolver, error) {
 	value, ok := r.resolvers[descriptorKey(key)]
 	if !ok {
 		return nil, ErrUnsupported
 	}
-	return value, nil
+	return value.resolver, nil
 }
 
 type Manager struct {
@@ -155,15 +192,24 @@ func NewManager(registry Registry, cache Cache) (Manager, error) {
 	}
 	return Manager{registry, cache}, nil
 }
+
+func outcomeFor(resolution Resolution, key CacheKey, status RevalidationStatus, reason string, cacheHit bool) Outcome {
+	return Outcome{
+		Resolution: resolution, PriorStatus: status, Reason: reason, CacheHit: cacheHit,
+		Provenance: Provenance{Resolver: key.descriptor, NormalizedDeclaration: append(json.RawMessage(nil), key.declaration...)},
+		Freshness:  Freshness{Status: status, Reason: reason, Evidence: append(json.RawMessage(nil), resolution.Evidence...)},
+	}
+}
 func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declaration runtimev2.InputDeclaration) (Outcome, error) {
 	keyDescriptor := Descriptor{Role: declaration.Role(), Owner: declaration.Owner(), Kind: declaration.Kind(), SpecificationSchema: declaration.SpecificationSchema()}
+	entry, found := m.registry.resolvers[descriptorKey(keyDescriptor)]
 	var provider Resolver
-	provider = m.registry.resolvers[descriptorKey(keyDescriptor)]
-	if provider != nil {
-		keyDescriptor = provider.Descriptor()
+	if found {
+		provider = entry.resolver
+		keyDescriptor = entry.descriptor
 	}
 	if provider == nil {
-		return Outcome{}, ErrUnsupported
+		return Outcome{}, resolverError("dispatch", CodeUnsupportedKind, keyDescriptor, ErrUnsupported)
 	}
 	normalized, err := provider.Normalize(ctx, workspace, declaration)
 	if err != nil {
@@ -171,29 +217,42 @@ func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declar
 	}
 	key, err := NewCacheKey(workspace, keyDescriptor, normalized)
 	if err != nil {
-		return Outcome{}, err
+		return Outcome{}, resolverError("cache_key", classifyError(err), keyDescriptor, err)
 	}
+	fallbackReason := "cache_miss"
 	loaded, err := m.cache.Load(ctx, key)
 	if err != nil {
 		if !errors.Is(err, ErrCorruptCache) && !errors.Is(err, ErrIncompatibleCache) {
 			return Outcome{}, resolverError("cache_load", classifyError(err), keyDescriptor, err)
 		}
+		if errors.Is(err, ErrIncompatibleCache) {
+			fallbackReason = "incompatible_cache"
+		} else {
+			fallbackReason = "corrupt_cache"
+		}
 		loaded = CacheLoad{}
 	}
 	if loaded.Hit {
 		if err := provider.ValidateResolution(loaded.Resolution); err != nil {
+			fallbackReason = "invalid_cached_resolution"
 			loaded = CacheLoad{}
 		} else {
 			revalidation, err := provider.Revalidate(ctx, workspace, loaded.Resolution)
 			if err != nil {
 				return Outcome{}, resolverError("revalidate", classifyError(err), keyDescriptor, err)
 			}
+			if revalidation.Status != Current && revalidation.Status != Stale && revalidation.Status != Unknown {
+				return Outcome{}, resolverError("revalidate", CodeInvalidResolution, keyDescriptor, ErrInvalidDeclaration)
+			}
 			if revalidation.Status == Current {
 				loaded.Resolution.Evidence = append(json.RawMessage(nil), revalidation.Evidence...)
+				if err := provider.ValidateResolution(loaded.Resolution); err != nil {
+					return Outcome{}, resolverError("validate_resolution", CodeInvalidResolution, keyDescriptor, err)
+				}
 				if err := m.cache.Store(ctx, key, loaded.Resolution); err != nil {
 					return Outcome{}, resolverError("cache_store", classifyError(err), keyDescriptor, err)
 				}
-				return Outcome{loaded.Resolution, Current, revalidation.Reason, true}, nil
+				return outcomeFor(loaded.Resolution, key, Current, revalidation.Reason, true), nil
 			}
 			fresh, err := provider.Resolve(ctx, workspace, normalized)
 			if err != nil {
@@ -208,7 +267,7 @@ func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declar
 			if err := m.cache.Store(ctx, key, fresh); err != nil {
 				return Outcome{}, resolverError("cache_store", classifyError(err), keyDescriptor, err)
 			}
-			return Outcome{fresh, revalidation.Status, revalidation.Reason, true}, nil
+			return outcomeFor(fresh, key, revalidation.Status, revalidation.Reason, true), nil
 		}
 	}
 	fresh, err := provider.Resolve(ctx, workspace, normalized)
@@ -221,5 +280,5 @@ func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declar
 	if err := m.cache.Store(ctx, key, fresh); err != nil {
 		return Outcome{}, resolverError("cache_store", classifyError(err), keyDescriptor, err)
 	}
-	return Outcome{Resolution: fresh}, nil
+	return outcomeFor(fresh, key, "", fallbackReason, false), nil
 }

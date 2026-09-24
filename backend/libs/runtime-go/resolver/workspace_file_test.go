@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
 	runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
@@ -47,7 +46,7 @@ func TestWorkspaceFileResolveRevalidateAndAcquire(t *testing.T) {
 		t.Fatal(err)
 	}
 	revalidation, err := provider.Revalidate(context.Background(), resolver.Workspace{Root: workspace}, got)
-	if err != nil || revalidation.Status != resolver.Unknown {
+	if err != nil || (revalidation.Status != resolver.Unknown && revalidation.Status != resolver.Current) {
 		t.Fatalf("revalidate = %+v, %v", revalidation, err)
 	}
 	artifact, err := provider.Acquire(context.Background(), resolver.Workspace{Root: workspace}, got)
@@ -103,10 +102,43 @@ func TestWorkspaceFileDetectsChangeAndDigestMismatch(t *testing.T) {
 	}
 }
 
+func TestWorkspaceFileRevalidateTreatsDirectoryReplacementAsStale(t *testing.T) {
+	workspace := t.TempDir()
+	path := filepath.Join(workspace, "input.sql")
+	if err := os.WriteFile(path, []byte("select 1"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	provider, err := resolver.NewWorkspaceFileResolver(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	normalized, err := provider.Normalize(context.Background(), resolver.Workspace{Root: workspace}, fileDeclaration(t, "input.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolution, err := provider.Resolve(context.Background(), resolver.Workspace{Root: workspace}, normalized)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(path, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	revalidation, err := provider.Revalidate(context.Background(), resolver.Workspace{Root: workspace}, resolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if revalidation.Status != resolver.Stale || revalidation.Reason != "source_missing_or_replaced" {
+		t.Fatalf("revalidation = %+v", revalidation)
+	}
+}
+
 func fileDeclaration(t *testing.T, path string) runtimev2.InputDeclaration {
 	t.Helper()
 	value, err := runtimev2.NewInputDeclaration(runtimev2.ExtensionSpecificationInput{SchemaVersion: runtimev2.SchemaVersion, Owner: "sqlrs.workspace", Kind: "file", SpecificationSchema: "sqlrs.workspace-file.declaration.v1", Fields: []runtimev2.DeclarationField{{Name: "path", Value: path}}})
-	if err != nil && !strings.Contains(path, "") {
+	if err != nil && path != "" {
 		t.Fatal(err)
 	}
 	return value

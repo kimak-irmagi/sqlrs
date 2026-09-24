@@ -118,9 +118,12 @@ change time, size и mtime; на Windows — volume/file identity, change time, 
 last-write time. Неполные evidence дают `UNKNOWN` и новый hash. Поэтому замена с
 сохранением weak size/timestamp metadata не переиспользует stale identity.
 
-Evidence strength определяется per-filesystem, а не только per-OS. Кандидаты на
-strong class: NTFS на Windows, APFS на macOS и ext4/XFS/Btrfs на Linux. Класс
-разрешает cheap path только после native live integration gate, доказавшего
+Evidence strength определяется per-filesystem, а не только per-OS. Первый
+enabled class — `ntfs-usn` revision `ntfs-usn-v1` на NTFS Windows. Он объединяет
+volume/file identity, per-file USN и last-write metadata;
+native test перезаписывает bytes того же размера, восстанавливает mtime и
+доказывает, что результат не `CURRENT`. Будущие candidates — APFS на macOS и
+ext4/XFS/Btrfs на Linux. Класс разрешает cheap path только после native live integration gate, доказавшего
 replacement/change-token behavior; до этого он даёт `UNKNOWN`. OverlayFS требует
 такого же evidence. Network, virtual, unknown, coarse-timestamp и непроверенные
 filesystems всегда дают `UNKNOWN`. Classification, evidence revision и downgrade

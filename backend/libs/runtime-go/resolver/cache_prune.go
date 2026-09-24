@@ -2,7 +2,7 @@ package resolver
 
 import (
 	"context"
-	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -38,27 +38,53 @@ func (c *DirectoryCache) Prune(ctx context.Context, policy PrunePolicy) (PruneRe
 		if err := ctx.Err(); err != nil {
 			return PruneResult{}, err
 		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return PruneResult{}, ErrUnsafePath
-		}
-		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".tmp-") || filepath.Ext(entry.Name()) != ".json" {
-			continue
-		}
-		path := filepath.Join(c.root, entry.Name())
-		raw, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return PruneResult{}, readErr
-		}
-		var record cacheRecord
-		if json.Unmarshal(raw, &record) != nil {
-			continue
-		}
-		if policy.SemanticVersion != "" && record.Descriptor.SemanticVersion != policy.SemanticVersion {
+		// In-progress publications are never pruning candidates. Check their
+		// reserved prefix before metadata lookup so a writer may rename or remove
+		// one concurrently without turning normal publication into a prune error.
+		if strings.HasPrefix(entry.Name(), ".tmp-") {
 			continue
 		}
 		info, infoErr := entry.Info()
 		if infoErr != nil {
 			return PruneResult{}, infoErr
+		}
+		if isLinkLike(info) {
+			return PruneResult{}, ErrUnsafePath
+		}
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		path := filepath.Join(c.root, entry.Name())
+		if info.Size() > runtimeCacheMaxBytes {
+			continue
+		}
+		file, readErr := os.Open(path)
+		if readErr != nil {
+			return PruneResult{}, readErr
+		}
+		raw, readErr := io.ReadAll(io.LimitReader(file, runtimeCacheMaxBytes+1))
+		closeErr := file.Close()
+		if readErr != nil {
+			return PruneResult{}, readErr
+		}
+		if closeErr != nil {
+			return PruneResult{}, closeErr
+		}
+		if len(raw) > runtimeCacheMaxBytes {
+			continue
+		}
+		var record cacheRecord
+		if parseErr := parseCacheRecord(raw, &record); parseErr != nil {
+			continue
+		}
+		if record.Key == "" || record.WorkspaceScope == "" {
+			continue
+		}
+		if entry.Name() != record.Key+".json" {
+			continue
+		}
+		if policy.SemanticVersion != "" && record.Descriptor.SemanticVersion != policy.SemanticVersion {
+			continue
 		}
 		if policy.MaximumAge > 0 && now.Sub(info.ModTime()) > policy.MaximumAge {
 			if err := os.Remove(path); err != nil {

@@ -36,20 +36,7 @@ func NewDirectoryCache(root string) (*DirectoryCache, error) {
 	if root == "" {
 		return nil, ErrCorruptCache
 	}
-	if err := os.MkdirAll(root, 0o700); err != nil {
-		return nil, err
-	}
-	info, err := os.Lstat(root)
-	if err != nil {
-		return nil, err
-	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return nil, ErrUnsafePath
-	}
-	if err := os.Chmod(root, 0o700); err != nil {
-		return nil, err
-	}
-	abs, err := filepath.Abs(root)
+	abs, err := preparePrivateDirectory(root)
 	if err != nil {
 		return nil, err
 	}
@@ -66,40 +53,67 @@ func (c *DirectoryCache) Load(ctx context.Context, key CacheKey) (CacheLoad, err
 	if err := ctx.Err(); err != nil {
 		return CacheLoad{}, err
 	}
-	raw, err := os.ReadFile(c.path(key))
+	path := c.path(key)
+	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return CacheLoad{}, nil
 	}
 	if err != nil {
 		return CacheLoad{}, err
 	}
+	if isLinkLike(info) || !info.Mode().IsRegular() {
+		return CacheLoad{}, ErrUnsafePath
+	}
+	if info.Size() > runtimeCacheMaxBytes {
+		return CacheLoad{}, ErrCorruptCache
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return CacheLoad{}, err
+	}
+	raw, readErr := io.ReadAll(io.LimitReader(file, runtimeCacheMaxBytes+1))
+	closeErr := file.Close()
+	if readErr != nil {
+		return CacheLoad{}, readErr
+	}
+	if closeErr != nil {
+		return CacheLoad{}, closeErr
+	}
 	if len(raw) > runtimeCacheMaxBytes {
 		return CacheLoad{}, ErrCorruptCache
 	}
-	if rejectDuplicateJSON(raw) != nil {
-		return CacheLoad{}, ErrCorruptCache
-	}
 	var record cacheRecord
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&record); err != nil {
-		return CacheLoad{}, ErrCorruptCache
+	if err := parseCacheRecord(raw, &record); err != nil {
+		return CacheLoad{}, err
 	}
-	if _, err := decoder.Token(); err != io.EOF {
-		return CacheLoad{}, ErrCorruptCache
-	}
-	if record.SchemaVersion != cacheSchema || record.Key != key.String() ||
+	if record.Key != key.String() ||
 		record.WorkspaceScope != key.workspaceScope || record.Descriptor != key.descriptor ||
 		!bytes.Equal(record.Declaration, key.declaration) {
 		return CacheLoad{}, ErrCorruptCache
 	}
+	return CacheLoad{Hit: true, Resolution: cloneResolution(record.Resolution)}, nil
+}
+
+func parseCacheRecord(raw []byte, record *cacheRecord) error {
+	if rejectDuplicateJSON(raw) != nil {
+		return ErrCorruptCache
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(record); err != nil {
+		return ErrCorruptCache
+	}
+	if record.SchemaVersion != cacheSchema {
+		return ErrIncompatibleCache
+	}
 	want := record.Checksum
 	record.Checksum = ""
-	digest, err := cacheChecksum(record)
-	if err != nil || want != digest {
-		return CacheLoad{}, ErrCorruptCache
+	digest, _ := cacheChecksum(*record)
+	record.Checksum = want
+	if want != digest {
+		return ErrCorruptCache
 	}
-	return CacheLoad{Hit: true, Resolution: cloneResolution(record.Resolution)}, nil
+	return nil
 }
 
 func (c *DirectoryCache) Store(ctx context.Context, key CacheKey, resolution Resolution) error {
@@ -115,9 +129,11 @@ func (c *DirectoryCache) Store(ctx context.Context, key CacheKey, resolution Res
 		return err
 	}
 	record.Checksum = checksum
-	raw, err := json.Marshal(record)
-	if err != nil {
-		return err
+	// cacheChecksum has just marshalled the same immutable record successfully;
+	// adding a fixed-format checksum string cannot introduce a marshal failure.
+	raw, _ := json.Marshal(record)
+	if len(raw) > runtimeCacheMaxBytes {
+		return ErrInvalidDeclaration
 	}
 	temporary, err := os.CreateTemp(c.root, ".tmp-")
 	if err != nil {
@@ -190,10 +206,8 @@ func rejectDuplicateJSON(raw []byte) error {
 				if err != nil {
 					return err
 				}
-				key, ok := keyToken.(string)
-				if !ok {
-					return ErrCorruptCache
-				}
+				// encoding/json emits only string tokens for object keys.
+				key := keyToken.(string)
 				if _, exists := seen[key]; exists {
 					return ErrCorruptCache
 				}
@@ -208,8 +222,6 @@ func rejectDuplicateJSON(raw []byte) error {
 					return err
 				}
 			}
-		default:
-			return ErrCorruptCache
 		}
 		_, err = decoder.Token()
 		return err

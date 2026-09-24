@@ -46,7 +46,10 @@ func NewResolvedExtensionIdentity(input ResolvedExtensionIdentityInput) (Resolve
 	if len(input.Fields) > MaxResolvedFields {
 		return ResolvedExtensionIdentity{}, invalid(CodeTooLarge, "fields")
 	}
-	fields := append([]ResolvedField(nil), input.Fields...)
+	// Preserve an explicitly empty collection as [] rather than nil. The wire
+	// contract requires fields to be present and array-shaped, so values emitted
+	// by MarshalJSON must remain valid input to UnmarshalJSON.
+	fields := append([]ResolvedField{}, input.Fields...)
 	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
 	for index, field := range fields {
 		path := "fields[" + itoa(index) + "]"
@@ -92,7 +95,7 @@ func (i ResolvedExtensionIdentity) Fields() []ResolvedField {
 	if i.data == nil {
 		return nil
 	}
-	return append([]ResolvedField(nil), i.data.fields...)
+	return append([]ResolvedField{}, i.data.fields...)
 }
 
 // ExtensionFingerprint hashes every identity-bearing extension field using its

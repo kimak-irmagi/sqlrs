@@ -24,10 +24,18 @@ const (
 )
 
 type fileEvidence struct {
-	SchemaVersion string `json:"schema_version"`
-	Path          string `json:"path"`
-	Size          int64  `json:"size"`
+	SchemaVersion    string `json:"schema_version"`
+	Path             string `json:"path"`
+	Size             int64  `json:"size"`
+	ModifiedNanos    int64  `json:"modified_nanos"`
+	FilesystemClass  string `json:"filesystem_class"`
+	EvidenceRevision string `json:"evidence_revision"`
+	Strong           bool   `json:"strong"`
+	VolumeID         string `json:"volume_id"`
+	FileID           string `json:"file_id"`
+	ChangeToken      string `json:"change_token"`
 }
+type continuityEvidence struct{ Class, Revision, VolumeID, FileID, ChangeToken string }
 type workspaceFileResolver struct{ artifacts ArtifactStore }
 
 // NewWorkspaceFileResolver constructs the reference rooted-file provider.
@@ -83,8 +91,15 @@ func normalizeWorkspacePath(value string) (string, error) {
 	return cleaned, nil
 }
 func (r *workspaceFileResolver) Resolve(ctx context.Context, workspace Workspace, normalized NormalizedDeclaration) (Resolution, error) {
+	if normalized.Declaration.Role() != "input" || normalized.Declaration.Owner() != workspaceOwner || normalized.Declaration.Kind() != workspaceKind || normalized.Declaration.SpecificationSchema() != workspaceSpecification {
+		return Resolution{}, ErrInvalidDeclaration
+	}
 	fields := normalized.Declaration.Fields()
-	if len(fields) != 1 {
+	if len(fields) != 1 || fields[0].Name != "path" {
+		return Resolution{}, ErrInvalidDeclaration
+	}
+	cleaned, err := normalizeWorkspacePath(fields[0].Value)
+	if err != nil || cleaned != fields[0].Value {
 		return Resolution{}, ErrInvalidDeclaration
 	}
 	file, info, err := openSafeFile(workspace.Root, fields[0].Value)
@@ -92,22 +107,16 @@ func (r *workspaceFileResolver) Resolve(ctx context.Context, workspace Workspace
 		return Resolution{}, err
 	}
 	defer file.Close()
-	digest, err := hashReader(ctx, file)
+	digest, err := stableFileDigest(ctx, file, info)
 	if err != nil {
 		return Resolution{}, err
 	}
-	after, err := file.Stat()
-	if err != nil {
-		return Resolution{}, err
-	}
-	if after.Size() != info.Size() || !after.ModTime().Equal(info.ModTime()) {
-		return Resolution{}, ErrChanged
-	}
-	identity, err := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{SchemaVersion: runtimev2.SchemaVersion, Owner: workspaceOwner, Kind: workspaceKind, IdentitySchema: workspaceIdentity, Fields: []runtimev2.ResolvedField{{Name: "content.digest", Value: digest}}})
-	if err != nil {
-		return Resolution{}, err
-	}
-	evidence, _ := json.Marshal(fileEvidence{SchemaVersion: "sqlrs.workspace-file.evidence.v1", Path: fields[0].Value, Size: info.Size()})
+	// Every constructor input below is a package constant except digest, which
+	// stableFileDigest emits in the constructor's required lowercase format.
+	identity, _ := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{SchemaVersion: runtimev2.SchemaVersion, Owner: workspaceOwner, Kind: workspaceKind, IdentitySchema: workspaceIdentity, Fields: []runtimev2.ResolvedField{{Name: "content.digest", Value: digest}}})
+	native := nativeContinuityEvidence(file, info)
+	strong := cheapRevalidationEnabled(native.Class, native.Revision) && native.VolumeID != "" && native.FileID != "" && native.ChangeToken != ""
+	evidence, _ := json.Marshal(fileEvidence{SchemaVersion: "sqlrs.workspace-file.evidence.v1", Path: fields[0].Value, Size: info.Size(), ModifiedNanos: info.ModTime().UnixNano(), FilesystemClass: native.Class, EvidenceRevision: native.Revision, Strong: strong, VolumeID: native.VolumeID, FileID: native.FileID, ChangeToken: native.ChangeToken})
 	return Resolution{Identity: identity, Evidence: evidence}, nil
 }
 func (r *workspaceFileResolver) ValidateResolution(value Resolution) error {
@@ -119,16 +128,66 @@ func (r *workspaceFileResolver) ValidateResolution(value Resolution) error {
 		return ErrInvalidDeclaration
 	}
 	var evidence fileEvidence
+	if len(value.Evidence) == 0 || len(value.Evidence) > maxProviderEvidenceBytes {
+		return ErrInvalidDeclaration
+	}
 	decoder := json.NewDecoder(strings.NewReader(string(value.Evidence)))
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&evidence) != nil || evidence.SchemaVersion != "sqlrs.workspace-file.evidence.v1" {
 		return ErrInvalidDeclaration
 	}
-	if _, err := normalizeWorkspacePath(evidence.Path); err != nil {
+	if _, err := decoder.Token(); err != io.EOF {
+		return ErrInvalidDeclaration
+	}
+	cleaned, err := normalizeWorkspacePath(evidence.Path)
+	if err != nil || cleaned != evidence.Path || evidence.Size < 0 || evidence.FilesystemClass == "" {
+		return ErrInvalidDeclaration
+	}
+	if evidence.Strong && (!cheapRevalidationEnabled(evidence.FilesystemClass, evidence.EvidenceRevision) || evidence.VolumeID == "" || evidence.FileID == "" || evidence.ChangeToken == "") {
 		return ErrInvalidDeclaration
 	}
 	return nil
 }
+
+const maxProviderEvidenceBytes = 64 << 10
+
+type snapshotFile interface {
+	io.Reader
+	io.Seeker
+	Stat() (os.FileInfo, error)
+}
+
+// stableFileDigest rejects ordinary in-place mutation by requiring two equal
+// reads and unchanged metadata from the same safely opened file descriptor.
+func stableFileDigest(ctx context.Context, file snapshotFile, initial os.FileInfo) (string, error) {
+	digest, err := hashReader(ctx, file)
+	if err != nil {
+		return "", err
+	}
+	after, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+	if after.Size() != initial.Size() || !after.ModTime().Equal(initial.ModTime()) {
+		return "", ErrChanged
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+	confirmation, err := hashReader(ctx, file)
+	if err != nil {
+		return "", err
+	}
+	confirmed, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+	if confirmation != digest || confirmed.Size() != initial.Size() || !confirmed.ModTime().Equal(initial.ModTime()) {
+		return "", ErrChanged
+	}
+	return digest, nil
+}
+
 func (r *workspaceFileResolver) Revalidate(ctx context.Context, workspace Workspace, value Resolution) (Revalidation, error) {
 	if err := ctx.Err(); err != nil {
 		return Revalidation{}, err
@@ -140,14 +199,18 @@ func (r *workspaceFileResolver) Revalidate(ctx context.Context, workspace Worksp
 	_ = json.Unmarshal(value.Evidence, &evidence)
 	file, info, err := openSafeFile(workspace.Root, evidence.Path)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) || errors.Is(err, ErrUnsafePath) {
+		if errors.Is(err, os.ErrNotExist) || errors.Is(err, ErrUnsafePath) || errors.Is(err, ErrNotRegular) {
 			return Revalidation{Status: Stale, Reason: "source_missing_or_replaced"}, nil
 		}
 		return Revalidation{}, err
 	}
+	current := nativeContinuityEvidence(file, info)
 	file.Close()
 	if info.Size() != evidence.Size {
 		return Revalidation{Status: Stale, Reason: "size_changed"}, nil
+	}
+	if evidence.Strong && cheapRevalidationEnabled(current.Class, current.Revision) && current.VolumeID == evidence.VolumeID && current.FileID == evidence.FileID && current.ChangeToken == evidence.ChangeToken && info.ModTime().UnixNano() == evidence.ModifiedNanos {
+		return Revalidation{Status: Current, Reason: "strong_filesystem_continuity", Evidence: append(json.RawMessage(nil), value.Evidence...)}, nil
 	}
 	return Revalidation{Status: Unknown, Reason: "filesystem_evidence_disabled", Evidence: append(json.RawMessage(nil), value.Evidence...)}, nil
 }
@@ -168,13 +231,24 @@ func (r *workspaceFileResolver) Acquire(ctx context.Context, workspace Workspace
 	return r.artifacts.PublishVerified(ctx, file, value.Identity.Fields()[0].Value)
 }
 func openSafeFile(rootPath, name string) (*os.File, os.FileInfo, error) {
+	return openSafeFileAfterWalk(rootPath, name, nil)
+}
+
+// openSafeFileAfterWalk exposes the security-sensitive walk/open boundary to
+// deterministic package tests without changing the public resolver contract.
+func openSafeFileAfterWalk(rootPath, name string, afterWalk func()) (*os.File, os.FileInfo, error) {
 	root, err := os.OpenRoot(rootPath)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer root.Close()
+	rootInfo, err := root.Stat(".")
+	if err != nil {
+		return nil, nil, err
+	}
 	current := ""
 	parts := strings.Split(name, "/")
+	observed := make([]os.FileInfo, len(parts))
 	for index, part := range parts {
 		if current == "" {
 			current = part
@@ -185,12 +259,19 @@ func openSafeFile(rootPath, name string) (*os.File, os.FileInfo, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		if info.Mode()&os.ModeSymlink != 0 {
+		if isLinkLike(info) {
+			return nil, nil, ErrUnsafePath
+		}
+		if filesystemTransition(rootInfo, info) {
 			return nil, nil, ErrUnsafePath
 		}
 		if index < len(parts)-1 && !info.IsDir() {
 			return nil, nil, ErrUnsafePath
 		}
+		observed[index] = info
+	}
+	if afterWalk != nil {
+		afterWalk()
 	}
 	file, err := root.Open(name)
 	if err != nil {
@@ -203,7 +284,26 @@ func openSafeFile(rootPath, name string) (*os.File, os.FileInfo, error) {
 	}
 	if !info.Mode().IsRegular() {
 		file.Close()
+		return nil, nil, ErrNotRegular
+	}
+	if !os.SameFile(observed[len(observed)-1], info) {
+		file.Close()
 		return nil, nil, ErrUnsafePath
+	}
+	// Recheck every component after opening. os.Root confines traversal to the
+	// root; matching file identities additionally rejects a stable rename/link
+	// substitution that occurred between the first walk and the open.
+	for index, component := range parts {
+		if index == 0 {
+			current = component
+		} else {
+			current += "/" + component
+		}
+		after, afterErr := root.Lstat(current)
+		if afterErr != nil || isLinkLike(after) || filesystemTransition(rootInfo, after) || !os.SameFile(observed[index], after) {
+			file.Close()
+			return nil, nil, ErrUnsafePath
+		}
 	}
 	return file, info, nil
 }

@@ -8,22 +8,19 @@
 
 ```text
 backend/libs/runtime-go/resolver/
-  doc.go                 package contract и public limits
-  declaration.go         generic и normalized declarations
-  binding.go             resolved-extension fingerprint bindings
-  resolution.go          resolution, provenance, freshness и outcomes
-  registry.go            immutable dispatch по kind
-  manager.go             cache/revalidation orchestration
-  cache.go               cache interface и strict record envelope
+  framework.go           contracts, immutable registry, manager и cache key
   directory_cache.go     restart-safe atomic directory implementation
   cache_prune.go         bounded namespace/age/count pruning
   artifact_store.go      trusted content-addressed acquired artifacts
+  private_directory.go   построение trusted root
+  link_unix.go           обнаружение links на Unix
+  link_windows.go        обнаружение symlink/reparse point на Windows
   replace_unix.go        atomic cache publication на Unix
   replace_windows.go     atomic cache publication на Windows
   errors.go              общая модель operations/errors
   workspace_file.go      reference file resolver
   filesystem_class.go   cheap-revalidation capability classification
-  filemeta_unix.go       Unix continuity evidence
+  filesystem_boundary.go обнаружение cross-filesystem transition
   filemeta_windows.go    Windows continuity evidence
   filemeta_fallback.go   безопасное UNKNOWN-поведение на других ОС
 ```
@@ -113,7 +110,8 @@ Workspace-file identity:
 
 Normalized/absolute paths, timestamps, file ID, cache key и acquisition location
 исключены из identity. Provenance хранит original/normalized declarations,
-resolver implementation/semantic version и resolution time.
+resolver implementation/semantic version. Wall-clock resolution time намеренно
+не входит в текущий persistent envelope.
 
 ## Revalidation и artifact
 
@@ -121,11 +119,18 @@ resolver implementation/semantic version и resolution time.
 `Revalidation` содержит stable reason и refreshed freshness, но не replacement
 identity: её создаёт только `Resolve`.
 
-`Freshness` хранит observation time и provider evidence. File evidence — private
-versioned strict-JSON value с size, mtime, stable file identity, change token и
-filesystem class и признаком strong continuity. Weak fields никогда не входят в identity. Generic
+File freshness evidence — private versioned strict-JSON value с path, size,
+mtime, stable file identity, change token, filesystem class, evidence revision
+и признаком strong continuity. Weak fields никогда не входят в identity. Generic
 cache валидирует и ограничивает envelope; `ValidateResolution` применяет закрытую
 provider schema и отклоняет missing/unknown evidence до revalidation.
+
+Первый включённый cheap path — `ntfs-usn` revision `ntfs-usn-v1`. Он
+объединяет volume/file identity, per-file USN NTFS и last-write metadata.
+Mandatory Windows test перезаписывает bytes с сохранением size и восстановлением
+mtime; такое изменение не должно возвращать `CURRENT`. Остальные платформы
+остаются консервативными `UNKNOWN`, пока их native evidence revisions не получат
+эквивалентное live coverage.
 
 `Artifact` — небольшой interface с artifact kind и `Close`; concrete values
 принадлежат provider. File resolver возвращает opened immutable content-addressed

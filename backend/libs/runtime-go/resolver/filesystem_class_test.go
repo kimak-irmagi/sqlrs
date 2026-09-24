@@ -8,4 +8,10 @@ func TestFilesystemClassesDefaultToUnknown(t *testing.T) {
 			t.Fatalf("%s enabled without native evidence", class)
 		}
 	}
+	if !cheapRevalidationEnabled("ntfs-usn", "ntfs-usn-v1") {
+		t.Fatal("native-gated NTFS evidence disabled")
+	}
+	if cheapRevalidationEnabled("ntfs-usn", "other") {
+		t.Fatal("unknown NTFS evidence revision enabled")
+	}
 }

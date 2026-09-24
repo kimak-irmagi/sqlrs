@@ -27,12 +27,16 @@ jobs:
         run: |
           set -euo pipefail
           targets=(
-            FuzzResolvedTransformJSON
-            FuzzDigestAndCanonicalScalars
-            FuzzFieldPermutations
-            FuzzLineageJSON
-            FuzzExtensionDeclarations
+            ".:FuzzResolvedTransformJSON"
+            ".:FuzzDigestAndCanonicalScalars"
+            ".:FuzzFieldPermutations"
+            ".:FuzzLineageJSON"
+            ".:FuzzExtensionDeclarations"
+            "./resolver:FuzzWorkspacePathAndEvidence"
+            "./resolver:FuzzCacheJSONScanner"
           )
-          for target in "${targets[@]}"; do
-            go test -run '^$' -fuzz "^${target}$" -fuzztime=30s -timeout=90s .
+          for item in "${targets[@]}"; do
+            package="${item%%:*}"
+            target="${item#*:}"
+            go test -run '^$' -fuzz "^${target}$" -fuzztime=30s -timeout=90s "$package"
           done

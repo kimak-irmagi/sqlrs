@@ -218,3 +218,24 @@ cannot establish the required trust boundary.
 
 Rationale: this removes vacuous security-test skips while keeping authentication
 ownership-based and within the standard-library module boundary.
+
+## Decision 15: first enabled cheap-revalidation evidence revision
+
+Conversation refinement timestamp: 2026-09-24 Asia/Novosibirsk.
+
+GitHub user: `@evilguest`. Agent: OpenAI Codex (GPT-5).
+
+Question: which native evidence can satisfy #108's cheap `CURRENT` acceptance
+criterion without trusting only size and timestamps?
+
+Alternatives: leave every filesystem at `UNKNOWN`; trust portable stat metadata;
+enable a revisioned NTFS proof based on volume/file identity and per-file USN.
+
+Decision: enable only `ntfs-usn` revision `ntfs-usn-v1`. Evidence is collected
+from one opened handle, requires an actual NTFS volume, and combines volume/file
+identity, the V2 per-file USN, size, and mtime. Native Windows tests require an
+unchanged file to return `CURRENT` and a same-size overwrite with restored mtime
+not to return `CURRENT`. Every other filesystem class remains `UNKNOWN`.
+
+Rationale: NTFS exposes a native change token that closes the known portable-stat
+false-negative, while a revisioned allowlist keeps unproved platforms fail-safe.

@@ -149,3 +149,22 @@ attacker the workflow can cryptographically constrain.
 
 Rationale: workflow correctness cannot prevent a privileged force-update by
 itself; immutability needs both repository enforcement and public content proofs.
+
+## Decision 9: concrete repository tag protection
+
+Conversation refinement timestamp: 2026-09-24 Asia/Novosibirsk.
+
+GitHub user: `@evilguest`. Agent: OpenAI Codex (GPT-5).
+
+Question: which live repository policy implements Decision 8 without preventing
+the release workflow from creating new module versions?
+
+Alternatives: protect every tag operation; protect updates and deletions only;
+leave enforcement to the release workflow.
+
+Decision: activate repository ruleset `Immutable Runtime Go module tags`
+(ruleset id `23925519`) for `refs/tags/backend/libs/runtime-go/v*`, restricting
+updates and deletions while permitting creation of new version tags.
+
+Rationale: consumers get immutable published coordinates, while authorized
+release automation can still add a previously unused semantic version.

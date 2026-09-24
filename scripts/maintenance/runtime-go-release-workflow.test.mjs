@@ -17,3 +17,12 @@ test("nested release uses clean public consumption gates", () => {
   }
   assert.doesNotMatch(workflow, /\breplace\b/);
 });
+
+test("manual validation checks out the requested commit and gates each package", () => {
+  assert.match(workflow, /ref:.*inputs\.commit/);
+  assert.match(workflow, /coverage-core\.out/);
+  assert.match(workflow, /coverage-resolver\.out/);
+  assert.match(workflow, /GoModSum/);
+  assert.match(workflow, /\.Zip \| length > 0/);
+  assert.match(workflow, /Verify protected nested-tag policy before publication/);
+});

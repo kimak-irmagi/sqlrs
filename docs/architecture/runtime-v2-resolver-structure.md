@@ -8,22 +8,19 @@ Add package `resolver` to the existing independent module:
 
 ```text
 backend/libs/runtime-go/resolver/
-  doc.go                 package contract and public limits
-  declaration.go         generic and normalized declarations
-  binding.go             resolved-extension fingerprint bindings
-  resolution.go          resolution, provenance, freshness, and outcomes
-  registry.go            immutable kind dispatch
-  manager.go             cache/revalidation orchestration
-  cache.go               cache interface and strict record envelope
+  framework.go           contracts, immutable registry, manager, cache key
   directory_cache.go     restart-safe atomic directory implementation
   cache_prune.go         bounded namespace/age/count pruning
   artifact_store.go      trusted content-addressed acquired artifacts
+  private_directory.go   trusted-root construction
+  link_unix.go           Unix link detection
+  link_windows.go        Windows symlink/reparse-point detection
   replace_unix.go        atomic cache publication on Unix
   replace_windows.go     atomic cache publication on Windows
   errors.go              common operation/error model
   workspace_file.go      reference file resolver
   filesystem_class.go   cheap-revalidation capability classification
-  filemeta_unix.go       Unix continuity evidence
+  filesystem_boundary.go cross-filesystem transition detection
   filemeta_windows.go    Windows continuity evidence
   filemeta_fallback.go   safe UNKNOWN behavior elsewhere
 ```
@@ -118,7 +115,8 @@ The workspace-file identity is:
 
 Normalized/absolute paths, timestamps, file ID, cache key, and acquisition
 location are excluded from identity. Provenance records original and normalized
-declarations, resolver implementation/semantic version, and resolution time.
+declarations and resolver implementation/semantic version. Wall-clock resolution
+time is intentionally not part of the current persistent envelope.
 
 ## Revalidation and artifact types
 
@@ -126,12 +124,19 @@ declarations, resolver implementation/semantic version, and resolution time.
 `Revalidation` also carries a stable reason code and refreshed freshness. It
 never carries a replacement identity; only `Resolve` creates one.
 
-`Freshness` contains observation time and provider evidence. File evidence is a
-private versioned strict-JSON value containing size, mtime, stable file identity,
-change token, filesystem class, and whether continuity is strong. Weak fields are observations and
+File freshness evidence is a private versioned strict-JSON value containing
+path, size, mtime, stable file identity, change token, filesystem class, evidence
+revision, and whether continuity is strong. Weak fields are observations and
 never become identity fields. The generic cache bounds and validates the JSON
 envelope; `ValidateResolution` applies the provider-specific closed schema and
 rejects missing or unknown evidence fields before revalidation.
+
+The first enabled cheap path is `ntfs-usn` revision `ntfs-usn-v1`. It
+combines volume/file identity with the per-file NTFS USN and last-write
+metadata. Its mandatory Windows test overwrites bytes while preserving size and
+restoring mtime; such a change must not return `CURRENT`. Other platforms remain
+conservative `UNKNOWN` until their native evidence revisions have equivalent
+live coverage.
 
 `Artifact` is a small interface with artifact kind and `Close`. Concrete values
 stay provider-owned. The file implementation returns an opened immutable

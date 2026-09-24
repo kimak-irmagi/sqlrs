@@ -83,10 +83,16 @@ jobs:
         run: |
           set -euo pipefail
           profile=../../../coverage-runtime-v2-${{ matrix.runner }}.out
-          go test ./... -covermode=count -coverprofile="$profile"
-          total=$(go tool cover -func="$profile" | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
-          echo "Runtime v2 coverage: ${total}%"
-          awk -v total="$total" 'BEGIN { if (total + 0 < 95) exit 1 }'
+          go test . -covermode=count -coverprofile=coverage-core.out
+          go test ./resolver -covermode=count -coverprofile=coverage-resolver.out
+          core=$(go tool cover -func=coverage-core.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
+          resolver=$(go tool cover -func=coverage-resolver.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
+          echo "Runtime v2 coverage: core=${core}% resolver=${resolver}%"
+          awk -v value="$core" 'BEGIN { if (value + 0 < 95) exit 1 }'
+          awk -v value="$resolver" 'BEGIN { if (value + 0 < 95) exit 1 }'
+          head -n 1 coverage-core.out > "$profile"
+          tail -n +2 coverage-core.out >> "$profile"
+          tail -n +2 coverage-resolver.out >> "$profile"
 
       - name: Check Runtime v2 dependency boundary
         if: matrix.runner == 'ubuntu-latest'
@@ -94,7 +100,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          unexpected="$(go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' . \
+          unexpected="$(go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./... \
             | grep -v '^$' \
             | grep -v '^github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go\($\|/\)' || true)"
           if [[ -n "$unexpected" ]]; then

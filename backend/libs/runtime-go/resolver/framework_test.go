@@ -54,6 +54,9 @@ func TestManagerCurrentAndFallbackMatrix(t *testing.T) {
 			if outcome.PriorStatus != test.status || provider.resolveCalls != test.resolveCalls || provider.acquireCalls != 0 {
 				t.Fatalf("outcome=%+v calls=%d/%d", outcome, provider.resolveCalls, provider.acquireCalls)
 			}
+			if outcome.Provenance.Resolver != provider.descriptor || len(outcome.Provenance.NormalizedDeclaration) == 0 || outcome.Freshness.Status != test.status || string(outcome.Freshness.Evidence) != string(outcome.Resolution.Evidence) {
+				t.Fatalf("metadata = %+v %+v", outcome.Provenance, outcome.Freshness)
+			}
 			if cache.storeCalls != 1 {
 				t.Fatalf("store calls = %d", cache.storeCalls)
 			}

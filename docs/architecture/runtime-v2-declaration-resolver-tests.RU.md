@@ -175,3 +175,42 @@ Acceptance staged: PR требует unit, golden, independent conformance, fuzz
 race, native-FS gate для каждого оставленного enabled class, local clean consumer
 и workflow-contract tests. RC требует public-consumer gate. GA/закрытие #123
 требует same-commit proof и финальный GA public-consumer gate.
+
+## 8. Предлагаемая итерация исправления coverage
+
+После четырёх buildable implementation commits на Windows измерено: core 83,0%,
+resolver 70,1%. Требования реализованы, но negative/failure branches покрыты
+недостаточно. Новое undocumented behavior не добавляется. Порядок по числу
+uncovered statements:
+
+1. `extension_identity.go` (54), `diagnostics.go` (47),
+   `extension_declaration.go` (41): strict round trips всех ролей, zero/nil,
+   atomic failed decode, accessors, duplicate/boundary inputs и mutation isolation.
+2. `workspace_file.go` (36), `directory_cache.go` (34), `framework.go` (24):
+   полный path/type/cancellation matrix, corruption/size/version/key cache и все
+   строки manager orchestration matrix.
+3. `artifact_store.go` (23), `cache_prune.go` (14), `errors.go` (10): injected
+   read/write/cancel/digest/existing-object failures, age/version/link pruning,
+   cleanup, stable codes и `errors.Is`/`errors.As`.
+4. Declaration documents/recipe и прежние semantic files (65 вместе):
+   документированные defensive-copy, nil receiver, strict decoder, integrity и
+   legacy compatibility branches. Ветка удаляется только при отсутствии требования.
+5. Повторное per-platform измерение. Target 100%; минимум 95% отдельно для core
+   и resolver. Windows replacement и native Unix paths объединяются из native
+   jobs, а не имитируются.
+
+## 9. Результат coverage и критического ревью
+
+Согласованная remediation достигла 95,5% для package core и 95,1% для
+package resolver на Windows при раздельном измерении. Ревью также добавило
+subprocess publication cache/CAS, resolver fuzz targets, отдельные CI/release
+thresholds по package, bounded cache reads/writes, strict canonical evidence,
+закрытый набор revalidation statuses, валидацию refreshed evidence для `CURRENT`,
+обработку NTFS reparse points, cross-filesystem detection там, где доступны
+native device IDs, и NTFS USN tests для same-size overwrite с восстановленным
+mtime. `ntfs-usn-v1` — единственный включённый cheap-revalidation class; все
+unlisted classes остаются `UNKNOWN`.
+
+Repository ruleset, запрещающий update/delete nested tags, активен. Он остаётся
+внешней предпосылкой публикации: release job проверяет live GitHub policy при
+каждом запуске и fail-closed завершается, если protection изменится.

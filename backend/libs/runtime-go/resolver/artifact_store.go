@@ -16,26 +16,29 @@ type ArtifactStore interface {
 type DirectoryArtifactStore struct{ root string }
 
 func NewDirectoryArtifactStore(root string) (*DirectoryArtifactStore, error) {
-	if err := os.MkdirAll(root, 0o700); err != nil {
-		return nil, err
-	}
-	info, err := os.Lstat(root)
+	abs, err := preparePrivateDirectory(root)
 	if err != nil {
 		return nil, err
 	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return nil, ErrUnsafePath
-	}
-	_ = os.Chmod(root, 0o700)
-	abs, err := filepath.Abs(root)
-	return &DirectoryArtifactStore{root: abs}, err
+	return &DirectoryArtifactStore{root: abs}, nil
 }
 func (s *DirectoryArtifactStore) PublishVerified(ctx context.Context, source io.Reader, expected string) (Artifact, error) {
+	return s.publishVerified(ctx, source, expected, replaceFile)
+}
+
+func (s *DirectoryArtifactStore) publishVerified(ctx context.Context, source io.Reader, expected string, replace func(string, string) error) (Artifact, error) {
 	if !validDigest(expected) {
 		return nil, ErrInvalidDeclaration
 	}
 	target := filepath.Join(s.root, expected[7:])
-	if existing, err := os.Open(target); err == nil {
+	if info, err := os.Lstat(target); err == nil {
+		if isLinkLike(info) || !info.Mode().IsRegular() {
+			return nil, ErrUnsafePath
+		}
+		existing, err := os.Open(target)
+		if err != nil {
+			return nil, err
+		}
 		got, hashErr := hashReader(ctx, existing)
 		if hashErr == nil && got == expected {
 			_, _ = existing.Seek(0, io.SeekStart)
@@ -43,6 +46,8 @@ func (s *DirectoryArtifactStore) PublishVerified(ctx context.Context, source io.
 		}
 		existing.Close()
 		_ = os.Remove(target)
+	} else if !os.IsNotExist(err) {
+		return nil, err
 	}
 	temporary, err := os.CreateTemp(s.root, ".tmp-")
 	if err != nil {
@@ -56,7 +61,9 @@ func (s *DirectoryArtifactStore) PublishVerified(ctx context.Context, source io.
 			_ = os.Remove(name)
 		}
 	}()
-	_ = temporary.Chmod(0o600)
+	if err := temporary.Chmod(0o600); err != nil {
+		return nil, err
+	}
 	hashWriter := newHashingWriter(temporary)
 	if _, err := copyContext(ctx, hashWriter, source); err != nil {
 		return nil, err
@@ -73,10 +80,28 @@ func (s *DirectoryArtifactStore) PublishVerified(ctx context.Context, source io.
 	if err := temporary.Close(); err != nil {
 		return nil, err
 	}
-	if err := replaceFile(name, target); err != nil {
+	if err := replace(name, target); err != nil {
+		// Another process may have won publication of the same digest while this
+		// writer was syncing. On Windows its validation handle can transiently
+		// block replacement, so accept only the already-published object whose
+		// bytes independently verify against the requested content address.
+		if winner, winnerErr := openVerifiedArtifact(ctx, target, expected); winnerErr == nil {
+			return winner, nil
+		}
 		return nil, err
 	}
 	committed = true
+	return openVerifiedArtifact(ctx, target, expected)
+}
+
+func openVerifiedArtifact(ctx context.Context, target, expected string) (Artifact, error) {
+	info, err := os.Lstat(target)
+	if err != nil {
+		return nil, err
+	}
+	if isLinkLike(info) || !info.Mode().IsRegular() {
+		return nil, ErrUnsafePath
+	}
 	file, err := os.Open(target)
 	if err != nil {
 		return nil, err
