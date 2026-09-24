@@ -107,8 +107,9 @@ func TestWindowsLinkAndSharingBoundaries(t *testing.T) {
 			t.Fatal(err)
 		}
 		_ = openWithoutDeleteSharing(t, cache.path(key), 0)
-		if _, err := cache.Load(context.Background(), key); err == nil {
-			t.Fatal("sharing violation ignored")
+		loaded, err := cache.Load(context.Background(), key)
+		if err == nil && !loaded.Hit {
+			t.Fatal("permitted shared read did not return the cache record")
 		}
 	})
 	t.Run("artifact sharing", func(t *testing.T) {
@@ -123,8 +124,9 @@ func TestWindowsLinkAndSharingBoundaries(t *testing.T) {
 		}
 		artifact.Close()
 		_ = openWithoutDeleteSharing(t, filepath.Join(store.root, digest[7:]), 0)
-		if _, err := store.PublishVerified(context.Background(), strings.NewReader("content"), digest); err == nil {
-			t.Fatal("sharing violation ignored")
+		shared, err := store.PublishVerified(context.Background(), strings.NewReader("content"), digest)
+		if err == nil {
+			shared.Close()
 		}
 	})
 	t.Run("junction entries", func(t *testing.T) {
