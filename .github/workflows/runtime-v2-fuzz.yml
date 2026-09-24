@@ -14,12 +14,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: backend/libs/runtime-go/go.mod
+          cache: false
 
       - name: Run Runtime v2 nightly fuzz campaign
         working-directory: backend/libs/runtime-go

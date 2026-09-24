@@ -14,14 +14,14 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -65,15 +65,16 @@ jobs:
         runner: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go (Runtime v2)
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: backend/libs/runtime-go/go.mod
+          cache: false
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -130,7 +131,7 @@ jobs:
         run: GOWORK=off go test ./...
 
       - name: Upload Runtime v2 coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-runtime-v2-${{ matrix.runner }}
           path: coverage-runtime-v2-${{ matrix.runner }}.out
@@ -144,12 +145,13 @@ jobs:
         group: [fast, slow]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go (engine)
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: backend/local-engine-go/go.mod
+          cache-dependency-path: backend/local-engine-go/go.sum
 
       - name: Run engine coverage (${{ matrix.group }})
         working-directory: backend/local-engine-go
@@ -198,21 +200,21 @@ jobs:
 
       - name: Upload engine test output (${{ matrix.group }})
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: engine-test-output-${{ matrix.runner }}-${{ matrix.group }}
           path: engine-test-output-${{ matrix.runner }}-${{ matrix.group }}.log
           if-no-files-found: ignore
 
       - name: Upload engine coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-engine-${{ matrix.runner }}-${{ matrix.group }}
           path: coverage-engine-${{ matrix.runner }}-${{ matrix.group }}.out
 
       - name: Upload engine json artifacts (${{ matrix.group }})
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: engine-test-json-${{ matrix.runner }}-${{ matrix.group }}
           path: engine-test-output-${{ matrix.runner }}-${{ matrix.group }}.json
@@ -226,12 +228,13 @@ jobs:
         runner: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go (cli)
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: frontend/cli-go/go.mod
+          cache-dependency-path: frontend/cli-go/go.sum
 
       - name: Run CLI coverage
         working-directory: frontend/cli-go
@@ -265,7 +268,7 @@ jobs:
 
       - name: Upload CLI test output
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cli-test-output-${{ matrix.runner }}
           path: |
@@ -274,7 +277,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload CLI coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-cli-${{ matrix.runner }}
           path: coverage-cli-${{ matrix.runner }}.out
@@ -290,15 +293,16 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: backend/local-engine-go/go.mod
+          cache-dependency-path: backend/local-engine-go/go.sum
 
       - name: Download coverage artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: coverage-artifacts
 
@@ -337,7 +341,7 @@ jobs:
           echo "cli=$cli" >> "$GITHUB_OUTPUT"
 
       - name: Upload merged coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-merged
           path: |

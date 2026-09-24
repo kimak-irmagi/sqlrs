@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 
 const workflow = await readFile(new URL("../../.github/workflows/release-runtime-go.yml", import.meta.url), "utf8");
 const product = await readFile(new URL("../../.github/workflows/release-local.yml", import.meta.url), "utf8");
+const ci = await readFile(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
+const fuzz = await readFile(new URL("../../.github/workflows/runtime-v2-fuzz.yml", import.meta.url), "utf8");
 
 test("nested and product tag triggers are isolated", () => {
   assert.match(workflow, /backend\/libs\/runtime-go\/v\*/);
@@ -25,4 +27,18 @@ test("manual validation checks out the requested commit and gates each package",
   assert.match(workflow, /GoModSum/);
   assert.match(workflow, /\.Zip \| length > 0/);
   assert.match(workflow, /Verify protected nested-tag policy before publication/);
+});
+
+test("Runtime v2 workflows use Node 24 actions and explicit Go cache inputs", () => {
+  const runtimeWorkflows = [ci, workflow, fuzz];
+  const deprecatedActions = /actions\/(?:checkout@v4|setup-go@v5|setup-node@v4|upload-artifact@v4|download-artifact@v4)/;
+  for (const source of runtimeWorkflows) {
+    assert.doesNotMatch(source, deprecatedActions);
+  }
+
+  assert.match(ci, /go-version-file: backend\/libs\/runtime-go\/go\.mod\s+cache: false/);
+  assert.match(ci, /cache-dependency-path: backend\/local-engine-go\/go\.sum/);
+  assert.match(ci, /cache-dependency-path: frontend\/cli-go\/go\.sum/);
+  assert.match(workflow, /go-version-file: backend\/libs\/runtime-go\/go\.mod\s+cache: false/);
+  assert.match(fuzz, /go-version-file: backend\/libs\/runtime-go\/go\.mod\s+cache: false/);
 });

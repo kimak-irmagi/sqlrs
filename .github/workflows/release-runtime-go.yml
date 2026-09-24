@@ -23,14 +23,15 @@ jobs:
       version: ${{ steps.version.outputs.value }}
       commit: ${{ steps.version.outputs.commit }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.commit || github.ref }}
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: backend/libs/runtime-go/go.mod
-      - uses: actions/setup-node@v4
+          cache: false
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
       - id: version
@@ -105,12 +106,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: backend/libs/runtime-go/go.mod
+          cache: false
       - name: Verify protected nested-tag policy
         env:
           GH_TOKEN: ${{ github.token }}
