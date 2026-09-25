@@ -19,6 +19,16 @@
   согласованная граница публичного Go-модуля, типы и владение Runtime v2.
 - [Тесты semantic core Runtime v2](runtime-v2-semantic-core-tests.RU.md) -
   предлагаемый план golden, validation, lineage, boundary и import tests.
+- [Поток versioned declarations Runtime v2](runtime-v2-declaration-flow.RU.md) -
+  согласованный unresolved recipe и typed-extension resolution flow для #124.
+- [Структура versioned declarations Runtime v2](runtime-v2-declaration-structure.RU.md) -
+  согласованные declaration types, wire contracts и module release gate.
+- [Поток resolver Runtime v2](runtime-v2-resolver-flow.RU.md) - согласованный
+  generic flow resolution, revalidation, acquisition и workspace-file.
+- [Структура resolver Runtime v2](runtime-v2-resolver-structure.RU.md) -
+  согласованные resolver package, cache format, contracts и владение данными.
+- [Тесты declarations/resolver Runtime v2](runtime-v2-declaration-resolver-tests.RU.md) -
+  согласованная test matrix для #108, #123 и #124.
 - [`state-cache-design.RU.md`](state-cache-design.RU.md) - cache keys, триггеры,
   retention, локальный layout.
 - [`state-cache-capacity-control.RU.md`](state-cache-capacity-control.RU.md) -

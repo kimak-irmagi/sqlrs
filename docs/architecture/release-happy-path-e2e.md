@@ -11,6 +11,11 @@ This document defines MVP release validation for the local profile:
 
 The design goal is to ensure users receive the same binaries that passed E2E.
 
+This workflow is exclusively for product tags `v*`. Nested Go-module tags under
+`backend/libs/runtime-go/v*` do not build or publish product binaries; they use
+the dedicated Runtime v2 module gate described in
+[the declaration structure](runtime-v2-declaration-structure.md).
+
 ---
 
 ## Constraints and Principles

@@ -168,6 +168,137 @@ func TestBtrfsManagerSnapshotCommandError(t *testing.T) {
 	}
 }
 
+func TestBtrfsManagerSnapshotExistingDestinationBoundaries(t *testing.T) {
+	previousStat := osStatBtrfs
+	previousShow := runBtrfsShowFn
+	t.Cleanup(func() {
+		osStatBtrfs = previousStat
+		runBtrfsShowFn = previousShow
+	})
+	osStatBtrfs = func(string) (os.FileInfo, error) { return &btrfsFakeFileInfo{}, nil }
+
+	t.Run("subvolume", func(t *testing.T) {
+		runBtrfsShowFn = func(context.Context, string) (string, error) { return "Name: state-1", nil }
+		runner := &btrfsFakeRunner{}
+		err := (btrfsManager{runner: runner}).Snapshot(context.Background(), "src", "dest")
+		if err == nil || !strings.Contains(err.Error(), "existing subvolume") {
+			t.Fatalf("expected existing subvolume error, got %v", err)
+		}
+		if len(runner.calls) != 0 {
+			t.Fatalf("snapshot command should not run: %+v", runner.calls)
+		}
+	})
+
+	t.Run("subvolume without diagnostic output", func(t *testing.T) {
+		runBtrfsShowFn = func(context.Context, string) (string, error) { return "", nil }
+		err := (btrfsManager{runner: &btrfsFakeRunner{}}).Snapshot(context.Background(), "src", "dest")
+		if err == nil || !strings.Contains(err.Error(), "existing subvolume") {
+			t.Fatalf("expected existing subvolume error, got %v", err)
+		}
+	})
+
+	t.Run("ordinary path", func(t *testing.T) {
+		runBtrfsShowFn = func(context.Context, string) (string, error) { return "not a subvolume", errors.New("show failed") }
+		runner := &btrfsFakeRunner{}
+		if err := (btrfsManager{runner: runner}).Snapshot(context.Background(), "src", "dest"); err != nil {
+			t.Fatalf("Snapshot: %v", err)
+		}
+		if len(runner.calls) != 1 {
+			t.Fatalf("expected snapshot command, got %+v", runner.calls)
+		}
+	})
+}
+
+func TestBtrfsManagerFilesystemAndDestroyBoundaries(t *testing.T) {
+	t.Run("snapshot stat error", func(t *testing.T) {
+		previous := osStatBtrfs
+		osStatBtrfs = func(string) (os.FileInfo, error) { return nil, errors.New("stat failed") }
+		t.Cleanup(func() { osStatBtrfs = previous })
+		if err := (btrfsManager{runner: &btrfsFakeRunner{}}).Snapshot(context.Background(), "src", "dest"); err == nil || !strings.Contains(err.Error(), "stat failed") {
+			t.Fatalf("expected stat error, got %v", err)
+		}
+	})
+
+	t.Run("ensure stat error", func(t *testing.T) {
+		previous := osStatBtrfs
+		osStatBtrfs = func(string) (os.FileInfo, error) { return nil, errors.New("stat failed") }
+		t.Cleanup(func() { osStatBtrfs = previous })
+		if err := (btrfsManager{runner: &btrfsFakeRunner{}}).EnsureSubvolume(context.Background(), "state"); err == nil || !strings.Contains(err.Error(), "stat failed") {
+			t.Fatalf("expected stat error, got %v", err)
+		}
+	})
+
+	t.Run("is subvolume stat error", func(t *testing.T) {
+		previous := osStatBtrfs
+		osStatBtrfs = func(string) (os.FileInfo, error) { return nil, errors.New("stat failed") }
+		t.Cleanup(func() { osStatBtrfs = previous })
+		if ok, err := (btrfsManager{runner: &btrfsFakeRunner{}}).IsSubvolume(context.Background(), "state"); err == nil || ok {
+			t.Fatalf("expected stat error, got ok=%v err=%v", ok, err)
+		}
+	})
+
+	t.Run("destroy success", func(t *testing.T) {
+		if err := (btrfsManager{runner: &btrfsFakeRunner{}}).Destroy(context.Background(), "state"); err != nil {
+			t.Fatalf("Destroy: %v", err)
+		}
+	})
+
+	t.Run("destroy list error", func(t *testing.T) {
+		previous := btrfsListSubvolumesFn
+		btrfsListSubvolumesFn = func(context.Context, string) (string, error) { return "", errors.New("list failed") }
+		t.Cleanup(func() { btrfsListSubvolumesFn = previous })
+		failure := errors.New("delete failed")
+		err := (btrfsManager{runner: &btrfsFakeRunner{err: failure}}).Destroy(context.Background(), "state")
+		if !errors.Is(err, failure) {
+			t.Fatalf("expected delete error, got %v", err)
+		}
+	})
+}
+
+func TestBtrfsCommandFormattingQuotesUnsafeArguments(t *testing.T) {
+	if got := quoteCommandArg(""); got != `""` {
+		t.Fatalf("empty argument = %q", got)
+	}
+	if got := quoteCommandArg("two words"); got != `"two words"` {
+		t.Fatalf("quoted argument = %q", got)
+	}
+	if got := formatCommand("btrfs", []string{"subvolume", "two words"}); got != `btrfs subvolume "two words"` {
+		t.Fatalf("command = %q", got)
+	}
+}
+
+func TestBtrfsListDiagnosticsDoNotChangeCloneOrSnapshotResults(t *testing.T) {
+	previous := btrfsListSubvolumesFn
+	t.Cleanup(func() { btrfsListSubvolumesFn = previous })
+
+	for _, tc := range []struct {
+		name   string
+		output string
+	}{
+		{name: "listed subvolumes", output: "ID 12 gen 1 path nested"},
+		{name: "empty list"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			btrfsListSubvolumesFn = func(context.Context, string) (string, error) { return tc.output, nil }
+			cloneRunner := &btrfsFakeRunner{}
+			if _, err := (btrfsManager{runner: cloneRunner}).Clone(context.Background(), "src", filepath.Join(t.TempDir(), "clone")); err != nil {
+				t.Fatalf("Clone: %v", err)
+			}
+
+			snapshotRunner := &btrfsFakeRunner{}
+			if err := (btrfsManager{runner: snapshotRunner}).Snapshot(context.Background(), "src", filepath.Join(t.TempDir(), "snapshot")); err != nil {
+				t.Fatalf("Snapshot: %v", err)
+			}
+		})
+	}
+}
+
+func TestBtrfsEnsureSubvolumeRequiresPath(t *testing.T) {
+	if err := (btrfsManager{runner: &btrfsFakeRunner{}}).EnsureSubvolume(context.Background(), " "); err == nil {
+		t.Fatal("expected missing path error")
+	}
+}
+
 func TestBtrfsManagerDestroyCommandError(t *testing.T) {
 	prevList := btrfsListSubvolumesFn
 	btrfsListSubvolumesFn = func(context.Context, string) (string, error) {

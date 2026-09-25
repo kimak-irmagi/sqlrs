@@ -10,16 +10,17 @@ permissions:
 
 jobs:
   fuzz:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: backend/libs/runtime-go/go.mod
+          cache: false
 
       - name: Run Runtime v2 nightly fuzz campaign
         working-directory: backend/libs/runtime-go
@@ -27,11 +28,16 @@ jobs:
         run: |
           set -euo pipefail
           targets=(
-            FuzzResolvedTransformJSON
-            FuzzDigestAndCanonicalScalars
-            FuzzFieldPermutations
-            FuzzLineageJSON
+            ".:FuzzResolvedTransformJSON"
+            ".:FuzzDigestAndCanonicalScalars"
+            ".:FuzzFieldPermutations"
+            ".:FuzzLineageJSON"
+            ".:FuzzExtensionDeclarations"
+            "./resolver:FuzzWorkspacePathAndEvidence"
+            "./resolver:FuzzCacheJSONScanner"
           )
-          for target in "${targets[@]}"; do
-            go test -run '^$' -fuzz "^${target}$" -fuzztime=30s -timeout=90s .
+          for item in "${targets[@]}"; do
+            package="${item%%:*}"
+            target="${item#*:}"
+            go test -run '^$' -fuzz "^${target}$" -fuzztime=30s -timeout=90s "$package"
           done

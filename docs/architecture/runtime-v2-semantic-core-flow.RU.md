@@ -2,6 +2,7 @@
 
 Статус: согласовано @evilguest для issue #107, 2026-09-23. Исправления по
 критическому анализу согласованы в той же беседе до проектирования тестов.
+Уточнение границы #108/#124 согласовано 2026-09-24.
 
 Runtime v2 отделяет логическую идентичность состояния от разрешения входов,
 исполнения и физической материализации. Семантическое ядро — чистый, независимый
@@ -14,12 +15,15 @@ Runtime v2 отделяет логическую идентичность сос
 ```mermaid
 sequenceDiagram
     participant Caller as "Локальный/shared движок"
-    participant Resolver as "Resolver provider (вне scope)"
+    participant Resolver as "Extension resolver"
+    participant Adapter as "Role-specific adapter"
     participant Core as "Семантическое ядро Runtime v2"
     participant Runtime as "Исполнение/материализация (вне scope)"
 
-    Caller->>Resolver: Разрешить декларации фабрики и преобразований
-    Resolver-->>Caller: FactoryProvenance и упорядоченные TransformProvenance
+    Caller->>Resolver: Разрешить typed extension declarations
+    Resolver-->>Caller: Значения ResolvedExtensionIdentity
+    Caller->>Adapter: Скомпоновать extensions с base fields factory/transform
+    Adapter-->>Caller: FactoryProvenance и упорядоченные TransformProvenance
     Caller->>Core: Build(Recipe)
     Core->>Core: Проверить и скопировать неизменяемые identity
     Core->>Core: Создать исходное State фабрики
@@ -60,10 +64,17 @@ relative lineage — внешней опорой и только новыми ш
 
 ## Resolved identity и диагностика
 
-Resolver возвращает два явно разделённых слоя:
+Semantic core и extension boundary предоставляют явно разделённые слои:
 
 - `ResolvedFactoryIdentity` или `ResolvedTransformIdentity` влияет на identity;
+- resolver возвращает `ResolvedExtensionIdentity`, который влияет на factory-
+  или transform-identity только после явной композиции adapter-ом;
 - необязательные declaration и resolver observation служат диагностикой.
+
+Версионированные declarations, композиция extensions и resolver contracts
+отдельно заданы в [потоке declarations](runtime-v2-declaration-flow.RU.md) и
+[потоке resolver](runtime-v2-resolver-flow.RU.md). Уточнение не меняет алгоритмы
+fingerprint, StateID и lineage, принятые в #107.
 
 Resolved identity содержит `Provider`, `Kind`, `IdentitySchema` и уникальные
 именованные `ResolvedField`. `IdentitySchema` версионирует смысловой контракт

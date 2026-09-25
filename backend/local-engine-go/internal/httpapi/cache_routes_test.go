@@ -47,6 +47,42 @@ func TestCacheStatusReturnsPayload(t *testing.T) {
 	}
 }
 
+func TestCacheStatusRejectsWrongMethodAndMissingService(t *testing.T) {
+	t.Run("method", func(t *testing.T) {
+		opts, cleanup := newRouteTestOptions(t)
+		defer cleanup()
+		req := httptest.NewRequest(http.MethodPost, "/v1/cache/status", nil)
+		req.Header.Set("Authorization", "Bearer secret")
+		resp := httptest.NewRecorder()
+		NewHandler(opts).ServeHTTP(resp, req)
+		if resp.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("status = %d, want %d", resp.Code, http.StatusMethodNotAllowed)
+		}
+	})
+
+	t.Run("missing service", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/cache/status", nil)
+		req.Header.Set("Authorization", "Bearer secret")
+		resp := httptest.NewRecorder()
+		NewHandler(Options{AuthToken: "secret"}).ServeHTTP(resp, req)
+		if resp.Code != http.StatusInternalServerError {
+			t.Fatalf("status = %d, want %d", resp.Code, http.StatusInternalServerError)
+		}
+	})
+}
+
+func TestCacheStatusMapsServiceFailure(t *testing.T) {
+	opts, cleanup := newRouteTestOptions(t)
+	cleanup()
+	req := httptest.NewRequest(http.MethodGet, "/v1/cache/status", nil)
+	req.Header.Set("Authorization", "Bearer secret")
+	resp := httptest.NewRecorder()
+	NewHandler(opts).ServeHTTP(resp, req)
+	if resp.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusInternalServerError)
+	}
+}
+
 func TestStatesListIncludesCacheMetadataFields(t *testing.T) {
 	server, cleanup := newTestServer(t)
 	defer cleanup()

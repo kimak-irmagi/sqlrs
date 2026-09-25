@@ -47,8 +47,9 @@ Local и shared имеют общую семантику, но не обязат
 
 Это утверждение описывает текущую интеграцию managed identity/cache. Самостоятельное
 ядро Runtime v2 не зависит от движка и детерминировано для одинаковых resolved
-factory identities. Issue #107 ещё не отображает managed identities в эту модель;
-граница будущего adapter описана в flow Runtime v2.
+factory identities. Issues #124 и #108 предоставляют typed extension, composition
+и resolution primitives, но не отображают managed identities в эту модель.
+Managed-database adapter остаётся последующей интеграционной работой.
 
 Новые параметры CLI и публичное поле идентичности не предлагаются. Существующий
 DSN для авторизованного клиента содержит фактическое имя. Сохраняется согласованный

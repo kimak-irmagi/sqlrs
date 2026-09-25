@@ -18,6 +18,16 @@ Entry points for Taidon architecture and service design.
   approved public Go module, semantic types, and ownership for Runtime v2.
 - [Runtime v2 semantic-core tests](runtime-v2-semantic-core-tests.md) - proposed
   golden, validation, lineage, boundary, and import-conformance test design.
+- [Runtime v2 versioned-declaration flow](runtime-v2-declaration-flow.md) -
+  approved unresolved recipe and typed-extension resolution flow for #124.
+- [Runtime v2 versioned-declaration structure](runtime-v2-declaration-structure.md) -
+  approved declaration types, wire contracts, and module release gate.
+- [Runtime v2 resolver flow](runtime-v2-resolver-flow.md) - approved generic
+  resolution, revalidation, acquisition, and workspace-file flow.
+- [Runtime v2 resolver structure](runtime-v2-resolver-structure.md) - approved
+  resolver package, cache format, contracts, and data ownership.
+- [Runtime v2 declaration/resolver tests](runtime-v2-declaration-resolver-tests.md) -
+  approved test matrix for #108, #123, and #124.
 - [`state-cache-design.md`](state-cache-design.md) — cache keys, triggers,
   retention, local store layout.
 - [`state-cache-capacity-control.md`](state-cache-capacity-control.md) -

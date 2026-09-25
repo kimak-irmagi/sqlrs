@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, windows-latest, macos-latest]
+        runner: [ubuntu-24.04, windows-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -36,7 +36,7 @@ jobs:
 
   lint-openapi:
     if: contains(github.event.inputs.version || github.ref_name, '-rc.')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -67,7 +67,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, windows-latest, macos-latest]
+        runner: [ubuntu-24.04, windows-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -88,7 +88,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, windows-latest, macos-latest]
+        runner: [ubuntu-24.04, windows-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -108,12 +108,12 @@ jobs:
         run: go test -count=1 ./...
 
       - name: Run Runtime v2 race detector
-        if: matrix.runner == 'ubuntu-latest'
+        if: matrix.runner == 'ubuntu-24.04'
         working-directory: backend/libs/runtime-go
         run: go test -race -count=1 ./...
 
       - name: Run Runtime v2 release fuzz campaign
-        if: matrix.runner == 'ubuntu-latest'
+        if: matrix.runner == 'ubuntu-24.04'
         working-directory: backend/libs/runtime-go
         shell: bash
         run: |
@@ -147,11 +147,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             goos: linux
             goarch: amd64
             exe: ""
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             goos: linux
             goarch: arm64
             exe: ""
@@ -257,7 +257,7 @@ jobs:
 
   assemble-release-manifest:
     if: contains(github.event.inputs.version || github.ref_name, '-rc.')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build-rc]
     outputs:
       base_version: ${{ steps.version.outputs.base }}
@@ -329,7 +329,7 @@ jobs:
           - btrfs
         include:
           - platform: linux
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - platform: windows
             runner: windows-latest
             wsl_distro: Ubuntu-24.04
@@ -1240,7 +1240,7 @@ jobs:
 
   publish-rc:
     if: contains(github.event.inputs.version || github.ref_name, '-rc.')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [assemble-release-manifest, e2e-happy, e2e-podman-macos, e2e-smoke]
     permissions:
       contents: write
@@ -1274,7 +1274,7 @@ jobs:
 
   promote-ga:
     if: github.event_name == 'push' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-rc.')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     env:
