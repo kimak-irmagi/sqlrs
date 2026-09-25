@@ -50,4 +50,5 @@ test("engine coverage includes native managed access and enforces the project fl
   assert.match(ci, /-tags managedintegration/);
   assert.match(ci, /engine_value="\$\{engine%\\%\}"/);
   assert.match(ci, /if \(value \+ 0 < 95\) exit 1/);
+  assert.doesNotMatch(ci, /peter-evans\/(?:find-comment@v3|create-or-update-comment@v4)/);
 });

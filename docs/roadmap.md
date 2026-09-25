@@ -74,9 +74,16 @@ gantt
 
 ---
 
-## Status (as of 2026-09-24)
+## Status (as of 2026-09-25)
 
 - **Implementation complete, publication pending ([#108](https://github.com/kimak-irmagi/sqlrs/issues/108), [#124](https://github.com/kimak-irmagi/sqlrs/issues/124), Runtime v2 declarations and resolver)**: the public nested module now includes strict versioned unresolved declarations, provider-qualified resolved extensions, deterministic composition, full-tuple resolver dispatch, restart-safe bounded caching, conservative workspace-file resolution, and verified content-addressed acquisition. Windows junctions and linked cache/artifact objects fail closed; unproven filesystems always rehash. Core and resolver package coverage meet the separate 95% minimum. The immutable `v0.1.0` is retracted; the same-commit RC/GA public proxy gates remain before [#123](https://github.com/kimak-irmagi/sqlrs/issues/123) can close.
+
+- **Done (legacy coverage and CI hardening)**: merged cross-platform coverage is
+  now 95.3% for the local engine, 95.0% for the CLI, and 95.1% combined. CI
+  enforces the 95% engine and CLI floors, includes the native PostgreSQL managed
+  access suite, and keeps cache diagnostics and Linux Btrfs boundaries under
+  regression coverage. Workflow actions use Node 24 runtimes, monorepo Go caches
+  use explicit dependency paths, and Linux jobs are pinned to Ubuntu 24.04.
 
 - **Done ([#107](https://github.com/kimak-irmagi/sqlrs/issues/107), Runtime v2
   semantic core)**: the standalone `backend/libs/runtime-go` module now defines
