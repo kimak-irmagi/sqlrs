@@ -94,22 +94,43 @@ func validateWindowsPrivateDirectory(root string) error {
 		if ok == 0 {
 			return ErrUnsafePath
 		}
-		if ace == nil || (ace.Header.Type != accessAllowedACEType && ace.Header.Type != objectAllowedACEType) || ace.Mask&writeLikeAccessMask == 0 {
-			continue
-		}
-		// ACCESS_ALLOWED_OBJECT_ACE has optional GUIDs before its SID. Rejecting a
-		// broad write-capable object ACE is safer than attempting a partial parse.
-		if ace.Header.Type == objectAllowedACEType {
+		sid, reject := windowsWriteACE(ace)
+		if reject {
 			return ErrUnsafePath
 		}
-		sid := (*syscall.SID)(unsafe.Pointer(&ace.SIDStart))
-		for _, candidate := range broad {
-			if sameWindowsSID(sid, candidate) {
-				return ErrUnsafePath
-			}
+		if sid == nil {
+			continue
+		}
+		if windowsSIDInSet(sid, broad) {
+			return ErrUnsafePath
 		}
 	}
 	return nil
+}
+
+func windowsWriteACE(ace *windowsAllowedACE) (*syscall.SID, bool) {
+	if ace == nil || ace.Mask&writeLikeAccessMask == 0 {
+		return nil, false
+	}
+	switch ace.Header.Type {
+	case accessAllowedACEType:
+		return (*syscall.SID)(unsafe.Pointer(&ace.SIDStart)), false
+	case objectAllowedACEType:
+		// ACCESS_ALLOWED_OBJECT_ACE has optional GUIDs before its SID. Reject it
+		// conservatively instead of attempting a partial parse.
+		return nil, true
+	default:
+		return nil, false
+	}
+}
+
+func windowsSIDInSet(sid *syscall.SID, candidates []*syscall.SID) bool {
+	for _, candidate := range candidates {
+		if sameWindowsSID(sid, candidate) {
+			return true
+		}
+	}
+	return false
 }
 
 func sameWindowsSID(left, right *syscall.SID) bool {

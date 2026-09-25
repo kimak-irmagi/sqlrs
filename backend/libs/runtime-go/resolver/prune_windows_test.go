@@ -130,6 +130,39 @@ func TestWindowsACLValidationBoundaries(t *testing.T) {
 	}
 }
 
+func TestWindowsWriteACEClassification(t *testing.T) {
+	if sid, reject := windowsWriteACE(nil); sid != nil || reject {
+		t.Fatalf("nil ACE classified as write-capable: %v, %v", sid, reject)
+	}
+	readOnly := &windowsAllowedACE{Header: windowsACEHeader{Type: accessAllowedACEType}, Mask: syscall.GENERIC_READ}
+	if sid, reject := windowsWriteACE(readOnly); sid != nil || reject {
+		t.Fatalf("read-only ACE classified as write-capable: %v, %v", sid, reject)
+	}
+	unknown := &windowsAllowedACE{Header: windowsACEHeader{Type: 0xff}, Mask: writeLikeAccessMask}
+	if sid, reject := windowsWriteACE(unknown); sid != nil || reject {
+		t.Fatalf("unknown ACE classified as allowed write: %v, %v", sid, reject)
+	}
+	object := &windowsAllowedACE{Header: windowsACEHeader{Type: objectAllowedACEType}, Mask: writeLikeAccessMask}
+	if sid, reject := windowsWriteACE(object); sid != nil || !reject {
+		t.Fatalf("object ACE classification = %v, %v", sid, reject)
+	}
+	allowed := &windowsAllowedACE{Header: windowsACEHeader{Type: accessAllowedACEType}, Mask: writeLikeAccessMask}
+	if sid, reject := windowsWriteACE(allowed); sid == nil || reject {
+		t.Fatalf("allowed ACE classification = %v, %v", sid, reject)
+	}
+	broad := broadWindowsSIDs()
+	if !windowsSIDInSet(broad[0], broad) {
+		t.Fatal("well-known broad SID not found")
+	}
+	system, err := syscall.StringToSid("S-1-5-18")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if windowsSIDInSet(system, broad) {
+		t.Fatal("Local System classified as a broad SID")
+	}
+}
+
 func TestWindowsLinkAndSharingBoundaries(t *testing.T) {
 	if !isLinkLike(symlinkFileInfo{}) {
 		t.Fatal("symbolic-link mode not detected")
