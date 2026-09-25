@@ -163,6 +163,64 @@ func TestWindowsWriteACEClassification(t *testing.T) {
 	}
 }
 
+func TestWindowsDirectorySecurityPolicy(t *testing.T) {
+	owner, err := syscall.StringToSid("S-1-5-18")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := syscall.StringToSid("S-1-5-19")
+	if err != nil {
+		t.Fatal(err)
+	}
+	empty := &windowsACL{}
+	reader := func(*windowsACL, uint16) (*syscall.SID, bool, error) {
+		t.Fatal("reader called for empty ACL")
+		return nil, false, nil
+	}
+	for _, test := range []struct {
+		name    string
+		owner   *syscall.SID
+		dacl    *windowsACL
+		current *syscall.SID
+	}{
+		{"nil owner", nil, empty, owner},
+		{"nil DACL", owner, nil, owner},
+		{"wrong owner", owner, empty, other},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if err := validateWindowsDirectorySecurity(test.owner, test.dacl, test.current, reader); !errors.Is(err, ErrUnsafePath) {
+				t.Fatalf("policy error = %v", err)
+			}
+		})
+	}
+	if err := validateWindowsDirectorySecurity(owner, empty, owner, reader); err != nil {
+		t.Fatalf("owner-only empty DACL: %v", err)
+	}
+
+	oneACE := &windowsACL{Count: 1}
+	boom := errors.New("boom")
+	if err := validateWindowsDirectorySecurity(owner, oneACE, owner, func(*windowsACL, uint16) (*syscall.SID, bool, error) {
+		return nil, false, boom
+	}); !errors.Is(err, boom) {
+		t.Fatalf("ACE read failure = %v", err)
+	}
+	if err := validateWindowsDirectorySecurity(owner, oneACE, owner, func(*windowsACL, uint16) (*syscall.SID, bool, error) {
+		return nil, true, nil
+	}); !errors.Is(err, ErrUnsafePath) {
+		t.Fatalf("object ACE policy = %v", err)
+	}
+	if err := validateWindowsDirectorySecurity(owner, oneACE, owner, func(*windowsACL, uint16) (*syscall.SID, bool, error) {
+		return broadWindowsSIDs()[0], false, nil
+	}); !errors.Is(err, ErrUnsafePath) {
+		t.Fatalf("broad ACE policy = %v", err)
+	}
+	if err := validateWindowsDirectorySecurity(owner, oneACE, owner, func(*windowsACL, uint16) (*syscall.SID, bool, error) {
+		return nil, false, nil
+	}); err != nil {
+		t.Fatalf("non-write ACE policy = %v", err)
+	}
+}
+
 func TestWindowsLinkAndSharingBoundaries(t *testing.T) {
 	if !isLinkLike(symlinkFileInfo{}) {
 		t.Fatal("symbolic-link mode not detected")

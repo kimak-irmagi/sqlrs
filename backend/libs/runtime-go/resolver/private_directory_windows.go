@@ -44,6 +44,8 @@ type windowsAllowedACE struct {
 	SIDStart uint32
 }
 
+type windowsACEReader func(*windowsACL, uint16) (*syscall.SID, bool, error)
+
 // preparePrivateDirectoryPlatform validates the pre-established Windows ACL
 // ownership boundary. It deliberately never creates a root whose inherited DACL
 // has not been selected by the engine deployment.
@@ -72,9 +74,6 @@ func validateWindowsPrivateDirectory(root string) error {
 		return syscall.Errno(result)
 	}
 	defer syscall.LocalFree(syscall.Handle(descriptor))
-	if owner == nil || dacl == nil {
-		return ErrUnsafePath
-	}
 	token, err := syscall.OpenCurrentProcessToken()
 	if err != nil {
 		return err
@@ -84,17 +83,19 @@ func validateWindowsPrivateDirectory(root string) error {
 	if err != nil {
 		return err
 	}
-	if !sameWindowsSID(owner, user.User.Sid) {
+	return validateWindowsDirectorySecurity(owner, dacl, user.User.Sid, readWindowsACE)
+}
+
+func validateWindowsDirectorySecurity(owner *syscall.SID, dacl *windowsACL, currentUser *syscall.SID, read windowsACEReader) error {
+	if owner == nil || dacl == nil || !sameWindowsSID(owner, currentUser) {
 		return ErrUnsafePath
 	}
 	broad := broadWindowsSIDs()
 	for index := uint16(0); index < dacl.Count; index++ {
-		var ace *windowsAllowedACE
-		ok, _, _ := getAce.Call(uintptr(unsafe.Pointer(dacl)), uintptr(index), uintptr(unsafe.Pointer(&ace)))
-		if ok == 0 {
-			return ErrUnsafePath
+		sid, reject, err := read(dacl, index)
+		if err != nil {
+			return err
 		}
-		sid, reject := windowsWriteACE(ace)
 		if reject {
 			return ErrUnsafePath
 		}
@@ -106,6 +107,16 @@ func validateWindowsPrivateDirectory(root string) error {
 		}
 	}
 	return nil
+}
+
+func readWindowsACE(dacl *windowsACL, index uint16) (*syscall.SID, bool, error) {
+	var ace *windowsAllowedACE
+	ok, _, _ := getAce.Call(uintptr(unsafe.Pointer(dacl)), uintptr(index), uintptr(unsafe.Pointer(&ace)))
+	if ok == 0 {
+		return nil, false, ErrUnsafePath
+	}
+	sid, reject := windowsWriteACE(ace)
+	return sid, reject, nil
 }
 
 func windowsWriteACE(ace *windowsAllowedACE) (*syscall.SID, bool) {
