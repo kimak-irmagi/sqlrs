@@ -51,7 +51,7 @@ gantt
     Artifact handling + audit baseline         :c2, after c1, 45d
     CI/CD integration templates                :active, c3, after c1, 30d
     Users/orgs client contract slice           :done, c4a, after c1, 20d
-    Google OIDC CLI auth session slice         :done, c4b, after c4a, 20d
+    Remote bootstrap + OIDC CLI auth slice     :done, c4b, after c4a, 20d
     Remote source input sync client/API slice  :done, c4c, after c4b, 15d
     Auth + tenant access baseline              :c4, after c1, 45d
     Shared capacity scaling                    :c5, after c2, 30d
@@ -222,15 +222,17 @@ gantt
   excludes local-engine support and server-side persistence/provider
   implementation. Actionable registration and remote-profile error guidance is
   tracked in [#94](https://github.com/kimak-irmagi/sqlrs/issues/94).
-- **Done (Google OIDC CLI auth session slice)**: the CLI now has
-  `sqlrs auth login google`, `sqlrs auth status`, and `sqlrs auth logout`
-  backed by Google Authorization Code Flow with PKCE, loopback redirect
-  handling, OS credential-store refresh-token storage, cached ID-token refresh,
-  `SQLRS_TOKEN` debug override precedence, and temporary Google Desktop
-  `client_secret` forwarding to the Google token endpoint when configured. The
-  gateway still receives only short-lived Google ID tokens; accepting the CLI
-  OAuth client audience remains a gateway configuration/follow-up concern where
-  needed.
+- **Done (remote bootstrap and generic OIDC CLI auth slice)**: `sqlrs init
+  remote <endpoint>` now discovers installation identity, canonical control and
+  request endpoints, and enabled providers without a manual client ID or token.
+  `sqlrs auth login <provider>` fetches versioned public OIDC configuration,
+  uses its advertised authorization/token/revocation endpoints with PKCE and
+  RFC 9207 issuer binding, stores installation-scoped sessions in the OS
+  credential store, and safely reconciles root/candidate profiles to a returned
+  canonical organization endpoint. No confidential client secret is
+  distributed. Legacy `--url`/`--token` and `oidcSession` reads remain available
+  for migration. Server-side bootstrap behavior is tracked in
+  [izess#122](https://github.com/kimak-irmagi/izess/issues/122).
 - **Done (remote source input sync client/API slice)**: the OpenAPI contract and
   CLI now support remote source-input synchronization for remote `prepare`,
   `plan`, and `cache explain prepare` flows. The client attaches a bounded
@@ -424,9 +426,9 @@ the accepted M2 baseline and do not yet have dedicated issues.
   contract slice)**; server-side persistence/provider implementation remains in
   the shared control-plane/auth baseline. CLI error-guidance follow-up:
   [#94](https://github.com/kimak-irmagi/sqlrs/issues/94).
-- Google OIDC CLI auth sessions — **Done (CLI slice)**; gateway accepted
-  audiences and server-side auth/tenant policy remain in the shared
-  control-plane/auth baseline.
+- Remote bootstrap and generic OIDC CLI auth — **Done (CLI/OpenAPI slice)**;
+  server route implementation and gateway auth/tenant policy remain in the
+  shared control-plane/auth baseline ([izess#122](https://github.com/kimak-irmagi/izess/issues/122)).
 - Remote source input sync — **Done (client/API contract slice)** for remote
   prepare/plan/cache-explain retries and source blob uploads; server-side source
   resolution and storage implementation remain part of the shared control-plane

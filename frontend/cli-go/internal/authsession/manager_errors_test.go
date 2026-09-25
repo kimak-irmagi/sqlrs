@@ -12,7 +12,7 @@ import (
 
 func TestLoginGoogleValidatesRequiredClientID(t *testing.T) {
 	manager := NewManager(ManagerOptions{Store: newMemoryCredentialStore(), OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}})
-	if _, err := manager.LoginGoogle(context.Background(), LoginOptions{}); err == nil || !strings.Contains(err.Error(), "clientID") {
+	if _, err := manager.LoginGoogle(context.Background(), LoginOptions{}); err == nil || !strings.Contains(err.Error(), "client ID") {
 		t.Fatalf("expected clientID error, got %v", err)
 	}
 }
@@ -251,7 +251,7 @@ func TestResolveBearerTokenStaticAndConfigurationBranches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveBearerToken static: %v", err)
 	}
-	if got.Token != "static-token" || got.Source != "static_token" {
+	if got.Token != "static-token" || got.Source != TokenSourceLegacyBearer {
 		t.Fatalf("resolved static = %+v", got)
 	}
 
@@ -314,8 +314,8 @@ func TestResolveBearerTokenRefreshRejectsMissingOrInvalidIDToken(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("expected %q error, got %v", tc.want, err)
 			}
-			if _, ok, err := store.Get(context.Background(), key); err != nil || ok {
-				t.Fatalf("session should be deleted after bad refresh: ok=%v err=%v", ok, err)
+			if _, ok, err := store.Get(context.Background(), key); err != nil || !ok {
+				t.Fatalf("session should be retained after non-invalid_grant refresh failure: ok=%v err=%v", ok, err)
 			}
 		})
 	}

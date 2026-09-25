@@ -181,8 +181,8 @@ addition of a shared `inputset` layer for file-bearing command semantics.
     store abstraction.
 - `app.EndpointReconciler`
   - Shared post-login/register/org-create routing reconciler. It persists only
-    trusted same-installation canonical endpoints and never switches for an
-    explicit bearer-token override.
+    trusted same-installation canonical endpoints and switches only for
+    `StoredRemoteSession`, never `EnvironmentOverride` or `LegacyBearer`.
 - `cli.UserOptions`, `cli.OrganizationOptions`
   - Remote-only command options for `sqlrs user` and `sqlrs org`.
 - `client.UserProfile`, `client.ExternalIdentity`, `client.Organization`,

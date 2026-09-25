@@ -66,3 +66,17 @@ func TestSessionEncodingAndCredentialKeyHelpers(t *testing.T) {
 		t.Fatalf("expected decode error")
 	}
 }
+
+func TestCredentialKeyUsesInstallationTrustAnchorNotMutableRequestEndpoint(t *testing.T) {
+	root := CredentialKey{ProfileName: "remote", Endpoint: "https://api.example.test", InstallationID: "installation-1", ControlEndpoint: "https://api.example.test", Provider: "google", Issuer: "https://issuer.example.test", ClientID: "public-client"}
+	org := root
+	org.Endpoint = "https://api.example.test/nsu"
+	if root.stableName() != org.stableName() {
+		t.Fatalf("organization endpoint switch changed credential key")
+	}
+	other := org
+	other.InstallationID = "installation-2"
+	if other.stableName() == root.stableName() {
+		t.Fatalf("different installation reused credential key")
+	}
+}

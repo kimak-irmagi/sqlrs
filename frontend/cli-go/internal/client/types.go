@@ -324,6 +324,7 @@ type OrganizationMembershipView struct {
 type Organization struct {
 	ID          string `json:"id"`
 	Slug        string `json:"slug"`
+	Endpoint    string `json:"endpoint"`
 	DisplayName string `json:"display_name,omitempty"`
 	CreatedAt   string `json:"created_at,omitempty"`
 	UpdatedAt   string `json:"updated_at,omitempty"`

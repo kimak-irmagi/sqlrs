@@ -262,8 +262,12 @@ type Session struct {
 }
 ```
 
-`RefreshToken`, `CachedIDToken`, and `LoginNonce` are secret values and must
-never be rendered.
+`RefreshToken` and `CachedIDToken` are secret values and must never be rendered.
+`LoginNonce` must not appear in status, final results, errors, diagnostics, or
+logs. Its only rendering exception is inside the immediate stderr authorization
+URL explicitly requested by `--no-browser`, together with `state` and the PKCE
+challenge; the PKCE verifier and authorization code have no rendering
+exception.
 `Subject`, `Email`, `Issuer`, `ClientID`, `Scopes`, and expiry timestamps are
 safe metadata when printed under the rules in the auth user guide.
 
@@ -318,8 +322,10 @@ sender-constraining or rotation policy required for public clients.
 OAuth token and revocation POSTs never follow HTTP redirects. Before refresh,
 the current provider detail must retain the session's provider ID, adapter,
 issuer, and client ID; a change requires a new login. Transient network errors,
-`429`, and `5xx` retain the credential. `invalid_grant` or an equivalent
-definitive rejection deletes it. Claim-validation failure retains the refresh
+`429`, and `5xx` retain the credential. In configuration version 1, only OAuth
+`invalid_grant` deletes it; every other `4xx` retains it and reports a
+request/provider configuration error. Provider-specific definitive-rejection
+codes require a future configuration version. Claim-validation failure retains the refresh
 credential for a later retry but never sends the returned ID token to sqlrs APIs. Failure to fetch provider
 configuration during logout counts as revocation failure but does not prevent
 local deletion.
@@ -358,6 +364,9 @@ Output:
 
 - safe login summary with provider, email, issuer, audience/client ID, profile,
   and endpoint.
+- for explicit `--no-browser`, an immediate one-time authorization URL on
+  stderr before the final result; browser mode emits no URL, and the URL is not
+  retained in the result or diagnostics.
 
 ### `sqlrs auth status`
 

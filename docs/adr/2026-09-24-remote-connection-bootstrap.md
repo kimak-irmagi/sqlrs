@@ -358,15 +358,17 @@ issuer/client-ID pair to that provider ID. `user create` therefore requires an
 explicit provider ID.
 
 Post-login reconciliation uses the ID token issued by that login, regardless
-of `SQLRS_TOKEN`. User registration and organization creation do not persist a
-profile switch when an explicit token override is active. Successful remote
+of `SQLRS_TOKEN`. User registration and organization creation persist a profile
+switch only for `StoredRemoteSession`, not `EnvironmentOverride` or
+`LegacyBearer`. Successful remote
 work followed by reconciliation failure retains its result on stdout, writes
 recovery to stderr, and exits `1`, including JSON mode.
 
 OIDC login requires non-empty `sub` plus present `iat` and `exp`. Refresh binds
 provider ID, adapter, issuer, client ID, and subject to the stored session.
 Token/revocation POSTs do not follow redirects. Transient network, `429`, and
-`5xx` failures retain the session; definitive grant rejection deletes it.
+`5xx` failures retain the session; configuration version 1 deletes it only for
+OAuth `invalid_grant`, while other `4xx` responses retain it.
 Logout still deletes locally when provider lookup or revocation fails.
 
 ### Brief rationale
@@ -375,6 +377,92 @@ These rules prevent cross-origin credential collisions, keep multi-provider
 identity stable, make RC migration crash-safe, avoid persistent routing changes
 from temporary token overrides, and give tests deterministic output and failure
 semantics.
+
+## Decision Record 8: resolve test-matrix policy ambiguities
+
+- Conversation timestamp: 2026-09-25T11:55:21.4437848+07:00
+- GitHub user id: @evilguest
+- Agent name/version: Codex / GPT-5
+
+### Question discussed
+
+Which exact oracles should the test matrix use for refresh `4xx` responses,
+conflicting init endpoints, candidate routing mismatch, and bearer-token source
+classification?
+
+### Alternatives considered
+
+1. Leave each behavior implementation-defined and test only broad success or
+   failure categories.
+2. Delete sessions for any refresh `4xx`, silently keep an existing init
+   endpoint, treat candidate mismatch as ordinary login failure, and allow all
+   authenticated token sources to rewrite the profile.
+3. Define one conservative version-1 refresh error, require explicit update for
+   endpoint changes, make routing mismatch partial success, and permit automatic
+   persistence only for the profile's stored remote session.
+
+### Chosen solution
+
+Adopt option 3.
+
+- Configuration version 1 deletes a session only for OAuth `invalid_grant`.
+  Other `4xx` responses retain it and report a request/provider configuration
+  error. Provider-specific definitive-rejection codes require a future version.
+- Repeating remote init with the same normalized endpoint is idempotent. A
+  different endpoint without `--update` is an actionable conflict with exit
+  `64` and no mutation.
+- A candidate response naming another organization endpoint or an
+  invalid/untrusted canonical endpoint is never persisted or contacted. The
+  successful login session remains, stdout retains login success, stderr gives
+  recovery, and the command exits `1`.
+- Token source is a closed invocation-local classification:
+  `StoredRemoteSession`, `EnvironmentOverride`, or `LegacyBearer`. Only
+  `StoredRemoteSession` may persist an automatic endpoint switch; the other two
+  print the canonical endpoint and recovery, leave config unchanged, and exit
+  zero after a successful remote operation.
+
+### Brief rationale
+
+These rules avoid destroying recoverable credentials for client/provider
+configuration errors, prevent accidental workspace retargeting, preserve a
+successful login when only routing reconciliation fails, and stop temporary or
+legacy bearer identities from rerouting a stored profile.
+
+## Decision Record 9: bound manual authorization URL output
+
+- Conversation timestamp: 2026-09-25T12:47:51.0981026+07:00
+- GitHub user id: @evilguest
+- Agent name/version: Codex / GPT-5
+
+### Question discussed
+
+Where may the authorization URL and its login-attempt parameters appear when a
+user explicitly selects `auth login --no-browser`, without corrupting JSON
+output or broadening the secret-output surface?
+
+### Alternatives considered
+
+1. Never print the URL, making `--no-browser` unusable.
+2. Include the URL in the final human or JSON result and allow diagnostic
+   repetition.
+3. Emit it immediately and exactly once to stderr only for explicit
+   `--no-browser`, with a narrow exception for URL-bound attempt parameters.
+
+### Chosen solution
+
+Adopt option 3. Browser mode does not print the authorization URL. Explicit
+`--no-browser` writes it immediately and exactly once to stderr. The URL is the
+sole allowed output location for `state`, `nonce`, and the PKCE challenge; it
+must never contain the PKCE verifier. The URL is absent from final human and
+JSON results, errors, verbose diagnostics, and logs. Authorization codes, PKCE
+verifiers, refresh tokens, and ID tokens are never printed. Stdout remains
+reserved for the final result and JSON stdout remains one valid document.
+
+### Brief rationale
+
+Manual login needs a copyable URL, but treating it as transient control output
+keeps the stable result schema clean, prevents accidental repetition of
+attempt-bound values, and preserves the CLI stdout contract for scripts.
 
 ## Relationship to existing decisions
 

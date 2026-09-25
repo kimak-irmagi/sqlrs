@@ -21,7 +21,7 @@ API контракту в
   profile, включая `SQLRS_TOKEN` override и refresh stored OIDC session.
 - **Endpoint reconciler** - проверяет canonical organization endpoint и
   атомарно обновляет installation-scoped profile только для stored session, но
-  никогда для explicit token override.
+  никогда для token source `EnvironmentOverride` или `LegacyBearer`.
 - **HTTP client** - отправляет аутентифицированные `/v1/*` запросы и маппит
   HTTP ошибки в command errors.
 - **Gateway** - проверяет bearer token-ы, выводит actor claims, применяет
@@ -123,8 +123,9 @@ Successful reconciliation проверяет returned endpoint относите�
 installation control base. Successful switch пишет warning в stderr. Если
 remote registration успешна, но config update failed, stdout сохраняет success
 result, stderr содержит recovery guidance, а команда завершается с code `1`.
-При `SQLRS_TOKEN` или другом explicit token override reconciler не сохраняет
-switch, вместо этого печатает explicit init/update command и выходит с code `0`.
+При `EnvironmentOverride` (`SQLRS_TOKEN`) или `LegacyBearer` reconciler не
+сохраняет switch, вместо этого печатает explicit init/update command и выходит
+с code `0`.
 
 ## 5. Поток: `sqlrs user create`
 
@@ -219,8 +220,8 @@ sequenceDiagram
 
 Если creation успешен, но local switch fails, organization остается созданной,
 а команда возвращает partial-success exit `1` с successful stdout и recovery в
-stderr. Explicit token override подавляет persistent switching и печатает ту же
-recovery command с exit `0`, не объявляя creation failed.
+stderr. `EnvironmentOverride` и `LegacyBearer` подавляют persistent switching и
+печатают ту же recovery command с exit `0`, не объявляя creation failed.
 
 ## 7. Поток: чтение
 

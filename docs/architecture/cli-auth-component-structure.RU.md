@@ -265,8 +265,12 @@ type Session struct {
 }
 ```
 
-`RefreshToken`, `CachedIDToken` и `LoginNonce` являются secret values и не
-должны render-иться. `Subject`, `Email`, `Issuer`, `ClientID`, `Scopes` и expiry
+`RefreshToken` и `CachedIDToken` являются secret values и не должны
+render-иться. `LoginNonce` не попадает в status, final results, errors,
+diagnostics или logs. Единственное исключение — immediate stderr authorization
+URL, явно запрошенный через `--no-browser`, вместе со `state` и PKCE challenge;
+для PKCE verifier и authorization code исключений нет. `Subject`, `Email`,
+`Issuer`, `ClientID`, `Scopes` и expiry
 timestamps являются safe metadata при соблюдении правил auth user guide.
 
 ### Token and claim types
@@ -319,8 +323,10 @@ login nonce, сохраненным в credential. Replacement refresh token с�
 OAuth token и revocation POST никогда не следуют HTTP redirects. До refresh
 current provider detail должен сохранять provider ID, adapter, issuer и client
 ID session; изменение требует нового login. Transient network errors, `429` и
-`5xx` сохраняют credential. `invalid_grant` или эквивалентный definitive reject
-удаляет credential. Claim-validation failure сохраняет refresh credential для
+`5xx` сохраняют credential. В configuration version 1 только OAuth
+`invalid_grant` удаляет credential; любой другой `4xx` сохраняет его и сообщает
+request/provider configuration error. Provider-specific definitive-rejection
+codes требуют будущей configuration version. Claim-validation failure сохраняет refresh credential для
 последующего retry и никогда не отправляет возвращенный ID token в sqlrs API. Ошибка получения provider
 configuration во время logout считается revocation failure, но не препятствует
 local deletion.
@@ -360,6 +366,8 @@ Output:
 
 - safe login summary with provider, email, issuer, audience/client ID, profile
   и endpoint.
+- при явном `--no-browser` — immediate one-time authorization URL в stderr до
+  final result; browser mode URL не выдаёт, result и diagnostics его не хранят.
 
 ### `sqlrs auth status`
 

@@ -130,6 +130,13 @@ Rules:
   `none`.
 - Authorization URL начинается с service-advertised `authorizationEndpoint`;
   CLI владеет security-sensitive параметрами login attempt.
+- При явном `--no-browser` CLI немедленно и ровно один раз пишет этот URL в
+  stderr. Browser mode его не печатает; ни один режим не включает URL в
+  финальный human/JSON result, errors, verbose diagnostics или logs.
+- Manual URL — единственное исключение для rendering `state`, `nonce` и PKCE
+  challenge. PKCE verifier, authorization code, refresh token и ID token не
+  render-ятся никогда. Stdout остаётся только для final result, а JSON stdout
+  содержит один valid document.
 - Существующие query parameters authorization endpoint не должны конфликтовать
   с parameters, которыми владеет CLI.
 - Public provider configuration никогда не содержит confidential client secret.
@@ -206,11 +213,12 @@ Rules:
   Nonce optional, но если
   возвращен, должен совпасть со stored login nonce. Returned replacement
   refresh token сохраняется атомарно.
-- Refresh-token failures останавливают команду до protected sqlrs API request
-  и предлагают пользователю выполнить `sqlrs auth login google`.
+- Refresh-token failures останавливают команду до protected sqlrs API request.
+  `invalid_grant` предлагает новый login; retryable и другие `4xx` сохраняют
+  session и сообщают соответствующий recovery.
 - Token и revocation POST никогда не следуют redirects. Transient network
-  errors, `429` и `5xx` сохраняют session. `invalid_grant` или equivalent
-  definitive rejection удаляет credential.
+  errors, `429` и `5xx` сохраняют session. Configuration version 1 удаляет
+  credential только при `invalid_grant`; другие `4xx` сохраняют его.
   Изменение provider identity/config binding требует login без refresh request.
 - Gateway получает только effective bearer token. Он никогда не получает
   refresh token.
@@ -306,10 +314,12 @@ Rules:
 | Refresh transport failure, `429` или `5xx` | Retain session и вернуть retryable error. |
 | Refreshed token меняет issuer, subject, audience/`azp` или имеет invalid required claims/nonce | Retain refresh credential, reject token и не вызывать protected API. |
 | Cached ID token expired and refresh succeeds | Atomically store new ID token и rotated refresh token, если он возвращен, затем continue. |
-| Refresh token revoked или definitively rejected | Delete local session и предложить `sqlrs auth login google`. |
+| Refresh возвращает OAuth `invalid_grant` | Delete local session и предложить `sqlrs auth login google`. |
+| Refresh возвращает другой `4xx` в configuration version 1 | Retain session и сообщить request/provider configuration error; provider-specific definitive rejection требует будущей версии. |
 | Gateway rejects ID token with `401` | Surface the API auth error; audience/issuer troubleshooting belongs in the auth guide. |
 | Root current-user lookup возвращает `404` после login | Exit zero, retain session и предложить user registration. |
 | Candidate current-user lookup возвращает `404` после login | Retain session и вернуть partial-success exit `1` с endpoint recovery. |
+| Candidate response называет другой или untrusted canonical endpoint | Не persist/contact его; retain session и вернуть partial-success exit `1` с routing recovery. |
 | Reconciliation network/5xx или local profile update fails | Retain session и вернуть partial-success exit `1`. |
 
 ## 8. Security Invariants

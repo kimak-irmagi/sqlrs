@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sqlrs/cli/internal/authsession"
 	"github.com/sqlrs/cli/internal/cli"
 	"github.com/sqlrs/cli/internal/config"
 )
@@ -23,6 +24,7 @@ type commandContext struct {
 	mode                 string
 	output               string
 	authToken            string
+	authTokenSource      authsession.TokenSource
 	daemonPath           string
 	runDir               string
 	engineRunDir         string

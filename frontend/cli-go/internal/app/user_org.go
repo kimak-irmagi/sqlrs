@@ -3,9 +3,12 @@ package app
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
+	"os"
 	"strings"
 
+	"github.com/sqlrs/cli/internal/authsession"
 	"github.com/sqlrs/cli/internal/cli"
 	"github.com/sqlrs/cli/internal/client"
 )
@@ -99,7 +102,7 @@ func parseUserCreateArgs(args []string) (userCommand, bool, error) {
 
 	displayName := fs.String("display-name", "", "display name")
 	email := fs.String("email", "", "email")
-	identityProvider := fs.String("identity-provider", "oidc", "external identity provider")
+	identityProvider := fs.String("identity-provider", "", "external identity provider")
 	identityIssuer := fs.String("identity-issuer", "", "external identity issuer")
 	identitySubject := fs.String("identity-subject", "", "external identity subject")
 	help := fs.Bool("help", false, "show help")
@@ -116,7 +119,7 @@ func parseUserCreateArgs(args []string) (userCommand, bool, error) {
 	}
 	provider := strings.TrimSpace(*identityProvider)
 	if provider == "" {
-		provider = "oidc"
+		return cmd, false, ExitErrorf(2, "identity provider is required")
 	}
 	issuer := strings.TrimSpace(*identityIssuer)
 	subject := strings.TrimSpace(*identitySubject)
@@ -302,12 +305,19 @@ func runOrg(stdout io.Writer, cmdCtx commandContext, args []string, output strin
 			return err
 		}
 		if output == "json" {
-			return writeJSON(stdout, result)
+			if err := writeJSON(stdout, result); err != nil {
+				return err
+			}
+		} else {
+			cli.PrintOrganizationMembership(stdout, client.OrganizationMembershipView{
+				Organization: result.Organization,
+				Membership:   result.Membership,
+			})
 		}
-		cli.PrintOrganizationMembership(stdout, client.OrganizationMembershipView{
-			Organization: result.Organization,
-			Membership:   result.Membership,
-		})
+		if err := reconcileCreatedOrganization(cmdCtx, result.Organization, os.Stderr); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: organization was created, but profile switching failed: %v\n", err)
+			return ExitErrorf(1, "organization created; profile switch requires recovery")
+		}
 		return nil
 	case "ls":
 		result, err := cli.RunOrganizationList(context.Background(), opts)
@@ -329,6 +339,29 @@ func runOrg(stdout io.Writer, cmdCtx commandContext, args []string, output strin
 		return writeJSON(stdout, result)
 	}
 	cli.PrintOrganizationMembership(stdout, result)
+	return nil
+}
+
+func reconcileCreatedOrganization(cmdCtx commandContext, organization client.Organization, stderr io.Writer) error {
+	if !strings.EqualFold(strings.TrimSpace(cmdCtx.profile.Auth.Mode), "remoteSession") || cmdCtx.authTokenSource != authsession.TokenSourceStoredRemoteSession {
+		return nil
+	}
+	control := normalizeRemoteEndpoint(cmdCtx.profile.InstallationEndpoint)
+	current := normalizeRemoteEndpoint(cmdCtx.profile.Endpoint)
+	if control == "" || current != control {
+		return nil
+	}
+	canonical := normalizeRemoteEndpoint(organization.Endpoint)
+	if canonical == "" {
+		return fmt.Errorf("server did not return a canonical organization endpoint")
+	}
+	if err := client.ValidateConnectionInfo(client.ConnectionInfo{InstallationID: cmdCtx.profile.InstallationID, Endpoints: client.ConnectionEndpoints{Control: control, Current: canonical}}); err != nil {
+		return fmt.Errorf("untrusted canonical organization endpoint: %w", err)
+	}
+	if err := persistSelectedProfileEndpoint(cmdCtx, canonical); err != nil {
+		return err
+	}
+	fmt.Fprintf(stderr, "warning: profile %q switched to organization %q: %s -> %s\n", cmdCtx.profileName, organization.Slug, cmdCtx.profile.Endpoint, canonical)
 	return nil
 }
 

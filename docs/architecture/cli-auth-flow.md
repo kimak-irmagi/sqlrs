@@ -131,6 +131,13 @@ Rules:
   method `none`.
 - The authorization URL starts with the service-advertised
   `authorizationEndpoint`; the CLI owns security-sensitive attempt parameters.
+- With explicit `--no-browser`, the CLI writes that URL immediately and exactly
+  once to stderr. Browser mode does not print it, and neither mode includes it
+  in the final human/JSON result, errors, verbose diagnostics, or logs.
+- The manual URL is the sole rendering exception for `state`, `nonce`, and the
+  PKCE challenge. The PKCE verifier, authorization code, refresh token, and ID
+  token are never rendered. Stdout remains reserved for the final result and
+  JSON stdout is one valid document.
 - Existing authorization-endpoint query parameters must not collide with those
   CLI-owned parameters.
 - Public provider configuration never includes a confidential client secret.
@@ -208,10 +215,11 @@ Rules:
   returned, must equal the stored login nonce. A replacement refresh token is
   stored atomically.
 - Refresh-token failures stop the command before the protected sqlrs API
-  request and tell the user to run `sqlrs auth login google`.
+  request. `invalid_grant` tells the user to log in; retryable and other `4xx`
+  failures retain the session and report their respective recovery.
 - Token and revocation POSTs never follow redirects. Transient network errors,
-  `429`, and `5xx` retain the session. `invalid_grant` or equivalent definitive
-  rejection deletes it. Provider identity/config binding
+  `429`, and `5xx` retain the session. Configuration version 1 deletes it only
+  for `invalid_grant`; other `4xx` responses retain it. Provider identity/config binding
   changes require login and no refresh request is sent.
 - The gateway receives only the effective bearer token. It never receives the
   refresh token.
@@ -308,10 +316,12 @@ Rules:
 | Refresh transport failure, `429`, or `5xx` | Retain the session and return a retryable error. |
 | Refreshed token changes issuer, subject, audience/`azp`, or has invalid required claims/nonce | Retain the refresh credential, reject the token, and do not call the protected API. |
 | Cached ID token expired and refresh succeeds | Atomically store the new ID token and any rotated refresh token, then continue. |
-| Refresh token revoked or definitively rejected | Delete the local session and tell the user to run `sqlrs auth login google`. |
+| Refresh returns OAuth `invalid_grant` | Delete the local session and tell the user to run `sqlrs auth login google`. |
+| Refresh returns another `4xx` in configuration version 1 | Retain the session and report a request/provider configuration error; provider-specific definitive rejection requires a future version. |
 | Gateway rejects ID token with `401` | Surface the API auth error; audience/issuer troubleshooting belongs in the auth guide. |
 | Root current-user lookup returns `404` after login | Exit zero, retain the session, and suggest user registration. |
 | Candidate current-user lookup returns `404` after login | Retain the session and return partial-success exit `1` with endpoint recovery. |
+| Candidate response names another or untrusted canonical endpoint | Do not persist or contact it; retain the session and return partial-success exit `1` with routing recovery. |
 | Reconciliation network/5xx or local profile update fails | Retain the session and return partial-success exit `1`. |
 
 ## 8. Security Invariants

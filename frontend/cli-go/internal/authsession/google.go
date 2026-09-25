@@ -22,14 +22,15 @@ var googleOIDCScopes = []string{"openid", "email", "profile"}
 // AuthURLOptions are the non-secret inputs used to construct the Google
 // authorization URL for the flow documented in docs/architecture/cli-auth-flow.md.
 type AuthURLOptions struct {
-	ClientID              string
-	RedirectURI           string
-	State                 string
-	Nonce                 string
-	CodeChallenge         string
-	LoginHint             string
-	AuthorizationEndpoint string
-	Scopes                []string
+	ClientID                string
+	RedirectURI             string
+	State                   string
+	Nonce                   string
+	CodeChallenge           string
+	LoginHint               string
+	AuthorizationEndpoint   string
+	Scopes                  []string
+	AuthorizationParameters map[string]string
 }
 
 // BuildGoogleAuthURL builds the Google OIDC authorization URL with PKCE,
@@ -64,6 +65,11 @@ func BuildGoogleAuthURL(opts AuthURLOptions) (string, error) {
 		return "", fmt.Errorf("parse authorization endpoint: %w", err)
 	}
 	query := parsed.Query()
+	for key := range query {
+		if _, reserved := reservedAuthURLParameters[key]; reserved {
+			return "", fmt.Errorf("authorization endpoint query parameter %q is reserved", key)
+		}
+	}
 	query.Set("response_type", "code")
 	query.Set("client_id", strings.TrimSpace(opts.ClientID))
 	query.Set("redirect_uri", strings.TrimSpace(opts.RedirectURI))
@@ -72,8 +78,16 @@ func BuildGoogleAuthURL(opts AuthURLOptions) (string, error) {
 	query.Set("nonce", strings.TrimSpace(opts.Nonce))
 	query.Set("code_challenge", strings.TrimSpace(opts.CodeChallenge))
 	query.Set("code_challenge_method", "S256")
-	query.Set("access_type", "offline")
-	query.Set("prompt", "consent")
+	for key, value := range opts.AuthorizationParameters {
+		if _, reserved := reservedAuthURLParameters[key]; reserved || query.Has(key) {
+			return "", fmt.Errorf("authorization parameter %q is reserved", key)
+		}
+		query.Set(key, value)
+	}
+	if strings.TrimSpace(opts.AuthorizationEndpoint) == "" {
+		query.Set("access_type", "offline")
+		query.Set("prompt", "consent")
+	}
 	if strings.TrimSpace(opts.LoginHint) != "" {
 		query.Set("login_hint", strings.TrimSpace(opts.LoginHint))
 	}
@@ -84,19 +98,21 @@ func BuildGoogleAuthURL(opts AuthURLOptions) (string, error) {
 // CodeExchangeRequest is the OAuth token endpoint request for a loopback
 // authorization code and PKCE verifier.
 type CodeExchangeRequest struct {
-	ClientID     string
-	ClientSecret string
-	Code         string
-	CodeVerifier string
-	RedirectURI  string
+	ClientID      string
+	ClientSecret  string
+	Code          string
+	CodeVerifier  string
+	RedirectURI   string
+	TokenEndpoint string
 }
 
 // RefreshRequest is the OAuth refresh-token grant request. Refresh tokens are
 // sent only to Google, never to the sqlrs gateway.
 type RefreshRequest struct {
-	ClientID     string
-	ClientSecret string
-	RefreshToken string
+	ClientID      string
+	ClientSecret  string
+	RefreshToken  string
+	TokenEndpoint string
 }
 
 // TokenResponse is the subset of Google token endpoint fields used by the CLI.
@@ -107,6 +123,21 @@ type TokenResponse struct {
 	ExpiresIn    int
 	TokenType    string
 	Scope        string
+}
+
+// OAuthError preserves a token endpoint error code so session invalidation can
+// distinguish invalid_grant from recoverable request/configuration failures.
+type OAuthError struct {
+	Code        string
+	Description string
+	Status      int
+}
+
+func (e *OAuthError) Error() string {
+	if strings.TrimSpace(e.Description) != "" {
+		return fmt.Sprintf("OAuth %s: %s", e.Code, e.Description)
+	}
+	return fmt.Sprintf("OAuth %s", e.Code)
 }
 
 // OAuthClient abstracts Google token and revocation endpoint calls for tests.
@@ -137,7 +168,7 @@ func (c GoogleOAuthClient) ExchangeCode(ctx context.Context, req CodeExchangeReq
 	form.Set("code_verifier", strings.TrimSpace(req.CodeVerifier))
 	form.Set("redirect_uri", strings.TrimSpace(req.RedirectURI))
 	form.Set("grant_type", "authorization_code")
-	return c.postToken(ctx, form)
+	return c.postToken(ctx, req.TokenEndpoint, form)
 }
 
 func (c GoogleOAuthClient) Refresh(ctx context.Context, req RefreshRequest) (TokenResponse, error) {
@@ -148,7 +179,7 @@ func (c GoogleOAuthClient) Refresh(ctx context.Context, req RefreshRequest) (Tok
 	}
 	form.Set("refresh_token", strings.TrimSpace(req.RefreshToken))
 	form.Set("grant_type", "refresh_token")
-	return c.postToken(ctx, form)
+	return c.postToken(ctx, req.TokenEndpoint, form)
 }
 
 func (c GoogleOAuthClient) Revoke(ctx context.Context, token string) error {
@@ -156,10 +187,16 @@ func (c GoogleOAuthClient) Revoke(ctx context.Context, token string) error {
 	if endpoint == "" {
 		endpoint = googleRevocationEndpoint
 	}
+	return c.RevokeAt(ctx, endpoint, token)
+}
+
+// RevokeAt revokes against the service-advertised endpoint without following
+// redirects.
+func (c GoogleOAuthClient) RevokeAt(ctx context.Context, endpoint, token string) error {
 	form := url.Values{"token": {strings.TrimSpace(token)}}
 	httpClient := c.HTTP
 	if httpClient == nil {
-		httpClient = http.DefaultClient
+		httpClient = noRedirectHTTPClient()
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 	if err != nil {
@@ -178,14 +215,17 @@ func (c GoogleOAuthClient) Revoke(ctx context.Context, token string) error {
 	return nil
 }
 
-func (c GoogleOAuthClient) postToken(ctx context.Context, form url.Values) (TokenResponse, error) {
-	endpoint := strings.TrimSpace(c.TokenEndpoint)
+func (c GoogleOAuthClient) postToken(ctx context.Context, requestedEndpoint string, form url.Values) (TokenResponse, error) {
+	endpoint := strings.TrimSpace(requestedEndpoint)
+	if endpoint == "" {
+		endpoint = strings.TrimSpace(c.TokenEndpoint)
+	}
 	if endpoint == "" {
 		endpoint = googleTokenEndpoint
 	}
 	httpClient := c.HTTP
 	if httpClient == nil {
-		httpClient = http.DefaultClient
+		httpClient = noRedirectHTTPClient()
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 	if err != nil {
@@ -202,7 +242,14 @@ func (c GoogleOAuthClient) postToken(ctx context.Context, form url.Values) (Toke
 		return TokenResponse{}, err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return TokenResponse{}, fmt.Errorf("Google token endpoint failed with status %d: %s", resp.StatusCode, strings.TrimSpace(string(data)))
+		var oauthErr struct {
+			Error       string `json:"error"`
+			Description string `json:"error_description"`
+		}
+		if json.Unmarshal(data, &oauthErr) == nil && strings.TrimSpace(oauthErr.Error) != "" {
+			return TokenResponse{}, &OAuthError{Code: strings.TrimSpace(oauthErr.Error), Description: strings.TrimSpace(oauthErr.Description), Status: resp.StatusCode}
+		}
+		return TokenResponse{}, fmt.Errorf("OIDC token endpoint failed with status %d", resp.StatusCode)
 	}
 	var raw struct {
 		IDToken      string `json:"id_token"`
@@ -223,6 +270,18 @@ func (c GoogleOAuthClient) postToken(ctx context.Context, form url.Values) (Toke
 		TokenType:    raw.TokenType,
 		Scope:        raw.Scope,
 	}, nil
+}
+
+func noRedirectHTTPClient() *http.Client {
+	return &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+}
+
+var reservedAuthURLParameters = map[string]struct{}{
+	"client_id": {}, "response_type": {}, "redirect_uri": {}, "scope": {},
+	"state": {}, "nonce": {}, "code_challenge": {}, "code_challenge_method": {},
+	"login_hint": {}, "response_mode": {}, "request": {}, "request_uri": {},
 }
 
 func defaultIssuer(issuer string) string {

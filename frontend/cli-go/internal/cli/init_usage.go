@@ -5,7 +5,8 @@ import "io"
 func PrintInitUsage(w io.Writer) {
 	io.WriteString(w, "Usage:\n")
 	io.WriteString(w, "  sqlrs init [local] [flags]\n")
-	io.WriteString(w, "  sqlrs init remote --url <url> --token <token> [flags]\n\n")
+	io.WriteString(w, "  sqlrs init remote <endpoint> [flags]\n")
+	io.WriteString(w, "  sqlrs init remote --url <endpoint> [--token <legacy-token>] [flags]\n\n")
 	io.WriteString(w, "Global flags:\n")
 	io.WriteString(w, "  --workspace <path>      Workspace root (default: cwd)\n")
 	io.WriteString(w, "  --force                 Allow nested workspaces\n")
@@ -23,6 +24,6 @@ func PrintInitUsage(w io.Writer) {
 	io.WriteString(w, "  --no-start              Skip WSL auto-start during init\n")
 	io.WriteString(w, "  --distro <name>         WSL distro name\n\n")
 	io.WriteString(w, "Remote flags:\n")
-	io.WriteString(w, "  --url <url>             Remote engine endpoint\n")
-	io.WriteString(w, "  --token <token>         Remote engine token\n")
+	io.WriteString(w, "  --url <url>             Compatibility form of the remote endpoint\n")
+	io.WriteString(w, "  --token <token>         Deprecated legacy bearer-token bootstrap\n")
 }

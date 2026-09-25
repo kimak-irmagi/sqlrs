@@ -343,8 +343,9 @@ That actionable guidance is tracked in
   failed or silently overwrite a concurrently changed config file.
   Human and JSON stdout retain the complete successful remote result; warnings
   and recovery remain on stderr, so JSON stdout is one valid document.
-- When the effective bearer token comes from `SQLRS_TOKEN` or another explicit
-  override, `user register` and `org create` do not persist an automatic profile
+- When the effective bearer token comes from the `EnvironmentOverride` source
+  (`SQLRS_TOKEN`) or the `LegacyBearer` profile source, `user register` and
+  `org create` do not persist an automatic profile
   switch. They print the canonical endpoint and an explicit `sqlrs init remote
   <organization-endpoint> --update` command instead and exit successfully, so a
   temporary identity cannot reroute the stored session's profile.

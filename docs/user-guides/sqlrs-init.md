@@ -132,7 +132,9 @@ Print intended actions.
 Allow updating an existing workspace configuration.
 
 - If `.sqlrs/` already exists, config updates are applied.
-- Without `--update`, an existing workspace remains unchanged.
+- Without `--update`, the same normalized remote endpoint is an idempotent
+  no-op; a different endpoint is rejected with exit `64`, and the existing
+  workspace remains unchanged.
 - If `.sqlrs/` does not exist, `--update` behaves like a normal init (creates workspace).
 - If `config.yaml` is missing or corrupted, `--update` recreates it.
 - If `--update` is used and local/remote init fails, the workspace config is left unchanged.
@@ -320,8 +322,10 @@ profile remain usable.
 
 `--dry-run` performs the same validation and reports the intended workspace
 config write without modifying the workspace or user-local config. Repeating
-the same successful command is idempotent; an existing workspace is changed
-only when `--update` is present.
+the same successful command with the same normalized endpoint is idempotent. A
+different endpoint for an existing workspace without `--update` is an invalid
+argument/configuration conflict (exit `64`) and changes nothing. An existing
+workspace is changed only when `--update` is present.
 
 ---
 

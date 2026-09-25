@@ -157,8 +157,9 @@ Flow:
    - `nonce=<nonce>`;
    - provider-advertised static authorization parameters. For Google these are
      `access_type=offline` and `prompt=consent`.
-7. Open the system browser unless `--no-browser` is set. With `--no-browser`,
-   print the authorization URL for the user to open manually.
+7. Open the system browser unless `--no-browser` is set. With explicit
+   `--no-browser`, immediately print the authorization URL to stderr for the
+   user to open manually. Browser mode does not print the URL.
 8. Accept exactly one callback on the loopback listener.
 9. Reject the callback if:
    - `state` does not match;
@@ -189,6 +190,14 @@ Flow:
     This either validates and binds a candidate-prefixed endpoint or reconciles
     an installation-root profile to its one unambiguous organization endpoint.
 
+The manual authorization URL is the sole output exception for login-attempt
+values: it necessarily contains `state`, `nonce`, and the PKCE challenge. It
+must never contain the PKCE verifier and must not be repeated in final human or
+JSON output, errors, verbose diagnostics, or logs. Authorization codes, PKCE
+verifiers, refresh tokens, and ID tokens are never printed. Stdout remains
+reserved for the final command result; in JSON mode it contains exactly one
+valid JSON document.
+
 Human success output:
 
 ```text
@@ -201,7 +210,7 @@ profile: remote-dev
 endpoint: https://sqlrs.example.org
 ```
 
-The command never prints raw refresh tokens or raw ID tokens.
+The final result never includes the manual authorization URL.
 
 ### Organization endpoint reconciliation
 
@@ -217,6 +226,11 @@ and access check. A successful matching response binds authenticated
 organization metadata without changing the URL or printing a switch warning. A
 `404` leaves the valid login session intact and reports how to reinitialize the
 profile with the installation root or a correct organization URL.
+
+If the authenticated response instead names another organization endpoint or
+an invalid/untrusted canonical endpoint, the CLI never persists or contacts
+that endpoint. It retains the successful login session, returns partial-success
+exit `1`, and prints routing recovery on stderr.
 
 At the installation root, a current-user `404` instead means that authentication
 succeeded but this identity has not registered a sqlrs user yet. Login succeeds
@@ -284,10 +298,12 @@ with the new ID token; the provider remains responsible for enforcing rotation
 or sender-constraining policy for this public client.
 
 Transient network failures, `429`, and `5xx` retain the session for retry and
-report that the provider is temporarily unavailable. `invalid_grant`,
-revocation, or an equivalent definitive rejection deletes the session and asks
-for login. Invalid returned claims retain the refresh credential for a later
-retry but are never sent to a sqlrs API. If refresh fails or the credential store cannot be read, the CLI
+report that the provider is temporarily unavailable. In configuration version
+1, only the OAuth error `invalid_grant` deletes the session and asks for login;
+all other `4xx` responses retain it and report a request/provider configuration
+error. Provider-specific definitive-rejection codes require a future
+configuration version. Invalid returned claims retain the refresh credential
+for a later retry but are never sent to a sqlrs API. If refresh fails or the credential store cannot be read, the CLI
 must not send the stale ID token. A definitive session failure prints:
 
 ```text

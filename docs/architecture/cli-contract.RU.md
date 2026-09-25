@@ -503,7 +503,14 @@ runtime `names`.
   legacy credential с deprecation warning и не переписывают config.
 - Login reconciliation возвращает partial-success exit `1` без удаления session
   при candidate `404`, network/5xx или local config-write failure. Root
-  current-user `404` завершается успешно и предлагает registration.
+  current-user `404` завершается успешно и предлагает registration. Candidate
+  response с другим/untrusted endpoint ведёт себя как partial success.
+- Endpoint reconciliation сохраняет switch только для token source
+  `StoredRemoteSession`; `EnvironmentOverride` и `LegacyBearer` печатают recovery
+  и не меняют profile.
+- Refresh configuration version 1 удаляет session только при OAuth
+  `invalid_grant`; любой другой `4xx` сохраняет её и сообщает configuration или
+  request error.
 - Provider component external identity — advertised service provider ID вроде
   `google`, но никогда не adapter name `oidc`.
 - Gateway по-прежнему получает только short-lived Google ID token как
@@ -556,6 +563,11 @@ runtime `names`.
 - Вывод по умолчанию: человеко-читаемый
 - `--json`: машинно-читаемый
 - Стабильные схемы для JSON-вывода
+- `auth login --no-browser` немедленно пишет one-time authorization URL в
+  stderr; browser mode URL не печатает. URL не попадает в final human/JSON
+  result, errors, verbose diagnostics или logs, а JSON stdout остаётся одним
+  valid document. Только этот явно запрошенный manual URL может render-ить
+  `state`, `nonce` и PKCE challenge; codes, verifiers и tokens не печатаются.
 
 Подходит для CI/CD.
 

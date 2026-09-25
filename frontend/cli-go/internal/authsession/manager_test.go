@@ -31,7 +31,7 @@ func TestResolveBearerTokenUsesEnvOverrideBeforeStoredSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveBearerToken: %v", err)
 	}
-	if got.Token != "env-token" || got.Source != "env:SQLRS_TOKEN" {
+	if got.Token != "env-token" || got.Source != TokenSourceEnvironmentOverride {
 		t.Fatalf("resolved = %+v, want env token", got)
 	}
 }
@@ -59,7 +59,7 @@ func TestResolveBearerTokenUsesFreshCachedIDToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveBearerToken: %v", err)
 	}
-	if got.Token != "cached-id-token" || got.Source != "stored_session" {
+	if got.Token != "cached-id-token" || got.Source != TokenSourceStoredRemoteSession {
 		t.Fatalf("resolved = %+v, want cached token", got)
 	}
 }
@@ -93,7 +93,7 @@ func TestResolveBearerTokenRefreshesExpiringSessionAndStoresIDToken(t *testing.T
 	if err != nil {
 		t.Fatalf("ResolveBearerToken: %v", err)
 	}
-	if got.Token != newIDToken || got.Source != "refreshed_session" {
+	if got.Token != newIDToken || got.Source != TokenSourceStoredRemoteSession {
 		t.Fatalf("resolved = %+v, want refreshed token", got)
 	}
 	if oauth.refreshToken != "refresh-old" {
@@ -183,6 +183,7 @@ func TestLoginGoogleStoresRefreshTokenAndSafeMetadata(t *testing.T) {
 		ClientID:     key.ClientID,
 		ClientSecret: "client-secret",
 		Issuer:       key.Issuer,
+		Scopes:       []string{"openid", "email"},
 		NoBrowser:    true,
 		AuthorizationURLReady: func(authURL string) error {
 			readyURL = authURL
@@ -195,11 +196,8 @@ func TestLoginGoogleStoresRefreshTokenAndSafeMetadata(t *testing.T) {
 	if result.Email != "alice@example.com" || result.Provider != "google" {
 		t.Fatalf("result = %+v, want safe metadata", result)
 	}
-	if result.AuthorizationURL == "" {
-		t.Fatalf("no-browser login should return authorization URL")
-	}
-	if readyURL != result.AuthorizationURL {
-		t.Fatalf("reported URL = %q, result URL = %q", readyURL, result.AuthorizationURL)
+	if result.AuthorizationURL != "" || readyURL == "" {
+		t.Fatalf("authorization URL must be transient only: result=%q reported=%q", result.AuthorizationURL, readyURL)
 	}
 	if oauth.exchangeCode != "code-1" {
 		t.Fatalf("exchange code = %q, want code-1", oauth.exchangeCode)
@@ -213,6 +211,9 @@ func TestLoginGoogleStoresRefreshTokenAndSafeMetadata(t *testing.T) {
 	}
 	if stored.RefreshToken != "refresh-token" || stored.CachedIDToken != idToken {
 		t.Fatalf("stored token metadata = %+v", stored)
+	}
+	if strings.Join(stored.Scopes, " ") != "openid email" {
+		t.Fatalf("stored scopes = %+v", stored.Scopes)
 	}
 }
 
@@ -249,6 +250,56 @@ func TestLoginGoogleRequiresRefreshToken(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "refresh_token") {
 		t.Fatalf("expected refresh_token error, got %v", err)
+	}
+}
+
+func TestResolveRemoteSessionDiscoversProviderAndUsesStableTrustKey(t *testing.T) {
+	t.Setenv("SQLRS_TOKEN", "")
+	now := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
+	key := CredentialKey{ProfileName: "remote", Endpoint: "https://api.example.test/nsu", InstallationID: "installation-1", ControlEndpoint: "https://api.example.test"}
+	store := newMemoryCredentialStore()
+	if err := store.Put(context.Background(), key, Session{Provider: "google", Issuer: "https://issuer.example.test", ClientID: "public-client", Subject: "subject-1", RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)}); err != nil {
+		t.Fatal(err)
+	}
+	idToken := testIDToken(t, map[string]any{"iss": "https://issuer.example.test", "aud": "public-client", "sub": "subject-1", "iat": now.Unix(), "exp": now.Add(time.Hour).Unix()})
+	oauth := &fakeOAuthClient{refreshResponse: TokenResponse{IDToken: idToken}}
+	manager := NewManager(ManagerOptions{Store: store, OAuth: oauth, Clock: fixedClock{now: now}})
+	resolved, err := manager.ResolveBearerToken(context.Background(), ResolveOptions{
+		ProfileName: "remote", Endpoint: "https://api.example.test/nsu", InstallationID: "installation-1", ControlEndpoint: "https://api.example.test", AuthMode: "remoteSession",
+		ProviderResolver: func(_ context.Context, provider string) (ProviderConfiguration, error) {
+			if provider != "google" {
+				t.Fatalf("provider = %q", provider)
+			}
+			return ProviderConfiguration{ID: "google", Issuer: "https://issuer.example.test", ClientID: "public-client", TokenEndpoint: "https://issuer.example.test/token"}, nil
+		},
+	})
+	if err != nil || resolved.Token != idToken || resolved.Source != TokenSourceStoredRemoteSession {
+		t.Fatalf("resolved=%+v err=%v", resolved, err)
+	}
+	if oauth.refreshEndpoint != "https://issuer.example.test/token" || oauth.refreshClientSecret != "" {
+		t.Fatalf("refresh endpoint=%q secret=%q", oauth.refreshEndpoint, oauth.refreshClientSecret)
+	}
+	key.Endpoint = "https://api.example.test/other"
+	if _, ok, _ := store.Get(context.Background(), key); !ok {
+		t.Fatalf("mutable request endpoint should not change remote-session key")
+	}
+}
+
+func TestRemoteSessionProviderMismatchRetainsCredential(t *testing.T) {
+	t.Setenv("SQLRS_TOKEN", "")
+	now := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
+	key := CredentialKey{ProfileName: "remote", Endpoint: "https://api.example.test", InstallationID: "installation-1", ControlEndpoint: "https://api.example.test"}
+	store := newMemoryCredentialStore()
+	_ = store.Put(context.Background(), key, Session{Provider: "google", Issuer: "https://issuer.example.test", ClientID: "public-client", RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)})
+	manager := NewManager(ManagerOptions{Store: store, OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: now}})
+	_, err := manager.ResolveBearerToken(context.Background(), ResolveOptions{ProfileName: "remote", Endpoint: key.Endpoint, InstallationID: key.InstallationID, ControlEndpoint: key.ControlEndpoint, AuthMode: "remoteSession", ProviderResolver: func(context.Context, string) (ProviderConfiguration, error) {
+		return ProviderConfiguration{ID: "google", Issuer: "https://changed.example.test", ClientID: "public-client"}, nil
+	}})
+	if err == nil || !strings.Contains(err.Error(), "no longer matches") {
+		t.Fatalf("error = %v", err)
+	}
+	if _, ok, _ := store.Get(context.Background(), key); !ok {
+		t.Fatalf("provider mismatch must retain local credential")
 	}
 }
 
@@ -364,6 +415,7 @@ type fakeOAuthClient struct {
 	refreshErr          error
 	refreshToken        string
 	refreshClientSecret string
+	refreshEndpoint     string
 
 	revokeErr    error
 	revokedToken string
@@ -381,6 +433,7 @@ func (f *fakeOAuthClient) ExchangeCode(_ context.Context, req CodeExchangeReques
 func (f *fakeOAuthClient) Refresh(_ context.Context, req RefreshRequest) (TokenResponse, error) {
 	f.refreshToken = req.RefreshToken
 	f.refreshClientSecret = req.ClientSecret
+	f.refreshEndpoint = req.TokenEndpoint
 	if f.refreshErr != nil {
 		return TokenResponse{}, f.refreshErr
 	}

@@ -15,6 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/sqlrs/cli/internal/cli"
+	"github.com/sqlrs/cli/internal/client"
 	"github.com/sqlrs/cli/internal/config"
 	"github.com/sqlrs/cli/internal/enginebin"
 	"github.com/sqlrs/cli/internal/paths"
@@ -39,6 +40,7 @@ type initOptions struct {
 	WSLMode       string
 	RemoteURL     string
 	RemoteToken   string
+	Connection    *client.ConnectionInfo
 	Mode          string
 	Verbose       bool
 }
@@ -91,6 +93,25 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 	if err != nil {
 		return ExitErrorf(4, "Cannot create .sqlrs directory: %v", err)
 	}
+	if strings.EqualFold(opts.Mode, "remote") && opts.RemoteToken == "" {
+		if validateErr := client.ValidateServiceEndpoint(opts.RemoteURL); validateErr != nil {
+			return ExitErrorf(64, "Invalid remote endpoint: %v", validateErr)
+		}
+		info, discoverErr := client.New(opts.RemoteURL, client.Options{}).GetConnectionInfo(context.Background())
+		if discoverErr != nil {
+			return ExitErrorf(1, "Remote connection discovery failed: %v", discoverErr)
+		}
+		if len(info.AuthProviders) == 0 {
+			return ExitErrorf(1, "Remote connection discovery returned no enabled login providers")
+		}
+		if normalizeRemoteEndpoint(info.Endpoints.Current) != normalizeRemoteEndpoint(opts.RemoteURL) {
+			return ExitErrorf(1, "Remote connection discovery returned current endpoint %q for %q", info.Endpoints.Current, opts.RemoteURL)
+		}
+		opts.RemoteURL = normalizeRemoteEndpoint(info.Endpoints.Current)
+		opts.Connection = &info
+	} else if strings.EqualFold(opts.Mode, "remote") {
+		fmt.Fprintln(os.Stderr, "warning: --token is deprecated; omit it to use service-discovered remote sessions")
+	}
 	explicitHostSource := ""
 	if opts.EnginePath != "" {
 		explicitHostSource = normalizeEngineSourcePath(opts.EnginePath, cwd)
@@ -134,6 +155,16 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 			}
 		}
 		if !opts.Update {
+			if strings.EqualFold(opts.Mode, "remote") && configValid {
+				raw, readErr := readConfigMap(configPath)
+				if readErr != nil {
+					return ExitErrorf(4, "Cannot read config.yaml: %v", readErr)
+				}
+				existing := nestedMapString(raw, "profiles", "remote", "endpoint")
+				if existing != "" && normalizeRemoteEndpoint(existing) != normalizeRemoteEndpoint(opts.RemoteURL) {
+					return ExitErrorf(64, "Remote endpoint differs from the existing profile; rerun with --update")
+				}
+			}
 			if isWindows && configValid && !opts.DryRun && strings.EqualFold(opts.Mode, "local") {
 				repaired, repairErr := repairExistingWSLEngine(configPath, opts.WSLEnginePath, opts.Verbose)
 				if repairErr != nil {
@@ -513,10 +544,6 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 		return opts, true, nil
 	}
 
-	if fs.NArg() > 0 {
-		return opts, false, ExitErrorf(64, "Invalid arguments")
-	}
-
 	opts.Mode = mode
 	opts.Workspace = strings.TrimSpace(*workspace)
 	if opts.Workspace == "" {
@@ -536,6 +563,20 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 	opts.NoStart = *noStart
 	opts.RemoteURL = strings.TrimSpace(*url)
 	opts.RemoteToken = strings.TrimSpace(*token)
+	positional := fs.Args()
+	if strings.EqualFold(mode, "remote") {
+		if len(positional) > 1 {
+			return opts, false, ExitErrorf(64, "Invalid arguments: remote init accepts one endpoint")
+		}
+		if len(positional) == 1 {
+			if opts.RemoteURL != "" {
+				return opts, false, ExitErrorf(64, "Invalid arguments: use either the endpoint argument or --url")
+			}
+			opts.RemoteURL = strings.TrimSpace(positional[0])
+		}
+	} else if len(positional) > 0 {
+		return opts, false, ExitErrorf(64, "Invalid arguments")
+	}
 
 	if size := strings.TrimSpace(*storeSize); size != "" {
 		value, err := parseStoreSizeGB(size)
@@ -554,8 +595,8 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 		return opts, false, ExitErrorf(64, "Invalid arguments: unknown init mode")
 	}
 	if mode == "remote" {
-		if opts.RemoteURL == "" || opts.RemoteToken == "" {
-			return opts, false, ExitErrorf(64, "Invalid arguments: --url and --token are required for remote init")
+		if opts.RemoteURL == "" {
+			return opts, false, ExitErrorf(64, "Invalid arguments: remote endpoint is required")
 		}
 		if opts.EnginePath != "" || opts.WSLEnginePath != "" || opts.SharedCache || opts.Snapshot != "" || opts.StoreType != "" || opts.StorePath != "" || opts.StoreSizeGB > 0 || opts.Reinit || opts.Distro != "" || opts.NoStart {
 			return opts, false, ExitErrorf(64, "Invalid arguments: local-only flags are not valid for remote init")
@@ -674,7 +715,17 @@ func buildWorkspaceConfig(opts initOptions, wslResult *wslInitResult, base map[s
 			setNested(cfg, []string{"profiles", "remote", "endpoint"}, opts.RemoteURL)
 		}
 		if opts.RemoteToken != "" {
+			setNested(cfg, []string{"profiles", "remote", "auth", "mode"}, "token")
 			setNested(cfg, []string{"profiles", "remote", "auth", "token"}, opts.RemoteToken)
+		} else if opts.Connection != nil {
+			deleteNested(cfg, "profiles", "remote", "auth", "token")
+			deleteNested(cfg, "profiles", "remote", "auth", "clientID")
+			deleteNested(cfg, "profiles", "remote", "auth", "clientSecret")
+			deleteNested(cfg, "profiles", "remote", "auth", "issuer")
+			setNested(cfg, []string{"profiles", "remote", "installationID"}, opts.Connection.InstallationID)
+			setNested(cfg, []string{"profiles", "remote", "installationEndpoint"}, opts.Connection.Endpoints.Control)
+			setNested(cfg, []string{"profiles", "remote", "auth", "mode"}, "remoteSession")
+			setNested(cfg, []string{"profiles", "remote", "auth", "tokenEnv"}, "SQLRS_TOKEN")
 		}
 	}
 	if wslResult != nil {
@@ -721,6 +772,10 @@ func buildWorkspaceConfig(opts initOptions, wslResult *wslInitResult, base map[s
 		data = append(data, '\n')
 	}
 	return data, nil
+}
+
+func normalizeRemoteEndpoint(endpoint string) string {
+	return strings.TrimRight(strings.TrimSpace(endpoint), "/")
 }
 
 func normalizeEnginePath(enginePath, cwd, workspace string) string {
@@ -817,6 +872,21 @@ func setNested(root map[string]any, keys []string, value any) {
 		}
 		current = next
 	}
+}
+
+func deleteNested(root map[string]any, keys ...string) {
+	if len(keys) == 0 {
+		return
+	}
+	current := root
+	for _, key := range keys[:len(keys)-1] {
+		next, ok := current[key].(map[string]any)
+		if !ok {
+			return
+		}
+		current = next
+	}
+	delete(current, keys[len(keys)-1])
 }
 
 func parseStoreSizeGB(value string) (int, error) {

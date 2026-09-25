@@ -85,7 +85,7 @@ OpenAPI contract; this slice does not add a server package or storage schema.
 - `endpoint_reconcile.go`
   - Validate canonical endpoints against installation identity/control base.
   - Switch only an installation-scoped profile with one unambiguous result.
-  - Suppress persistent switching for explicit token overrides.
+  - Suppress persistent switching for `EnvironmentOverride` and `LegacyBearer`.
   - Preserve successful stdout and return exit `1` with stderr recovery when
     the remote operation succeeded but local reconciliation failed.
 
@@ -203,6 +203,10 @@ provider ID, such as `google`. `IdentityKey.provider` is this provider ID;
   - Shared CLI service used after login, self-registration, and organization
     creation. It receives token source, installation identity/control base,
     current profile snapshot, and authenticated organization results.
+- `TokenSource`
+  - Closed invocation-local classification: `StoredRemoteSession`,
+    `EnvironmentOverride`, or `LegacyBearer`. Only `StoredRemoteSession` may
+    persist an automatic endpoint switch.
 - `UserProfileManager`
   - Service-facing interface for user reads and conditional writes.
 - `OrganizationManager`
@@ -215,7 +219,8 @@ provider ID, such as `google`. `IdentityKey.provider` is this provider ID;
 - **CLI profile config** is file-based and belongs to `internal/config`.
 - **Endpoint reconciliation state** is invocation-local. Only the validated
   endpoint and organization metadata are persisted through an atomic
-  compare-before-write update; explicit token overrides never trigger it.
+  compare-before-write update; `EnvironmentOverride` and `LegacyBearer` never
+  trigger it.
 - **CLI command options, HTTP requests, and ETags** are in-memory data for one
   invocation. The CLI does not cache user profiles, organizations, memberships,
   or ETags persistently.

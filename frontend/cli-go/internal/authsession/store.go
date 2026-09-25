@@ -14,11 +14,13 @@ import (
 // CredentialKey scopes one active OIDC session to one profile, endpoint, issuer,
 // and OAuth client as defined in docs/architecture/cli-auth-component-structure.md.
 type CredentialKey struct {
-	ProfileName string
-	Endpoint    string
-	Provider    string
-	Issuer      string
-	ClientID    string
+	ProfileName     string
+	Endpoint        string
+	InstallationID  string
+	ControlEndpoint string
+	Provider        string
+	Issuer          string
+	ClientID        string
 }
 
 // Session is stored as a secret credential value. RefreshToken and CachedIDToken
@@ -35,6 +37,7 @@ type Session struct {
 	IDTokenExpiry time.Time `json:"id_token_expiry"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+	LoginNonce    string    `json:"login_nonce,omitempty"`
 }
 
 // CredentialStore hides the OS credential store implementation behind a small
@@ -82,17 +85,30 @@ func (s *memoryCredentialStore) Delete(_ context.Context, key CredentialKey) err
 
 func (k CredentialKey) normalized() CredentialKey {
 	return CredentialKey{
-		ProfileName: strings.TrimSpace(k.ProfileName),
-		Endpoint:    strings.TrimSpace(k.Endpoint),
-		Provider:    defaultProvider(k.Provider),
-		Issuer:      defaultIssuer(k.Issuer),
-		ClientID:    strings.TrimSpace(k.ClientID),
+		ProfileName:     strings.TrimSpace(k.ProfileName),
+		Endpoint:        strings.TrimSpace(k.Endpoint),
+		InstallationID:  strings.TrimSpace(k.InstallationID),
+		ControlEndpoint: strings.TrimSpace(k.ControlEndpoint),
+		Provider:        defaultProvider(k.Provider),
+		Issuer:          defaultIssuer(k.Issuer),
+		ClientID:        strings.TrimSpace(k.ClientID),
 	}
 }
 
 func (k CredentialKey) stableName() string {
 	n := k.normalized()
-	raw := strings.Join([]string{n.ProfileName, n.Endpoint, n.Provider, n.Issuer, n.ClientID}, "\n")
+	trustEndpoint := n.ControlEndpoint
+	if trustEndpoint == "" {
+		trustEndpoint = n.Endpoint
+	}
+	var raw string
+	if n.InstallationID == "" && n.ControlEndpoint == "" {
+		// Preserve the public-RC oidcSession key for explicit legacy reads and
+		// migration; remoteSession profiles use the installation trust anchor.
+		raw = strings.Join([]string{n.ProfileName, n.Endpoint, n.Provider, n.Issuer, n.ClientID}, "\n")
+	} else {
+		raw = strings.Join([]string{n.ProfileName, n.InstallationID, trustEndpoint}, "\n")
+	}
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
 }

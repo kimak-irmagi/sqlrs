@@ -49,11 +49,13 @@ type EngineWSLMountConfig struct {
 }
 
 type ProfileConfig struct {
-	Mode       string           `yaml:"mode"`
-	Endpoint   string           `yaml:"endpoint"`
-	Autostart  bool             `yaml:"autostart"`
-	Auth       AuthConfig       `yaml:"auth"`
-	SourceSync SourceSyncConfig `yaml:"sourceSync"`
+	Mode                 string           `yaml:"mode"`
+	Endpoint             string           `yaml:"endpoint"`
+	InstallationID       string           `yaml:"installationID"`
+	InstallationEndpoint string           `yaml:"installationEndpoint"`
+	Autostart            bool             `yaml:"autostart"`
+	Auth                 AuthConfig       `yaml:"auth"`
+	SourceSync           SourceSyncConfig `yaml:"sourceSync"`
 }
 
 type AuthConfig struct {

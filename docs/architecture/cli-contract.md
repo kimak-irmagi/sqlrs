@@ -505,7 +505,14 @@ Current design direction:
   its legacy credential with a deprecation warning and do not rewrite config.
 - Login reconciliation returns partial-success exit `1`, without deleting the
   session, for candidate `404`, network/5xx, or local config-write failure. A
-  root current-user `404` succeeds and suggests registration.
+  candidate response naming another/untrusted endpoint behaves the same; a root
+  current-user `404` succeeds and suggests registration.
+- Endpoint reconciliation persists only for a `StoredRemoteSession` token
+  source. `EnvironmentOverride` and `LegacyBearer` print recovery and leave the
+  profile unchanged.
+- Refresh configuration version 1 deletes a session only on OAuth
+  `invalid_grant`; every other `4xx` retains it and reports a configuration or
+  request error.
 - The provider component of an external identity is the advertised service
   provider ID such as `google`, never adapter name `oidc`.
 - The gateway still receives only a short-lived Google ID token as
@@ -558,6 +565,12 @@ Current design direction:
 - Default output: human-readable
 - `--json`: machine-readable
 - Stable schemas for JSON output
+- `auth login --no-browser` immediately writes its one-time authorization URL
+  to stderr; browser mode does not print the URL. It is never included in the
+  final human/JSON result, errors, verbose diagnostics, or logs, and JSON stdout
+  remains one valid document. Only that explicit manual URL may render
+  `state`, `nonce`, and the PKCE challenge; codes, verifiers, and tokens are
+  never printed.
 
 Designed for CI/CD usage.
 

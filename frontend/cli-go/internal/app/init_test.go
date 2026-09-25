@@ -3,6 +3,10 @@ package app
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -517,14 +521,46 @@ func TestInitRemoteRequiresURL(t *testing.T) {
 	}
 }
 
-func TestInitRemoteRequiresToken(t *testing.T) {
+func TestInitRemoteRejectsInsecureEndpointBeforeNetwork(t *testing.T) {
 	workspace := t.TempDir()
-	var out bytes.Buffer
-
-	err := runInit(&out, workspace, "", []string{"remote", "--url", "https://example.com"}, false)
+	err := runInit(io.Discard, workspace, "", []string{"remote", "http://api.example.test"}, false)
 	var exitErr *ExitError
 	if !errors.As(err, &exitErr) || exitErr.Code != 64 {
-		t.Fatalf("expected ExitError code 64, got %v", err)
+		t.Fatalf("error = %v, want exit 64", err)
+	}
+	if dirExists(filepath.Join(workspace, ".sqlrs")) {
+		t.Fatalf("invalid endpoint must not create workspace")
+	}
+}
+
+func TestInitRemoteDiscoversInstallationAndWritesRemoteSessionProfile(t *testing.T) {
+	workspace := t.TempDir()
+	var out bytes.Buffer
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/connection-info" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"installation_id":"test-installation","endpoints":{"control":%q,"current":%q},"auth_providers":[{"id":"google","display_name":"Google","adapter":"oidc"}]}`, server.URL, server.URL)
+	}))
+	defer server.Close()
+
+	if err := runInit(&out, workspace, "", []string{"remote", server.URL}, false); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+	raw := loadConfigMap(t, filepath.Join(workspace, ".sqlrs", "config.yaml"))
+	if got := nestedString(raw, "profiles", "remote", "installationID"); got != "test-installation" {
+		t.Fatalf("installationID = %q", got)
+	}
+	if got := nestedString(raw, "profiles", "remote", "installationEndpoint"); got != server.URL {
+		t.Fatalf("installationEndpoint = %q", got)
+	}
+	if got := nestedString(raw, "profiles", "remote", "auth", "mode"); got != "remoteSession" {
+		t.Fatalf("auth.mode = %q", got)
+	}
+	if got := nestedString(raw, "profiles", "remote", "auth", "tokenEnv"); got != "SQLRS_TOKEN" {
+		t.Fatalf("auth.tokenEnv = %q", got)
 	}
 }
 
@@ -553,6 +589,22 @@ func TestInitRemoteWritesProfile(t *testing.T) {
 	}
 	if got := nestedString(raw, "profiles", "remote", "auth", "token"); got != "token-123" {
 		t.Fatalf("expected profiles.remote.auth.token, got %q", got)
+	}
+}
+
+func TestInitRemoteEndpointChangeRequiresUpdate(t *testing.T) {
+	workspace := t.TempDir()
+	var out bytes.Buffer
+	if err := runInit(&out, workspace, "", []string{"remote", "--url", "https://one.example.test", "--token", "legacy"}, false); err != nil {
+		t.Fatalf("first init: %v", err)
+	}
+	if err := runInit(&out, workspace, "", []string{"remote", "--url", "https://one.example.test", "--token", "legacy"}, false); err != nil {
+		t.Fatalf("same endpoint should be idempotent: %v", err)
+	}
+	err := runInit(&out, workspace, "", []string{"remote", "--url", "https://two.example.test", "--token", "legacy"}, false)
+	var exitErr *ExitError
+	if !errors.As(err, &exitErr) || exitErr.Code != 64 {
+		t.Fatalf("different endpoint error = %v, want exit 64", err)
 	}
 }
 

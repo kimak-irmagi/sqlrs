@@ -23,7 +23,7 @@ autostart.
   refresh.
 - **Endpoint reconciler** - validates canonical organization endpoints and
   atomically updates an installation-scoped profile only for a stored session,
-  never for an explicit token override.
+  never for an `EnvironmentOverride` or `LegacyBearer` token source.
 - **HTTP client** - sends authenticated `/v1/*` requests and maps HTTP errors
   into command errors.
 - **Gateway** - validates bearer tokens, derives actor claims, applies coarse
@@ -125,8 +125,8 @@ Successful reconciliation validates the returned endpoint against the
 installation control base. A successful switch warns on stderr. If the remote
 registration succeeded but config update failed, stdout still contains the
 success result, stderr contains recovery guidance, and the command exits `1`.
-With `SQLRS_TOKEN` or another explicit token override, the reconciler never
-persists a switch, prints an explicit init/update command, and exits zero.
+With `EnvironmentOverride` (`SQLRS_TOKEN`) or `LegacyBearer`, the reconciler
+never persists a switch, prints an explicit init/update command, and exits zero.
 
 ## 5. Flow: `sqlrs user create`
 
@@ -219,9 +219,9 @@ without changing the command shape.
 
 If creation succeeds but the local switch fails, the organization remains
 created and the command returns partial-success exit `1` with successful stdout
-and recovery on stderr. An explicit token override suppresses persistent
-switching, produces the same recovery command, and exits zero without treating
-creation as failed.
+and recovery on stderr. `EnvironmentOverride` and `LegacyBearer` suppress
+persistent switching, produce the same recovery command, and exit zero without
+treating creation as failed.
 
 ## 7. Flow: Reads
 

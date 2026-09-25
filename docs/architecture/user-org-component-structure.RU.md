@@ -84,7 +84,7 @@ config components сохраняют текущие обязанности бе�
 - `endpoint_reconcile.go`
   - Проверяет canonical endpoint относительно installation identity/control base.
   - Переключает только installation-scoped profile с одним unambiguous result.
-  - Подавляет persistent switching для explicit token overrides.
+  - Подавляет persistent switching для `EnvironmentOverride` и `LegacyBearer`.
   - Сохраняет successful stdout и возвращает exit `1` с stderr recovery, если
     remote operation успешна, но local reconciliation failed.
 
@@ -202,6 +202,10 @@ installation, например `google`. `IdentityKey.provider` — этот pro
   - Shared CLI service после login, self-registration и organization creation.
     Получает token source, installation identity/control base, current profile
     snapshot и authenticated organization results.
+- `TokenSource`
+  - Closed invocation-local classification: `StoredRemoteSession`,
+    `EnvironmentOverride` или `LegacyBearer`. Только `StoredRemoteSession` может
+    сохранять automatic endpoint switch.
 - `UserProfileManager`
   - Service-facing interface для user reads и conditional writes.
 - `OrganizationManager`
@@ -214,7 +218,7 @@ installation, например `google`. `IdentityKey.provider` — этот pro
 - **CLI profile config** является file-based и принадлежит `internal/config`.
 - **Endpoint reconciliation state** invocation-local. Только validated endpoint
   и organization metadata сохраняются через atomic compare-before-write update;
-  explicit token overrides никогда его не запускают.
+  `EnvironmentOverride` и `LegacyBearer` никогда его не запускают.
 - **CLI command options, HTTP requests и ETag-и** являются in-memory data одного
   invocation. CLI не кеширует user profiles, organizations, memberships или
   ETag-и persistent-но.

@@ -184,8 +184,8 @@
     abstraction.
 - `app.EndpointReconciler`
   - Shared post-login/register/org-create routing reconciler. Сохраняет только
-    trusted same-installation canonical endpoints и никогда не переключает
-    profile при explicit bearer-token override.
+    trusted same-installation canonical endpoints и переключает profile только
+    для `StoredRemoteSession`, но не `EnvironmentOverride` или `LegacyBearer`.
 - `cli.UserOptions`, `cli.OrganizationOptions`
   - Remote-only опции команд для `sqlrs user` и `sqlrs org`.
 - `client.UserProfile`, `client.ExternalIdentity`, `client.Organization`,
