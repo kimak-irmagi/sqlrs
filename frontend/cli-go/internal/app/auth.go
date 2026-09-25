@@ -153,6 +153,9 @@ func runAuth(stdout, stderr io.Writer, cwd string, opts cli.GlobalOptions, args 
 	if strings.TrimSpace(cmdCtx.profile.Endpoint) == "" || strings.TrimSpace(cmdCtx.profile.Endpoint) == "auto" {
 		return fmt.Errorf("auth commands require an explicit remote endpoint")
 	}
+	if strings.EqualFold(strings.TrimSpace(cmdCtx.profile.Auth.Mode), "oidcSession") {
+		fmt.Fprintln(stderr, "warning: auth.mode oidcSession is deprecated; run `sqlrs init remote <endpoint> --update`")
+	}
 
 	manager := authManagerFactory()
 	switch invocation.action {

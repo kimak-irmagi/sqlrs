@@ -182,6 +182,22 @@ func TestRunAuthSecondPassErrorBranches(t *testing.T) {
 	}
 }
 
+func TestRunAuthWarnsForDeprecatedOIDCSessionProfile(t *testing.T) {
+	cwd := t.TempDir()
+	setTestDirs(t, cwd)
+	writeProjectConfig(t, cwd, authTestConfig("remote", "https://example.org", "oidcSession"))
+	oldFactory := authManagerFactory
+	authManagerFactory = func() authManager { return fakeAuthManager{} }
+	t.Cleanup(func() { authManagerFactory = oldFactory })
+	var stderr bytes.Buffer
+	if err := runAuth(io.Discard, &stderr, cwd, cli.GlobalOptions{Workspace: cwd}, []string{"status"}); err != nil {
+		t.Fatalf("runAuth: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "oidcSession is deprecated") || !strings.Contains(stderr.String(), "--update") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
 func authTestConfig(mode, endpoint, authMode string) string {
 	return "defaultProfile: remote\n" +
 		"profiles:\n" +

@@ -85,7 +85,9 @@ func TestValidateConnectionInfoRejectsTrustBoundaryViolations(t *testing.T) {
 		{name: "relative control", edit: func(v *ConnectionInfo) { v.Endpoints.Control = "/api" }},
 		{name: "insecure control", edit: func(v *ConnectionInfo) { v.Endpoints.Control = "http://api.example.test" }},
 		{name: "control query", edit: func(v *ConnectionInfo) { v.Endpoints.Control += "?tenant=x" }},
-		{name: "control trailing slash", edit: func(v *ConnectionInfo) { v.Endpoints.Control += "/" }},
+		{name: "nested control", edit: func(v *ConnectionInfo) {
+			v.Endpoints = ConnectionEndpoints{Control: "https://api.example.test/a/b", Current: "https://api.example.test/a/b"}
+		}},
 		{name: "current origin", edit: func(v *ConnectionInfo) { v.Endpoints.Current = "https://other.example.test/nsu" }},
 		{name: "nested current", edit: func(v *ConnectionInfo) { v.Endpoints.Current = "https://api.example.test/a/b" }},
 		{name: "invalid slug", edit: func(v *ConnectionInfo) { v.Endpoints.Current = "https://api.example.test/NO" }},
@@ -109,6 +111,33 @@ func TestValidateConnectionInfoRejectsTrustBoundaryViolations(t *testing.T) {
 	loopback.Endpoints = ConnectionEndpoints{Control: "http://127.0.0.1:8080", Current: "http://127.0.0.1:8080"}
 	if err := ValidateConnectionInfo(loopback); err != nil {
 		t.Fatalf("loopback HTTP should be valid: %v", err)
+	}
+	withSlashes := valid
+	withSlashes.Endpoints = ConnectionEndpoints{Control: "https://API.example.test:443/", Current: "https://api.example.test:443/nsu/"}
+	if err := ValidateConnectionInfo(withSlashes); err != nil {
+		t.Fatalf("trailing slashes and equivalent origin spelling should normalize: %v", err)
+	}
+}
+
+func TestNormalizeServiceEndpointEnforcesRootOrOneSlug(t *testing.T) {
+	cases := []struct {
+		raw  string
+		want string
+	}{
+		{raw: "https://API.example.test:443/", want: "https://api.example.test"},
+		{raw: "https://API.example.test:443/nsu/", want: "https://api.example.test/nsu"},
+		{raw: "http://127.0.0.1:80/nsu/", want: "http://127.0.0.1/nsu"},
+	}
+	for _, tc := range cases {
+		got, err := NormalizeServiceEndpoint(tc.raw)
+		if err != nil || got != tc.want {
+			t.Fatalf("NormalizeServiceEndpoint(%q) = %q, %v; want %q", tc.raw, got, err, tc.want)
+		}
+	}
+	for _, raw := range []string{"https://api.example.test/a/b", "https://api.example.test//nsu", "https://api.example.test/a%2fb", "https://api.example.test/%2e%2e"} {
+		if _, err := NormalizeServiceEndpoint(raw); err == nil {
+			t.Fatalf("NormalizeServiceEndpoint(%q) unexpectedly succeeded", raw)
+		}
 	}
 }
 
@@ -179,5 +208,24 @@ func TestPublicBootstrapRejectsMalformedResponsesAndRedirects(t *testing.T) {
 	}
 	if _, err := New(redirect.URL, Options{}).GetAuthProvider(context.Background(), "Invalid!"); err == nil {
 		t.Fatalf("expected provider id rejection")
+	}
+}
+
+func TestPublicBootstrapFollowsOnlySameOriginRedirects(t *testing.T) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/connection-info":
+			http.Redirect(w, r, "/canonical/connection-info", http.StatusTemporaryRedirect)
+		case "/canonical/connection-info":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"installation_id":"installation-1","endpoints":{"control":"` + server.URL + `","current":"` + server.URL + `"},"auth_providers":[{"id":"google","display_name":"Google","adapter":"oidc"}]}`))
+		default:
+			t.Fatalf("unexpected redirect path %q", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	if _, err := New(server.URL, Options{Timeout: time.Second}).GetConnectionInfo(context.Background()); err != nil {
+		t.Fatalf("same-origin redirect: %v", err)
 	}
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,8 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/sqlrs/cli/internal/authsession"
 )
 
 func TestInitCreatesWorkspace(t *testing.T) {
@@ -533,6 +536,12 @@ func TestInitRemoteRejectsInsecureEndpointBeforeNetwork(t *testing.T) {
 	}
 }
 
+func TestNormalizeRemoteEndpointUsesCanonicalServiceSpelling(t *testing.T) {
+	if got := normalizeRemoteEndpoint("https://API.example.test:443/nsu/"); got != "https://api.example.test/nsu" {
+		t.Fatalf("normalizeRemoteEndpoint = %q", got)
+	}
+}
+
 func TestInitRemoteDiscoversInstallationAndWritesRemoteSessionProfile(t *testing.T) {
 	workspace := t.TempDir()
 	var out bytes.Buffer
@@ -561,6 +570,88 @@ func TestInitRemoteDiscoversInstallationAndWritesRemoteSessionProfile(t *testing
 	}
 	if got := nestedString(raw, "profiles", "remote", "auth", "tokenEnv"); got != "SQLRS_TOKEN" {
 		t.Fatalf("auth.tokenEnv = %q", got)
+	}
+}
+
+func TestInitRemoteUpdateCoordinatesLegacyCredentialMigration(t *testing.T) {
+	workspace := t.TempDir()
+	configDir := filepath.Join(workspace, ".sqlrs")
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"installation_id":"test-installation","endpoints":{"control":%q,"current":%q},"auth_providers":[{"id":"google","display_name":"Google","adapter":"oidc"}]}`, server.URL, server.URL)
+	}))
+	defer server.Close()
+	legacyConfig := fmt.Sprintf("defaultProfile: remote\nprofiles:\n  remote:\n    mode: remote\n    endpoint: %s\n    auth:\n      mode: oidcSession\n      issuer: https://issuer.example.test\n      clientID: public-client\n", server.URL)
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(legacyConfig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	oldMigrate := migrateLegacyCredentialFn
+	called := false
+	migrateLegacyCredentialFn = func(_ context.Context, opts authsession.LegacyMigrationOptions, commit func() error) (authsession.LegacyMigrationResult, error) {
+		called = true
+		if opts.LegacyEndpoint != server.URL || opts.LegacyIssuer != "https://issuer.example.test" || opts.LegacyClientID != "public-client" || opts.InstallationID != "test-installation" {
+			t.Fatalf("migration options = %+v", opts)
+		}
+		if err := commit(); err != nil {
+			return authsession.LegacyMigrationResult{}, err
+		}
+		return authsession.LegacyMigrationResult{Migrated: true}, nil
+	}
+	t.Cleanup(func() { migrateLegacyCredentialFn = oldMigrate })
+
+	if err := runInit(io.Discard, workspace, "", []string{"remote", server.URL + "/", "--update"}, false); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+	if !called {
+		t.Fatal("legacy credential migration was not requested")
+	}
+	raw := loadConfigMap(t, filepath.Join(configDir, "config.yaml"))
+	if got := nestedString(raw, "profiles", "remote", "auth", "mode"); got != "remoteSession" {
+		t.Fatalf("auth.mode = %q", got)
+	}
+	if got := nestedString(raw, "profiles", "remote", "auth", "clientID"); got != "" {
+		t.Fatalf("legacy clientID remains: %q", got)
+	}
+}
+
+func TestInitRemoteMigrationDryRunDoesNotTouchCredentialStore(t *testing.T) {
+	workspace := t.TempDir()
+	configDir := filepath.Join(workspace, ".sqlrs")
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"installation_id":"test-installation","endpoints":{"control":%q,"current":%q},"auth_providers":[{"id":"google","display_name":"Google","adapter":"oidc"}]}`, server.URL, server.URL)
+	}))
+	defer server.Close()
+	legacyConfig := fmt.Sprintf("defaultProfile: remote\nprofiles:\n  remote:\n    mode: remote\n    endpoint: %s\n    auth:\n      mode: oidcSession\n      issuer: https://issuer.example.test\n      clientID: public-client\n", server.URL)
+	configPath := filepath.Join(configDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(legacyConfig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldMigrate := migrateLegacyCredentialFn
+	migrateLegacyCredentialFn = func(context.Context, authsession.LegacyMigrationOptions, func() error) (authsession.LegacyMigrationResult, error) {
+		t.Fatal("dry-run touched credential migration")
+		return authsession.LegacyMigrationResult{}, nil
+	}
+	t.Cleanup(func() { migrateLegacyCredentialFn = oldMigrate })
+	var out bytes.Buffer
+	if err := runInit(&out, workspace, "", []string{"remote", server.URL, "--update", "--dry-run"}, false); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+	got, _ := os.ReadFile(configPath)
+	if string(got) != legacyConfig {
+		t.Fatal("dry-run changed config")
+	}
+	if !strings.Contains(out.String(), "Would migrate") {
+		t.Fatalf("dry-run output = %q", out.String())
 	}
 }
 

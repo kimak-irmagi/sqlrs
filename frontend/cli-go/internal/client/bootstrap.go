@@ -59,6 +59,8 @@ func (c *Client) GetConnectionInfo(ctx context.Context) (ConnectionInfo, error) 
 	if err := ValidateConnectionInfo(out); err != nil {
 		return ConnectionInfo{}, fmt.Errorf("invalid connection info: %w", err)
 	}
+	out.Endpoints.Control, _ = NormalizeServiceEndpoint(out.Endpoints.Control)
+	out.Endpoints.Current, _ = NormalizeServiceEndpoint(out.Endpoints.Current)
 	return out, nil
 }
 
@@ -88,7 +90,15 @@ func (c *Client) getPublicJSON(ctx context.Context, path string, out any) error 
 		req.Header.Set("User-Agent", c.userAgent)
 	}
 	httpClient := *c.http
-	httpClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return fmt.Errorf("bootstrap redirect limit exceeded")
+		}
+		if len(via) == 0 || req.URL.User != nil || !sameURLOrigin(via[0].URL, req.URL) {
+			return fmt.Errorf("bootstrap redirect changed origin")
+		}
+		return nil
+	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
@@ -125,13 +135,18 @@ func ValidateConnectionInfo(info ConnectionInfo) error {
 	if strings.TrimSpace(info.InstallationID) == "" {
 		return fmt.Errorf("installation_id is required")
 	}
-	control, err := validateServiceBaseURL(info.Endpoints.Control)
+	controlCanonical, err := NormalizeServiceEndpoint(info.Endpoints.Control)
 	if err != nil {
 		return fmt.Errorf("control endpoint: %w", err)
 	}
-	current, err := validateServiceBaseURL(info.Endpoints.Current)
+	currentCanonical, err := NormalizeServiceEndpoint(info.Endpoints.Current)
 	if err != nil {
 		return fmt.Errorf("current endpoint: %w", err)
+	}
+	control, _ := url.Parse(controlCanonical)
+	current, _ := url.Parse(currentCanonical)
+	if control.EscapedPath() != "" {
+		return fmt.Errorf("control endpoint must be the installation root")
 	}
 	if !strings.EqualFold(control.Scheme, current.Scheme) || !strings.EqualFold(control.Host, current.Host) {
 		return fmt.Errorf("control and current endpoints must share an origin")
@@ -163,8 +178,42 @@ func ValidateConnectionInfo(info ConnectionInfo) error {
 // ValidateServiceEndpoint validates a caller-supplied bootstrap base before
 // the CLI performs its first network request.
 func ValidateServiceEndpoint(raw string) error {
-	_, err := validateServiceBaseURL(raw)
+	_, err := NormalizeServiceEndpoint(raw)
 	return err
+}
+
+// NormalizeServiceEndpoint validates and canonicalizes the root-or-one-slug
+// service-base grammar defined by the remote bootstrap architecture.
+func NormalizeServiceEndpoint(raw string) (string, error) {
+	parsed, err := validateServiceBaseURL(raw)
+	if err != nil {
+		return "", err
+	}
+	path := strings.TrimSuffix(parsed.EscapedPath(), "/")
+	if path != "" {
+		slug := strings.TrimPrefix(path, "/")
+		if strings.Contains(slug, "/") || !organizationSlugPattern.MatchString(slug) {
+			return "", fmt.Errorf("endpoint path must contain exactly one valid organization slug")
+		}
+		parsed.Path = "/" + slug
+	} else {
+		parsed.Path = ""
+	}
+	parsed.RawPath = ""
+	parsed.Scheme = strings.ToLower(parsed.Scheme)
+	hostname := strings.ToLower(parsed.Hostname())
+	port := parsed.Port()
+	if (parsed.Scheme == "https" && port == "443") || (parsed.Scheme == "http" && port == "80") {
+		port = ""
+	}
+	if strings.Contains(hostname, ":") {
+		hostname = "[" + hostname + "]"
+	}
+	parsed.Host = hostname
+	if port != "" {
+		parsed.Host += ":" + port
+	}
+	return parsed.String(), nil
 }
 
 func ValidateOIDCProvider(requested string, provider AuthProviderConfiguration) error {
@@ -232,16 +281,38 @@ func validateServiceBaseURL(raw string) (*url.URL, error) {
 	if parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return nil, fmt.Errorf("userinfo, query, and fragment are not allowed")
 	}
-	if parsed.Path != "" && strings.HasSuffix(parsed.Path, "/") {
-		return nil, fmt.Errorf("trailing slash is not allowed")
-	}
-	if strings.Contains(parsed.EscapedPath(), "%2f") || strings.Contains(parsed.EscapedPath(), "%2F") || strings.Contains(parsed.Path, "/../") || strings.HasSuffix(parsed.Path, "/..") || strings.Contains(parsed.Path, "/./") {
+	escapedPath := strings.ToLower(parsed.EscapedPath())
+	if strings.Contains(escapedPath, "%2f") || strings.Contains(escapedPath, "%5c") || strings.Contains(escapedPath, "%2e") || strings.Contains(parsed.Path, "\\") {
 		return nil, fmt.Errorf("encoded separators and dot segments are not allowed")
+	}
+	for _, segment := range strings.Split(parsed.Path, "/") {
+		if segment == "." || segment == ".." {
+			return nil, fmt.Errorf("encoded separators and dot segments are not allowed")
+		}
 	}
 	if parsed.Scheme != "https" && !(parsed.Scheme == "http" && (parsed.Hostname() == "127.0.0.1" || parsed.Hostname() == "::1")) {
 		return nil, fmt.Errorf("HTTPS is required outside loopback")
 	}
 	return parsed, nil
+}
+
+func sameURLOrigin(left, right *url.URL) bool {
+	return strings.EqualFold(left.Scheme, right.Scheme) &&
+		strings.EqualFold(left.Hostname(), right.Hostname()) &&
+		serviceURLPort(left) == serviceURLPort(right)
+}
+
+func serviceURLPort(value *url.URL) string {
+	if port := value.Port(); port != "" {
+		return port
+	}
+	if strings.EqualFold(value.Scheme, "https") {
+		return "443"
+	}
+	if strings.EqualFold(value.Scheme, "http") {
+		return "80"
+	}
+	return ""
 }
 
 func validateHTTPSURL(raw string, allowQuery bool) error {

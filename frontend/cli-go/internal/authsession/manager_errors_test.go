@@ -344,7 +344,7 @@ func TestResolveBearerTokenStoreErrors(t *testing.T) {
 	})
 	manager = NewManager(ManagerOptions{
 		Store: failingCredentialStore{
-			session: Session{RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)},
+			session: Session{Subject: "subject-1", RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)},
 			found:   true,
 			putErr:  errors.New("put failed"),
 		},
@@ -362,12 +362,28 @@ func TestResolveBearerTokenStoreErrors(t *testing.T) {
 			found:     true,
 			deleteErr: errors.New("delete failed"),
 		},
-		OAuth: &fakeOAuthClient{refreshErr: errors.New("invalid_grant")},
+		OAuth: &fakeOAuthClient{refreshErr: &OAuthError{Code: "invalid_grant", Status: 400}},
 		Clock: fixedClock{now: now},
 	})
 	_, err = manager.ResolveBearerToken(context.Background(), testResolveOptions())
 	if !errors.Is(err, ErrLoginRequired) || !strings.Contains(err.Error(), "failed to delete local auth session") {
 		t.Fatalf("expected login required delete error, got %v", err)
+	}
+}
+
+func TestResolveBearerTokenDoesNotDeleteForUntypedInvalidGrantText(t *testing.T) {
+	t.Setenv("SQLRS_TOKEN", "")
+	key := testCredentialKey()
+	store := newMemoryCredentialStore()
+	if err := store.Put(context.Background(), key, Session{Subject: "subject-1", RefreshToken: "refresh", IDTokenExpiry: time.Now().Add(-time.Minute)}); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager(ManagerOptions{Store: store, OAuth: &fakeOAuthClient{refreshErr: errors.New("dial invalid_grant.example: temporary failure")}, Clock: fixedClock{now: time.Now()}})
+	if _, err := manager.ResolveBearerToken(context.Background(), testResolveOptions()); err == nil || errors.Is(err, ErrLoginRequired) {
+		t.Fatalf("untyped transport error was classified as invalid_grant: %v", err)
+	}
+	if _, ok, err := store.Get(context.Background(), key); err != nil || !ok {
+		t.Fatalf("session should be retained: ok=%v err=%v", ok, err)
 	}
 }
 

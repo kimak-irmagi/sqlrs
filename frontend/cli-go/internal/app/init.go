@@ -14,6 +14,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/sqlrs/cli/internal/authsession"
 	"github.com/sqlrs/cli/internal/cli"
 	"github.com/sqlrs/cli/internal/client"
 	"github.com/sqlrs/cli/internal/config"
@@ -61,6 +62,12 @@ const defaultBtrfsStoreSizeGB = 100
 
 var initLocalBtrfsStoreFn = initLocalBtrfsStore
 
+var initStderr io.Writer = os.Stderr
+
+var migrateLegacyCredentialFn = func(ctx context.Context, opts authsession.LegacyMigrationOptions, commit func() error) (authsession.LegacyMigrationResult, error) {
+	return authsession.NewManager(authsession.ManagerOptions{}).MigrateLegacyCredential(ctx, opts, commit)
+}
+
 var resolveHostEngineFn = func(req enginebin.Request) (enginebin.Resolved, error) {
 	return (enginebin.Resolver{}).Resolve(req)
 }
@@ -94,9 +101,11 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 		return ExitErrorf(4, "Cannot create .sqlrs directory: %v", err)
 	}
 	if strings.EqualFold(opts.Mode, "remote") && opts.RemoteToken == "" {
-		if validateErr := client.ValidateServiceEndpoint(opts.RemoteURL); validateErr != nil {
+		normalizedEndpoint, validateErr := client.NormalizeServiceEndpoint(opts.RemoteURL)
+		if validateErr != nil {
 			return ExitErrorf(64, "Invalid remote endpoint: %v", validateErr)
 		}
+		opts.RemoteURL = normalizedEndpoint
 		info, discoverErr := client.New(opts.RemoteURL, client.Options{}).GetConnectionInfo(context.Background())
 		if discoverErr != nil {
 			return ExitErrorf(1, "Remote connection discovery failed: %v", discoverErr)
@@ -110,7 +119,7 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 		opts.RemoteURL = normalizeRemoteEndpoint(info.Endpoints.Current)
 		opts.Connection = &info
 	} else if strings.EqualFold(opts.Mode, "remote") {
-		fmt.Fprintln(os.Stderr, "warning: --token is deprecated; omit it to use service-discovered remote sessions")
+		fmt.Fprintln(initStderr, "warning: --token is deprecated; omit it to use service-discovered remote sessions")
 	}
 	explicitHostSource := ""
 	if opts.EnginePath != "" {
@@ -301,20 +310,6 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 		}
 	}
 
-	if opts.DryRun {
-		if !localExists {
-			fmt.Fprintf(w, "Would create %s\n", localMarker)
-		}
-		fmt.Fprintf(w, "Would write %s\n", configPath)
-		return nil
-	}
-
-	if !localExists {
-		if err := os.MkdirAll(localMarker, 0o700); err != nil {
-			return ExitErrorf(4, "Cannot create .sqlrs directory: %v", err)
-		}
-	}
-
 	baseConfig := map[string]any(nil)
 	if opts.Update && configExists && configValid {
 		loaded, err := readConfigMap(configPath)
@@ -326,11 +321,42 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 			removeLegacyWSLEngineDaemon(baseConfig, configPath)
 		}
 	}
+	legacyMigration := legacyMigrationOptions(baseConfig, opts)
 	configData, err := buildWorkspaceConfig(opts, wslResult, baseConfig)
 	if err != nil {
 		return ExitErrorf(1, "Internal error: %v", err)
 	}
-	if err := util.AtomicWriteFile(configPath, configData, 0o600); err != nil {
+
+	if opts.DryRun {
+		if !localExists {
+			fmt.Fprintf(w, "Would create %s\n", localMarker)
+		}
+		fmt.Fprintf(w, "Would write %s\n", configPath)
+		if legacyMigration != nil {
+			fmt.Fprintln(w, "Would migrate the legacy remote credential if it is derivable and no destination credential exists")
+		}
+		return nil
+	}
+
+	if !localExists {
+		if err := os.MkdirAll(localMarker, 0o700); err != nil {
+			return ExitErrorf(4, "Cannot create .sqlrs directory: %v", err)
+		}
+	}
+
+	commitConfig := func() error { return util.AtomicWriteFile(configPath, configData, 0o600) }
+	if legacyMigration != nil {
+		result, migrationErr := migrateLegacyCredentialFn(context.Background(), *legacyMigration, commitConfig)
+		if migrationErr != nil {
+			return ExitErrorf(4, "Cannot migrate remote credential: %v", migrationErr)
+		}
+		if result.LoginRequired {
+			fmt.Fprintln(initStderr, "warning: legacy credential could not be migrated; run `sqlrs auth login <provider>`")
+		}
+		if result.DeletionWarning != "" {
+			fmt.Fprintf(initStderr, "warning: %s\n", result.DeletionWarning)
+		}
+	} else if err := commitConfig(); err != nil {
 		return ExitErrorf(4, "Cannot write config.yaml: %v", err)
 	}
 
@@ -340,6 +366,21 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 		fmt.Fprintf(w, "Initialized workspace at %s\n", target)
 	}
 	return nil
+}
+
+func legacyMigrationOptions(base map[string]any, opts initOptions) *authsession.LegacyMigrationOptions {
+	if base == nil || !opts.Update || opts.Connection == nil || !strings.EqualFold(nestedMapString(base, "profiles", "remote", "auth", "mode"), "oidcSession") {
+		return nil
+	}
+	return &authsession.LegacyMigrationOptions{
+		ProfileName:     "remote",
+		LegacyEndpoint:  nestedMapString(base, "profiles", "remote", "endpoint"),
+		LegacyProvider:  "google",
+		LegacyIssuer:    nestedMapString(base, "profiles", "remote", "auth", "issuer"),
+		LegacyClientID:  nestedMapString(base, "profiles", "remote", "auth", "clientID"),
+		InstallationID:  opts.Connection.InstallationID,
+		ControlEndpoint: opts.Connection.Endpoints.Control,
+	}
 }
 
 func configuredHostEngineForInit(target string, configExists, configValid bool) (string, error) {
@@ -508,6 +549,12 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 	mode, rest, err := splitInitMode(args)
 	if err != nil {
 		return opts, false, ExitErrorf(64, "Invalid arguments: %v", err)
+	}
+	// The canonical remote syntax places the endpoint before optional flags,
+	// while Go's flag package stops at the first positional argument.
+	if strings.EqualFold(mode, "remote") && len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
+		endpoint := rest[0]
+		rest = append(append([]string(nil), rest[1:]...), endpoint)
 	}
 	normalizedArgs, err := preprocessStoreArgs(rest)
 	if err != nil {
@@ -775,6 +822,9 @@ func buildWorkspaceConfig(opts initOptions, wslResult *wslInitResult, base map[s
 }
 
 func normalizeRemoteEndpoint(endpoint string) string {
+	if normalized, err := client.NormalizeServiceEndpoint(endpoint); err == nil {
+		return normalized
+	}
 	return strings.TrimRight(strings.TrimSpace(endpoint), "/")
 }
 

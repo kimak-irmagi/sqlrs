@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -63,6 +64,27 @@ type Manager struct {
 	openBrowser BrowserOpener
 }
 
+// LegacyMigrationOptions identifies the deprecated profile credential and its
+// installation-scoped replacement. See the RC migration sequence in
+// docs/architecture/cli-auth-component-structure.md.
+type LegacyMigrationOptions struct {
+	ProfileName     string
+	LegacyEndpoint  string
+	LegacyProvider  string
+	LegacyIssuer    string
+	LegacyClientID  string
+	InstallationID  string
+	ControlEndpoint string
+}
+
+// LegacyMigrationResult reports whether a secret was copied and whether the
+// caller should direct the user to authenticate again after committing config.
+type LegacyMigrationResult struct {
+	Migrated        bool
+	LoginRequired   bool
+	DeletionWarning string
+}
+
 func NewManager(opts ManagerOptions) *Manager {
 	store := opts.Store
 	if store == nil {
@@ -89,6 +111,81 @@ func NewManager(opts ManagerOptions) *Manager {
 		openBrowser = OpenBrowser
 	}
 	return &Manager{store: store, oauth: oauth, clock: clock, rand: random, loopback: loopback, openBrowser: openBrowser}
+}
+
+// MigrateLegacyCredential performs the write/verify/commit/delete sequence for
+// an explicit oidcSession-to-remoteSession update. The destination is never
+// overwritten, and commit is not called after an unverified credential write.
+func (m *Manager) MigrateLegacyCredential(ctx context.Context, opts LegacyMigrationOptions, commit func() error) (LegacyMigrationResult, error) {
+	if commit == nil {
+		return LegacyMigrationResult{}, fmt.Errorf("migration config commit is required")
+	}
+	destination := credentialKeyForTrust(opts.ProfileName, opts.LegacyEndpoint, opts.InstallationID, opts.ControlEndpoint, "", "", "")
+	if _, exists, err := m.store.Get(ctx, destination); err != nil {
+		return LegacyMigrationResult{}, fmt.Errorf("read destination credential: %w", err)
+	} else if exists {
+		return LegacyMigrationResult{}, commit()
+	}
+
+	if strings.TrimSpace(opts.LegacyEndpoint) == "" || strings.TrimSpace(opts.LegacyIssuer) == "" || strings.TrimSpace(opts.LegacyClientID) == "" || !sameOrigin(opts.LegacyEndpoint, opts.ControlEndpoint) {
+		if err := commit(); err != nil {
+			return LegacyMigrationResult{}, err
+		}
+		return LegacyMigrationResult{LoginRequired: true}, nil
+	}
+	legacy := credentialKeyForTrust(opts.ProfileName, opts.LegacyEndpoint, "", "", opts.LegacyProvider, opts.LegacyIssuer, opts.LegacyClientID)
+	session, exists, err := m.store.Get(ctx, legacy)
+	if err != nil {
+		return LegacyMigrationResult{}, fmt.Errorf("read legacy credential: %w", err)
+	}
+	if !exists {
+		if err := commit(); err != nil {
+			return LegacyMigrationResult{}, err
+		}
+		return LegacyMigrationResult{LoginRequired: true}, nil
+	}
+	if err := m.store.Put(ctx, destination, session); err != nil {
+		return LegacyMigrationResult{}, fmt.Errorf("write destination credential: %w", err)
+	}
+	verified, exists, err := m.store.Get(ctx, destination)
+	if err != nil {
+		return LegacyMigrationResult{}, fmt.Errorf("verify destination credential: %w", err)
+	}
+	if !exists || !reflect.DeepEqual(verified, session) {
+		return LegacyMigrationResult{}, fmt.Errorf("verify destination credential: stored session differs from source")
+	}
+	if err := commit(); err != nil {
+		return LegacyMigrationResult{}, err
+	}
+	result := LegacyMigrationResult{Migrated: true}
+	if err := m.store.Delete(ctx, legacy); err != nil {
+		result.DeletionWarning = fmt.Sprintf("legacy credential remains after successful migration: %v", err)
+	}
+	return result, nil
+}
+
+func sameOrigin(left, right string) bool {
+	leftURL, leftErr := url.Parse(strings.TrimSpace(left))
+	rightURL, rightErr := url.Parse(strings.TrimSpace(right))
+	if leftErr != nil || rightErr != nil || leftURL.Hostname() == "" || rightURL.Hostname() == "" {
+		return false
+	}
+	return strings.EqualFold(leftURL.Scheme, rightURL.Scheme) &&
+		strings.EqualFold(leftURL.Hostname(), rightURL.Hostname()) &&
+		effectivePort(leftURL) == effectivePort(rightURL)
+}
+
+func effectivePort(value *url.URL) string {
+	if port := value.Port(); port != "" {
+		return port
+	}
+	if strings.EqualFold(value.Scheme, "https") {
+		return "443"
+	}
+	if strings.EqualFold(value.Scheme, "http") {
+		return "80"
+	}
+	return ""
 }
 
 type LoginOptions struct {
@@ -464,6 +561,17 @@ func (m *Manager) ResolveBearerToken(ctx context.Context, opts ResolveOptions) (
 	if err := ValidateIDTokenClaims(claims, issuer, clientID, "", now); err != nil {
 		return ResolvedBearerToken{}, fmt.Errorf("validate refreshed ID token (local session retained): %w", err)
 	}
+	if claims.Subject != session.Subject {
+		return ResolvedBearerToken{}, fmt.Errorf("validate refreshed ID token (local session retained): subject changed")
+	}
+	if claims.Nonce != "" {
+		if session.LoginNonce == "" {
+			return ResolvedBearerToken{}, fmt.Errorf("validate refreshed ID token (local session retained): nonce cannot be verified; run auth login again")
+		}
+		if claims.Nonce != session.LoginNonce {
+			return ResolvedBearerToken{}, fmt.Errorf("validate refreshed ID token (local session retained): nonce mismatch")
+		}
+	}
 	if strings.TrimSpace(resp.RefreshToken) != "" {
 		session.RefreshToken = strings.TrimSpace(resp.RefreshToken)
 	}
@@ -489,7 +597,7 @@ func isInvalidGrant(err error) bool {
 	if errors.As(err, &oauthErr) {
 		return oauthErr.Code == "invalid_grant"
 	}
-	return strings.Contains(strings.ToLower(err.Error()), "invalid_grant")
+	return false
 }
 
 func (m *Manager) deleteInvalidSession(ctx context.Context, key CredentialKey, cause error) error {
