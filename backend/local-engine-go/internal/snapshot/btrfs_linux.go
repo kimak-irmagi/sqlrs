@@ -30,6 +30,11 @@ var btrfsListSubvolumesFn = func(ctx context.Context, dir string) (string, error
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
+var runBtrfsShowFn = func(ctx context.Context, path string) (string, error) {
+	cmd := exec.CommandContext(ctx, "btrfs", "subvolume", "show", path)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
 
 type btrfsManager struct {
 	runner commandRunner
@@ -56,22 +61,6 @@ func quoteCommandArg(arg string) string {
 		return strconv.Quote(arg)
 	}
 	return arg
-}
-
-func logLsDir(ctx context.Context, dir string, label string) {
-	cmd := exec.CommandContext(ctx, "ls", "-la", dir)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("btrfs: %s ls failed dir=%s err=%v output=%s", label, dir, err, strings.TrimSpace(string(out)))
-		return
-	}
-	log.Printf("btrfs: %s ls dir=%s\n%s", label, dir, strings.TrimSpace(string(out)))
-}
-
-func runBtrfsShow(ctx context.Context, path string) (string, error) {
-	cmd := exec.CommandContext(ctx, "btrfs", "subvolume", "show", path)
-	out, err := cmd.CombinedOutput()
-	return string(out), err
 }
 
 func btrfsSupported(path string) bool {
@@ -171,7 +160,7 @@ func (m btrfsManager) Snapshot(ctx context.Context, srcDir string, destDir strin
 	}
 	if _, err := osStatBtrfs(destDir); err == nil {
 		log.Printf("btrfs: snapshot precheck exec %s", formatCommand("btrfs", []string{"subvolume", "show", destDir}))
-		showOut, showErr := runBtrfsShow(ctx, destDir)
+		showOut, showErr := runBtrfsShowFn(ctx, destDir)
 		if showErr == nil {
 			trimmed := strings.TrimSpace(showOut)
 			if trimmed == "" {

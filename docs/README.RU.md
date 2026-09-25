@@ -6,6 +6,7 @@
 - Требования: [`requirements-architecture.RU.md`](requirements-architecture.RU.md)
 - Роадмап: [`roadmap.RU.md`](roadmap.RU.md)
 - ADR: [`adr/`](adr/)
+- Публичный Go-модуль Runtime v2: [`../backend/libs/runtime-go/README.md`](../backend/libs/runtime-go/README.md)
 - API guides: [`api-guides/README.RU.md`](api-guides/README.RU.md)
 - Эксперименты: [`experiments.RU.md`](experiments.RU.md)
 - Windows-специфика: [`windows.RU.md`](windows.RU.md)

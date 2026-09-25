@@ -9,19 +9,19 @@ on:
 jobs:
   docs-sync:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -62,39 +62,48 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, windows-latest]
+        runner: [ubuntu-24.04, macos-latest, windows-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go (Runtime v2)
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: backend/libs/runtime-go/go.mod
+          cache: false
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
       - name: Run Runtime v2 tests and enforce coverage
         working-directory: backend/libs/runtime-go
         shell: bash
+        env:
+          SQLRS_REQUIRE_NATIVE_CONTINUITY: "1"
         run: |
           set -euo pipefail
           profile=../../../coverage-runtime-v2-${{ matrix.runner }}.out
-          go test ./... -covermode=count -coverprofile="$profile"
-          total=$(go tool cover -func="$profile" | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
-          echo "Runtime v2 coverage: ${total}%"
-          awk -v total="$total" 'BEGIN { if (total + 0 < 95) exit 1 }'
+          go test . -covermode=count -coverprofile=coverage-core.out
+          go test ./resolver -covermode=count -coverprofile=coverage-resolver.out
+          core=$(go tool cover -func=coverage-core.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
+          resolver=$(go tool cover -func=coverage-resolver.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
+          echo "Runtime v2 coverage: core=${core}% resolver=${resolver}%"
+          awk -v value="$core" 'BEGIN { if (value + 0 < 95) exit 1 }'
+          awk -v value="$resolver" 'BEGIN { if (value + 0 < 95) exit 1 }'
+          head -n 1 coverage-core.out > "$profile"
+          tail -n +2 coverage-core.out >> "$profile"
+          tail -n +2 coverage-resolver.out >> "$profile"
 
       - name: Check Runtime v2 dependency boundary
-        if: matrix.runner == 'ubuntu-latest'
+        if: matrix.runner == 'ubuntu-24.04'
         working-directory: backend/libs/runtime-go
         shell: bash
         run: |
           set -euo pipefail
-          unexpected="$(go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' . \
+          unexpected="$(go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./... \
             | grep -v '^$' \
             | grep -v '^github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go\($\|/\)' || true)"
           if [[ -n "$unexpected" ]]; then
@@ -104,12 +113,19 @@ jobs:
           fi
 
       - name: Run Runtime v2 race detector
-        if: matrix.runner == 'ubuntu-latest'
+        if: matrix.runner == 'ubuntu-24.04'
         working-directory: backend/libs/runtime-go
         run: go test -race -count=1 ./...
 
       - name: Verify Runtime v2 golden vectors independently
-        run: node scripts/maintenance/verify-runtime-v2-golden.mjs backend/libs/runtime-go/testdata/golden
+        shell: bash
+        run: |
+          node scripts/maintenance/verify-runtime-v2-golden.mjs backend/libs/runtime-go/testdata/golden
+          node scripts/maintenance/verify-runtime-v2-extension-golden.mjs backend/libs/runtime-go/testdata/extension-golden.json
+
+      - name: Verify Runtime v2 release workflow contract
+        if: matrix.runner == 'ubuntu-24.04'
+        run: node --test scripts/maintenance/runtime-go-release-workflow.test.mjs
 
       - name: Test standalone Runtime v2 consumer
         working-directory: test/runtime-v2-consumer
@@ -117,7 +133,7 @@ jobs:
         run: GOWORK=off go test ./...
 
       - name: Upload Runtime v2 coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-runtime-v2-${{ matrix.runner }}
           path: coverage-runtime-v2-${{ matrix.runner }}.out
@@ -127,16 +143,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, macos-latest, windows-latest]
+        runner: [ubuntu-24.04, macos-latest, windows-latest]
         group: [fast, slow]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go (engine)
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: backend/local-engine-go/go.mod
+          cache-dependency-path: backend/local-engine-go/go.sum
 
       - name: Run engine coverage (${{ matrix.group }})
         working-directory: backend/local-engine-go
@@ -185,40 +202,67 @@ jobs:
 
       - name: Upload engine test output (${{ matrix.group }})
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: engine-test-output-${{ matrix.runner }}-${{ matrix.group }}
           path: engine-test-output-${{ matrix.runner }}-${{ matrix.group }}.log
           if-no-files-found: ignore
 
       - name: Upload engine coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-engine-${{ matrix.runner }}-${{ matrix.group }}
           path: coverage-engine-${{ matrix.runner }}-${{ matrix.group }}.out
 
       - name: Upload engine json artifacts (${{ matrix.group }})
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: engine-test-json-${{ matrix.runner }}-${{ matrix.group }}
           path: engine-test-output-${{ matrix.runner }}-${{ matrix.group }}.json
           if-no-files-found: ignore
+
+  coverage-engine-managed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go (engine)
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/local-engine-go/go.mod
+          cache-dependency-path: backend/local-engine-go/go.sum
+
+      - name: Pull official PostgreSQL fixture
+        run: docker pull postgres:17
+
+      - name: Run native managed-access coverage
+        working-directory: backend/local-engine-go
+        run: go test -tags managedintegration ./internal/dbms -count=1 -timeout=6m -covermode=count -coverprofile=../../coverage-engine-ubuntu-24.04-managed.out
+
+      - name: Upload managed-access coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-engine-ubuntu-24.04-managed
+          path: coverage-engine-ubuntu-24.04-managed.out
 
   coverage-cli:
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, macos-latest, windows-latest]
+        runner: [ubuntu-24.04, macos-latest, windows-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go (cli)
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: frontend/cli-go/go.mod
+          cache-dependency-path: frontend/cli-go/go.sum
 
       - name: Run CLI coverage
         working-directory: frontend/cli-go
@@ -252,7 +296,7 @@ jobs:
 
       - name: Upload CLI test output
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cli-test-output-${{ matrix.runner }}
           path: |
@@ -261,15 +305,16 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload CLI coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-cli-${{ matrix.runner }}
           path: coverage-cli-${{ matrix.runner }}.out
 
   coverage-merge:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - coverage-engine
+      - coverage-engine-managed
       - coverage-cli
       - runtime-v2
     permissions:
@@ -277,15 +322,16 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: backend/local-engine-go/go.mod
+          cache-dependency-path: backend/local-engine-go/go.sum
 
       - name: Download coverage artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: coverage-artifacts
 
@@ -319,12 +365,17 @@ jobs:
           total=$(go tool cover -func=coverage.raw | awk '/^total:/ {print $3}')
           engine=$(go tool cover -func=coverage-engine.raw | awk '/^total:/ {print $3}')
           cli=$(go tool cover -func=coverage-cli.raw | awk '/^total:/ {print $3}')
+          engine_value="${engine%\%}"
+          cli_value="${cli%\%}"
+          echo "Coverage gates: engine=${engine} cli=${cli}"
+          awk -v value="$engine_value" 'BEGIN { if (value + 0 < 95) exit 1 }'
+          awk -v value="$cli_value" 'BEGIN { if (value + 0 < 95) exit 1 }'
           echo "total=$total" >> "$GITHUB_OUTPUT"
           echo "engine=$engine" >> "$GITHUB_OUTPUT"
           echo "cli=$cli" >> "$GITHUB_OUTPUT"
 
       - name: Upload merged coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-merged
           path: |
@@ -380,7 +431,7 @@ jobs:
 
       - name: Find coverage comment
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: peter-evans/find-comment@v3
+        uses: peter-evans/find-comment@v4
         id: coverage-comment
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -388,7 +439,7 @@ jobs:
 
       - name: Create coverage comment
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.coverage-comment.outputs.comment-id == ''
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@v5
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: |
@@ -411,7 +462,7 @@ jobs:
 
       - name: Update coverage comment
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.coverage-comment.outputs.comment-id != ''
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.coverage-comment.outputs.comment-id }}
           edit-mode: replace

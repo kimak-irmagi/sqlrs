@@ -273,7 +273,8 @@ On failure, Taidon may snapshot the failed instance state for investigation.
 ## 9. Cache Keys and Parameters
 
 This is the current Liquibase-specific MVP key. It is not the Runtime v2 logical
-state contract and remains unchanged by issue #107. Future adoption maps the
+state contract and remains unchanged by issues #107, #108, and #124. Their new
+types and resolver remain opt-in in the current engine. Future adoption maps the
 resolved Liquibase plan to `ResolvedTransformIdentity` values and derives states
 through the engine-neutral Runtime v2 parent/transform formula; checkpoint and
 planning policy stay outside that semantic core.

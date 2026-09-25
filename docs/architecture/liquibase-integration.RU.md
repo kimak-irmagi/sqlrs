@@ -273,7 +273,8 @@ Taidon запускает Liquibase в пошаговом режиме:
 ## 9. Ключи кэша и параметры
 
 Это текущий Liquibase-specific MVP key, а не контракт logical state Runtime v2;
-issue #107 его не меняет. При последующем внедрении resolved Liquibase plan
+issues #107, #108 и #124 его не меняют; их новые types и resolver остаются
+opt-in в текущем движке. При последующем внедрении resolved Liquibase plan
 отображается в `ResolvedTransformIdentity`, а состояния получаются по независимой
 от движка формуле parent/transform Runtime v2. Политика planning и checkpoint
 остаётся вне семантического ядра.

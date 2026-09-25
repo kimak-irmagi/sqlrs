@@ -13,8 +13,10 @@ package runtimev2
 ```
 
 Путь соответствует переименованному каноническому репозиторию. Модуль добавляется
-в корневой `go.work`. Релизы вложенного модуля используют префикс каталога в tag,
-например `backend/libs/runtime-go/v0.1.0`. Runtime v2 — имя семантической схемы;
+в корневой `go.work`. Release tags используют префикс каталога module. Tag
+`backend/libs/runtime-go/v0.1.0` указывает на merge commit #107 `52bb255`, но был
+опубликован до полной declaration boundary и заменяется планируемым release
+#108/#124 `backend/libs/runtime-go/v0.2.0`. Runtime v2 — имя семантической схемы;
 оно не требует Go module suffix `/v2`, пока сам Go-модуль не достиг major v2.
 
 Модуль использует только стандартную библиотеку Go и не импортирует внутренности
@@ -58,6 +60,12 @@ Identity-bearing semantic values неизменяемы:
 diagnostic declaration/observation. Поэтому у двух provenance records может быть
 разное написание declaration при равной resolved identity.
 
+Эти declaration DTO из #107 и их вложенный JSON остаются compatibility/golden
+baseline. Новые standalone inputs используют документы с обязательной версией и
+typed extension roles из
+[структуры declarations](runtime-v2-declaration-structure.RU.md); поле версии не
+добавляется задним числом в legacy nested shape.
+
 Opaque semantic types используют закрытые поля. Constructors и проверяемые JSON
 decoders копируют slices и maps; accessors возвращают values или защитные копии.
 Custom `MarshalJSON` и `UnmarshalJSON` дают публичную форму хранения/передачи, не
@@ -80,7 +88,8 @@ Resolved factory и transform identities имеют общую форму:
 }
 ```
 
-`fields` обязателен и может быть пустым. Declaration и resolver diagnostics:
+`fields` обязателен и может быть пустым. Сохранённые для совместимости #107 legacy
+nested declaration и resolver diagnostics:
 
 ```json
 {

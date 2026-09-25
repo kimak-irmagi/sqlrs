@@ -118,6 +118,11 @@ Backend services are split into microservices under `backend/services/`, with a 
 
 Common libraries, API contracts, and utilities live in `backend/libs/`.
 
+`backend/libs/runtime-go` is an independently versioned public Go module for the
+Runtime v2 semantic contract. Its published `v0.1.0` is superseded and must not
+be selected for new dependencies; the first recommended version will be `v0.2.0`
+after the declaration/resolver release gates pass.
+
 Each service includes its own documentation and tooling.
 
 ---

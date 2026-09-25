@@ -50,9 +50,9 @@ Notes:
 
 - `state_id` is a UUID (see state-cache design).
 - This is the current local-engine storage format. Runtime v2 uses content-derived
-  `sha256:` StateIDs in its standalone semantic module, but issue #107 does not
-  change this table or reinterpret its rows. Adoption requires a separately
-  designed schema/integration transition.
+  `sha256:` StateIDs in its standalone semantic module, but issues #107, #108, and
+  #124 do not change this table or reinterpret its rows. The resolver directory
+  cache is separate from engine storage. Issue #110 owns the adoption transition.
 - `parent_state_id` is nullable and models state ancestry for recursive deletes.
 - `state_fingerprint` may equal `state_id`; it is stored for name bindings even
   if the state is evicted.

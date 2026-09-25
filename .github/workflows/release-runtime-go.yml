@@ -1,0 +1,188 @@
+name: release-runtime-go
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Nested module version (v0.2.0-rc.1 or v0.2.0)
+        required: true
+      commit:
+        description: Exact source commit to validate
+        required: true
+  push:
+    tags:
+      - "backend/libs/runtime-go/v*"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      commit: ${{ steps.version.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.commit || github.ref }}
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/libs/runtime-go/go.mod
+          cache: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+      - id: version
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_COMMIT: ${{ inputs.commit }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            version="$INPUT_VERSION"
+            commit="$INPUT_COMMIT"
+          else
+            [[ "$REF_NAME" == backend/libs/runtime-go/v* ]]
+            version="${REF_NAME#backend/libs/runtime-go/}"
+            commit="$SHA"
+          fi
+          [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]
+          test "$(git rev-parse "$commit^{commit}")" = "$(git rev-parse HEAD^{commit})"
+          test "$(head -n 1 backend/libs/runtime-go/go.mod)" = "module github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
+          grep -Fq 'retract v0.1.0' backend/libs/runtime-go/go.mod
+          test -z "$(git status --porcelain)"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - name: Verify protected nested-tag policy before publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          matched=false
+          for id in $(gh api "repos/${GITHUB_REPOSITORY}/rulesets" --jq '.[] | select(.enforcement == "active") | .id'); do
+            rule=$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/$id")
+            protects=$(jq -r '[.rules[].type] | (index("deletion") != null and index("update") != null)' <<<"$rule")
+            matches=$(jq -r '[.conditions.ref_name.include[]?] | any(. == "refs/tags/backend/libs/runtime-go/v*" or . == "~ALL")' <<<"$rule")
+            if [[ "$protects" == true && "$matches" == true ]]; then matched=true; fi
+          done
+          [[ "$matched" == true ]]
+      - name: Unit, coverage, race, and fuzz smoke
+        working-directory: backend/libs/runtime-go
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -count=1 -coverprofile=coverage-core.out .
+          go test -count=1 -coverprofile=coverage-resolver.out ./resolver
+          core=$(go tool cover -func=coverage-core.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
+          resolver=$(go tool cover -func=coverage-resolver.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
+          awk -v value="$core" 'BEGIN { if (value + 0 < 95) exit 1 }'
+          awk -v value="$resolver" 'BEGIN { if (value + 0 < 95) exit 1 }'
+          go test -race -count=1 ./...
+          go test -run '^$' -fuzz '^FuzzResolvedTransformJSON$' -fuzztime=2s -timeout=30s .
+          go test -run '^$' -fuzz '^FuzzWorkspacePathAndEvidence$' -fuzztime=2s -timeout=30s ./resolver
+      - name: Verify independent goldens and dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/maintenance/verify-runtime-v2-golden.mjs backend/libs/runtime-go/testdata/golden
+          node scripts/maintenance/verify-runtime-v2-extension-golden.mjs backend/libs/runtime-go/testdata/extension-golden.json
+          unexpected="$(cd backend/libs/runtime-go && go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./... | grep -v '^$' | grep -v '^github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go\($\|/\)' || true)"
+          test -z "$unexpected"
+      - name: Local clean consumer
+        working-directory: test/runtime-v2-consumer
+        run: GOWORK=off go test -count=1 ./...
+
+  publish-and-verify:
+    if: github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/libs/runtime-go/go.mod
+          cache: false
+      - name: Verify protected nested-tag policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          matched=false
+          for id in $(gh api "repos/${GITHUB_REPOSITORY}/rulesets" --jq '.[] | select(.enforcement == "active") | .id'); do
+            rule=$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/$id")
+            protects=$(jq -r '[.rules[].type] | (index("deletion") != null and index("update") != null)' <<<"$rule")
+            matches=$(jq -r '[.conditions.ref_name.include[]?] | any(. == "refs/tags/backend/libs/runtime-go/v*" or . == "~ALL")' <<<"$rule")
+            if [[ "$protects" == true && "$matches" == true ]]; then matched=true; fi
+          done
+          [[ "$matched" == true ]]
+      - name: Create immutable release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          COMMIT: ${{ needs.validate.outputs.commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="backend/libs/runtime-go/$VERSION"
+          if [[ "$VERSION" != *-rc.* ]]; then
+            rc_commit=$(git rev-list -n 1 "backend/libs/runtime-go/${VERSION}-rc.1")
+            test "$rc_commit" = "$COMMIT"
+          fi
+          notes=$(printf 'Module: github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go\nSchema: sqlrs.runtime.v2\nSource commit: %s\n' "$COMMIT")
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "Runtime Go module $VERSION" --notes "$notes" $([[ "$VERSION" == *-rc.* ]] && echo --prerelease)
+      - name: Verify public proxy and checksum database
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          COMMIT: ${{ needs.validate.outputs.commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          module=github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go
+          temp=$(mktemp -d)
+          trap 'rm -rf "$temp"' EXIT
+          cd "$temp"
+          go mod init example.invalid/runtime-v2-consumer
+          for attempt in {1..20}; do
+            if GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go mod download -json "$module@$VERSION" >download.json; then break; fi
+            test "$attempt" -lt 20
+            sleep 15
+          done
+          jq -e --arg version "$VERSION" '
+            .Version == $version and
+            (.Sum | startswith("h1:")) and
+            (.GoModSum | startswith("h1:")) and
+            (.Zip | length > 0) and
+            (.GoMod | length > 0)
+          ' download.json >/dev/null
+          GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go get "$module@$VERSION"
+          cat > runtime_test.go <<'EOF'
+          package consumer
+          import (
+            "testing"
+            runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
+          )
+          func TestPublicModule(t *testing.T) {
+            if runtimev2.SchemaVersion != "sqlrs.runtime.v2" { t.Fatal(runtimev2.SchemaVersion) }
+          }
+          EOF
+          GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go test ./...
+          GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -m all | grep -Fq "$module $VERSION"
+          notes=$(gh release view "backend/libs/runtime-go/$VERSION" --json body --jq .body)
+          grep -Fq 'Schema: sqlrs.runtime.v2' <<<"$notes"
+          grep -Fq "Source commit: $COMMIT" <<<"$notes"
+          if [[ "$VERSION" != *-rc.* ]]; then
+            GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -m -u -retracted "$module@v0.1.0" | grep -Fq '[retracted:'
+          fi

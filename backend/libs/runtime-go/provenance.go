@@ -41,7 +41,7 @@ func NewFactoryProvenance(input FactoryProvenanceInput) (FactoryProvenance, erro
 		return FactoryProvenance{}, invalid(CodeInvalidShape, "identity")
 	}
 	if input.Declaration != nil {
-		if err := validateDeclaration(input.Declaration.Kind, input.Declaration.Reference, input.Declaration.Arguments, input.Declaration.Attributes); err != nil {
+		if err := validateFactoryDeclaration(input.Declaration); err != nil {
 			return FactoryProvenance{}, prefixError(err, "declaration")
 		}
 	}
@@ -57,7 +57,7 @@ func NewTransformProvenance(input TransformProvenanceInput) (TransformProvenance
 		return TransformProvenance{}, invalid(CodeInvalidShape, "identity")
 	}
 	if input.Declaration != nil {
-		if err := validateDeclaration(input.Declaration.Kind, input.Declaration.Reference, input.Declaration.Arguments, input.Declaration.Attributes); err != nil {
+		if err := validateTransformDeclaration(input.Declaration); err != nil {
 			return TransformProvenance{}, prefixError(err, "declaration")
 		}
 	}

@@ -106,9 +106,12 @@ Taidon стремится делать snapshot "как можно чаще" н�
 является нормативным алгоритмом identity Runtime v2. Самостоятельное семантическое
 ядро Runtime v2 задано в документах про
 [поток](runtime-v2-semantic-core-flow.RU.md) и
-[структуру компонентов](runtime-v2-semantic-core-structure.RU.md). Issue #107
-добавляет модуль без миграции этого cache; последующая интеграция должна заменить
-MVP derivation атомарно, а не переосмыслить существующие ID.
+[структуру компонентов](runtime-v2-semantic-core-structure.RU.md). Issues #107,
+#108 и #124 добавляют semantic module, versioned declarations и локальный для
+resolver directory cache без миграции engine state cache. Resolver cache хранит
+evidence разрешения, а не материализованные состояния движка. Последующая
+интеграция принадлежит #110 и должна заменить MVP derivation атомарно, а не
+переосмыслить существующие ID.
 
 ### 6.1 Идентичность состояния
 
