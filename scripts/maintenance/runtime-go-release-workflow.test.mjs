@@ -43,3 +43,11 @@ test("Runtime v2 workflows use Node 24 actions and explicit Go cache inputs", ()
   assert.match(workflow, /go-version-file: backend\/libs\/runtime-go\/go\.mod\s+cache: false/);
   assert.match(fuzz, /go-version-file: backend\/libs\/runtime-go\/go\.mod\s+cache: false/);
 });
+
+test("engine coverage includes native managed access and enforces the project floor", () => {
+  assert.match(ci, /coverage-engine-managed:/);
+  assert.match(ci, /docker pull postgres:17/);
+  assert.match(ci, /-tags managedintegration/);
+  assert.match(ci, /engine_value="\$\{engine%\\%\}"/);
+  assert.match(ci, /if \(value \+ 0 < 95\) exit 1/);
+});

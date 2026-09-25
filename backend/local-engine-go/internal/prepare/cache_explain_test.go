@@ -2,6 +2,7 @@ package prepare
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -185,5 +186,85 @@ func TestErrorFromExplainResponseKeepsInternalErrorsOutOfValidationPath(t *testi
 	}
 	if got := err.Error(); got != "cannot resolve image: boom" {
 		t.Fatalf("error = %q, want %q", got, "cannot resolve image: boom")
+	}
+}
+
+func TestCacheExplainReturnsPreparationResolutionAndLookupErrors(t *testing.T) {
+	t.Run("preparation", func(t *testing.T) {
+		mgr := newManagerWithQueue(t, &fakeStore{}, newQueueStore(t))
+		if _, err := mgr.CacheExplain(context.Background(), Request{}); err == nil {
+			t.Fatal("expected invalid request error")
+		}
+	})
+
+	t.Run("resolution", func(t *testing.T) {
+		mgr := newManagerWithDeps(t, &fakeStore{}, newQueueStore(t), &testDeps{
+			runtime: &fakeRuntime{resolveErr: errors.New("resolve failed")},
+		})
+		scriptPath := filepath.Join(t.TempDir(), "prepare.sql")
+		if err := os.WriteFile(scriptPath, []byte("select 1;\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		_, err := mgr.CacheExplain(context.Background(), Request{
+			PrepareKind: "psql",
+			ImageID:     "image-1",
+			PsqlArgs:    []string{"-f", scriptPath},
+		})
+		if err == nil || !strings.Contains(err.Error(), "cannot resolve image") {
+			t.Fatalf("expected resolution error, got %v", err)
+		}
+	})
+
+	t.Run("cache lookup", func(t *testing.T) {
+		mgr := newManagerWithQueue(t, &fakeStore{getStateErr: errors.New("lookup failed")}, newQueueStore(t))
+		scriptPath := filepath.Join(t.TempDir(), "prepare.sql")
+		if err := os.WriteFile(scriptPath, []byte("select 1;\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		_, err := mgr.CacheExplain(context.Background(), Request{
+			PrepareKind: "psql",
+			ImageID:     "image-1@sha256:resolved",
+			PsqlArgs:    []string{"-f", scriptPath},
+		})
+		if err == nil || !strings.Contains(err.Error(), "lookup failed") {
+			t.Fatalf("expected cache lookup error, got %v", err)
+		}
+	})
+}
+
+func TestNewCacheExplainPlannerReturnsStateRootError(t *testing.T) {
+	blocker := filepath.Join(t.TempDir(), "state-root")
+	if err := os.WriteFile(blocker, []byte("not a directory"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mgr := newManagerWithDeps(t, &fakeStore{}, newQueueStore(t), &testDeps{stateRoot: blocker})
+	if _, _, _, err := mgr.newCacheExplainPlanner(); err == nil {
+		t.Fatal("expected state root error")
+	}
+}
+
+func TestErrorFromExplainResponseVariants(t *testing.T) {
+	tests := []struct {
+		name       string
+		response   *ErrorResponse
+		want       string
+		validation bool
+	}{
+		{name: "nil", want: "internal error"},
+		{name: "validation", response: &ErrorResponse{Code: "invalid_argument", Message: "bad input", Details: "field"}, want: "bad input", validation: true},
+		{name: "message", response: &ErrorResponse{Code: "internal_error", Message: "failed"}, want: "failed"},
+		{name: "empty", response: &ErrorResponse{Code: "internal_error"}, want: "internal error"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := errorFromExplainResponse(tt.response)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %v, want %q", err, tt.want)
+			}
+			_, isValidation := err.(ValidationError)
+			if isValidation != tt.validation {
+				t.Fatalf("validation = %v, want %v", isValidation, tt.validation)
+			}
+		})
 	}
 }

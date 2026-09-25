@@ -220,6 +220,32 @@ jobs:
           path: engine-test-output-${{ matrix.runner }}-${{ matrix.group }}.json
           if-no-files-found: ignore
 
+  coverage-engine-managed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go (engine)
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/local-engine-go/go.mod
+          cache-dependency-path: backend/local-engine-go/go.sum
+
+      - name: Pull official PostgreSQL fixture
+        run: docker pull postgres:17
+
+      - name: Run native managed-access coverage
+        working-directory: backend/local-engine-go
+        run: go test -tags managedintegration ./internal/dbms -count=1 -timeout=6m -covermode=count -coverprofile=../../coverage-engine-ubuntu-24.04-managed.out
+
+      - name: Upload managed-access coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-engine-ubuntu-24.04-managed
+          path: coverage-engine-ubuntu-24.04-managed.out
+
   coverage-cli:
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -286,6 +312,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
       - coverage-engine
+      - coverage-engine-managed
       - coverage-cli
       - runtime-v2
     permissions:
@@ -336,6 +363,11 @@ jobs:
           total=$(go tool cover -func=coverage.raw | awk '/^total:/ {print $3}')
           engine=$(go tool cover -func=coverage-engine.raw | awk '/^total:/ {print $3}')
           cli=$(go tool cover -func=coverage-cli.raw | awk '/^total:/ {print $3}')
+          engine_value="${engine%\%}"
+          cli_value="${cli%\%}"
+          echo "Coverage gates: engine=${engine} cli=${cli}"
+          awk -v value="$engine_value" 'BEGIN { if (value + 0 < 95) exit 1 }'
+          awk -v value="$cli_value" 'BEGIN { if (value + 0 < 95) exit 1 }'
           echo "total=$total" >> "$GITHUB_OUTPUT"
           echo "engine=$engine" >> "$GITHUB_OUTPUT"
           echo "cli=$cli" >> "$GITHUB_OUTPUT"
