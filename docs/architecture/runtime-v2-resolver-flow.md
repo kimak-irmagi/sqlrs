@@ -118,20 +118,20 @@ The workspace-root symlink, if any, is resolved during construction. Links or
 reparse points beneath that physical root are rejected, while `os.Root` provides
 the security boundary under concurrent rename/link races. Cheap
 revalidation returns `CURRENT` only when strong continuity evidence matches. On
-Unix that is device/inode plus change time, size, and modification time. On
-Windows it is volume/file identity plus change time, size, and last-write time.
+enabled Unix filesystem revisions that is device/inode plus change time, size,
+and modification time. On Windows it is volume/file identity plus the per-file
+USN, size, and last-write time. Evidence is sampled before and after the stable
+content read so a digest is never paired with another generation's change token.
 Unsupported or incomplete evidence yields `UNKNOWN` and a new hash. Thus a
 replacement preserving weak size/timestamp metadata cannot reuse stale identity.
 
 Evidence strength is classified per filesystem, not merely per operating
-system. The first enabled class is `ntfs-usn` revision `ntfs-usn-v1` on
-NTFS Windows. It combines volume/file identity with the per-file
-USN and last-write metadata; its native test overwrites same-size bytes and
-restores mtime before proving the result is not `CURRENT`. Candidate future
-classes are APFS on macOS and ext4/XFS/Btrfs on Linux. A class is enabled only after its
-native live integration gate proves the required replacement and change-token
-behavior; until then it returns `UNKNOWN`. OverlayFS requires the same explicit
-evidence. Network, virtual, unknown, coarse-timestamp, or otherwise unverified
+system. Enabled classes are `ntfs-usn` revision `ntfs-usn-v1` on NTFS Windows,
+APFS on macOS, and ext4/XFS/Btrfs on Linux. Windows combines volume/file identity
+with the per-file USN and last-write metadata; Unix combines device/inode/ctime
+with size and mtime. Each native test overwrites same-size bytes and restores
+mtime before proving the result is not `CURRENT`. OverlayFS, network, virtual,
+unknown, coarse-timestamp, or otherwise unverified
 filesystems always return `UNKNOWN`. The classification, evidence revision, and
 downgrade reason are observable diagnostics and change with resolver semantics.
 A checked-in capability table binds each enabled class to an evidence revision;

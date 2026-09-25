@@ -113,19 +113,20 @@ field `path`. Все другие fields отклоняются, чтобы inpu
 Symlink самого workspace root разрешается при создании resolver. Links/reparse
 points ниже physical root запрещены, а `os.Root` остаётся security boundary при
 concurrent rename/link races. Cheap revalidation даёт `CURRENT`
-только при совпадении strong continuity evidence. На Unix это device/inode,
-change time, size и mtime; на Windows — volume/file identity, change time, size и
-last-write time. Неполные evidence дают `UNKNOWN` и новый hash. Поэтому замена с
+только при совпадении strong continuity evidence. Для включённых Unix revisions
+это device/inode, change time, size и mtime; на Windows — volume/file identity,
+per-file USN, size и last-write time. Evidence снимается до и после stable content
+read, чтобы digest не сочетался с change token другой generation. Неполные
+evidence дают `UNKNOWN` и новый hash. Поэтому замена с
 сохранением weak size/timestamp metadata не переиспользует stale identity.
 
-Evidence strength определяется per-filesystem, а не только per-OS. Первый
-enabled class — `ntfs-usn` revision `ntfs-usn-v1` на NTFS Windows. Он объединяет
-volume/file identity, per-file USN и last-write metadata;
+Evidence strength определяется per-filesystem, а не только per-OS. Включённые
+classes: `ntfs-usn` revision `ntfs-usn-v1` на NTFS Windows, APFS на macOS и
+ext4/XFS/Btrfs на Linux. Windows объединяет volume/file identity, per-file USN и
+last-write metadata; Unix объединяет device/inode/ctime с size и mtime. Каждый
 native test перезаписывает bytes того же размера, восстанавливает mtime и
-доказывает, что результат не `CURRENT`. Будущие candidates — APFS на macOS и
-ext4/XFS/Btrfs на Linux. Класс разрешает cheap path только после native live integration gate, доказавшего
-replacement/change-token behavior; до этого он даёт `UNKNOWN`. OverlayFS требует
-такого же evidence. Network, virtual, unknown, coarse-timestamp и непроверенные
+доказывает, что результат не `CURRENT`. OverlayFS, network, virtual, unknown,
+coarse-timestamp и непроверенные
 filesystems всегда дают `UNKNOWN`. Classification, evidence revision и downgrade
 reason наблюдаемы и меняются вместе с resolver semantics.
 Checked-in capability table связывает каждый enabled class с evidence revision;

@@ -49,7 +49,7 @@ func NewWorkspaceFileResolver(artifacts ArtifactStore) (Resolver, error) {
 func (r *workspaceFileResolver) Descriptor() Descriptor {
 	return Descriptor{Role: "input", Owner: workspaceOwner, Kind: workspaceKind, SpecificationSchema: workspaceSpecification, SemanticVersion: "1"}
 }
-func (r *workspaceFileResolver) Normalize(ctx context.Context, workspace Workspace, declaration runtimev2.InputDeclaration) (NormalizedDeclaration, error) {
+func (r *workspaceFileResolver) Normalize(ctx context.Context, workspace Workspace, declaration runtimev2.ExtensionDeclaration) (NormalizedDeclaration, error) {
 	if err := ctx.Err(); err != nil {
 		return NormalizedDeclaration{}, err
 	}
@@ -110,17 +110,29 @@ func (r *workspaceFileResolver) Resolve(ctx context.Context, workspace Workspace
 		return Resolution{}, err
 	}
 	defer file.Close()
+	before := continuityEvidenceForFile(file, info)
 	digest, err := stableFileDigest(ctx, file, info)
 	if err != nil {
 		return Resolution{}, err
 	}
+	confirmed, err := file.Stat()
+	if err != nil {
+		return Resolution{}, err
+	}
+	after := continuityEvidenceForFile(file, confirmed)
+	if (continuityStrong(before) || continuityStrong(after)) && before != after {
+		return Resolution{}, ErrChanged
+	}
 	// Every constructor input below is a package constant except digest, which
 	// stableFileDigest emits in the constructor's required lowercase format.
 	identity, _ := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{SchemaVersion: runtimev2.SchemaVersion, Owner: workspaceOwner, Kind: workspaceKind, IdentitySchema: workspaceIdentity, Fields: []runtimev2.ResolvedField{{Name: "content.digest", Value: digest}}})
-	native := continuityEvidenceForFile(file, info)
-	strong := cheapRevalidationEnabled(native.Class, native.Revision) && native.VolumeID != "" && native.FileID != "" && native.ChangeToken != ""
-	evidence, _ := json.Marshal(fileEvidence{SchemaVersion: "sqlrs.workspace-file.evidence.v1", Path: fields[0].Value, Size: info.Size(), ModifiedNanos: info.ModTime().UnixNano(), FilesystemClass: native.Class, EvidenceRevision: native.Revision, Strong: strong, VolumeID: native.VolumeID, FileID: native.FileID, ChangeToken: native.ChangeToken})
+	strong := before == after && continuityStrong(after)
+	evidence, _ := json.Marshal(fileEvidence{SchemaVersion: "sqlrs.workspace-file.evidence.v1", Path: fields[0].Value, Size: confirmed.Size(), ModifiedNanos: confirmed.ModTime().UnixNano(), FilesystemClass: after.Class, EvidenceRevision: after.Revision, Strong: strong, VolumeID: after.VolumeID, FileID: after.FileID, ChangeToken: after.ChangeToken})
 	return Resolution{Identity: identity, Evidence: evidence}, nil
+}
+
+func continuityStrong(value continuityEvidence) bool {
+	return cheapRevalidationEnabled(value.Class, value.Revision) && value.VolumeID != "" && value.FileID != "" && value.ChangeToken != ""
 }
 func (r *workspaceFileResolver) ValidateResolution(value Resolution) error {
 	if value.Identity.Owner() != workspaceOwner || value.Identity.Kind() != workspaceKind || value.Identity.IdentitySchema() != workspaceIdentity {

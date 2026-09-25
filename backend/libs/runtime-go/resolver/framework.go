@@ -38,7 +38,9 @@ type Descriptor struct {
 	SemanticVersion     string `json:"semantic_version"`
 }
 type Workspace struct{ Root string }
-type NormalizedDeclaration struct{ Declaration runtimev2.InputDeclaration }
+type NormalizedDeclaration struct {
+	Declaration runtimev2.ExtensionDeclaration
+}
 type Resolution struct {
 	Identity runtimev2.ResolvedExtensionIdentity
 	Evidence json.RawMessage
@@ -98,7 +100,7 @@ type Artifact interface {
 
 type Resolver interface {
 	Descriptor() Descriptor
-	Normalize(context.Context, Workspace, runtimev2.InputDeclaration) (NormalizedDeclaration, error)
+	Normalize(context.Context, Workspace, runtimev2.ExtensionDeclaration) (NormalizedDeclaration, error)
 	Resolve(context.Context, Workspace, NormalizedDeclaration) (Resolution, error)
 	ValidateResolution(Resolution) error
 	Revalidate(context.Context, Workspace, Resolution) (Revalidation, error)
@@ -108,6 +110,9 @@ type Resolver interface {
 // NewCacheKey derives a path-free key from the physical workspace scope,
 // resolver descriptor, and normalized declaration.
 func NewCacheKey(workspace Workspace, descriptor Descriptor, normalized NormalizedDeclaration) (CacheKey, error) {
+	if nilInterface(normalized.Declaration) {
+		return CacheKey{}, ErrInvalidDeclaration
+	}
 	root, err := filepath.EvalSymlinks(workspace.Root)
 	if err != nil {
 		return CacheKey{}, err
@@ -214,7 +219,10 @@ func outcomeFor(resolution Resolution, key CacheKey, status RevalidationStatus, 
 		Freshness:  Freshness{Status: status, Reason: reason, Evidence: append(json.RawMessage(nil), resolution.Evidence...)},
 	}
 }
-func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declaration runtimev2.InputDeclaration) (Outcome, error) {
+func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declaration runtimev2.ExtensionDeclaration) (Outcome, error) {
+	if nilInterface(declaration) {
+		return Outcome{}, resolverError("dispatch", CodeInvalidDeclaration, Descriptor{}, ErrInvalidDeclaration)
+	}
 	keyDescriptor := Descriptor{Role: declaration.Role(), Owner: declaration.Owner(), Kind: declaration.Kind(), SpecificationSchema: declaration.SpecificationSchema()}
 	entry, found := m.registry.resolvers[descriptorKey(keyDescriptor)]
 	var provider Resolver

@@ -81,6 +81,8 @@ jobs:
       - name: Run Runtime v2 tests and enforce coverage
         working-directory: backend/libs/runtime-go
         shell: bash
+        env:
+          SQLRS_REQUIRE_NATIVE_CONTINUITY: "1"
         run: |
           set -euo pipefail
           profile=../../../coverage-runtime-v2-${{ matrix.runner }}.out

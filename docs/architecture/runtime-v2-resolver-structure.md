@@ -25,8 +25,10 @@ backend/libs/runtime-go/resolver/
   filemeta_fallback.go   safe UNKNOWN behavior elsewhere
 ```
 
-The package consumes the versioned `runtimev2.InputDeclaration` and returns the
-shared `runtimev2.ResolvedExtensionIdentity` introduced by issue #124. An engine
+The package consumes the closed versioned `runtimev2.ExtensionDeclaration`
+interface, implemented only by input, execution-environment, and deployment
+declarations, and returns the shared `runtimev2.ResolvedExtensionIdentity`
+introduced by issue #124. An engine
 adapter explicitly composes that resolved extension into its factory or
 transform identity. The resolver otherwise uses the Go standard library,
 including traversal-resistant Go 1.25 `os.Root`, and imports no engine, Docker,
@@ -37,7 +39,7 @@ Liquibase, DBMS, SQLite, or StateFS code.
 ```go
 type Resolver interface {
     Descriptor() Descriptor
-    Normalize(context.Context, Workspace, runtimev2.InputDeclaration) (NormalizedDeclaration, error)
+    Normalize(context.Context, Workspace, runtimev2.ExtensionDeclaration) (NormalizedDeclaration, error)
     Resolve(context.Context, Workspace, NormalizedDeclaration) (Resolution, error)
     ValidateResolution(Resolution) error
     Revalidate(context.Context, Workspace, Resolution) (Revalidation, error)
@@ -60,7 +62,7 @@ type ArtifactStore interface {
 func NewRegistry(resolvers ...Resolver) (Registry, error)
 func NewManager(registry Registry, cache Cache) (Manager, error)
 func NewWorkspaceFileResolver(artifacts ArtifactStore) (Resolver, error)
-func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declaration runtimev2.InputDeclaration) (Outcome, error)
+func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declaration runtimev2.ExtensionDeclaration) (Outcome, error)
 ```
 
 Exact Go spelling may be adjusted while implementing approved tests, but these
@@ -131,12 +133,13 @@ never become identity fields. The generic cache bounds and validates the JSON
 envelope; `ValidateResolution` applies the provider-specific closed schema and
 rejects missing or unknown evidence fields before revalidation.
 
-The first enabled cheap path is `ntfs-usn` revision `ntfs-usn-v1`. It
-combines volume/file identity with the per-file NTFS USN and last-write
-metadata. Its mandatory Windows test overwrites bytes while preserving size and
-restoring mtime; such a change must not return `CURRENT`. Other platforms remain
-conservative `UNKNOWN` until their native evidence revisions have equivalent
-live coverage.
+Enabled cheap paths are revisioned per filesystem: `ntfs-usn-v1` on Windows,
+native device/inode/ctime revisions for ext4, XFS, and Btrfs on Linux, and APFS
+on macOS. Strong evidence is sampled both before and after the stable double
+content read; both samples and final stat metadata must match. Mandatory native
+tests overwrite bytes while preserving size and restoring mtime; such a change
+must not return `CURRENT`. Overlay, network, virtual, unknown, and unrecognized
+filesystems remain conservative `UNKNOWN`.
 
 `Artifact` is a small interface with artifact kind and `Close`. Concrete values
 stay provider-owned. The file implementation returns an opened immutable
@@ -169,14 +172,17 @@ Cross-process last-writer-wins is safe because records self-validate against the
 same normalized key and semantic version. Same-directory temporary files and
 platform-specific replacement publish complete generations; readers ignore
 temporary files and treat a truncated record as an invalidation, never a hit.
-Subprocess conformance tests, not only goroutine race tests, prove this behavior.
+Named package-private publication barriers let subprocess conformance tests kill
+writers after write, file sync, replacement, and directory sync and prove this
+behavior rather than merely exercising successful concurrent completion.
 
 Workspace files, cache records, and content-addressed acquired artifacts are
 persistent. Registry, locks, manager, and opened handles are in memory. Trusted
 cache/artifact directories are outside the mutable workspace and reject links.
-On Unix, newly created roots and files use owner-only modes. On Windows, objects
-inherit the ACL of an engine-owned root; the package never broadens that ACL and
-rejects reparse roots. Deployments that cannot establish this trusted root must
+On Unix, newly created roots and files use owner-only modes. On Windows,
+constructors require an existing root, verify current-user ownership, reject
+reparse roots and broad write-capable DACL entries, and let child objects inherit
+that validated ACL. Deployments that cannot establish this trusted root must
 fail before constructing the store rather than downgrade silently. Records remain
 checksummed, but directory ownership is the authentication boundary.
 The package never persists logical states or materializations; that belongs to

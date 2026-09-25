@@ -202,15 +202,17 @@ uncovered statements:
 ## 9. Результат coverage и критического ревью
 
 Согласованная remediation достигла 95,5% для package core. Coverage resolver
-при раздельном измерении составляет 96,0% на Windows и 95,0% в Linux parity
-container. Ревью также добавило
-subprocess publication cache/CAS, resolver fuzz targets, отдельные CI/release
+измеряется отдельно на каждой supported platform с floor 95%. Ревью также
+требует deterministic killed-writer publication barriers, закрытый
+role-complete declaration dispatch, atomic digest/evidence snapshots, native
+Windows ACL validation, native Unix continuity gates, resolver fuzz targets и отдельные CI/release
 thresholds по package, bounded cache reads/writes, strict canonical evidence,
 закрытый набор revalidation statuses, валидацию refreshed evidence для `CURRENT`,
 обработку NTFS reparse points, cross-filesystem detection там, где доступны
-native device IDs, и NTFS USN tests для same-size overwrite с восстановленным
-mtime. `ntfs-usn-v1` — единственный включённый cheap-revalidation class; все
-unlisted classes остаются `UNKNOWN`.
+native device IDs и tests для same-size overwrite с восстановленным mtime.
+Включённые revisions: `ntfs-usn-v1`, утверждённые Linux revisions для
+ext4/XFS/Btrfs и утверждённая macOS APFS revision; все unlisted classes остаются
+`UNKNOWN`.
 
 Repository ruleset, запрещающий update/delete nested tags, активен. Он остаётся
 внешней предпосылкой публикации: release job проверяет live GitHub policy при

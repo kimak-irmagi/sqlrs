@@ -255,14 +255,17 @@ behavior is proposed. Address files in uncovered-statement order:
 ## 9. Coverage and critical-review outcome
 
 The approved remediation reached 95.5% for the core package. Resolver coverage
-is 96.0% on Windows and 95.0% in the Linux parity container, measured
-separately. The review also added
-subprocess cache/CAS publication, resolver fuzz targets, per-package CI/release
+is measured separately on every supported platform with a 95% floor. The review
+also requires deterministic killed-writer publication barriers, closed
+role-complete declaration dispatch, atomic digest/evidence snapshots, native
+Windows ACL validation, native Unix continuity gates, resolver fuzz targets,
+and per-package CI/release
 thresholds, bounded cache reads/writes, strict canonical evidence, closed
 revalidation statuses, validated refreshed `CURRENT` evidence, NTFS reparse
 handling, cross-filesystem detection where native device IDs exist, and
-same-size/restored-mtime NTFS USN continuity tests. `ntfs-usn-v1` is the only
-enabled cheap-revalidation class; all unlisted classes remain `UNKNOWN`.
+same-size/restored-mtime continuity tests. Enabled revisions are `ntfs-usn-v1`,
+the approved Linux ext4/XFS/Btrfs revisions, and the approved macOS APFS
+revision; all unlisted classes remain `UNKNOWN`.
 
 The repository ruleset prohibiting nested-tag update/deletion is active. It
 remains an external publication prerequisite: the release job checks the live

@@ -22,7 +22,7 @@ type coverageResolver struct {
 }
 
 func (r *coverageResolver) Descriptor() Descriptor { return r.descriptor }
-func (r *coverageResolver) Normalize(context.Context, Workspace, runtimev2.InputDeclaration) (NormalizedDeclaration, error) {
+func (r *coverageResolver) Normalize(context.Context, Workspace, runtimev2.ExtensionDeclaration) (NormalizedDeclaration, error) {
 	return r.normalized, r.normalizeErr
 }
 func (r *coverageResolver) Resolve(context.Context, Workspace, NormalizedDeclaration) (Resolution, error) {
@@ -74,6 +74,21 @@ func coverageResolution(t *testing.T) Resolution {
 		t.Fatal(err)
 	}
 	return Resolution{Identity: identity, Evidence: []byte(`{}`)}
+}
+
+func TestClosedDeclarationBoundaryRejectsNilValues(t *testing.T) {
+	workspace := Workspace{Root: t.TempDir()}
+	descriptor := Descriptor{Role: "input", Owner: "owner", Kind: "kind", SpecificationSchema: "owner.kind.v1", SemanticVersion: "1"}
+	if _, err := NewCacheKey(workspace, descriptor, NormalizedDeclaration{}); !errors.Is(err, ErrInvalidDeclaration) {
+		t.Fatalf("nil normalized declaration: %v", err)
+	}
+	manager, err := NewManager(Registry{}, &coverageCache{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.ResolveCurrent(context.Background(), workspace, nil); !errors.Is(err, ErrInvalidDeclaration) {
+		t.Fatalf("nil declaration dispatch: %v", err)
+	}
 }
 
 func TestManagerFailureBranches(t *testing.T) {

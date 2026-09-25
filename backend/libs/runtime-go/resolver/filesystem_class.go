@@ -3,7 +3,11 @@ package resolver
 // enabledFilesystemEvidence lists only evidence revisions with mandatory native
 // integration coverage. Unlisted classes conservatively rehash and return UNKNOWN.
 var enabledFilesystemEvidence = map[string]string{
-	"ntfs-usn": "ntfs-usn-v1",
+	"ntfs-usn":    "ntfs-usn-v1",
+	"linux-ext4":  "linux-stat-v1",
+	"linux-xfs":   "linux-stat-v1",
+	"linux-btrfs": "linux-stat-v1",
+	"darwin-apfs": "darwin-stat-v1",
 }
 
 func cheapRevalidationEnabled(class, evidenceRevision string) bool {

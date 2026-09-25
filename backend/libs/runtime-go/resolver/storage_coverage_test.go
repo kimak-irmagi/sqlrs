@@ -383,6 +383,12 @@ func TestArtifactStoreAndCopyFailureBranches(t *testing.T) {
 	if !bytes.Equal(got, winnerRaw) {
 		t.Fatalf("winner = %q", got)
 	}
+	failedDigest := digestOf([]byte("failed publication"))
+	if _, err := store.publishVerified(context.Background(), strings.NewReader("failed publication"), failedDigest, func(string, string) error {
+		return os.ErrPermission
+	}); !errors.Is(err, os.ErrPermission) {
+		t.Fatalf("replacement failure = %v", err)
+	}
 	target := filepath.Join(store.root, digest[7:])
 	if err := os.Chmod(target, 0o600); err != nil {
 		t.Fatal(err)

@@ -93,6 +93,33 @@ func TestPrivateDirectoryRejectsWindowsJunction(t *testing.T) {
 	}
 }
 
+func TestPrivateDirectoryRequiresExistingOwnerControlledRoot(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing")
+	if _, err := preparePrivateDirectory(missing); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("missing root error = %v", err)
+	}
+
+	root := t.TempDir()
+	if output, err := exec.Command("icacls", root, "/grant", "*S-1-1-0:(OI)(CI)M").CombinedOutput(); err != nil {
+		t.Skipf("cannot prepare broad test DACL: %v (%s)", err, output)
+	}
+	if _, err := preparePrivateDirectory(root); !errors.Is(err, ErrUnsafePath) {
+		t.Fatalf("broad write DACL error = %v", err)
+	}
+}
+
+func TestWindowsACLValidationBoundaries(t *testing.T) {
+	if err := validateWindowsPrivateDirectory("bad\x00path"); err == nil {
+		t.Fatal("invalid UTF-16 path accepted")
+	}
+	if err := validateWindowsPrivateDirectory(filepath.Join(t.TempDir(), "missing")); err == nil {
+		t.Fatal("missing path ACL accepted")
+	}
+	if sameWindowsSID(nil, nil) {
+		t.Fatal("nil SIDs compare equal")
+	}
+}
+
 func TestWindowsLinkAndSharingBoundaries(t *testing.T) {
 	if !isLinkLike(symlinkFileInfo{}) {
 		t.Fatal("symbolic-link mode not detected")
@@ -124,6 +151,9 @@ func TestWindowsLinkAndSharingBoundaries(t *testing.T) {
 		}
 		artifact.Close()
 		_ = openWithoutDeleteSharing(t, filepath.Join(store.root, digest[7:]), 0)
+		if _, err := openVerifiedArtifact(context.Background(), filepath.Join(store.root, digest[7:]), digest); err == nil {
+			t.Fatal("exclusive handle did not block verified open")
+		}
 		shared, err := store.PublishVerified(context.Background(), strings.NewReader("content"), digest)
 		if err == nil {
 			shared.Close()

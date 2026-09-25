@@ -39,6 +39,20 @@ type ExecutionEnvironmentDeclaration struct{ data *extensionSpecificationData }
 // DeploymentDeclaration is an immutable deployment specification.
 type DeploymentDeclaration struct{ data *extensionSpecificationData }
 
+// ExtensionDeclaration is the closed declaration boundary consumed by Runtime
+// v2 resolvers. The unexported marker prevents external implementations from
+// bypassing the validated typed roles. Requirements:
+// docs/architecture/runtime-v2-resolver-structure.md.
+type ExtensionDeclaration interface {
+	Role() string
+	SchemaVersion() string
+	Owner() string
+	Kind() string
+	SpecificationSchema() string
+	Fields() []DeclarationField
+	extensionDeclaration()
+}
+
 // NewInputDeclaration validates an input-resource specification.
 func NewInputDeclaration(input ExtensionSpecificationInput) (InputDeclaration, error) {
 	data, err := newExtensionSpecification(input)
@@ -145,6 +159,9 @@ func specificationVersion(data *extensionSpecificationData) string {
 func (d InputDeclaration) Role() string                         { return "input" }
 func (d ExecutionEnvironmentDeclaration) Role() string          { return "execution_environment" }
 func (d DeploymentDeclaration) Role() string                    { return "deployment" }
+func (InputDeclaration) extensionDeclaration()                  {}
+func (ExecutionEnvironmentDeclaration) extensionDeclaration()   {}
+func (DeploymentDeclaration) extensionDeclaration()             {}
 func (d InputDeclaration) SchemaVersion() string                { return specificationVersion(d.data) }
 func (d ExecutionEnvironmentDeclaration) SchemaVersion() string { return specificationVersion(d.data) }
 func (d DeploymentDeclaration) SchemaVersion() string           { return specificationVersion(d.data) }

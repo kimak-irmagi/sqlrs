@@ -147,18 +147,21 @@ func (c *DirectoryCache) Store(ctx context.Context, key CacheKey, resolution Res
 			_ = os.Remove(name)
 		}
 	}()
+	publicationBarrier("cache", publicationTemporaryCreated)
 	if err := temporary.Chmod(0o600); err != nil {
 		return err
 	}
 	if _, err := temporary.Write(raw); err != nil {
 		return err
 	}
+	publicationBarrier("cache", publicationContentWritten)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if err := temporary.Sync(); err != nil {
 		return err
 	}
+	publicationBarrier("cache", publicationFileSynced)
 	if err := temporary.Close(); err != nil {
 		return err
 	}
@@ -166,7 +169,12 @@ func (c *DirectoryCache) Store(ctx context.Context, key CacheKey, resolution Res
 		return err
 	}
 	committed = true
-	return syncDirectory(c.root)
+	publicationBarrier("cache", publicationReplaced)
+	if err := syncDirectory(c.root); err != nil {
+		return err
+	}
+	publicationBarrier("cache", publicationDirectorySynced)
+	return nil
 }
 
 func cacheChecksum(record cacheRecord) (string, error) {

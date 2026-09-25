@@ -61,6 +61,7 @@ func (s *DirectoryArtifactStore) publishVerified(ctx context.Context, source io.
 			_ = os.Remove(name)
 		}
 	}()
+	publicationBarrier("artifact", publicationTemporaryCreated)
 	if err := temporary.Chmod(0o600); err != nil {
 		return nil, err
 	}
@@ -71,9 +72,11 @@ func (s *DirectoryArtifactStore) publishVerified(ctx context.Context, source io.
 	if hashWriter.digest() != expected {
 		return nil, ErrChanged
 	}
+	publicationBarrier("artifact", publicationContentWritten)
 	if err := temporary.Sync(); err != nil {
 		return nil, err
 	}
+	publicationBarrier("artifact", publicationFileSynced)
 	if err := temporary.Chmod(0o400); err != nil {
 		return nil, err
 	}
@@ -91,6 +94,11 @@ func (s *DirectoryArtifactStore) publishVerified(ctx context.Context, source io.
 		return nil, err
 	}
 	committed = true
+	publicationBarrier("artifact", publicationReplaced)
+	if err := syncDirectory(s.root); err != nil {
+		return nil, err
+	}
+	publicationBarrier("artifact", publicationDirectorySynced)
 	return openVerifiedArtifact(ctx, target, expected)
 }
 

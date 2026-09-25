@@ -8,7 +8,7 @@ import (
 // preparePrivateDirectory creates a storage root and rejects aliases that
 // could redirect cache or artifact writes outside the configured directory.
 func preparePrivateDirectory(root string) (string, error) {
-	if err := os.MkdirAll(root, 0o700); err != nil {
+	if err := preparePrivateDirectoryPlatform(root); err != nil {
 		return "", err
 	}
 	info, err := os.Lstat(root)
@@ -17,9 +17,6 @@ func preparePrivateDirectory(root string) (string, error) {
 	}
 	if !info.IsDir() || isLinkLike(info) {
 		return "", ErrUnsafePath
-	}
-	if err := os.Chmod(root, 0o700); err != nil {
-		return "", err
 	}
 	return filepath.Abs(root)
 }

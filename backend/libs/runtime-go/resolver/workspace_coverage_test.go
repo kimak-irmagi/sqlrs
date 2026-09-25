@@ -306,6 +306,43 @@ func TestWorkspaceRevalidateStrongContinuityOnEveryPlatform(t *testing.T) {
 	}
 }
 
+func TestWorkspaceResolveRejectsMutationBetweenDigestAndContinuityEvidence(t *testing.T) {
+	workspace := Workspace{Root: t.TempDir()}
+	path := filepath.Join(workspace.Root, "input")
+	if err := os.WriteFile(path, []byte("before!"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	initial, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldEvidence := continuityEvidence{Class: "ntfs-usn", Revision: "ntfs-usn-v1", VolumeID: "volume", FileID: "file", ChangeToken: "old"}
+	newEvidence := oldEvidence
+	newEvidence.ChangeToken = "new"
+	calls := 0
+	original := continuityEvidenceForFile
+	continuityEvidenceForFile = func(*os.File, os.FileInfo) continuityEvidence {
+		calls++
+		if calls == 1 {
+			return oldEvidence
+		}
+		if err := os.WriteFile(path, []byte("after!!"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, initial.ModTime(), initial.ModTime()); err != nil {
+			t.Fatal(err)
+		}
+		return newEvidence
+	}
+	t.Cleanup(func() { continuityEvidenceForFile = original })
+	providerValue, _ := NewWorkspaceFileResolver(nil)
+	provider := providerValue.(*workspaceFileResolver)
+	declaration := workspaceCoverageDeclaration(t, workspaceOwner, workspaceKind, workspaceSpecification, []runtimev2.DeclarationField{{Name: "path", Value: "input"}})
+	if _, err := provider.Resolve(context.Background(), workspace, NormalizedDeclaration{Declaration: declaration}); !errors.Is(err, ErrChanged) {
+		t.Fatalf("Resolve mutation error = %v", err)
+	}
+}
+
 func TestOpenSafeFileRejectsReplacementBetweenWalkAndOpen(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "target.sql")

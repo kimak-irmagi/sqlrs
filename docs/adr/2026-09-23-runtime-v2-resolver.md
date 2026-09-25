@@ -239,3 +239,112 @@ not to return `CURRENT`. Every other filesystem class remains `UNKNOWN`.
 
 Rationale: NTFS exposes a native change token that closes the known portable-stat
 false-negative, while a revisioned allowlist keeps unproved platforms fail-safe.
+
+## Decision 16: role-complete resolver declaration contract
+
+Conversation refinement timestamp: 2026-09-25 14:20 Asia/Novosibirsk
+(2026-09-25 07:20 UTC).
+
+GitHub user: `@evilguest`. Agent: OpenAI Codex (GPT-5).
+
+Question: should the public resolver contract remain specific to input
+declarations or accept every typed Runtime v2 extension-declaration role?
+
+Alternatives: keep `InputDeclaration` and add parallel managers later; accept an
+open structural interface; introduce a closed common interface implemented only
+by the three Runtime v2 declaration types.
+
+Decision: introduce a closed `ExtensionDeclaration` interface implemented by
+`InputDeclaration`, `ExecutionEnvironmentDeclaration`, and
+`DeploymentDeclaration`. Resolver normalization, normalized declarations, cache
+keys, and manager dispatch use that interface while retaining the concrete role
+in the resolver descriptor and cache key.
+
+Rationale: the tagged module can accommodate input, OCI/environment, and
+deployment resolvers without a later breaking interface change, while external
+packages cannot forge an unsupported declaration implementation.
+
+## Decision 17: atomic content-and-continuity snapshot
+
+Conversation refinement timestamp: 2026-09-25 14:20 Asia/Novosibirsk
+(2026-09-25 07:20 UTC).
+
+GitHub user: `@evilguest`. Agent: OpenAI Codex (GPT-5).
+
+Question: when may filesystem continuity evidence be paired with a content
+digest?
+
+Alternatives: collect evidence only after hashing; trust size/mtime around two
+reads; collect native evidence before and after the stable double read.
+
+Decision: collect native file identity/change evidence before hashing and again
+after the confirming read. Strong evidence is published only when both samples
+match exactly and the final stat metadata matches the hashed snapshot; a change
+returns `ErrChanged` rather than caching a mixed generation.
+
+Rationale: a write between digest confirmation and evidence collection must not
+associate the old digest with the new generation's change token.
+
+## Decision 18: native Unix cheap-revalidation revisions
+
+Conversation refinement timestamp: 2026-09-25 14:20 Asia/Novosibirsk
+(2026-09-25 07:20 UTC).
+
+GitHub user: `@evilguest`. Agent: OpenAI Codex (GPT-5).
+
+Question: which common Unix filesystems may satisfy #108's cheap unchanged-file
+path?
+
+Alternatives: keep every non-Windows filesystem `UNKNOWN`; trust portable
+size/mtime; enable revisioned native proofs for recognized local filesystems.
+
+Decision: enable revisioned evidence for Linux ext4, XFS, and Btrfs and macOS
+APFS. Evidence combines filesystem class, device, inode, ctime, size, and mtime
+from the same opened handle. Overlay, network, virtual, unknown, incomplete, and
+unrecognized filesystems remain `UNKNOWN`. Each enabled platform/class must pass
+a native same-size overwrite with restored-mtime test.
+
+Rationale: inode and ctime close the known portable-stat false-negative on the
+explicitly tested local filesystems without extending trust to unproved mounts.
+
+## Decision 19: enforce the Windows trusted-root ACL boundary
+
+Conversation refinement timestamp: 2026-09-25 14:20 Asia/Novosibirsk
+(2026-09-25 07:20 UTC).
+
+GitHub user: `@evilguest`. Agent: OpenAI Codex (GPT-5).
+
+Question: how does store construction prove that a Windows cache/artifact root
+is engine-owned rather than broadly writable?
+
+Alternatives: rely on `os.Chmod`; document an unchecked caller precondition;
+require an existing root and validate its owner and DACL with WinAPI.
+
+Decision: Windows constructors require an existing non-reparse directory, verify
+that its owner is the current process user, and reject DACLs granting write-like
+access to broad identities such as Everyone, Authenticated Users, or Builtin
+Users. Children inherit the validated ACL. Unix continues to create and enforce
+owner-only roots.
+
+Rationale: cache checksums are not authentication, and Windows `os.Chmod` does
+not establish the ownership boundary on which cached identities rely.
+
+## Decision 20: deterministic crash-barrier conformance
+
+Conversation refinement timestamp: 2026-09-25 14:20 Asia/Novosibirsk
+(2026-09-25 07:20 UTC).
+
+GitHub user: `@evilguest`. Agent: OpenAI Codex (GPT-5).
+
+Question: how should restart safety be demonstrated at publication boundaries?
+
+Alternatives: normal concurrent subprocess completion; injected in-process
+errors; subprocess writers paused and killed at named durability barriers.
+
+Decision: cache and CAS publication expose package-private test barriers after
+temporary creation/write, file sync, replacement, and directory sync. Subprocess
+tests pause writers at each reachable barrier, terminate them, reopen the store,
+and require either the complete old generation or complete new generation.
+
+Rationale: deterministic process death validates OS visibility and durability
+semantics that goroutine tests and injected return errors cannot establish.

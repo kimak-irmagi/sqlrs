@@ -25,7 +25,9 @@ backend/libs/runtime-go/resolver/
   filemeta_fallback.go   безопасное UNKNOWN-поведение на других ОС
 ```
 
-Package принимает versioned `runtimev2.InputDeclaration` и возвращает общий
+Package принимает закрытый versioned interface
+`runtimev2.ExtensionDeclaration`, реализованный только input,
+execution-environment и deployment declarations, и возвращает общий
 `runtimev2.ResolvedExtensionIdentity` из issue #124. Engine adapter явно включает
 resolved extension в factory или transform identity. В остальном используется
 Go standard library, включая traversal-resistant Go 1.25 `os.Root`; нет импортов
@@ -36,7 +38,7 @@ engine, Docker, Liquibase, DBMS, SQLite или StateFS.
 ```go
 type Resolver interface {
     Descriptor() Descriptor
-    Normalize(context.Context, Workspace, runtimev2.InputDeclaration) (NormalizedDeclaration, error)
+    Normalize(context.Context, Workspace, runtimev2.ExtensionDeclaration) (NormalizedDeclaration, error)
     Resolve(context.Context, Workspace, NormalizedDeclaration) (Resolution, error)
     ValidateResolution(Resolution) error
     Revalidate(context.Context, Workspace, Resolution) (Revalidation, error)
@@ -59,7 +61,7 @@ type ArtifactStore interface {
 func NewRegistry(resolvers ...Resolver) (Registry, error)
 func NewManager(registry Registry, cache Cache) (Manager, error)
 func NewWorkspaceFileResolver(artifacts ArtifactStore) (Resolver, error)
-func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declaration runtimev2.InputDeclaration) (Outcome, error)
+func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declaration runtimev2.ExtensionDeclaration) (Outcome, error)
 ```
 
 Точное Go-написание может уточняться при реализации одобренных тестов, но
@@ -125,12 +127,13 @@ mtime, stable file identity, change token, filesystem class, evidence revision
 cache валидирует и ограничивает envelope; `ValidateResolution` применяет закрытую
 provider schema и отклоняет missing/unknown evidence до revalidation.
 
-Первый включённый cheap path — `ntfs-usn` revision `ntfs-usn-v1`. Он
-объединяет volume/file identity, per-file USN NTFS и last-write metadata.
-Mandatory Windows test перезаписывает bytes с сохранением size и восстановлением
-mtime; такое изменение не должно возвращать `CURRENT`. Остальные платформы
-остаются консервативными `UNKNOWN`, пока их native evidence revisions не получат
-эквивалентное live coverage.
+Cheap paths версионируются по filesystem: `ntfs-usn-v1` на Windows,
+native device/inode/ctime revisions для ext4, XFS и Btrfs на Linux и APFS на
+macOS. Strong evidence снимается до и после стабильного двойного чтения content;
+оба samples и итоговые stat metadata должны совпасть. Обязательные native tests
+перезаписывают bytes с сохранением size и восстановлением mtime; такое изменение
+не должно возвращать `CURRENT`. Overlay, network, virtual, unknown и
+нераспознанные filesystems остаются conservative `UNKNOWN`.
 
 `Artifact` — небольшой interface с artifact kind и `Close`; concrete values
 принадлежат provider. File resolver возвращает opened immutable content-addressed
@@ -160,15 +163,18 @@ replacement показывает reader старую или новую полн�
 last-writer-wins безопасен благодаря self-validation key и semantic version.
 Same-directory temporary files и platform-specific replacement публикуют полные
 generations; readers игнорируют temporary files и считают truncated record
-invalidation, а не hit.
-Это доказывают subprocess conformance tests, а не только goroutine race tests.
+invalidation, а не hit. Именованные package-private publication barriers
+позволяют subprocess conformance tests завершать writer после write, file sync,
+replacement и directory sync и доказывать это поведение, а не только успешную
+concurrency.
 
 Workspace files, cache records и content-addressed acquired artifacts persistent;
 registry, locks, manager и opened handles находятся in memory. Trusted
 cache/artifact directories расположены вне mutable workspace и отклоняют links.
-На Unix новые roots/files получают owner-only modes. На Windows objects наследуют
-ACL engine-owned root; package не расширяет ACL и отклоняет reparse roots. Если
-deployment не может создать trusted root, store construction завершается ошибкой,
+На Unix новые roots/files получают owner-only modes. На Windows constructors
+требуют существующий root, проверяют ownership текущего пользователя, отклоняют
+reparse roots и broad write-capable DACL entries; дочерние objects наследуют
+проверенный ACL. Если deployment не может создать trusted root, store construction завершается ошибкой,
 а не silent downgrade. Checksums сохраняются, но ownership directory — граница
 authentication. Logical states/materializations не сохраняются — это #110.
 
