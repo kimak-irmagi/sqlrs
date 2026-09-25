@@ -302,7 +302,7 @@ func snapshotBackendFromConfig(cfg config.Store) string {
 		return "auto"
 	}
 	switch backend {
-	case "auto", "overlay", "btrfs", "copy":
+	case "auto", "overlay", "btrfs", "zfs", "copy":
 		return backend
 	default:
 		return "auto"

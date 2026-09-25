@@ -50,11 +50,19 @@ func NewManager(opts Options) Manager {
 			return newBtrfsManagerFn()
 		}
 		return CopyManager{}
+	case "zfs":
+		if zfsSupportedFn(opts.StateStoreRoot) {
+			return newZfsManagerFn()
+		}
+		return CopyManager{}
 	case "copy":
 		return CopyManager{}
 	case "auto":
 		if btrfsSupportedFn(opts.StateStoreRoot) {
 			return newBtrfsManagerFn()
+		}
+		if zfsSupportedFn(opts.StateStoreRoot) {
+			return newZfsManagerFn()
 		}
 		if overlaySupportedFn() {
 			return newOverlayManagerFn()
@@ -70,4 +78,6 @@ var (
 	newOverlayManagerFn = newOverlayManager
 	btrfsSupportedFn    = btrfsSupported
 	newBtrfsManagerFn   = newBtrfsManager
+	zfsSupportedFn      = zfsSupported
+	newZfsManagerFn     = newZfsManager
 )
