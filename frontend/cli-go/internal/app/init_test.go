@@ -573,6 +573,38 @@ func TestInitRemoteDiscoversInstallationAndWritesRemoteSessionProfile(t *testing
 	}
 }
 
+func TestInitRemoteDiscoveryFailurePolicies(t *testing.T) {
+	t.Run("server failure", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "later", http.StatusServiceUnavailable) }))
+		defer server.Close()
+		if err := runInit(io.Discard, t.TempDir(), "", []string{"remote", server.URL}, false); err == nil || !strings.Contains(err.Error(), "discovery failed") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+	t.Run("no providers", func(t *testing.T) {
+		var server *httptest.Server
+		server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"installation_id":"installation-1","endpoints":{"control":%q,"current":%q},"auth_providers":[]}`, server.URL, server.URL)
+		}))
+		defer server.Close()
+		if err := runInit(io.Discard, t.TempDir(), "", []string{"remote", server.URL}, false); err == nil || !strings.Contains(err.Error(), "no enabled login providers") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+	t.Run("current mismatch", func(t *testing.T) {
+		var server *httptest.Server
+		server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"installation_id":"installation-1","endpoints":{"control":%q,"current":%q},"auth_providers":[{"id":"google","display_name":"Google","adapter":"oidc"}]}`, server.URL, server.URL+"/other")
+		}))
+		defer server.Close()
+		if err := runInit(io.Discard, t.TempDir(), "", []string{"remote", server.URL}, false); err == nil || !strings.Contains(err.Error(), "returned current endpoint") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+}
+
 func TestInitRemoteUpdateCoordinatesLegacyCredentialMigration(t *testing.T) {
 	workspace := t.TempDir()
 	configDir := filepath.Join(workspace, ".sqlrs")
@@ -652,6 +684,55 @@ func TestInitRemoteMigrationDryRunDoesNotTouchCredentialStore(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "Would migrate") {
 		t.Fatalf("dry-run output = %q", out.String())
+	}
+}
+
+func TestInitRemoteMigrationResultPolicies(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		result    authsession.LegacyMigrationResult
+		migration error
+		want      string
+	}{
+		{name: "login required warning", result: authsession.LegacyMigrationResult{LoginRequired: true}, want: "auth login"},
+		{name: "legacy delete warning", result: authsession.LegacyMigrationResult{Migrated: true, DeletionWarning: "legacy delete failed"}, want: "legacy delete failed"},
+		{name: "migration error", migration: errors.New("credential store failed"), want: "credential store failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			workspace := t.TempDir()
+			configDir := filepath.Join(workspace, ".sqlrs")
+			if err := os.MkdirAll(configDir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			var server *httptest.Server
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintf(w, `{"installation_id":"test-installation","endpoints":{"control":%q,"current":%q},"auth_providers":[{"id":"google","display_name":"Google","adapter":"oidc"}]}`, server.URL, server.URL)
+			}))
+			defer server.Close()
+			legacyConfig := fmt.Sprintf("defaultProfile: remote\nprofiles:\n  remote:\n    mode: remote\n    endpoint: %s\n    auth:\n      mode: oidcSession\n      issuer: https://issuer.example.test\n      clientID: public-client\n", server.URL)
+			if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(legacyConfig), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			oldMigrate, oldStderr := migrateLegacyCredentialFn, initStderr
+			var stderr bytes.Buffer
+			initStderr = &stderr
+			migrateLegacyCredentialFn = func(_ context.Context, _ authsession.LegacyMigrationOptions, commit func() error) (authsession.LegacyMigrationResult, error) {
+				if tc.migration != nil {
+					return authsession.LegacyMigrationResult{}, tc.migration
+				}
+				return tc.result, commit()
+			}
+			t.Cleanup(func() { migrateLegacyCredentialFn, initStderr = oldMigrate, oldStderr })
+			err := runInit(io.Discard, workspace, "", []string{"remote", server.URL, "--update"}, false)
+			combined := stderr.String()
+			if err != nil {
+				combined += err.Error()
+			}
+			if !strings.Contains(combined, tc.want) {
+				t.Fatalf("output/error = %q / %v", stderr.String(), err)
+			}
+		})
 	}
 }
 

@@ -36,10 +36,64 @@ func TestReconcileCreatedOrganizationSwitchesStoredRemoteSession(t *testing.T) {
 	}
 }
 
+func TestReconcileCreatedOrganizationFailurePolicies(t *testing.T) {
+	base := commandContext{
+		profileName:     "remote",
+		profile:         config.ProfileConfig{Endpoint: "https://api.example.test", InstallationEndpoint: "https://api.example.test", InstallationID: "installation-1", Auth: config.AuthConfig{Mode: "remoteSession"}},
+		authTokenSource: authsession.TokenSourceStoredRemoteSession,
+	}
+
+	unauthenticated := base
+	unauthenticated.authTokenSource = authsession.TokenSourceEnvironmentOverride
+	if err := reconcileCreatedOrganization(unauthenticated, client.Organization{}, io.Discard); err != nil {
+		t.Fatalf("non-stored session reconciliation: %v", err)
+	}
+
+	if err := reconcileCreatedOrganization(base, client.Organization{Slug: "nsu"}, io.Discard); err == nil || !strings.Contains(err.Error(), "canonical organization endpoint") {
+		t.Fatalf("missing canonical endpoint error = %v", err)
+	}
+	if err := reconcileCreatedOrganization(base, client.Organization{Slug: "nsu", Endpoint: "https://other.example.test/nsu"}, io.Discard); err == nil || !strings.Contains(err.Error(), "untrusted canonical") {
+		t.Fatalf("foreign canonical endpoint error = %v", err)
+	}
+	if err := reconcileCreatedOrganization(base, client.Organization{Slug: "nsu", Endpoint: "https://api.example.test/nsu"}, io.Discard); err == nil || !strings.Contains(err.Error(), "config path is unavailable") {
+		t.Fatalf("profile persistence error = %v", err)
+	}
+}
+
 func TestParseUserArgsRegisterRejectsExplicitIdentity(t *testing.T) {
 	_, _, err := parseUserArgs([]string{"register", "--identity-issuer", "https://issuer.example.test"})
 	if err == nil || !strings.Contains(err.Error(), "identity is derived from the authenticated token") {
 		t.Fatalf("expected explicit identity rejection, got %v", err)
+	}
+}
+
+func TestUserOrganizationArgumentValidationBranches(t *testing.T) {
+	userCases := [][]string{
+		nil,
+		{"register", "--unknown"},
+		{"create", "--unknown"},
+		{"create", "--identity-issuer", "issuer", "--identity-subject", "subject"},
+	}
+	for _, args := range userCases {
+		if _, _, err := parseUserArgs(args); err == nil {
+			t.Fatalf("parseUserArgs(%v) unexpectedly succeeded", args)
+		}
+	}
+	req := userProfileWriteRequest(" User ", " user@example.test ")
+	if req.DisplayName != "User" || req.Email == nil || *req.Email != "user@example.test" {
+		t.Fatalf("userProfileWriteRequest = %+v", req)
+	}
+
+	orgCases := [][]string{
+		nil,
+		{"get", "one", "two"},
+		{"create", "--unknown"},
+		{"create", "one", "two"},
+	}
+	for _, args := range orgCases {
+		if _, _, err := parseOrgArgs(args); err == nil {
+			t.Fatalf("parseOrgArgs(%v) unexpectedly succeeded", args)
+		}
 	}
 }
 

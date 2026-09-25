@@ -151,17 +151,6 @@ func ValidateConnectionInfo(info ConnectionInfo) error {
 	if !strings.EqualFold(control.Scheme, current.Scheme) || !strings.EqualFold(control.Host, current.Host) {
 		return fmt.Errorf("control and current endpoints must share an origin")
 	}
-	controlPath := strings.TrimSuffix(control.EscapedPath(), "/")
-	currentPath := strings.TrimSuffix(current.EscapedPath(), "/")
-	if currentPath != controlPath {
-		if !strings.HasPrefix(currentPath, controlPath+"/") {
-			return fmt.Errorf("current endpoint is outside the control base")
-		}
-		suffix := strings.TrimPrefix(currentPath, controlPath+"/")
-		if strings.Contains(suffix, "/") || !organizationSlugPattern.MatchString(suffix) {
-			return fmt.Errorf("current endpoint must contain exactly one valid organization slug")
-		}
-	}
 	seenProviders := map[string]struct{}{}
 	for _, provider := range info.AuthProviders {
 		if !providerIDPattern.MatchString(provider.ID) || strings.TrimSpace(provider.DisplayName) == "" || strings.TrimSpace(provider.Adapter) == "" {

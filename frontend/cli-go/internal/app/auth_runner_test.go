@@ -308,6 +308,23 @@ func TestRunAuthLoginAutoSwitchesRootProfileToSingleOrganization(t *testing.T) {
 }
 
 func TestReconcileLoginEndpointPolicyBranches(t *testing.T) {
+	t.Run("missing installation control", func(t *testing.T) {
+		ctx := commandContext{profile: config.ProfileConfig{Endpoint: "https://api.example.test", Auth: config.AuthConfig{Mode: "remoteSession"}}}
+		if err := reconcileLoginEndpoint(context.Background(), &ctx, "token", io.Discard); err == nil || !strings.Contains(err.Error(), "installationEndpoint") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+
+	t.Run("current-user transport failure", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "later", http.StatusServiceUnavailable) }))
+		endpoint := server.URL
+		server.Close()
+		ctx := remoteSessionCommandContext(t, endpoint, endpoint)
+		if err := reconcileLoginEndpoint(context.Background(), &ctx, "token", io.Discard); err == nil {
+			t.Fatal("expected current-user transport error")
+		}
+	})
+
 	t.Run("root unregistered succeeds with guidance", func(t *testing.T) {
 		server := httptest.NewServer(http.NotFoundHandler())
 		defer server.Close()
@@ -372,6 +389,28 @@ func TestReconcileLoginEndpointPolicyBranches(t *testing.T) {
 			t.Fatalf("error = %v", err)
 		}
 	})
+
+	t.Run("missing canonical endpoint is rejected", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"user":{"id":"u"},"identities":[],"memberships":[{"organization":{"slug":"nsu","endpoint":""},"membership":{}}]}`))
+		}))
+		defer server.Close()
+		ctx := remoteSessionCommandContext(t, server.URL, server.URL)
+		if err := reconcileLoginEndpoint(context.Background(), &ctx, "token", io.Discard); err == nil || !strings.Contains(err.Error(), "did not provide") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+}
+
+func TestPersistSelectedProfileEndpointErrors(t *testing.T) {
+	if err := persistSelectedProfileEndpoint(commandContext{}, "https://api.example.test/nsu"); err == nil || !strings.Contains(err.Error(), "workspace config path") {
+		t.Fatalf("missing path error = %v", err)
+	}
+	ctx := commandContext{cfgResult: config.LoadedConfig{ProjectConfigPath: filepath.Join(t.TempDir(), "missing", "config.yaml")}, profileName: "remote"}
+	if err := persistSelectedProfileEndpoint(ctx, "https://api.example.test/nsu"); err == nil {
+		t.Fatal("expected config read error")
+	}
 }
 
 func remoteSessionCommandContext(t *testing.T, control, endpoint string) commandContext {

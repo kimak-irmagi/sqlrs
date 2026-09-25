@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -227,5 +228,89 @@ func TestPublicBootstrapFollowsOnlySameOriginRedirects(t *testing.T) {
 	defer server.Close()
 	if _, err := New(server.URL, Options{Timeout: time.Second}).GetConnectionInfo(context.Background()); err != nil {
 		t.Fatalf("same-origin redirect: %v", err)
+	}
+}
+
+func TestPublicBootstrapRedirectSafetyLimits(t *testing.T) {
+	t.Run("loop limit", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, r.URL.Path+"?next=1", http.StatusTemporaryRedirect)
+		}))
+		defer server.Close()
+		if _, err := New(server.URL, Options{Timeout: time.Second}).GetConnectionInfo(context.Background()); err == nil || !strings.Contains(err.Error(), "limit") {
+			t.Fatalf("redirect loop error = %v", err)
+		}
+	})
+	t.Run("userinfo", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			target := strings.Replace(serverURLFromRequest(r), "://", "://user:password@", 1) + "/target"
+			http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+		}))
+		defer server.Close()
+		if _, err := New(server.URL, Options{Timeout: time.Second}).GetConnectionInfo(context.Background()); err == nil || !strings.Contains(err.Error(), "changed origin") {
+			t.Fatalf("userinfo redirect error = %v", err)
+		}
+	})
+}
+
+func serverURLFromRequest(r *http.Request) string {
+	return "http://" + r.Host
+}
+
+func TestBootstrapErrorAndCanonicalizationBranches(t *testing.T) {
+	t.Run("invalid connection document", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"installation_id":"","endpoints":{"control":"https://api.example.test","current":"https://api.example.test"},"auth_providers":[]}`))
+		}))
+		defer server.Close()
+		if _, err := New(server.URL, Options{}).GetConnectionInfo(context.Background()); err == nil || !strings.Contains(err.Error(), "installation_id") {
+			t.Fatalf("connection validation error = %v", err)
+		}
+	})
+	t.Run("provider request and validation", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("User-Agent") != "sqlrs-test" {
+				t.Fatalf("User-Agent = %q", r.Header.Get("User-Agent"))
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"google","display_name":"Google","adapter":"unknown"}`))
+		}))
+		defer server.Close()
+		if _, err := New(server.URL, Options{UserAgent: "sqlrs-test"}).GetAuthProvider(context.Background(), "google"); err == nil || !strings.Contains(err.Error(), "unsupported") {
+			t.Fatalf("provider validation error = %v", err)
+		}
+	})
+	t.Run("provider HTTP error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "missing", http.StatusNotFound) }))
+		defer server.Close()
+		if _, err := New(server.URL, Options{}).GetAuthProvider(context.Background(), "google"); err == nil {
+			t.Fatal("expected provider HTTP error")
+		}
+	})
+	if err := (&Client{baseURL: "://bad", http: &http.Client{}}).getPublicJSON(context.Background(), "/v1/connection-info", &ConnectionInfo{}); err == nil {
+		t.Fatal("expected request construction error")
+	}
+	if err := ValidateServiceEndpoint("https://api.example.test/nsu"); err != nil {
+		t.Fatalf("ValidateServiceEndpoint: %v", err)
+	}
+	if err := ValidateServiceEndpoint("https://api.example.test/a/b"); err == nil {
+		t.Fatal("expected invalid service endpoint")
+	}
+	if err := ValidateConnectionInfo(ConnectionInfo{InstallationID: "installation-1", Endpoints: ConnectionEndpoints{Control: "https://api.example.test/nsu", Current: "https://api.example.test/nsu"}}); err == nil || !strings.Contains(err.Error(), "installation root") {
+		t.Fatalf("candidate control error = %v", err)
+	}
+	if got, err := NormalizeServiceEndpoint("http://[::1]:8080/nsu/"); err != nil || got != "http://[::1]:8080/nsu" {
+		t.Fatalf("IPv6 normalization = %q, %v", got, err)
+	}
+	for raw, want := range map[string]string{"https://host": "443", "http://host": "80", "custom://host": ""} {
+		parsed, err := url.Parse(raw)
+		if err != nil || serviceURLPort(parsed) != want {
+			t.Fatalf("serviceURLPort(%q) = %q, %v", raw, serviceURLPort(parsed), err)
+		}
+	}
+	parsed, _ := url.Parse("https://host:8443")
+	if serviceURLPort(parsed) != "8443" || !sameURLOrigin(parsed, parsed) {
+		t.Fatal("explicit service port/origin mismatch")
 	}
 }

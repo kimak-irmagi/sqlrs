@@ -599,6 +599,81 @@ func TestLiquibaseHelperVariantBranches(t *testing.T) {
 	})
 }
 
+func TestRefPrepareRemainingArgumentPolicies(t *testing.T) {
+	root := t.TempDir()
+	absolute := filepath.Join(root, "input.sql")
+	convertErr := errors.New("conversion failed")
+	failConvert := func(string) (string, error) { return "", convertErr }
+
+	if got := effectiveLiquibaseBindBaseDir(root, nil, nil, prepareArgs{Ref: "HEAD"}); got != root {
+		t.Fatalf("effectiveLiquibaseBindBaseDir without context = %q, want %q", got, root)
+	}
+
+	fs := newScriptedFS(nil)
+	fs.statErrors[root] = map[int]error{1: errors.New("stat failed")}
+	if _, err := materializeRefTree(root, fs); err == nil || !strings.Contains(err.Error(), "stat failed") {
+		t.Fatalf("materializeRefTree error = %v", err)
+	}
+
+	if got, err := convertPsqlFileArgs([]string{"--file=" + absolute}, failConvert); !errors.Is(err, convertErr) || got != nil {
+		t.Fatalf("convertPsqlFileArgs --file error = %v, %v", got, err)
+	}
+	if got, err := convertPsqlFileArgs([]string{"-f" + absolute}, failConvert); !errors.Is(err, convertErr) || got != nil {
+		t.Fatalf("convertPsqlFileArgs -f error = %v, %v", got, err)
+	}
+	for _, args := range [][]string{{"--file"}, {"-f"}} {
+		if got, err := convertPsqlFileArgs(args, failConvert); err != nil || !reflect.DeepEqual(got, args) {
+			t.Fatalf("convertPsqlFileArgs(%v) = %v, %v", args, got, err)
+		}
+	}
+	if got := rewritePsqlFileArgsToRoot([]string{"--file"}, root, t.TempDir()); !reflect.DeepEqual(got, []string{"--file"}) {
+		t.Fatalf("rewritePsqlFileArgsToRoot missing value = %v", got)
+	}
+	if got, err := convertPsqlFileArgs([]string{"--file", absolute}, failConvert); !errors.Is(err, convertErr) || got != nil {
+		t.Fatalf("convertPsqlFileArgs positional error = %v, %v", got, err)
+	}
+	args := []string{"--file", absolute}
+	if got, err := convertPsqlFileArgs(args, nil); err != nil || !reflect.DeepEqual(got, args) {
+		t.Fatalf("convertPsqlFileArgs nil converter = %v, %v", got, err)
+	}
+
+	for _, args := range [][]string{{"--changelog-file"}, {"--defaults-file"}, {"--searchPath"}, {"--search-path"}} {
+		if got := rewriteLiquibaseArgsToRoot(args, root, t.TempDir()); !reflect.DeepEqual(got, args) {
+			t.Fatalf("rewriteLiquibaseArgsToRoot(%v) = %v", args, got)
+		}
+		if got, err := convertLiquibaseHostPaths(args, failConvert); err != nil || !reflect.DeepEqual(got, args) {
+			t.Fatalf("convertLiquibaseHostPaths(%v) = %v, %v", args, got, err)
+		}
+	}
+	for _, args := range [][]string{
+		{"--changelog-file=" + absolute},
+		{"--defaults-file=" + absolute},
+		{"--searchPath=" + absolute},
+		{"--search-path=" + absolute},
+	} {
+		if got, err := convertLiquibaseHostPaths(args, failConvert); !errors.Is(err, convertErr) || got != nil {
+			t.Fatalf("convertLiquibaseHostPaths(%v) = %v, %v", args, got, err)
+		}
+	}
+	if _, _, _, err := liquibaseLocalArtifacts([]string{"update", "--changelog-file=" + absolute}, inputset.NewWorkspaceResolver(root, root, nil), inputset.OSFileSystem{}); err == nil {
+		t.Fatal("expected missing equals-form changelog to fail collection")
+	}
+	rewritten := rewriteLiquibaseArgsToRoot([]string{
+		"--changelog-file", "classpath:db/master.xml",
+		"--changelog-file=" + absolute,
+	}, root, t.TempDir())
+	if rewritten[1] != "classpath:db/master.xml" || rewritten[2] == "--changelog-file="+absolute {
+		t.Fatalf("rewriteLiquibaseArgsToRoot remote/local values = %v", rewritten)
+	}
+	if got, err := convertLiquibaseHostPaths([]string{"--changelog-file", absolute}, failConvert); !errors.Is(err, convertErr) || got != nil {
+		t.Fatalf("convertLiquibaseHostPaths positional error = %v, %v", got, err)
+	}
+	args = []string{"--changelog-file", absolute}
+	if got, err := convertLiquibaseHostPaths(args, nil); err != nil || !reflect.DeepEqual(got, args) {
+		t.Fatalf("convertLiquibaseHostPaths nil converter = %v, %v", got, err)
+	}
+}
+
 func containsPath(paths []string, want string) bool {
 	for _, path := range paths {
 		if pathutil.SameLocalPath(path, want) {

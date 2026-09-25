@@ -405,14 +405,95 @@ func TestMigrateLegacyCredentialFailureOrdering(t *testing.T) {
 	}
 }
 
+func TestMigrateLegacyCredentialReadAndCommitFailures(t *testing.T) {
+	ctx := context.Background()
+	legacyKey := CredentialKey{ProfileName: "remote", Endpoint: "https://api.example.test", Provider: "google", Issuer: "https://issuer.example.test", ClientID: "public-client"}
+	destination := CredentialKey{ProfileName: "remote", InstallationID: "installation-1", ControlEndpoint: "https://api.example.test"}
+	options := LegacyMigrationOptions{
+		ProfileName: "remote", LegacyEndpoint: legacyKey.Endpoint, LegacyProvider: "google", LegacyIssuer: legacyKey.Issuer, LegacyClientID: legacyKey.ClientID,
+		InstallationID: destination.InstallationID, ControlEndpoint: destination.ControlEndpoint,
+	}
+	if _, err := NewManager(ManagerOptions{Store: newMemoryCredentialStore()}).MigrateLegacyCredential(ctx, options, nil); err == nil || !strings.Contains(err.Error(), "commit") {
+		t.Fatalf("nil commit error = %v", err)
+	}
+
+	t.Run("destination read", func(t *testing.T) {
+		store := &migrationCredentialStore{memoryCredentialStore: newMemoryCredentialStore(), getErrors: map[int]error{1: errors.New("destination read failed")}}
+		if _, err := NewManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { t.Fatal("commit called"); return nil }); err == nil || !strings.Contains(err.Error(), "read destination") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+	t.Run("authoritative destination commit", func(t *testing.T) {
+		store := newMemoryCredentialStore()
+		_ = store.Put(ctx, destination, Session{RefreshToken: "current"})
+		wantErr := errors.New("commit failed")
+		if _, err := NewManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { return wantErr }); !errors.Is(err, wantErr) {
+			t.Fatalf("error = %v", err)
+		}
+	})
+	t.Run("insufficient metadata commit", func(t *testing.T) {
+		wantErr := errors.New("commit failed")
+		incomplete := options
+		incomplete.LegacyIssuer = ""
+		if _, err := NewManager(ManagerOptions{Store: newMemoryCredentialStore()}).MigrateLegacyCredential(ctx, incomplete, func() error { return wantErr }); !errors.Is(err, wantErr) {
+			t.Fatalf("error = %v", err)
+		}
+	})
+	t.Run("legacy read", func(t *testing.T) {
+		store := &migrationCredentialStore{memoryCredentialStore: newMemoryCredentialStore(), getErrors: map[int]error{2: errors.New("legacy read failed")}}
+		if _, err := NewManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { t.Fatal("commit called"); return nil }); err == nil || !strings.Contains(err.Error(), "read legacy") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+	t.Run("missing legacy commit", func(t *testing.T) {
+		wantErr := errors.New("commit failed")
+		if _, err := NewManager(ManagerOptions{Store: newMemoryCredentialStore()}).MigrateLegacyCredential(ctx, options, func() error { return wantErr }); !errors.Is(err, wantErr) {
+			t.Fatalf("error = %v", err)
+		}
+	})
+	t.Run("destination verification read", func(t *testing.T) {
+		store := &migrationCredentialStore{memoryCredentialStore: newMemoryCredentialStore(), getErrors: map[int]error{3: errors.New("verify read failed")}}
+		_ = store.memoryCredentialStore.Put(ctx, legacyKey, Session{Subject: "subject-1", RefreshToken: "refresh"})
+		if _, err := NewManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { t.Fatal("commit called"); return nil }); err == nil || !strings.Contains(err.Error(), "verify destination") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+}
+
+func TestLegacyMigrationOriginAndPortRules(t *testing.T) {
+	for _, tc := range []struct {
+		left, right string
+		want        bool
+	}{
+		{left: "https://API.example.test/nsu", right: "https://api.example.test:443", want: true},
+		{left: "http://127.0.0.1/nsu", right: "http://127.0.0.1:80", want: true},
+		{left: "https://api.example.test", right: "https://other.example.test", want: false},
+		{left: "://bad", right: "https://api.example.test", want: false},
+	} {
+		if got := sameOrigin(tc.left, tc.right); got != tc.want {
+			t.Fatalf("sameOrigin(%q, %q) = %v", tc.left, tc.right, got)
+		}
+	}
+	custom, err := url.Parse("custom://host")
+	if err != nil || effectivePort(custom) != "" {
+		t.Fatalf("custom effective port = %q, %v", effectivePort(custom), err)
+	}
+}
+
 type migrationCredentialStore struct {
 	*memoryCredentialStore
 	putErr             error
 	deleteErr          error
 	corruptDestination bool
+	getCalls           int
+	getErrors          map[int]error
 }
 
 func (s *migrationCredentialStore) Get(ctx context.Context, key CredentialKey) (Session, bool, error) {
+	s.getCalls++
+	if err := s.getErrors[s.getCalls]; err != nil {
+		return Session{}, false, err
+	}
 	session, ok, err := s.memoryCredentialStore.Get(ctx, key)
 	if ok && key.InstallationID != "" && s.corruptDestination {
 		session.Subject = "corrupted"
