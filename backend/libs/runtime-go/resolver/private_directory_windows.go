@@ -90,11 +90,8 @@ func validateWindowsPrivateDirectory(root string) error {
 	broad := broadWindowsSIDs()
 	for index := uint16(0); index < dacl.Count; index++ {
 		var ace *windowsAllowedACE
-		ok, _, callErr := getAce.Call(uintptr(unsafe.Pointer(dacl)), uintptr(index), uintptr(unsafe.Pointer(&ace)))
+		ok, _, _ := getAce.Call(uintptr(unsafe.Pointer(dacl)), uintptr(index), uintptr(unsafe.Pointer(&ace)))
 		if ok == 0 {
-			if callErr != nil && callErr != syscall.Errno(0) {
-				return callErr
-			}
 			return ErrUnsafePath
 		}
 		if ace == nil || (ace.Header.Type != accessAllowedACEType && ace.Header.Type != objectAllowedACEType) || ace.Mask&writeLikeAccessMask == 0 {

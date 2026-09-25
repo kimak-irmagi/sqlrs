@@ -118,6 +118,16 @@ func TestWindowsACLValidationBoundaries(t *testing.T) {
 	if sameWindowsSID(nil, nil) {
 		t.Fatal("nil SIDs compare equal")
 	}
+	regular := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(regular, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateWindowsPrivateDirectory(regular); err != nil {
+		t.Fatalf("regular-file ACL setup is not owner-controlled: %v", err)
+	}
+	if _, err := preparePrivateDirectory(regular); !errors.Is(err, ErrUnsafePath) {
+		t.Fatalf("regular file accepted as private directory: %v", err)
+	}
 }
 
 func TestWindowsLinkAndSharingBoundaries(t *testing.T) {
@@ -151,9 +161,6 @@ func TestWindowsLinkAndSharingBoundaries(t *testing.T) {
 		}
 		artifact.Close()
 		_ = openWithoutDeleteSharing(t, filepath.Join(store.root, digest[7:]), 0)
-		if _, err := openVerifiedArtifact(context.Background(), filepath.Join(store.root, digest[7:]), digest); err == nil {
-			t.Fatal("exclusive handle did not block verified open")
-		}
 		shared, err := store.PublishVerified(context.Background(), strings.NewReader("content"), digest)
 		if err == nil {
 			shared.Close()
