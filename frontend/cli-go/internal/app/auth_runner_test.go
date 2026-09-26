@@ -3,7 +3,10 @@ package app
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +14,7 @@ import (
 	"time"
 
 	"github.com/sqlrs/cli/internal/cli"
+	"github.com/sqlrs/cli/internal/client"
 	"github.com/sqlrs/cli/internal/config"
 )
 
@@ -191,6 +195,7 @@ func TestRunAuthLoginNoBrowserPrintsAuthorizationURLBeforeFinalOutput(t *testing
 			"      clientSecret: client-secret\n")
 
 	var stdout bytes.Buffer
+	var stderr bytes.Buffer
 	oldFactory := authManagerFactory
 	var gotOptions authLoginOptions
 	authManagerFactory = func() authManager {
@@ -209,21 +214,214 @@ func TestRunAuthLoginNoBrowserPrintsAuthorizationURLBeforeFinalOutput(t *testing
 	}
 	t.Cleanup(func() { authManagerFactory = oldFactory })
 
-	if err := runAuth(&stdout, io.Discard, cwd, cli.GlobalOptions{Workspace: cwd}, []string{"login", "google", "--no-browser"}); err != nil {
+	if err := runAuth(&stdout, &stderr, cwd, cli.GlobalOptions{Workspace: cwd}, []string{"login", "google", "--no-browser"}); err != nil {
 		t.Fatalf("runAuth: %v", err)
 	}
 	out := stdout.String()
-	urlIndex := strings.Index(out, "authorizationURL: https://accounts.google.com/o/oauth2/v2/auth")
-	loggedInIndex := strings.Index(out, "logged in")
-	if urlIndex < 0 || loggedInIndex < 0 || urlIndex > loggedInIndex {
-		t.Fatalf("stdout should print URL before final login output, got %q", out)
+	errOut := stderr.String()
+	if strings.Contains(out, "authorizationURL:") || !strings.Contains(out, "logged in") {
+		t.Fatalf("stdout should contain only final login output, got %q", out)
 	}
-	if strings.Count(out, "authorizationURL:") != 1 {
-		t.Fatalf("stdout should print authorization URL once, got %q", out)
+	if strings.Count(errOut, "authorizationURL: https://accounts.google.com/o/oauth2/v2/auth") != 1 {
+		t.Fatalf("stderr should print authorization URL once, got %q", errOut)
 	}
-	if gotOptions.ClientSecret != "client-secret" {
-		t.Fatalf("client secret = %q, want client-secret", gotOptions.ClientSecret)
+	if gotOptions.ClientSecret != "" {
+		t.Fatalf("client secret = %q, want no confidential secret", gotOptions.ClientSecret)
 	}
+}
+
+func TestRunAuthLoginRemoteSessionUsesDiscoveredProvider(t *testing.T) {
+	cwd := t.TempDir()
+	setTestDirs(t, cwd)
+	writeProjectConfig(t, cwd,
+		"defaultProfile: remote\n"+
+			"profiles:\n  remote:\n    mode: remote\n    endpoint: https://api.example.test/nsu\n"+
+			"    installationID: installation-1\n    installationEndpoint: https://api.example.test\n"+
+			"    auth:\n      mode: remoteSession\n")
+
+	oldLoader := authProviderLoader
+	oldFactory := authManagerFactory
+	authProviderLoader = func(_ context.Context, endpoint, provider string) (client.AuthProviderConfiguration, error) {
+		if endpoint != "https://api.example.test/nsu" || provider != "google" {
+			t.Fatalf("discovery = endpoint %q provider %q", endpoint, provider)
+		}
+		return client.AuthProviderConfiguration{
+			ID: "google", Adapter: "oidc", ConfigurationVersion: 1,
+			Issuer: "https://issuer.example.test", ClientID: "public-client",
+			AuthorizationEndpoint: "https://issuer.example.test/authorize",
+			TokenEndpoint:         "https://issuer.example.test/token", Scopes: []string{"openid", "email"},
+			AuthorizationParameters: map[string]string{"prompt": "consent"},
+		}, nil
+	}
+	var got authLoginOptions
+	authManagerFactory = func() authManager {
+		return fakeAuthManager{login: authLoginResult{LoggedIn: true}, onLogin: func(opts authLoginOptions) { got = opts }}
+	}
+	t.Cleanup(func() { authProviderLoader = oldLoader; authManagerFactory = oldFactory })
+
+	if err := runAuth(io.Discard, io.Discard, cwd, cli.GlobalOptions{Workspace: cwd}, []string{"login", "google"}); err != nil {
+		t.Fatalf("runAuth: %v", err)
+	}
+	if got.ClientID != "public-client" || got.AuthorizationEndpoint != "https://issuer.example.test/authorize" || got.ClientSecret != "" {
+		t.Fatalf("login options = %+v", got)
+	}
+	if got.InstallationID != "installation-1" || got.ControlEndpoint != "https://api.example.test" || !got.RequireCallbackIssuer {
+		t.Fatalf("trust binding = %+v", got)
+	}
+}
+
+func TestRunAuthLoginAutoSwitchesRootProfileToSingleOrganization(t *testing.T) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/users/me" || r.Header.Get("Authorization") != "Bearer login-id-token" {
+			t.Fatalf("request = %s auth=%q", r.URL.Path, r.Header.Get("Authorization"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"user":{"id":"user-1"},"identities":[],"memberships":[{"organization":{"id":"org-1","slug":"nsu","endpoint":%q},"membership":{"user_id":"user-1","organization_id":"org-1","role":"member"}}]}`, server.URL+"/nsu")
+	}))
+	defer server.Close()
+
+	cwd := t.TempDir()
+	setTestDirs(t, cwd)
+	writeProjectConfig(t, cwd, fmt.Sprintf("defaultProfile: remote\nprofiles:\n  remote:\n    mode: remote\n    endpoint: %s\n    installationID: installation-1\n    installationEndpoint: %s\n    auth:\n      mode: remoteSession\n", server.URL, server.URL))
+	oldLoader := authProviderLoader
+	oldFactory := authManagerFactory
+	authProviderLoader = func(context.Context, string, string) (client.AuthProviderConfiguration, error) {
+		return client.AuthProviderConfiguration{ID: "google", Adapter: "oidc", ConfigurationVersion: 1, Issuer: "https://issuer.test", ClientID: "public", AuthorizationEndpoint: "https://issuer.test/auth", TokenEndpoint: "https://issuer.test/token", Scopes: []string{"openid"}}, nil
+	}
+	authManagerFactory = func() authManager {
+		return fakeAuthManager{login: authLoginResult{LoggedIn: true, BearerToken: "login-id-token"}}
+	}
+	t.Cleanup(func() { authProviderLoader = oldLoader; authManagerFactory = oldFactory })
+
+	var stdout, stderr bytes.Buffer
+	if err := runAuth(&stdout, &stderr, cwd, cli.GlobalOptions{Workspace: cwd}, []string{"login", "google"}); err != nil {
+		t.Fatalf("runAuth: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "switched to organization \"nsu\"") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	raw := loadConfigMap(t, filepath.Join(cwd, ".sqlrs", "config.yaml"))
+	if got := nestedString(raw, "profiles", "remote", "endpoint"); got != server.URL+"/nsu" {
+		t.Fatalf("endpoint = %q", got)
+	}
+}
+
+func TestReconcileLoginEndpointPolicyBranches(t *testing.T) {
+	t.Run("missing installation control", func(t *testing.T) {
+		ctx := commandContext{profile: config.ProfileConfig{Endpoint: "https://api.example.test", Auth: config.AuthConfig{Mode: "remoteSession"}}}
+		if err := reconcileLoginEndpoint(context.Background(), &ctx, "token", io.Discard); err == nil || !strings.Contains(err.Error(), "installationEndpoint") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+
+	t.Run("current-user transport failure", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "later", http.StatusServiceUnavailable) }))
+		endpoint := server.URL
+		server.Close()
+		ctx := remoteSessionCommandContext(t, endpoint, endpoint)
+		if err := reconcileLoginEndpoint(context.Background(), &ctx, "token", io.Discard); err == nil {
+			t.Fatal("expected current-user transport error")
+		}
+	})
+
+	t.Run("root unregistered succeeds with guidance", func(t *testing.T) {
+		server := httptest.NewServer(http.NotFoundHandler())
+		defer server.Close()
+		ctx := remoteSessionCommandContext(t, server.URL, server.URL)
+		var stderr bytes.Buffer
+		if err := reconcileLoginEndpoint(context.Background(), &ctx, "token", &stderr); err != nil {
+			t.Fatalf("reconcile: %v", err)
+		}
+		if !strings.Contains(stderr.String(), "user register") {
+			t.Fatalf("stderr = %q", stderr.String())
+		}
+	})
+
+	t.Run("candidate not visible is partial", func(t *testing.T) {
+		server := httptest.NewServer(http.NotFoundHandler())
+		defer server.Close()
+		ctx := remoteSessionCommandContext(t, server.URL, server.URL+"/nsu")
+		if err := reconcileLoginEndpoint(context.Background(), &ctx, "token", io.Discard); err == nil || !strings.Contains(err.Error(), "not visible") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+
+	t.Run("root zero or multiple memberships stays root", func(t *testing.T) {
+		for _, memberships := range []string{`[]`, `[{"organization":{"slug":"one","endpoint":"https://api.example.test/one"}},{"organization":{"slug":"two","endpoint":"https://api.example.test/two"}}]`} {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintf(w, `{"user":{"id":"u"},"identities":[],"memberships":%s}`, memberships)
+			}))
+			ctx := remoteSessionCommandContext(t, server.URL, server.URL)
+			if err := reconcileLoginEndpoint(context.Background(), &ctx, "token", io.Discard); err != nil {
+				t.Fatalf("reconcile: %v", err)
+			}
+			server.Close()
+		}
+	})
+
+	t.Run("candidate must match authenticated membership", func(t *testing.T) {
+		var server *httptest.Server
+		server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"user":{"id":"u"},"identities":[],"memberships":[{"organization":{"slug":"nsu","endpoint":%q},"membership":{}}]}`, server.URL+"/nsu")
+		}))
+		defer server.Close()
+		matching := remoteSessionCommandContext(t, server.URL, server.URL+"/nsu")
+		if err := reconcileLoginEndpoint(context.Background(), &matching, "token", io.Discard); err != nil {
+			t.Fatalf("matching candidate: %v", err)
+		}
+		mismatch := remoteSessionCommandContext(t, server.URL, server.URL+"/other")
+		if err := reconcileLoginEndpoint(context.Background(), &mismatch, "token", io.Discard); err == nil || !strings.Contains(err.Error(), "does not match") {
+			t.Fatalf("mismatch error = %v", err)
+		}
+	})
+
+	t.Run("untrusted canonical endpoint is rejected", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"user":{"id":"u"},"identities":[],"memberships":[{"organization":{"slug":"nsu","endpoint":"https://evil.example.test/nsu"},"membership":{}}]}`))
+		}))
+		defer server.Close()
+		ctx := remoteSessionCommandContext(t, server.URL, server.URL)
+		if err := reconcileLoginEndpoint(context.Background(), &ctx, "token", io.Discard); err == nil || !strings.Contains(err.Error(), "untrusted") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+
+	t.Run("missing canonical endpoint is rejected", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"user":{"id":"u"},"identities":[],"memberships":[{"organization":{"slug":"nsu","endpoint":""},"membership":{}}]}`))
+		}))
+		defer server.Close()
+		ctx := remoteSessionCommandContext(t, server.URL, server.URL)
+		if err := reconcileLoginEndpoint(context.Background(), &ctx, "token", io.Discard); err == nil || !strings.Contains(err.Error(), "did not provide") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+}
+
+func TestPersistSelectedProfileEndpointErrors(t *testing.T) {
+	if err := persistSelectedProfileEndpoint(commandContext{}, "https://api.example.test/nsu"); err == nil || !strings.Contains(err.Error(), "workspace config path") {
+		t.Fatalf("missing path error = %v", err)
+	}
+	ctx := commandContext{cfgResult: config.LoadedConfig{ProjectConfigPath: filepath.Join(t.TempDir(), "missing", "config.yaml")}, profileName: "remote"}
+	if err := persistSelectedProfileEndpoint(ctx, "https://api.example.test/nsu"); err == nil {
+		t.Fatal("expected config read error")
+	}
+}
+
+func remoteSessionCommandContext(t *testing.T, control, endpoint string) commandContext {
+	t.Helper()
+	workspace := t.TempDir()
+	writeProjectConfig(t, workspace, fmt.Sprintf("defaultProfile: remote\nprofiles:\n  remote:\n    mode: remote\n    endpoint: %s\n    installationID: installation-1\n    installationEndpoint: %s\n    auth:\n      mode: remoteSession\n", endpoint, control))
+	loaded, err := config.Load(config.LoadOptions{WorkingDir: workspace})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return commandContext{profileName: "remote", profile: loaded.Config.Profiles["remote"], cfgResult: loaded, timeout: time.Second}
 }
 
 func TestRunAuthStatusRendersNoRawTokens(t *testing.T) {

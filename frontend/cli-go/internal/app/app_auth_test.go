@@ -35,7 +35,8 @@ func TestParseAuthArgs(t *testing.T) {
 		{name: "login missing provider", args: []string{"login"}, errContains: "provider is required"},
 		{name: "login help", args: []string{"login", "-h"}, action: "login", help: true},
 		{name: "login provider help", args: []string{"login", "google", "--help"}, action: "login", help: true},
-		{name: "unsupported provider", args: []string{"login", "github"}, errContains: "unsupported auth provider"},
+		{name: "syntactically valid discovered provider", args: []string{"login", "github"}, action: "login", provider: "github"},
+		{name: "invalid provider", args: []string{"login", "GitHub!"}, errContains: "invalid auth provider"},
 		{name: "login flags", args: []string{"login", "google", "--login-hint", " user@example.org ", "--no-browser"}, action: "login", provider: "google", loginHint: "user@example.org", noBrowser: true},
 		{name: "login invalid flag", args: []string{"login", "google", "--wat"}, errContains: "Invalid arguments"},
 		{name: "login positional", args: []string{"login", "google", "extra"}, errContains: "does not accept positional arguments"},
@@ -75,7 +76,7 @@ func TestAuthResultRenderers(t *testing.T) {
 		write    func(*bytes.Buffer) error
 		contains []string
 	}{
-		{name: "login human", write: func(w *bytes.Buffer) error { return writeAuthLoginResult(w, login, "human") }, contains: []string{"authorizationURL:", "logged in", "email: user@example.org", "tokenExpiry: 2026-08-04T12:00:00Z", "override: none"}},
+		{name: "login human", write: func(w *bytes.Buffer) error { return writeAuthLoginResult(w, login, "human") }, contains: []string{"logged in", "email: user@example.org", "tokenExpiry: 2026-08-04T12:00:00Z", "override: none"}},
 		{name: "status human", write: func(w *bytes.Buffer) error { return writeAuthStatusResult(w, status, "human") }, contains: []string{"status: logged in", "override: SQLRS_TOKEN"}},
 		{name: "status logged out", write: func(w *bytes.Buffer) error { status.LoggedIn = false; return writeAuthStatusResult(w, status, "human") }, contains: []string{"status: not logged in"}},
 		{name: "logout human", write: func(w *bytes.Buffer) error { return writeAuthLogoutResult(w, logout, "human") }, contains: []string{"logged out", "provider: google", "revoked: false", "revocationWarning: offline"}},
@@ -178,6 +179,22 @@ func TestRunAuthSecondPassErrorBranches(t *testing.T) {
 				t.Fatalf("error = %v, want containing %q", err, tt.want)
 			}
 		})
+	}
+}
+
+func TestRunAuthWarnsForDeprecatedOIDCSessionProfile(t *testing.T) {
+	cwd := t.TempDir()
+	setTestDirs(t, cwd)
+	writeProjectConfig(t, cwd, authTestConfig("remote", "https://example.org", "oidcSession"))
+	oldFactory := authManagerFactory
+	authManagerFactory = func() authManager { return fakeAuthManager{} }
+	t.Cleanup(func() { authManagerFactory = oldFactory })
+	var stderr bytes.Buffer
+	if err := runAuth(io.Discard, &stderr, cwd, cli.GlobalOptions{Workspace: cwd}, []string{"status"}); err != nil {
+		t.Fatalf("runAuth: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "oidcSession is deprecated") || !strings.Contains(stderr.String(), "--update") {
+		t.Fatalf("stderr = %q", stderr.String())
 	}
 }
 

@@ -37,6 +37,176 @@ paths:
                 $ref: "#/components/schemas/HealthResponse"
         "405":
           description: Method not allowed
+  /v1/connection-info:
+    get:
+      operationId: getConnectionInfo
+      summary: Discover shared-installation connection metadata
+      description: |
+        Shared/team/cloud deployments only. No authentication is required.
+
+        This route is exposed relative to the installation-root API base and
+        any syntactically valid candidate organization-prefixed API base,
+        whether or not that organization slug exists. A candidate is exactly
+        one path segment and follows the OrganizationCreateRequest slug
+        grammar. Invalid paths are rejected without an organization lookup.
+        Root and valid candidate requests use the same installation-owned
+        handler and data without querying organization storage. Status, body
+        semantics, and cache behavior are identical except for URL-derived
+        current-base fields. The response identifies the stable installation,
+        the control and current bootstrap bases, and enabled login providers.
+        It never confirms organization existence or returns organization
+        metadata. Clients must not infer or strip path prefixes.
+      tags:
+        - connection
+      security: []
+      parameters:
+        - in: header
+          name: If-None-Match
+          required: false
+          schema:
+            type: string
+          description: Revalidate a previously received bootstrap ETag.
+      responses:
+        "200":
+          description: Connection metadata for the requested API base
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-cache
+              description: Require revalidation of rotatable bootstrap metadata.
+            ETag:
+              schema:
+                type: string
+              description: Entity tag used to revalidate bootstrap metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionInfo"
+        "304":
+          description: Bootstrap metadata has not changed
+        "405":
+          description: Method not allowed
+        "503":
+          description: Bootstrap metadata is temporarily unavailable or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/auth/providers:
+    get:
+      operationId: listAuthProviders
+      summary: List login providers enabled by the shared installation
+      description: |
+        Shared/team/cloud deployments only. No authentication is required.
+        This installation-owned catalogue is exposed relative to the
+        installation-root API base and any syntactically valid candidate
+        organization prefix. Its availability does not confirm that the
+        candidate organization exists. A provider is advertised only when the
+        gateway trusts its exact issuer and client ID; inconsistent startup
+        configuration makes bootstrap routes return `503`.
+      tags:
+        - auth
+      security: []
+      parameters:
+        - in: header
+          name: If-None-Match
+          required: false
+          schema:
+            type: string
+          description: Revalidate a previously received provider-list ETag.
+      responses:
+        "200":
+          description: Enabled login providers
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-cache
+              description: Require revalidation of rotatable provider metadata.
+            ETag:
+              schema:
+                type: string
+              description: Entity tag used to revalidate provider metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthProviderList"
+        "304":
+          description: Provider catalogue has not changed
+        "405":
+          description: Method not allowed
+        "503":
+          description: Bootstrap metadata is temporarily unavailable or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/auth/providers/{provider}:
+    get:
+      operationId: getAuthProvider
+      summary: Get versioned login configuration for one provider
+      description: |
+        Shared/team/cloud deployments only. No authentication is required.
+        Provider configuration is installation-owned and equivalent through
+        installation-root and syntactically valid candidate
+        organization-prefixed API bases. Availability does not confirm that the
+        candidate organization exists.
+
+        Public configuration may contain client identifiers and provider
+        endpoints, but never confidential client secrets or user tokens.
+        The response `id` must equal the requested path parameter. The
+        collection is intended for discovery and UI; clients may fetch this
+        fixed detail path directly for login.
+      tags:
+        - auth
+      security: []
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            $ref: "#/components/schemas/AuthProviderID"
+          description: Stable provider identifier advertised by the catalogue.
+        - in: header
+          name: If-None-Match
+          required: false
+          schema:
+            type: string
+          description: Revalidate a previously received provider-config ETag.
+      responses:
+        "200":
+          description: Versioned provider adapter configuration
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-cache
+              description: Require revalidation of rotatable provider configuration.
+            ETag:
+              schema:
+                type: string
+              description: Entity tag used to revalidate provider configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthProviderConfiguration"
+        "304":
+          description: Provider configuration has not changed
+        "404":
+          description: Provider is not enabled by this installation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "405":
+          description: Method not allowed
+        "503":
+          description: Bootstrap metadata or gateway provider trust is temporarily unavailable or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /v1/cache/status:
     get:
       operationId: getCacheStatus
@@ -605,7 +775,9 @@ paths:
       summary: Get current user profile
       description: |
         Remote/shared deployments only. Returns the current user profile,
-        linked external identities, and organization memberships.
+        linked external identities, and organization memberships. The gateway
+        maps the validated token issuer/client-ID pair to the installation's
+        stable provider ID before deriving `provider + issuer + subject`.
       tags:
         - users
       responses:
@@ -623,7 +795,9 @@ paths:
         "401":
           description: Unauthorized
         "404":
-          description: User profile not found
+          description: |
+            User profile not found, or the candidate organization prefix does
+            not identify an organization visible to the authenticated user
           content:
             application/json:
               schema:
@@ -709,6 +883,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: |
+            The candidate organization prefix does not identify an
+            organization visible to the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "412":
           description: Precondition failed
           content:
@@ -737,9 +919,8 @@ paths:
           name: provider
           required: true
           schema:
-            type: string
-            default: oidc
-          description: External identity provider kind.
+            $ref: "#/components/schemas/AuthProviderID"
+          description: Enabled service provider ID, such as `google`, not adapter name `oidc`.
         - in: query
           name: issuer
           required: true
@@ -808,9 +989,8 @@ paths:
           name: provider
           required: true
           schema:
-            type: string
-            default: oidc
-          description: External identity provider kind.
+            $ref: "#/components/schemas/AuthProviderID"
+          description: Enabled service provider ID, such as `google`, not adapter name `oidc`.
         - in: query
           name: issuer
           required: true
@@ -915,7 +1095,9 @@ paths:
         "401":
           description: Unauthorized
         "404":
-          description: User profile not found
+          description: |
+            User profile not found, or the candidate organization prefix does
+            not identify an organization visible to the authenticated user
           content:
             application/json:
               schema:
@@ -952,7 +1134,9 @@ paths:
         "401":
           description: Unauthorized
         "404":
-          description: User profile not found
+          description: |
+            User profile not found, or the candidate organization prefix does
+            not identify an organization visible to the authenticated user
           content:
             application/json:
               schema:
@@ -1374,6 +1558,253 @@ components:
       scheme: bearer
       bearerFormat: token
   schemas:
+    AuthProviderID:
+      type: string
+      pattern: "^[a-z][a-z0-9-]{0,62}$"
+      description: |
+        Stable installation-owned login-provider ID, such as `google`. This is
+        also the `provider` component of an external identity key. It is not
+        the protocol adapter name such as `oidc`.
+    OrganizationSlug:
+      type: string
+      pattern: "^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){1,61}[a-z0-9]$"
+      description: Lowercase organization slug, 3 to 63 characters.
+    ServiceBaseURL:
+      type: string
+      format: uri
+      anyOf:
+        - pattern: "^https://"
+        - pattern: "^http://(?:127\\.0\\.0\\.1|\\[::1\\])(?::[0-9]{1,5})?(?:/[^?#]*)?$"
+      description: |
+        Absolute API base URL with no userinfo, query, fragment, dot segments,
+        or encoded path separators. Production and non-loopback deployments
+        require HTTPS. Plain HTTP is allowed only for the literal loopback
+        hosts 127.0.0.1 and [::1] in explicit development/test use. A base has
+        no trailing slash. URL validation is structural after percent-decoding;
+        clients must not rely on a regex alone.
+    OIDCIssuerURL:
+      type: string
+      format: uri
+      pattern: "^https://"
+      description: Absolute HTTPS URL with no userinfo, query, or fragment.
+    OIDCEndpointURL:
+      type: string
+      format: uri
+      pattern: "^https://"
+      description: |
+        Absolute HTTPS URL with no userinfo or fragment. Existing query
+        parameters are allowed only when they do not duplicate or override a
+        CLI-owned request parameter.
+    ConnectionInfo:
+      type: object
+      additionalProperties: false
+      description: |
+        Installation-owned fields are identical at the root and every
+        candidate organization prefix. Only URL fields derived from the
+        current bootstrap base vary with that prefix.
+      required:
+        - installation_id
+        - endpoints
+        - auth_providers
+      properties:
+        installation_id:
+          type: string
+          minLength: 1
+          description: Stable identifier shared by root and all candidate bases.
+        endpoints:
+          $ref: "#/components/schemas/ConnectionEndpoints"
+        auth_providers:
+          type: array
+          description: |
+            Providers enabled for interactive login. Provider IDs are unique.
+            An empty array means that normal remote-session onboarding is not
+            available; clients fail init with an actionable error unless an
+            explicitly selected legacy authentication mode applies.
+          items:
+            $ref: "#/components/schemas/AuthProviderSummary"
+      examples:
+        - installation_id: taidon-production
+          endpoints:
+            control: https://api.taidon.dev
+            current: https://api.taidon.dev/nsu
+          auth_providers:
+            - id: google
+              display_name: Google
+              adapter: oidc
+    ConnectionEndpoints:
+      type: object
+      additionalProperties: false
+      description: |
+        The control base is the installation root. The current base has the
+        same scheme and authority and is either that root or exactly one valid
+        organization-slug segment below it. Clients validate these cross-field
+        invariants before persisting either URL.
+      required:
+        - control
+        - current
+      properties:
+        control:
+          $ref: "#/components/schemas/ServiceBaseURL"
+          description: |
+            Stable installation control API base URL.
+        current:
+          $ref: "#/components/schemas/ServiceBaseURL"
+          description: |
+            Normalized bootstrap API base corresponding to the caller-supplied
+            endpoint. A path prefix is an unverified organization candidate;
+            this value does not prove that the organization exists.
+    AuthProviderList:
+      type: object
+      additionalProperties: false
+      required:
+        - providers
+      properties:
+        providers:
+          type: array
+          description: |
+            Provider IDs are unique within this list. An empty array means
+            that interactive remote-session login is unavailable.
+          items:
+            $ref: "#/components/schemas/AuthProviderSummary"
+    AuthProviderSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - display_name
+        - adapter
+      properties:
+        id:
+          $ref: "#/components/schemas/AuthProviderID"
+        display_name:
+          type: string
+          minLength: 1
+        adapter:
+          type: string
+          minLength: 1
+          description: Version-independent CLI adapter family identifier.
+    AuthProviderConfiguration:
+      oneOf:
+        - $ref: "#/components/schemas/OIDCProviderConfiguration"
+      discriminator:
+        propertyName: adapter
+        mapping:
+          oidc: "#/components/schemas/OIDCProviderConfiguration"
+    OIDCProviderConfiguration:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - display_name
+        - adapter
+        - configuration_version
+        - flow
+        - issuer
+        - client_id
+        - authorization_endpoint
+        - token_endpoint
+        - token_endpoint_auth_method
+        - authorization_response_iss_parameter_supported
+        - scopes
+      properties:
+        id:
+          $ref: "#/components/schemas/AuthProviderID"
+        display_name:
+          type: string
+          minLength: 1
+        adapter:
+          type: string
+          const: oidc
+        configuration_version:
+          type: integer
+          const: 1
+        flow:
+          type: string
+          const: authorizationCodePKCE
+        issuer:
+          $ref: "#/components/schemas/OIDCIssuerURL"
+          description: HTTPS OIDC issuer identifier with no query or fragment.
+        client_id:
+          type: string
+          minLength: 1
+          description: |
+            Public OAuth client identifier. Configuration version 1 requires it
+            to be the sole ID-token audience; `azp`, when present, also equals
+            this value.
+        authorization_endpoint:
+          $ref: "#/components/schemas/OIDCEndpointURL"
+          description: HTTPS login-form URL used by the CLI to build authorization requests.
+        token_endpoint:
+          $ref: "#/components/schemas/OIDCEndpointURL"
+        token_endpoint_auth_method:
+          type: string
+          const: none
+          description: |
+            The direct native-client flow is limited to public clients and
+            never distributes a confidential client secret.
+        authorization_response_iss_parameter_supported:
+          type: boolean
+          const: true
+          description: |
+            The authorization server returns RFC 9207 `iss` in every
+            authorization response. The CLI binds the expected issuer to the
+            login attempt and rejects a missing or mismatched callback `iss`.
+        revocation_endpoint:
+          $ref: "#/components/schemas/OIDCEndpointURL"
+        scopes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          contains:
+            const: openid
+          items:
+            type: string
+            minLength: 1
+        authorization_parameters:
+          type: object
+          description: |
+            Provider-owned static authorization parameters. The CLI rejects
+            security-sensitive attempt parameters in this map and always owns
+            client_id, response_type, redirect_uri, scope, state, nonce,
+            code_challenge, code_challenge_method, login_hint, response_mode,
+            request, and request_uri.
+          propertyNames:
+            not:
+              enum:
+                - client_id
+                - response_type
+                - redirect_uri
+                - scope
+                - state
+                - nonce
+                - code_challenge
+                - code_challenge_method
+                - login_hint
+                - request
+                - request_uri
+                - response_mode
+          additionalProperties:
+            type: string
+      examples:
+        - id: google
+          display_name: Google
+          adapter: oidc
+          configuration_version: 1
+          flow: authorizationCodePKCE
+          issuer: https://accounts.google.com
+          client_id: 1234567890-abcdef.apps.googleusercontent.com
+          authorization_endpoint: https://accounts.google.com/o/oauth2/v2/auth
+          token_endpoint: https://oauth2.googleapis.com/token
+          token_endpoint_auth_method: none
+          authorization_response_iss_parameter_supported: true
+          revocation_endpoint: https://oauth2.googleapis.com/revoke
+          scopes:
+            - openid
+            - email
+            - profile
+          authorization_parameters:
+            access_type: offline
+            prompt: consent
     HealthResponse:
       type: object
       additionalProperties: false
@@ -1961,9 +2392,8 @@ components:
         - subject
       properties:
         provider:
-          type: string
-          default: oidc
-          description: External identity provider kind.
+          $ref: "#/components/schemas/AuthProviderID"
+          description: Service provider ID derived from trusted gateway configuration.
         issuer:
           type: string
           description: OAuth/OIDC issuer identifier.
@@ -1977,9 +2407,7 @@ components:
         - slug
       properties:
         slug:
-          type: string
-          pattern: "^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){1,61}[a-z0-9]$"
-          description: Lowercase organization slug, 3 to 63 characters.
+          $ref: "#/components/schemas/OrganizationSlug"
         display_name:
           type: string
           description: Optional human-readable organization name.
@@ -2012,6 +2440,7 @@ components:
         - id
         - slug
         - display_name
+        - endpoint
         - created_at
         - updated_at
       properties:
@@ -2019,10 +2448,16 @@ components:
           type: string
           description: Stable sqlrs organization id.
         slug:
-          type: string
+          $ref: "#/components/schemas/OrganizationSlug"
           description: Stable human-readable organization reference.
         display_name:
           type: string
+        endpoint:
+          $ref: "#/components/schemas/ServiceBaseURL"
+          description: |
+            Canonical organization-scoped API base URL returned only by an
+            authenticated response. It must belong to the installation control
+            origin and contain exactly one valid organization-slug segment.
         created_at:
           type: string
           format: date-time

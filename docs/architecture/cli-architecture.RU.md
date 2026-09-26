@@ -20,8 +20,8 @@
 - **Source ref**: локальный путь, публичный URL или серверный `source_id`.
 - **Source storage**: хранилище контента на стороне сервиса, ключи по хешам и `source_id`.
 - **Effective bearer token**: token, который CLI отправляет на защищенные
-  remote API endpoint-ы после применения `SQLRS_TOKEN`, refresh stored OIDC
-  session или legacy static bearer profile rules.
+  remote API endpoint-ы после применения `SQLRS_TOKEN`, refresh активной
+  service-provider session или legacy static bearer profile rules.
 
 ## 3. Правила разрешения
 
@@ -129,8 +129,8 @@ sequenceDiagram
 
 - Для remote target используются те же list endpoint-ы. Перед защищенным
   remote request CLI разрешает effective bearer token: сначала `SQLRS_TOKEN`
-  override, затем refreshed stored OIDC session для `auth.mode: oidcSession`,
-  затем legacy static bearer profile configuration.
+  override, затем refreshed active provider session для
+  `auth.mode: remoteSession`, затем legacy static bearer profile configuration.
 - По умолчанию CLI запрашивает names и instances; states, jobs и tasks запрашиваются явно.
 - Вывод tasks можно отфильтровать по job id (`--job`).
 

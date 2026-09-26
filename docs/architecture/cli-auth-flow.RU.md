@@ -1,20 +1,22 @@
 # Поток CLI Auth
 
-Этот документ описывает interaction flow для CLI-среза Google OIDC auth.
+Этот документ описывает service-discovered provider login и универсальный OIDC
+CLI adapter, первоначально настроенный для Google.
 
 Он следует утвержденному CLI-синтаксису в
 [`../user-guides/sqlrs-auth.md`](../user-guides/sqlrs-auth.md) и принятому
 решению в
-[`../adr/2026-07-01-google-oidc-cli-auth.md`](../adr/2026-07-01-google-oidc-cli-auth.md).
+[`../adr/2026-09-24-remote-connection-bootstrap.md`](../adr/2026-09-24-remote-connection-bootstrap.md).
 
-Этот срез не вводит изменений sqlrs HTTP API. Gateway по-прежнему получает
-только short-lived Google ID token как bearer token.
+Gateway предоставляет public connection/provider discovery routes и по-прежнему
+получает только short-lived Google ID token как bearer token.
 
 ## 1. Scope
 
 В scope:
 
-- `sqlrs auth login google`
+- `sqlrs auth login <provider>` с первым реализованным OIDC adapter,
+  первоначально настроенным для Google
 - `sqlrs auth status`
 - `sqlrs auth logout`
 - effective bearer-token resolution для protected remote API commands
@@ -23,8 +25,8 @@
 
 - server-side refresh-token storage;
 - изменения local engine auth;
-- новые user/org API endpoint-ы;
-- OIDC providers кроме Google;
+- provider adapters для протоколов за пределами поддерживаемого OIDC
+  native-client profile;
 - device code flow, если loopback login позже не окажется impractical.
 
 ## 2. Участники
@@ -32,9 +34,12 @@
 - **User** - вызывает `sqlrs auth` или protected remote command.
 - **CLI parser** - разбирает global flags, profile, output mode и auth
   subcommand arguments.
-- **Profile resolver** - загружает выбранный profile, endpoint, `auth.mode`,
-  client ID, optional temporary client secret, issuer и имя debug override
+- **Profile resolver** - загружает выбранный profile, stable installation ID и
+  control endpoint, текущий request endpoint, `auth.mode` и имя debug override
   environment variable.
+- **Provider API** - публично перечисляет enabled providers и возвращает
+  актуальную versioned adapter configuration на installation base и под любым
+  candidate organization prefix, не подтверждая существование организации.
 - **Auth resolver** - владеет auth-session decisions для одного CLI invocation:
   приоритет `SQLRS_TOKEN`, проверки expiry cached ID token, refresh и
   login-required errors.
@@ -61,27 +66,51 @@ sequenceDiagram
   participant USER as User
   participant CLI as CLI
   participant PROFILE as Profile resolver
+  participant PROVIDERS as Provider API
   participant LPB as Loopback listener
   participant BROWSER as Browser
   participant GOOGLE_AUTH as Google Authorization Endpoint
   participant GOOGLE_TOKEN as Google Token Endpoint
   participant STORE as OS Credential Store
+  participant CURRENT as Current request API
+  participant CONFIG as Workspace config
   participant RENDER as Renderer
 
   USER->>CLI: sqlrs auth login google
   CLI->>PROFILE: resolve selected profile
-  PROFILE-->>CLI: remote endpoint + auth.mode=oidcSession + clientID + optional clientSecret + issuer
-  CLI->>CLI: generate PKCE verifier/challenge, state, nonce
+  PROFILE-->>CLI: installation identity + control endpoint + auth.mode=remoteSession
+  CLI->>PROVIDERS: GET /v1/auth/providers/google
+  PROVIDERS-->>CLI: versioned OIDC config для provider google
+  CLI->>CLI: bind provider + issuer + redirect URI; generate PKCE, state, nonce
   CLI->>LPB: listen on loopback random port
-  CLI->>BROWSER: open Google authorization URL
+  CLI->>BROWSER: open URL from advertised authorizationEndpoint
   BROWSER->>GOOGLE_AUTH: user consent
-  GOOGLE_AUTH-->>LPB: redirect with code + state
+  GOOGLE_AUTH-->>LPB: redirect with code + state + iss
   LPB-->>CLI: callback query
-  CLI->>CLI: validate state and callback parameters
-  CLI->>GOOGLE_TOKEN: exchange code + PKCE verifier + optional client_secret
+  CLI->>CLI: validate state, redirect URI, callback iss и parameters
+  CLI->>GOOGLE_TOKEN: exchange code + PKCE verifier
   GOOGLE_TOKEN-->>CLI: id_token + refresh_token + expiry
-  CLI->>CLI: validate id_token iss, aud, exp, nonce
-  CLI->>STORE: save refresh token and session metadata
+  CLI->>CLI: require sub/iat/exp; validate iss, aud, azp, iat, exp, nonce
+  CLI->>STORE: atomically replace active session
+  CLI->>CURRENT: GET /v1/users/me with new login ID token
+  alt candidate-prefixed endpoint authenticated и visible
+    CURRENT-->>CLI: matching organization + canonical endpoint
+    CLI->>CONFIG: bind authenticated organization metadata (URL unchanged)
+  else one membership and profile installation-root scoped
+    CURRENT-->>CLI: canonical organization endpoint
+    CLI->>CONFIG: atomic selected-profile endpoint update
+    CLI-->>USER: stderr profile-switch warning
+  else zero or multiple memberships
+    CURRENT-->>CLI: no unambiguous switch
+  else root endpoint и current user не registered
+    CURRENT-->>CLI: 404 user profile not found
+    CLI-->>USER: exit 0; suggest sqlrs user register
+  else candidate prefix не существует или не visible
+    CURRENT-->>CLI: 404
+    CLI-->>USER: retain session; partial-success exit 1
+  else reconciliation или config update fails
+    CLI-->>USER: retain session; partial-success exit 1 + recovery
+  end
   CLI->>RENDER: safe login summary
   RENDER-->>USER: logged in
 ```
@@ -91,12 +120,42 @@ Rules:
 - Callback принимается только на `127.0.0.1`.
 - `state` mismatch, OAuth `error` или missing `code` завершают login до token
   exchange.
-- Missing `refresh_token` завершает login с troubleshooting hint. CLI просит у
-  Google offline access через `access_type=offline` и `prompt=consent`.
-- Если в profile задан `auth.clientSecret`, CLI отправляет его только в Google
-  token endpoint. Sqlrs gateway никогда его не получает.
+- Missing или mismatched RFC 9207 callback `iss`, а также callback на redirect
+  URI, не совпадающий с bound attempt URI, завершают login до token exchange.
+- Missing `refresh_token` завершает login с troubleshooting hint. Объявленные
+  Google authorization parameters запрашивают offline access через
+  `access_type=offline` и `prompt=consent`.
+- Универсальный OIDC adapter принимает только Authorization Code с PKCE S256,
+  loopback redirect, ID и refresh tokens и token endpoint authentication method
+  `none`.
+- Authorization URL начинается с service-advertised `authorizationEndpoint`;
+  CLI владеет security-sensitive параметрами login attempt.
+- При явном `--no-browser` CLI немедленно и ровно один раз пишет этот URL в
+  stderr. Browser mode его не печатает; ни один режим не включает URL в
+  финальный human/JSON result, errors, verbose diagnostics или logs.
+- Manual URL — единственное исключение для rendering `state`, `nonce` и PKCE
+  challenge. PKCE verifier, authorization code, refresh token и ID token не
+  render-ятся никогда. Stdout остаётся только для final result, а JSON stdout
+  содержит один valid document.
+- Существующие query parameters authorization endpoint не должны конфликтовать
+  с parameters, которыми владеет CLI.
+- Public provider configuration никогда не содержит confidential client secret.
 - Refresh token хранится только в OS credential store.
 - Raw refresh token-ы и raw ID token-ы никогда не печатаются.
+- Post-login reconciliation всегда использует ID token, выданный этим login;
+  `SQLRS_TOKEN` не может подменить identity на этом шаге.
+- Успешный public bootstrap не аутентифицирует path prefix. Первый protected
+  current-user request проверяет candidate-prefixed endpoint.
+- Root и syntactically valid candidate bootstrap requests используют один
+  installation-owned handler и data без organization-store lookup; status,
+  body semantics и cache behavior отличаются только URL-derived current fields.
+  Invalid candidate syntax можно отклонить до этого handler.
+- Current-user `404` на installation root означает успешный login, но еще не
+  registered user. Тот же HTTP status на candidate-prefixed endpoint означает
+  invalid или non-visible organization candidate.
+- Canonical organization endpoint trusted только на installation control origin,
+  с ровно одним valid slug segment и без userinfo, query или fragment. Для
+  custom domains потребуется будущий explicit allowlist.
 
 ## 4. Flow: Protected Remote API Token Resolution
 
@@ -108,6 +167,7 @@ sequenceDiagram
   participant PROFILE as Profile resolver
   participant AUTH as Auth resolver
   participant STORE as OS Credential Store
+  participant PROVIDERS as Provider API
   participant GOOGLE_TOKEN as Google Token Endpoint
   participant CLIENT as HTTP client
   participant GW as Gateway
@@ -118,15 +178,19 @@ sequenceDiagram
   CLI->>AUTH: resolve effective bearer token
   alt SQLRS_TOKEN is set
     AUTH-->>CLI: token from environment override
-  else auth.mode is oidcSession
+  else auth.mode is remoteSession
     AUTH->>STORE: load local session
-    STORE-->>AUTH: refresh token + cached ID token metadata
+    STORE-->>AUTH: provider identity + refresh token + cached ID token metadata
     alt cached ID token is fresh
       AUTH-->>CLI: cached ID token
     else cached ID token missing or expiring soon
-      AUTH->>GOOGLE_TOKEN: refresh_token grant + optional client_secret
-      GOOGLE_TOKEN-->>AUTH: new ID token + expiry
-      AUTH->>STORE: update cached ID token metadata
+      AUTH->>PROVIDERS: GET /v1/auth/providers/{active provider}
+      PROVIDERS-->>AUTH: current provider configuration
+      AUTH->>AUTH: require same provider, adapter, issuer и client ID
+      AUTH->>GOOGLE_TOKEN: refresh_token grant + public client_id
+      GOOGLE_TOKEN-->>AUTH: new ID token + optional rotated refresh token
+      AUTH->>AUTH: validate iss, aud, azp, iat, exp, subject; optional nonce
+      AUTH->>STORE: atomically update ID token and rotated refresh token
       AUTH-->>CLI: new ID token
     end
   else legacy bearer profile
@@ -144,8 +208,18 @@ Rules:
 - `SQLRS_TOKEN` имеет приоритет над stored sessions и static profile token-ами.
 - OIDC sessions refresh-ят cached ID token, когда он missing, expired или
   истекает в течение пяти минут.
-- Refresh-token failures останавливают команду до protected sqlrs API request
-  и предлагают пользователю выполнить `sqlrs auth login google`.
+- Refresh требует original subject, exact issuer, sole client-ID audience,
+  valid `azp`, issued-at не более чем на пять минут в будущем и future expiry.
+  Nonce optional, но если
+  возвращен, должен совпасть со stored login nonce. Returned replacement
+  refresh token сохраняется атомарно.
+- Refresh-token failures останавливают команду до protected sqlrs API request.
+  `invalid_grant` предлагает новый login; retryable и другие `4xx` сохраняют
+  session и сообщают соответствующий recovery.
+- Token и revocation POST никогда не следуют redirects. Transient network
+  errors, `429` и `5xx` сохраняют session. Configuration version 1 удаляет
+  credential только при `invalid_grant`; другие `4xx` сохраняют его.
+  Изменение provider identity/config binding требует login без refresh request.
 - Gateway получает только effective bearer token. Он никогда не получает
   refresh token.
 
@@ -188,6 +262,7 @@ sequenceDiagram
   participant USER as User
   participant CLI as CLI
   participant PROFILE as Profile resolver
+  participant PROVIDERS as Provider API
   participant STORE as OS Credential Store
   participant GOOGLE_REVOKE as Google Revocation Endpoint
   participant RENDER as Renderer
@@ -198,6 +273,8 @@ sequenceDiagram
   CLI->>STORE: load refresh token if present
   STORE-->>CLI: refresh token or not found
   opt refresh token present and revoke enabled
+    CLI->>PROVIDERS: fetch active provider configuration
+    PROVIDERS-->>CLI: current revocation endpoint if supported
     CLI->>GOOGLE_REVOKE: revoke refresh token
     GOOGLE_REVOKE-->>CLI: revocation result
   end
@@ -210,6 +287,8 @@ sequenceDiagram
 Rules:
 
 - `logout` удаляет local credentials, даже если Google revocation failed.
+- Failure provider-configuration lookup считается revocation failure и не
+  мешает local deletion. Revocation POST никогда не следует redirects.
 - `--no-revoke` пропускает Google revocation request.
 - `logout` не unset-ит и не меняет `SQLRS_TOKEN`.
 - Команда idempotent, когда local session отсутствует.
@@ -219,15 +298,29 @@ Rules:
 | Failure | Behavior |
 | --- | --- |
 | Local profile selected | Fail before opening browser or reading credentials. |
-| `auth.mode` is not `oidcSession` for login | Fail with profile configuration guidance. |
+| `auth.mode` is not `remoteSession` for login | Fail with profile configuration guidance. |
+| Provider не объявлен сервисом | Fail до открытия browser. |
+| Provider adapter/config version не поддерживается | Fail с actionable ошибкой обновления CLI или provider support. |
+| В provider configuration отсутствует authorization или token endpoint | Fail до генерации login attempt. |
+| Provider ID не совпадает с requested path | Fail до открытия browser. |
+| Bootstrap redirect меняет origin или делает HTTPS downgrade | Reject response. |
 | Credential store unavailable | Fail without plaintext refresh-token fallback. |
 | Callback `state` mismatch | Fail login and discard callback data. |
 | Callback contains OAuth `error` | Fail login with the provider error summary. |
 | Callback is missing `code` | Fail login before token exchange. |
 | Token endpoint omits `refresh_token` on login | Fail login and suggest consent/client configuration checks. |
-| Cached ID token expired and refresh succeeds | Store the new ID token metadata and continue. |
-| Refresh token revoked or rejected | Delete or mark the local session unusable and tell the user to run `sqlrs auth login google`. |
+| Login ID token не содержит `sub`, `iat` или `exp` | Reject login и не сохранять session. |
+| Provider ID, adapter, issuer или client ID меняется до refresh | Require login без отправки refresh token. |
+| Refresh transport failure, `429` или `5xx` | Retain session и вернуть retryable error. |
+| Refreshed token меняет issuer, subject, audience/`azp` или имеет invalid required claims/nonce | Retain refresh credential, reject token и не вызывать protected API. |
+| Cached ID token expired and refresh succeeds | Atomically store new ID token и rotated refresh token, если он возвращен, затем continue. |
+| Refresh возвращает OAuth `invalid_grant` | Delete local session и предложить `sqlrs auth login google`. |
+| Refresh возвращает другой `4xx` в configuration version 1 | Retain session и сообщить request/provider configuration error; provider-specific definitive rejection требует будущей версии. |
 | Gateway rejects ID token with `401` | Surface the API auth error; audience/issuer troubleshooting belongs in the auth guide. |
+| Root current-user lookup возвращает `404` после login | Exit zero, retain session и предложить user registration. |
+| Candidate current-user lookup возвращает `404` после login | Retain session и вернуть partial-success exit `1` с endpoint recovery. |
+| Candidate response называет другой или untrusted canonical endpoint | Не persist/contact его; retain session и вернуть partial-success exit `1` с routing recovery. |
+| Reconciliation network/5xx или local profile update fails | Retain session и вернуть partial-success exit `1`. |
 
 ## 8. Security Invariants
 
@@ -241,6 +334,9 @@ Rules:
   для одной login attempt.
 - `state` и `nonce` high entropy и single-use.
 - PKCE использует `S256`.
+- Credential lookup включает canonical installation control endpoint, поэтому
+  другой origin не может переиспользовать server-supplied installation ID.
+- OAuth token и revocation POST requests никогда не следуют redirects.
 
 ## 9. References
 

@@ -29,6 +29,9 @@
     выбором presentation между verbose lines и delayed spinner.
   - Отклоняет remote-only команды управления пользователями и организациями в
     local mode до discovery или autostart локального engine.
+  - Владеет shared endpoint reconciler после remote login, user registration и
+    organization creation, включая trust validation, token-override
+    suppression, atomic profile updates и partial-success exit `1`.
   - Владеет package-local helper-ами ref-aware run binding для standalone
     `run --ref`, чтобы raw и alias-backed run flow переиспользовали общие
     boundaries `refctx`, `alias` и `inputset`, не входя в
@@ -92,11 +95,14 @@
 - `internal/authsession`
   - CLI-side OAuth/OIDC session management для `sqlrs auth` и protected remote
     API token resolution.
-  - Владеет PKCE/state/nonce generation, Google token endpoint calls, loopback
-    callback validation, local credential-store access, cached ID-token refresh
+  - Владеет generic OIDC PKCE/state/nonce generation, вызовами advertised
+    token/revocation endpoints без redirects, loopback callback validation,
+    stable installation-bound credential-store access, cached ID-token refresh
     и safe auth status metadata.
 - `internal/client`
   - HTTP клиент для `/v1/*` endpoint-ов.
+  - Public connection-info и provider catalogue/detail discovery со structural
+    URL/trust-boundary validation и ETag revalidation.
   - Read-only cache explanation requests для bound prepare stages.
   - Upload source blob-ов и parsing структурированной ошибки
     `source_inputs_missing` для remote source-input synchronization.
@@ -108,8 +114,9 @@
 - `internal/config`
   - Загрузка и merge CLI-конфига, typed lookup (`dbms.image`, настройки
     Liquibase, timeout-ы и per-profile `sourceSync` policy).
-  - Предоставляет non-secret auth settings remote profile, но не владеет OIDC
-    refresh token-ами или cached ID token-ами.
+  - Предоставляет stable installation/routing metadata и atomic
+    compare-before-write profile updates, но не владеет provider client
+    configuration, refresh token-ами или cached ID token-ами.
 - `internal/paths`
   - OS-aware разрешение директорий config/cache/state.
 - `internal/enginebin`
@@ -175,6 +182,10 @@
 - `authsession.Manager`, `authsession.Session`, `authsession.CredentialStore`
   - CLI auth session manager, stored OIDC session model и OS credential store
     abstraction.
+- `app.EndpointReconciler`
+  - Shared post-login/register/org-create routing reconciler. Сохраняет только
+    trusted same-installation canonical endpoints и переключает profile только
+    для `StoredRemoteSession`, но не `EnvironmentOverride` или `LegacyBearer`.
 - `cli.UserOptions`, `cli.OrganizationOptions`
   - Remote-only опции команд для `sqlrs user` и `sqlrs org`.
 - `client.UserProfile`, `client.ExternalIdentity`, `client.Organization`,

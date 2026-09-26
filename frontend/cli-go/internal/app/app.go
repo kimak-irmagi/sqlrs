@@ -105,7 +105,7 @@ func clearLineOut(out io.Writer, width int) {
 
 func resolveAuthToken(auth config.AuthConfig) string {
 	env := strings.TrimSpace(auth.TokenEnv)
-	if env == "" && strings.EqualFold(strings.TrimSpace(auth.Mode), "oidcSession") {
+	if env == "" && (strings.EqualFold(strings.TrimSpace(auth.Mode), "oidcSession") || strings.EqualFold(strings.TrimSpace(auth.Mode), "remoteSession")) {
 		env = "SQLRS_TOKEN"
 	}
 	if env != "" {
@@ -113,7 +113,7 @@ func resolveAuthToken(auth config.AuthConfig) string {
 			return value
 		}
 	}
-	if strings.EqualFold(strings.TrimSpace(auth.Mode), "oidcSession") {
+	if strings.EqualFold(strings.TrimSpace(auth.Mode), "oidcSession") || strings.EqualFold(strings.TrimSpace(auth.Mode), "remoteSession") {
 		return ""
 	}
 	return strings.TrimSpace(auth.Token)

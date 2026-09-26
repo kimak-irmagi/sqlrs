@@ -12,7 +12,7 @@ import (
 
 func TestLoginGoogleValidatesRequiredClientID(t *testing.T) {
 	manager := NewManager(ManagerOptions{Store: newMemoryCredentialStore(), OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}})
-	if _, err := manager.LoginGoogle(context.Background(), LoginOptions{}); err == nil || !strings.Contains(err.Error(), "clientID") {
+	if _, err := manager.LoginGoogle(context.Background(), LoginOptions{}); err == nil || !strings.Contains(err.Error(), "client ID") {
 		t.Fatalf("expected clientID error, got %v", err)
 	}
 }
@@ -251,7 +251,7 @@ func TestResolveBearerTokenStaticAndConfigurationBranches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveBearerToken static: %v", err)
 	}
-	if got.Token != "static-token" || got.Source != "static_token" {
+	if got.Token != "static-token" || got.Source != TokenSourceLegacyBearer {
 		t.Fatalf("resolved static = %+v", got)
 	}
 
@@ -314,8 +314,8 @@ func TestResolveBearerTokenRefreshRejectsMissingOrInvalidIDToken(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("expected %q error, got %v", tc.want, err)
 			}
-			if _, ok, err := store.Get(context.Background(), key); err != nil || ok {
-				t.Fatalf("session should be deleted after bad refresh: ok=%v err=%v", ok, err)
+			if _, ok, err := store.Get(context.Background(), key); err != nil || !ok {
+				t.Fatalf("session should be retained after non-invalid_grant refresh failure: ok=%v err=%v", ok, err)
 			}
 		})
 	}
@@ -344,7 +344,7 @@ func TestResolveBearerTokenStoreErrors(t *testing.T) {
 	})
 	manager = NewManager(ManagerOptions{
 		Store: failingCredentialStore{
-			session: Session{RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)},
+			session: Session{Subject: "subject-1", RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)},
 			found:   true,
 			putErr:  errors.New("put failed"),
 		},
@@ -362,12 +362,28 @@ func TestResolveBearerTokenStoreErrors(t *testing.T) {
 			found:     true,
 			deleteErr: errors.New("delete failed"),
 		},
-		OAuth: &fakeOAuthClient{refreshErr: errors.New("invalid_grant")},
+		OAuth: &fakeOAuthClient{refreshErr: &OAuthError{Code: "invalid_grant", Status: 400}},
 		Clock: fixedClock{now: now},
 	})
 	_, err = manager.ResolveBearerToken(context.Background(), testResolveOptions())
 	if !errors.Is(err, ErrLoginRequired) || !strings.Contains(err.Error(), "failed to delete local auth session") {
 		t.Fatalf("expected login required delete error, got %v", err)
+	}
+}
+
+func TestResolveBearerTokenDoesNotDeleteForUntypedInvalidGrantText(t *testing.T) {
+	t.Setenv("SQLRS_TOKEN", "")
+	key := testCredentialKey()
+	store := newMemoryCredentialStore()
+	if err := store.Put(context.Background(), key, Session{Subject: "subject-1", RefreshToken: "refresh", IDTokenExpiry: time.Now().Add(-time.Minute)}); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager(ManagerOptions{Store: store, OAuth: &fakeOAuthClient{refreshErr: errors.New("dial invalid_grant.example: temporary failure")}, Clock: fixedClock{now: time.Now()}})
+	if _, err := manager.ResolveBearerToken(context.Background(), testResolveOptions()); err == nil || errors.Is(err, ErrLoginRequired) {
+		t.Fatalf("untyped transport error was classified as invalid_grant: %v", err)
+	}
+	if _, ok, err := store.Get(context.Background(), key); err != nil || !ok {
+		t.Fatalf("session should be retained: ok=%v err=%v", ok, err)
 	}
 }
 
@@ -485,6 +501,96 @@ func TestLogoutStoreErrors(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "delete failed") {
 		t.Fatalf("expected logout delete error, got %v", err)
 	}
+}
+
+func TestLogoutProviderDiscoveryPolicies(t *testing.T) {
+	key := testCredentialKey()
+	session := Session{Provider: "google", Issuer: key.Issuer, ClientID: key.ClientID, RefreshToken: "refresh"}
+	matching := ProviderConfiguration{ID: "google", Issuer: key.Issuer, ClientID: key.ClientID}
+
+	run := func(t *testing.T, oauth OAuthClient, resolver func(context.Context, string) (ProviderConfiguration, error)) LogoutResult {
+		t.Helper()
+		store := newMemoryCredentialStore()
+		if err := store.Put(context.Background(), key, session); err != nil {
+			t.Fatalf("Put: %v", err)
+		}
+		manager := NewManager(ManagerOptions{Store: store, OAuth: oauth, Clock: fixedClock{now: time.Now()}})
+		result, err := manager.Logout(context.Background(), LogoutOptions{
+			ProfileName: key.ProfileName, Endpoint: key.Endpoint, ClientID: key.ClientID, Issuer: key.Issuer,
+			ProviderResolver: resolver,
+		})
+		if err != nil {
+			t.Fatalf("Logout: %v", err)
+		}
+		if !result.Deleted {
+			t.Fatalf("Logout result = %+v, want deleted session", result)
+		}
+		return result
+	}
+
+	t.Run("discovery failure", func(t *testing.T) {
+		result := run(t, &fakeOAuthClient{}, func(context.Context, string) (ProviderConfiguration, error) {
+			return ProviderConfiguration{}, errors.New("discovery failed")
+		})
+		if !strings.Contains(result.RevocationFailed, "discovery failed") {
+			t.Fatalf("Logout result = %+v", result)
+		}
+	})
+
+	t.Run("configuration mismatch", func(t *testing.T) {
+		result := run(t, &fakeOAuthClient{}, func(context.Context, string) (ProviderConfiguration, error) {
+			mismatched := matching
+			mismatched.ClientID = "replacement-client"
+			return mismatched, nil
+		})
+		if !strings.Contains(result.RevocationFailed, "no longer matches") {
+			t.Fatalf("Logout result = %+v", result)
+		}
+	})
+
+	t.Run("provider without revocation endpoint", func(t *testing.T) {
+		result := run(t, &fakeOAuthClient{}, func(context.Context, string) (ProviderConfiguration, error) {
+			return matching, nil
+		})
+		if result.Revoked || result.RevocationFailed != "" {
+			t.Fatalf("Logout result = %+v", result)
+		}
+	})
+
+	t.Run("provider endpoint with generic client", func(t *testing.T) {
+		result := run(t, &fakeOAuthClient{}, func(context.Context, string) (ProviderConfiguration, error) {
+			provider := matching
+			provider.RevocationEndpoint = "https://issuer.example.test/revoke"
+			return provider, nil
+		})
+		if !result.Revoked {
+			t.Fatalf("Logout result = %+v", result)
+		}
+	})
+
+	t.Run("provider endpoint aware client", func(t *testing.T) {
+		oauth := &endpointRevokingOAuth{fakeOAuthClient: &fakeOAuthClient{}}
+		result := run(t, oauth, func(context.Context, string) (ProviderConfiguration, error) {
+			provider := matching
+			provider.RevocationEndpoint = "https://issuer.example.test/revoke"
+			return provider, nil
+		})
+		if !result.Revoked || oauth.endpoint != "https://issuer.example.test/revoke" || oauth.token != "refresh" {
+			t.Fatalf("Logout result = %+v, endpoint=%q token=%q", result, oauth.endpoint, oauth.token)
+		}
+	})
+}
+
+type endpointRevokingOAuth struct {
+	*fakeOAuthClient
+	endpoint string
+	token    string
+}
+
+func (o *endpointRevokingOAuth) RevokeAt(_ context.Context, endpoint string, token string) error {
+	o.endpoint = endpoint
+	o.token = token
+	return nil
 }
 
 type failingCredentialStore struct {

@@ -477,16 +477,42 @@ runtime `names`.
 
 - `auth` управляет локальными CLI authentication sessions для remote/shared
   деплойментов.
-- `auth login google` использует Google Authorization Code Flow with PKCE,
-  loopback redirect listener и OS credential storage для refresh token.
+- `auth login <provider>` получает versioned adapter configuration от выбранной
+  installation. OIDC adapter использует объявленные сервисом
+  authorization/token endpoints, Authorization Code Flow with PKCE, loopback
+  redirect listener и OS credential storage для refresh token.
+- Connection-info и provider discovery routes доступны без login на
+  installation root и под любым candidate organization prefix, включая
+  несуществующий slug. Bootstrap responses не подтверждают существование
+  организации; это позже проверяют protected onboarding requests.
+- Candidate URL содержит не более одного valid slug segment и использует HTTPS,
+  кроме literal-loopback development HTTP. Redirect и canonical endpoint
+  остаются внутри installation trust boundary.
 - `auth status` показывает безопасную session metadata и никогда не печатает
   raw token-ы.
 - `auth logout` удаляет локальные credentials и пытается revoke-нуть refresh
   token.
 - Protected remote API commands сохраняют `SQLRS_TOKEN` как самый приоритетный
-  override, затем используют stored OIDC session, если выбранный профиль имеет
-  `auth.mode: oidcSession`, затем fallback-ятся к legacy static bearer profile
+  override, затем используют active provider session, если выбранный профиль
+  имеет `auth.mode: remoteSession`, затем fallback-ятся к legacy static bearer profile
   behavior.
+- Одна active session keyed по profile, stable installation ID и canonical
+  installation control endpoint; provider и account identity находятся в ее
+  value. `oidcSession` — deprecated read alias, мигрируемый через
+  явный `init remote --update`; до этого существующие auth-команды разрешают
+  legacy credential с deprecation warning и не переписывают config.
+- Login reconciliation возвращает partial-success exit `1` без удаления session
+  при candidate `404`, network/5xx или local config-write failure. Root
+  current-user `404` завершается успешно и предлагает registration. Candidate
+  response с другим/untrusted endpoint ведёт себя как partial success.
+- Endpoint reconciliation сохраняет switch только для token source
+  `StoredRemoteSession`; `EnvironmentOverride` и `LegacyBearer` печатают recovery
+  и не меняют profile.
+- Refresh configuration version 1 удаляет session только при OAuth
+  `invalid_grant`; любой другой `4xx` сохраняет её и сообщает configuration или
+  request error.
+- Provider component external identity — advertised service provider ID вроде
+  `google`, но никогда не adapter name `oidc`.
 - Gateway по-прежнему получает только short-lived Google ID token как
   `Authorization: Bearer <id-token>`.
 
@@ -537,6 +563,11 @@ runtime `names`.
 - Вывод по умолчанию: человеко-читаемый
 - `--json`: машинно-читаемый
 - Стабильные схемы для JSON-вывода
+- `auth login --no-browser` немедленно пишет one-time authorization URL в
+  stderr; browser mode URL не печатает. URL не попадает в final human/JSON
+  result, errors, verbose diagnostics или logs, а JSON stdout остаётся одним
+  valid document. Только этот явно запрошенный manual URL может render-ить
+  `state`, `nonce` и PKCE challenge; codes, verifiers и tokens не печатаются.
 
 Подходит для CI/CD.
 

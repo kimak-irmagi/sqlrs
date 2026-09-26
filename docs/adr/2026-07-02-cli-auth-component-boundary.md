@@ -43,6 +43,11 @@ preserving the existing command and HTTP client boundaries.
 
 ## Decision Record 2: store one active OIDC session per remote profile and OAuth client
 
+Status: Partially superseded by
+[2026-09-24 Remote Connection Bootstrap](2026-09-24-remote-connection-bootstrap.md).
+The one-active-session behavior remains accepted, but credential lookup uses
+stable installation identity rather than the mutable request endpoint.
+
 ### Question discussed
 
 Should the credential-store lookup key include the Google subject, or should

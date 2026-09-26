@@ -41,10 +41,10 @@ error mapping, and rendering.
 
 | Module | Responsibility |
 | --- | --- |
-| `internal/app` | Dispatch `user` and `org` command groups; parse command arguments; resolve the selected profile; reject local mode before daemon discovery/autostart; map usage and transport failures to exit codes. |
+| `internal/app` | Dispatch `user` and `org` command groups; parse command arguments; resolve the selected profile; reject local mode before daemon discovery/autostart; invoke the shared endpoint reconciler after successful registration or organization creation; map usage, transport, and partial-success failures to exit codes. |
 | `internal/cli` | Orchestrate user/org command execution and render human/JSON output. Implement command-level behavior such as `user register` following `412` with `GET /v1/users/me`. |
 | `internal/client` | Own typed HTTP methods, request/response structs, ETag/Location handling, conditional headers, and remote error decoding for user/org endpoints. |
-| `internal/config` | Provide selected remote profile data: base URL, non-secret auth settings, and profile mode. It does not own user/org records or OIDC credentials. |
+| `internal/config` | Provide selected remote profile data and atomic compare-before-write profile updates. It does not own user/org records or OIDC credentials. |
 | `internal/daemon` | Not used by these commands; local-mode rejection must happen before this package is called. |
 
 ### Local engine (`backend/local-engine-go`)
@@ -75,13 +75,19 @@ OpenAPI contract; this slice does not add a server package or storage schema.
   - Detect `sqlrs user`.
   - Route `me`, `register`, and `create`.
   - Reject identity flags on `register`.
-  - Require identity issuer/subject on `create`.
+  - Require service provider ID, identity issuer, and subject on `create`.
   - Reject all `user` subcommands in local mode before local engine discovery.
 - `org_command.go`
   - Detect `sqlrs org`.
   - Route `create`, `ls`, and `get`.
   - Parse `<slug>`, `<org-ref>`, and `--name`.
   - Reject all `org` subcommands in local mode before local engine discovery.
+- `endpoint_reconcile.go`
+  - Validate canonical endpoints against installation identity/control base.
+  - Switch only an installation-scoped profile with one unambiguous result.
+  - Suppress persistent switching for `EnvironmentOverride` and `LegacyBearer`.
+  - Preserve successful stdout and return exit `1` with stderr recovery when
+    the remote operation succeeded but local reconciliation failed.
 
 ### `frontend/cli-go/internal/cli`
 
@@ -139,6 +145,10 @@ the remote API provider observes the following boundaries.
 Gateway validates tokens and derives actor claims, but it does not create or
 mutate user/org records directly.
 
+Gateway maps each accepted issuer/client-ID pair to the installation's stable
+provider ID, such as `google`. `IdentityKey.provider` is this provider ID;
+`oidc` is an adapter name and never an identity-provider value.
+
 ### User Profile Service
 
 - `IdentityClaimsMapper`
@@ -171,7 +181,8 @@ mutate user/org records directly.
 ## 5. Key types and interfaces
 
 - `IdentityKey`
-  - `provider`, `issuer`, and `subject`.
+  - Stable advertised service `provider` ID, `issuer`, and `subject`; adapter
+    names are not accepted as provider IDs.
 - `ActorContext`
   - Authenticated principal data, derived current `IdentityKey`, and
     authorization attributes.
@@ -188,6 +199,14 @@ mutate user/org records directly.
   - Slug and optional display name.
 - `OrganizationMembershipView`
   - Organization plus the current user's membership.
+- `EndpointReconciler`
+  - Shared CLI service used after login, self-registration, and organization
+    creation. It receives token source, installation identity/control base,
+    current profile snapshot, and authenticated organization results.
+- `TokenSource`
+  - Closed invocation-local classification: `StoredRemoteSession`,
+    `EnvironmentOverride`, or `LegacyBearer`. Only `StoredRemoteSession` may
+    persist an automatic endpoint switch.
 - `UserProfileManager`
   - Service-facing interface for user reads and conditional writes.
 - `OrganizationManager`
@@ -198,6 +217,10 @@ mutate user/org records directly.
 ## 6. Data ownership
 
 - **CLI profile config** is file-based and belongs to `internal/config`.
+- **Endpoint reconciliation state** is invocation-local. Only the validated
+  endpoint and organization metadata are persisted through an atomic
+  compare-before-write update; `EnvironmentOverride` and `LegacyBearer` never
+  trigger it.
 - **CLI command options, HTTP requests, and ETags** are in-memory data for one
   invocation. The CLI does not cache user profiles, organizations, memberships,
   or ETags persistently.

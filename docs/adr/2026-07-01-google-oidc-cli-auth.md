@@ -7,6 +7,11 @@
 
 ## Decision Record 1: use Google Authorization Code with PKCE over loopback
 
+Status: Partially superseded by
+[2026-09-24 Remote Connection Bootstrap](2026-09-24-remote-connection-bootstrap.md).
+The loopback PKCE flow and OS credential boundary remain accepted; provider
+configuration is now service-discovered rather than workspace-owned.
+
 ### Question discussed
 
 How should the CLI obtain and maintain Google OIDC authentication for protected
@@ -97,6 +102,11 @@ or commit accidentally. Keeping refresh tokens out of the gateway preserves the
 server boundary: server-side auth accepts only short-lived ID tokens.
 
 ## Decision Record 3: temporarily read Google Desktop client secret from config
+
+Status: Obsolete. Superseded by
+[2026-09-24 Remote Connection Bootstrap](2026-09-24-remote-connection-bootstrap.md),
+which prohibits distributing confidential client secrets through workspace or
+the public provider API.
 
 - Conversation timestamp: 2026-07-03T15:48:32.9180928+07:00
 - GitHub user id: @evilguest

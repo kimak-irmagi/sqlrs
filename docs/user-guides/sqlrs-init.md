@@ -8,7 +8,8 @@ configures how the CLI connects to an engine.
 There are two init modes:
 
 - `local` — configure local engine + snapshot store (default).
-- `remote` — configure a remote engine endpoint + token.
+- `remote` — configure a remote engine endpoint and either a Google OIDC
+  session profile or a compatibility bearer-token profile.
 
 Running `sqlrs init` with no subcommand is equivalent to `sqlrs init local`.
 
@@ -59,7 +60,9 @@ then a **parent workspace conflict** is detected.
 
 ```text
 sqlrs init [local] [flags]
-sqlrs init remote --url <url> --token <token> [flags]
+sqlrs init remote <endpoint> [flags]
+sqlrs init remote --url <endpoint> [flags]  # compatibility spelling
+sqlrs init remote <endpoint> --token <token> [flags]  # deprecated bearer path
 ```
 
 ---
@@ -129,7 +132,9 @@ Print intended actions.
 Allow updating an existing workspace configuration.
 
 - If `.sqlrs/` already exists, config updates are applied.
-- Without `--update`, an existing workspace remains unchanged.
+- Without `--update`, the same normalized remote endpoint is an idempotent
+  no-op; a different endpoint is rejected with exit `64`, and the existing
+  workspace remains unchanged.
 - If `.sqlrs/` does not exist, `--update` behaves like a normal init (creates workspace).
 - If `config.yaml` is missing or corrupted, `--update` recreates it.
 - If `--update` is used and local/remote init fails, the workspace config is left unchanged.
@@ -215,13 +220,112 @@ Windows only. Select the WSL distro to use when btrfs requires WSL2.
 
 ### Remote flags (`sqlrs init remote`)
 
-### `--url <url>`
+### `<endpoint>`
 
-Remote engine endpoint (base URL).
+HTTPS base URL supplied as the single positional remote-init argument, for
+example `https://api.taidon.dev` or an organization-scoped URL such as
+`https://api.taidon.dev/nsu`.
+
+The base is either the installation root or exactly one organization-slug path
+segment. A trailing slash is normalized away. Userinfo, query, fragment, dot
+segments, encoded slash/backslash, and additional path segments are rejected.
+Plain HTTP is allowed only for explicit development endpoints on literal
+`127.0.0.1` or `[::1]`.
+
+Remote init requests `<endpoint>/v1/connection-info` without authentication.
+The route must be available both at the installation root and below every
+candidate organization prefix, including a nonexistent slug. The response
+identifies the installation, the stable control base, the normalized current
+bootstrap base, and the login-provider catalogue. It contains no organization
+identity, existence, membership, or credential data.
+
+The CLI uses the supplied base URL exactly for the initial discovery request;
+it does not strip a path prefix or construct organization URLs from slugs.
+
+### `--url <endpoint>`
+
+Compatibility spelling for the positional endpoint. New documentation and
+copy-paste commands use the positional form. Supplying both forms is invalid.
 
 ### `--token <token>`
 
-Bearer token used by the CLI to authenticate with the remote engine.
+Deprecated compatibility input for a static bearer profile. It implies
+legacy `auth.mode: bearer` and writes the supplied token to workspace config.
+Normal onboarding must use service discovery plus `sqlrs auth login <provider>`
+and must not persist a token in workspace config.
+
+### Connection discovery and persistence
+
+The normal remote-init path stores stable service identity and routing metadata,
+not provider-specific login parameters:
+
+```yaml
+defaultProfile: remote
+profiles:
+  remote:
+    mode: remote
+    installationID: taidon-production
+    installationEndpoint: https://api.taidon.dev
+    endpoint: https://api.taidon.dev
+    auth:
+      mode: remoteSession
+      tokenEnv: SQLRS_TOKEN
+```
+
+Provider IDs and configuration remain service-owned. Before
+`sqlrs auth login <provider>`, the CLI reads the selected provider's current
+configuration from the service. Remote init never writes a provider client ID,
+client secret, bearer token, authorization code, ID token, or refresh token.
+
+The discovered `endpoints.current` becomes profile `endpoint`, while
+`endpoints.control` becomes `installationEndpoint`. A path-prefixed current
+endpoint remains an unverified routing candidate: successful discovery does
+not prove that the organization exists. Organization identity and canonical
+routing are accepted only from a later authenticated response. When the current
+endpoint equals the installation control base, authenticated membership
+reconciliation may bind the profile to one organization.
+
+Before writing config, the CLI requires the control endpoint to be the
+installation root and the current endpoint to have the same scheme and
+authority and be either that root or exactly one valid slug below it. Discovery
+redirects may not cross origin or downgrade HTTPS. These checks are structural,
+not string-prefix comparisons.
+
+Normal init fails with an actionable error when the provider catalogue is
+empty. The deprecated explicit-token compatibility path is not reinterpreted
+as a remote-session login.
+
+On `--update`, remote init replaces the selected remote connection metadata but
+preserves the existing `local` profile and unrelated workspace settings, then
+selects `remote` as `defaultProfile`. It also rewrites deprecated
+`auth.mode: oidcSession` to `remoteSession`, removes legacy `clientID`,
+`clientSecret`, and `issuer` fields, and migrates a derivable legacy OS
+credential only when the old endpoint origin matches the discovered control
+base origin. Before this explicit update, existing auth commands continue to
+read the legacy profile and credential with a deprecation warning; they never
+rewrite it implicitly. The stable key contains profile name, installation ID,
+and normalized control endpoint. Init never overwrites an existing destination
+credential, which is authoritative when present. Otherwise it writes and
+verifies a missing destination, atomically updates config, and only
+then best-effort deletes the legacy entry. A crash may leave both entries but
+cannot erase both. `--dry-run` performs no credential writes or deletes. If
+migration is not possible, the legacy credential remains untouched and init
+asks for one new login. A migrated legacy session has no stored login nonce; a
+future refreshed ID token containing nonce therefore requires a new login.
+Secrets are never copied into workspace config.
+
+If `/v1/connection-info` is absent on an older server, normal init fails with an
+actionable server-upgrade error; it does not silently use legacy discovery.
+The deprecated explicit `--token` path remains the deliberate compatibility
+option. Therefore both explicit `--profile local` and the initialized remote
+profile remain usable.
+
+`--dry-run` performs the same validation and reports the intended workspace
+config write without modifying the workspace or user-local config. Repeating
+the same successful command with the same normalized endpoint is idempotent. A
+different endpoint for an existing workspace without `--update` is an invalid
+argument/configuration conflict (exit `64`) and changes nothing. An existing
+workspace is changed only when `--update` is present.
 
 ---
 
@@ -326,7 +430,7 @@ btrfs is currently unsupported. Requests for `--snapshot btrfs` fail.
 
 `sqlrs init`:
 
-- does NOT create global config
+- does NOT create or modify user-local config
 - does NOT repair global cache
 - does NOT modify global engine state
 
@@ -391,11 +495,23 @@ sqlrs init local --snapshot btrfs --distro Ubuntu-22.04
 sqlrs init local --update --snapshot auto
 ```
 
-### Configure remote engine
+### Configure a remote installation and log in with a provider
 
 ```bash
-sqlrs init remote --url https://engine.example.com --token $SQLRS_TOKEN
+sqlrs init remote https://api.taidon.dev
+sqlrs auth login google
 ```
+
+### Initialize directly from an organization endpoint
+
+```bash
+sqlrs init remote https://api.taidon.dev/nsu
+```
+
+At this stage `/nsu` is only an unverified routing candidate. The public
+bootstrap response is intentionally identical for existing and nonexistent
+slugs except for URL fields. A later authenticated request verifies the
+organization and the user's access.
 
 ---
 

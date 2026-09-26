@@ -44,6 +44,7 @@ func TestValidateIDTokenClaimsRejectsIssuerAudienceExpiryAndNonce(t *testing.T) 
 		Audience: []string{"client-id"},
 		Subject:  "subject-1",
 		Expiry:   now.Add(time.Hour),
+		IssuedAt: now.Add(-time.Minute),
 		Nonce:    "nonce-1",
 	}
 
@@ -54,6 +55,11 @@ func TestValidateIDTokenClaimsRejectsIssuerAudienceExpiryAndNonce(t *testing.T) 
 	}{
 		{name: "issuer", claims: withIssuer(base, "https://issuer.example"), want: "issuer"},
 		{name: "audience", claims: withAudience(base, []string{"other"}), want: "audience"},
+		{name: "multiple audiences", claims: withAudience(base, []string{"client-id", "other"}), want: "audience"},
+		{name: "subject", claims: withSubject(base, ""), want: "subject"},
+		{name: "authorized party", claims: withAuthorizedParty(base, "other"), want: "authorized party"},
+		{name: "missing issued at", claims: withIssuedAt(base, time.Time{}), want: "issued-at"},
+		{name: "future issued at", claims: withIssuedAt(base, now.Add(5*time.Minute+time.Second)), want: "future"},
 		{name: "expiry", claims: withExpiry(base, now), want: "expired"},
 		{name: "nonce", claims: withNonce(base, "other"), want: "nonce"},
 	}
@@ -110,8 +116,26 @@ func TestMaskSubject(t *testing.T) {
 
 func testIDToken(t *testing.T, payload map[string]any) string {
 	t.Helper()
+	if _, ok := payload["iat"]; !ok {
+		if exp, ok := payload["exp"].(int64); ok {
+			payload["iat"] = exp - 3600
+		}
+	}
 	header := map[string]any{"alg": "none"}
 	return encodeJWTPart(t, header) + "." + encodeJWTPart(t, payload) + ".sig"
+}
+
+func withSubject(claims IDTokenClaims, subject string) IDTokenClaims {
+	claims.Subject = subject
+	return claims
+}
+func withAuthorizedParty(claims IDTokenClaims, azp string) IDTokenClaims {
+	claims.AuthorizedParty = azp
+	return claims
+}
+func withIssuedAt(claims IDTokenClaims, issuedAt time.Time) IDTokenClaims {
+	claims.IssuedAt = issuedAt
+	return claims
 }
 
 func encodeJWTPart(t *testing.T, value any) string {

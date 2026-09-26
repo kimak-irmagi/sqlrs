@@ -95,6 +95,29 @@ func TestBuildGoogleAuthURLIncludesOIDCOfflinePKCEParameters(t *testing.T) {
 	assertQueryValue(t, query, "login_hint", "alice@example.com")
 }
 
+func TestBuildGoogleAuthURLUsesAdvertisedEndpointAndParameters(t *testing.T) {
+	raw, err := BuildGoogleAuthURL(AuthURLOptions{
+		ClientID: "public-client", RedirectURI: "http://127.0.0.1:49152",
+		State: "state-canary", Nonce: "nonce-canary", CodeChallenge: "challenge-canary",
+		AuthorizationEndpoint: "https://issuer.example.test/authorize?tenant=shared",
+		Scopes:                []string{"openid", "email"}, AuthorizationParameters: map[string]string{"prompt": "consent"},
+	})
+	if err != nil {
+		t.Fatalf("BuildGoogleAuthURL: %v", err)
+	}
+	parsed, _ := url.Parse(raw)
+	if parsed.Host != "issuer.example.test" || parsed.Query().Get("tenant") != "shared" || parsed.Query().Get("prompt") != "consent" {
+		t.Fatalf("authorization URL = %q", raw)
+	}
+	if strings.Contains(raw, "verifier") {
+		t.Fatalf("authorization URL leaked PKCE verifier: %q", raw)
+	}
+	bad := AuthURLOptions{ClientID: "c", RedirectURI: "http://127.0.0.1:1", State: "s", Nonce: "n", CodeChallenge: "ch", AuthorizationEndpoint: "https://issuer.example.test/auth", Scopes: []string{"openid"}, AuthorizationParameters: map[string]string{"nonce": "collision"}}
+	if _, err := BuildGoogleAuthURL(bad); err == nil {
+		t.Fatalf("expected reserved parameter collision")
+	}
+}
+
 func TestBuildGoogleAuthURLValidationErrors(t *testing.T) {
 	valid := AuthURLOptions{
 		ClientID:      "client-id",
@@ -135,6 +158,15 @@ func TestValidateCallback(t *testing.T) {
 		}
 	})
 
+	t.Run("duplicate state and code", func(t *testing.T) {
+		if _, err := ValidateCallback(url.Values{"state": {"s", "s"}, "code": {"c"}}, "s"); err == nil {
+			t.Fatalf("expected duplicate state error")
+		}
+		if _, err := ValidateCallback(url.Values{"state": {"s"}, "code": {"c", "c2"}}, "s"); err == nil {
+			t.Fatalf("expected duplicate code error")
+		}
+	})
+
 	t.Run("oauth error", func(t *testing.T) {
 		values := url.Values{"state": {"s"}, "error": {"access_denied"}, "error_description": {"denied"}}
 		if _, err := ValidateCallback(values, "s"); err == nil || !strings.Contains(err.Error(), "access_denied") {
@@ -152,6 +184,21 @@ func TestValidateCallback(t *testing.T) {
 	t.Run("missing code", func(t *testing.T) {
 		if _, err := ValidateCallback(url.Values{"state": {"s"}}, "s"); err == nil || !strings.Contains(err.Error(), "code") {
 			t.Fatalf("expected missing code error, got %v", err)
+		}
+	})
+
+	t.Run("rfc9207 issuer", func(t *testing.T) {
+		values := url.Values{"state": {"s"}, "code": {"c"}, "iss": {"https://issuer.example.test"}}
+		if _, err := ValidateCallbackIssuer(values, "s", "https://issuer.example.test", true); err != nil {
+			t.Fatalf("ValidateCallbackIssuer: %v", err)
+		}
+		values.Del("iss")
+		if _, err := ValidateCallbackIssuer(values, "s", "https://issuer.example.test", true); err == nil || !strings.Contains(err.Error(), "issuer") {
+			t.Fatalf("expected issuer error, got %v", err)
+		}
+		values["iss"] = []string{"https://issuer.example.test", "https://issuer.example.test"}
+		if _, err := ValidateCallbackIssuer(values, "s", "https://issuer.example.test", true); err == nil {
+			t.Fatalf("expected duplicate issuer error")
 		}
 	})
 }

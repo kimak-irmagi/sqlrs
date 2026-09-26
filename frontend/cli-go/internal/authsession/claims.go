@@ -11,21 +11,25 @@ import (
 // IDTokenClaims is the safe subset of Google ID-token claims used locally for
 // expiry checks and diagnostics. Gateway signature verification remains server-side.
 type IDTokenClaims struct {
-	Issuer   string
-	Audience []string
-	Subject  string
-	Email    string
-	Expiry   time.Time
-	Nonce    string
+	Issuer          string
+	Audience        []string
+	Subject         string
+	Email           string
+	Expiry          time.Time
+	IssuedAt        time.Time
+	AuthorizedParty string
+	Nonce           string
 }
 
 type idTokenClaimsJSON struct {
-	Issuer   string        `json:"iss"`
-	Audience audienceClaim `json:"aud"`
-	Subject  string        `json:"sub"`
-	Email    string        `json:"email"`
-	Expiry   int64         `json:"exp"`
-	Nonce    string        `json:"nonce"`
+	Issuer          string        `json:"iss"`
+	Audience        audienceClaim `json:"aud"`
+	Subject         string        `json:"sub"`
+	Email           string        `json:"email"`
+	Expiry          int64         `json:"exp"`
+	IssuedAt        int64         `json:"iat"`
+	AuthorizedParty string        `json:"azp"`
+	Nonce           string        `json:"nonce"`
 }
 
 type audienceClaim []string
@@ -60,12 +64,14 @@ func DecodeIDTokenClaims(idToken string) (IDTokenClaims, error) {
 		return IDTokenClaims{}, fmt.Errorf("parse ID token claims: %w", err)
 	}
 	return IDTokenClaims{
-		Issuer:   strings.TrimSpace(raw.Issuer),
-		Audience: append([]string(nil), raw.Audience...),
-		Subject:  strings.TrimSpace(raw.Subject),
-		Email:    strings.TrimSpace(raw.Email),
-		Expiry:   time.Unix(raw.Expiry, 0).UTC(),
-		Nonce:    strings.TrimSpace(raw.Nonce),
+		Issuer:          strings.TrimSpace(raw.Issuer),
+		Audience:        append([]string(nil), raw.Audience...),
+		Subject:         strings.TrimSpace(raw.Subject),
+		Email:           strings.TrimSpace(raw.Email),
+		Expiry:          time.Unix(raw.Expiry, 0).UTC(),
+		IssuedAt:        time.Unix(raw.IssuedAt, 0).UTC(),
+		AuthorizedParty: strings.TrimSpace(raw.AuthorizedParty),
+		Nonce:           strings.TrimSpace(raw.Nonce),
 	}, nil
 }
 
@@ -75,8 +81,20 @@ func ValidateIDTokenClaims(claims IDTokenClaims, issuer string, clientID string,
 	if claims.Issuer != defaultIssuer(issuer) {
 		return fmt.Errorf("ID token issuer mismatch: %s", claims.Issuer)
 	}
-	if !containsString(claims.Audience, strings.TrimSpace(clientID)) {
+	if strings.TrimSpace(claims.Subject) == "" {
+		return fmt.Errorf("ID token subject is required")
+	}
+	if len(claims.Audience) != 1 || strings.TrimSpace(claims.Audience[0]) != strings.TrimSpace(clientID) {
 		return fmt.Errorf("ID token audience mismatch")
+	}
+	if claims.AuthorizedParty != "" && claims.AuthorizedParty != strings.TrimSpace(clientID) {
+		return fmt.Errorf("ID token authorized party mismatch")
+	}
+	if claims.IssuedAt.Unix() <= 0 {
+		return fmt.Errorf("ID token issued-at claim is required")
+	}
+	if claims.IssuedAt.After(now.UTC().Add(5 * time.Minute)) {
+		return fmt.Errorf("ID token issued-at claim is too far in the future")
 	}
 	if !claims.Expiry.After(now.UTC()) {
 		return fmt.Errorf("ID token expired")

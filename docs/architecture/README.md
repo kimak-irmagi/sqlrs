@@ -41,7 +41,7 @@ Entry points for Taidon architecture and service design.
 - [`cli-contract.md`](cli-contract.md) - CLI contract and commands.
 - [`cli-architecture.md`](cli-architecture.md) - CLI flows for local vs remote
   and source uploads.
-- [`cli-auth-flow.md`](cli-auth-flow.md) - CLI Google OIDC login, status,
+- [`cli-auth-flow.md`](cli-auth-flow.md) - CLI service-discovered OIDC login, status,
   logout, and protected-request token resolution flow.
 - [`cli-auth-component-structure.md`](cli-auth-component-structure.md) - CLI
   auth package boundaries, credential storage, and data ownership.

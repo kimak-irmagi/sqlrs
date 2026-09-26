@@ -29,6 +29,10 @@ addition of a shared `inputset` layer for file-bearing command semantics.
     verbose-line versus delayed-spinner progress presentation.
   - Rejects remote-only user and organization commands in local mode before
     local engine discovery or autostart.
+  - Owns the shared endpoint reconciler used after remote login, user
+    registration, and organization creation, including trust validation,
+    token-override suppression, atomic profile updates, and partial-success
+    exit `1`.
   - Owns package-local ref-aware run-binding helpers for standalone
     `run --ref` so raw and alias-backed run flows reuse shared `refctx`,
     `alias`, and `inputset` boundaries without entering the prepare-oriented
@@ -90,11 +94,14 @@ addition of a shared `inputset` layer for file-bearing command semantics.
 - `internal/authsession`
   - CLI-side OAuth/OIDC session management for `sqlrs auth` and protected
     remote API token resolution.
-  - Owns PKCE/state/nonce generation, Google token endpoint calls, loopback
-    callback validation, local credential-store access, cached ID-token refresh,
-    and safe auth status metadata.
+  - Owns generic OIDC PKCE/state/nonce generation, advertised token/revocation
+    endpoint calls without redirects, loopback callback validation, stable
+    installation-bound credential-store access, cached ID-token refresh, and
+    safe auth status metadata.
 - `internal/client`
   - HTTP API client for `/v1/*` endpoints.
+  - Public connection-info and provider catalogue/detail discovery with
+    structural URL/trust-boundary validation and ETag revalidation.
   - Read-only cache explanation requests for bound prepare stages.
   - Source blob upload requests and structured `source_inputs_missing` error
     parsing for remote source-input synchronization.
@@ -105,8 +112,9 @@ addition of a shared `inputset` layer for file-bearing command semantics.
 - `internal/config`
   - CLI config loading, merge, and typed lookups (`dbms.image`, Liquibase
     settings, timeouts, and per-profile `sourceSync` policy).
-  - Provides non-secret remote profile auth settings, but does not own OIDC
-    refresh tokens or cached ID tokens.
+  - Provides stable installation/routing metadata and atomic
+    compare-before-write profile updates, but does not own provider client
+    configuration, refresh tokens, or cached ID tokens.
 - `internal/paths`
   - OS-aware config/cache/state directory resolution.
 - `internal/enginebin`
@@ -171,6 +179,10 @@ addition of a shared `inputset` layer for file-bearing command semantics.
 - `authsession.Manager`, `authsession.Session`, `authsession.CredentialStore`
   - CLI auth session manager, stored OIDC session model, and OS credential
     store abstraction.
+- `app.EndpointReconciler`
+  - Shared post-login/register/org-create routing reconciler. It persists only
+    trusted same-installation canonical endpoints and switches only for
+    `StoredRemoteSession`, never `EnvironmentOverride` or `LegacyBearer`.
 - `cli.UserOptions`, `cli.OrganizationOptions`
   - Remote-only command options for `sqlrs user` and `sqlrs org`.
 - `client.UserProfile`, `client.ExternalIdentity`, `client.Organization`,

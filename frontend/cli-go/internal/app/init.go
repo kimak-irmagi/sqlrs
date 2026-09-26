@@ -14,7 +14,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/sqlrs/cli/internal/authsession"
 	"github.com/sqlrs/cli/internal/cli"
+	"github.com/sqlrs/cli/internal/client"
 	"github.com/sqlrs/cli/internal/config"
 	"github.com/sqlrs/cli/internal/enginebin"
 	"github.com/sqlrs/cli/internal/paths"
@@ -39,6 +41,7 @@ type initOptions struct {
 	WSLMode       string
 	RemoteURL     string
 	RemoteToken   string
+	Connection    *client.ConnectionInfo
 	Mode          string
 	Verbose       bool
 }
@@ -58,6 +61,12 @@ type localBtrfsInitResult struct {
 const defaultBtrfsStoreSizeGB = 100
 
 var initLocalBtrfsStoreFn = initLocalBtrfsStore
+
+var initStderr io.Writer = os.Stderr
+
+var migrateLegacyCredentialFn = func(ctx context.Context, opts authsession.LegacyMigrationOptions, commit func() error) (authsession.LegacyMigrationResult, error) {
+	return authsession.NewManager(authsession.ManagerOptions{}).MigrateLegacyCredential(ctx, opts, commit)
+}
 
 var resolveHostEngineFn = func(req enginebin.Request) (enginebin.Resolved, error) {
 	return (enginebin.Resolver{}).Resolve(req)
@@ -90,6 +99,27 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 	target, err := resolveWorkspacePath(opts.Workspace, cwd)
 	if err != nil {
 		return ExitErrorf(4, "Cannot create .sqlrs directory: %v", err)
+	}
+	if strings.EqualFold(opts.Mode, "remote") && opts.RemoteToken == "" {
+		normalizedEndpoint, validateErr := client.NormalizeServiceEndpoint(opts.RemoteURL)
+		if validateErr != nil {
+			return ExitErrorf(64, "Invalid remote endpoint: %v", validateErr)
+		}
+		opts.RemoteURL = normalizedEndpoint
+		info, discoverErr := client.New(opts.RemoteURL, client.Options{}).GetConnectionInfo(context.Background())
+		if discoverErr != nil {
+			return ExitErrorf(1, "Remote connection discovery failed: %v", discoverErr)
+		}
+		if len(info.AuthProviders) == 0 {
+			return ExitErrorf(1, "Remote connection discovery returned no enabled login providers")
+		}
+		if normalizeRemoteEndpoint(info.Endpoints.Current) != normalizeRemoteEndpoint(opts.RemoteURL) {
+			return ExitErrorf(1, "Remote connection discovery returned current endpoint %q for %q", info.Endpoints.Current, opts.RemoteURL)
+		}
+		opts.RemoteURL = normalizeRemoteEndpoint(info.Endpoints.Current)
+		opts.Connection = &info
+	} else if strings.EqualFold(opts.Mode, "remote") {
+		fmt.Fprintln(initStderr, "warning: --token is deprecated; omit it to use service-discovered remote sessions")
 	}
 	explicitHostSource := ""
 	if opts.EnginePath != "" {
@@ -134,6 +164,16 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 			}
 		}
 		if !opts.Update {
+			if strings.EqualFold(opts.Mode, "remote") && configValid {
+				raw, readErr := readConfigMap(configPath)
+				if readErr != nil {
+					return ExitErrorf(4, "Cannot read config.yaml: %v", readErr)
+				}
+				existing := nestedMapString(raw, "profiles", "remote", "endpoint")
+				if existing != "" && normalizeRemoteEndpoint(existing) != normalizeRemoteEndpoint(opts.RemoteURL) {
+					return ExitErrorf(64, "Remote endpoint differs from the existing profile; rerun with --update")
+				}
+			}
 			if isWindows && configValid && !opts.DryRun && strings.EqualFold(opts.Mode, "local") {
 				repaired, repairErr := repairExistingWSLEngine(configPath, opts.WSLEnginePath, opts.Verbose)
 				if repairErr != nil {
@@ -270,20 +310,6 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 		}
 	}
 
-	if opts.DryRun {
-		if !localExists {
-			fmt.Fprintf(w, "Would create %s\n", localMarker)
-		}
-		fmt.Fprintf(w, "Would write %s\n", configPath)
-		return nil
-	}
-
-	if !localExists {
-		if err := os.MkdirAll(localMarker, 0o700); err != nil {
-			return ExitErrorf(4, "Cannot create .sqlrs directory: %v", err)
-		}
-	}
-
 	baseConfig := map[string]any(nil)
 	if opts.Update && configExists && configValid {
 		loaded, err := readConfigMap(configPath)
@@ -295,11 +321,42 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 			removeLegacyWSLEngineDaemon(baseConfig, configPath)
 		}
 	}
+	legacyMigration := legacyMigrationOptions(baseConfig, opts)
 	configData, err := buildWorkspaceConfig(opts, wslResult, baseConfig)
 	if err != nil {
 		return ExitErrorf(1, "Internal error: %v", err)
 	}
-	if err := util.AtomicWriteFile(configPath, configData, 0o600); err != nil {
+
+	if opts.DryRun {
+		if !localExists {
+			fmt.Fprintf(w, "Would create %s\n", localMarker)
+		}
+		fmt.Fprintf(w, "Would write %s\n", configPath)
+		if legacyMigration != nil {
+			fmt.Fprintln(w, "Would migrate the legacy remote credential if it is derivable and no destination credential exists")
+		}
+		return nil
+	}
+
+	if !localExists {
+		if err := os.MkdirAll(localMarker, 0o700); err != nil {
+			return ExitErrorf(4, "Cannot create .sqlrs directory: %v", err)
+		}
+	}
+
+	commitConfig := func() error { return util.AtomicWriteFile(configPath, configData, 0o600) }
+	if legacyMigration != nil {
+		result, migrationErr := migrateLegacyCredentialFn(context.Background(), *legacyMigration, commitConfig)
+		if migrationErr != nil {
+			return ExitErrorf(4, "Cannot migrate remote credential: %v", migrationErr)
+		}
+		if result.LoginRequired {
+			fmt.Fprintln(initStderr, "warning: legacy credential could not be migrated; run `sqlrs auth login <provider>`")
+		}
+		if result.DeletionWarning != "" {
+			fmt.Fprintf(initStderr, "warning: %s\n", result.DeletionWarning)
+		}
+	} else if err := commitConfig(); err != nil {
 		return ExitErrorf(4, "Cannot write config.yaml: %v", err)
 	}
 
@@ -309,6 +366,21 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 		fmt.Fprintf(w, "Initialized workspace at %s\n", target)
 	}
 	return nil
+}
+
+func legacyMigrationOptions(base map[string]any, opts initOptions) *authsession.LegacyMigrationOptions {
+	if base == nil || !opts.Update || opts.Connection == nil || !strings.EqualFold(nestedMapString(base, "profiles", "remote", "auth", "mode"), "oidcSession") {
+		return nil
+	}
+	return &authsession.LegacyMigrationOptions{
+		ProfileName:     "remote",
+		LegacyEndpoint:  nestedMapString(base, "profiles", "remote", "endpoint"),
+		LegacyProvider:  "google",
+		LegacyIssuer:    nestedMapString(base, "profiles", "remote", "auth", "issuer"),
+		LegacyClientID:  nestedMapString(base, "profiles", "remote", "auth", "clientID"),
+		InstallationID:  opts.Connection.InstallationID,
+		ControlEndpoint: opts.Connection.Endpoints.Control,
+	}
 }
 
 func configuredHostEngineForInit(target string, configExists, configValid bool) (string, error) {
@@ -478,6 +550,12 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 	if err != nil {
 		return opts, false, ExitErrorf(64, "Invalid arguments: %v", err)
 	}
+	// The canonical remote syntax places the endpoint before optional flags,
+	// while Go's flag package stops at the first positional argument.
+	if strings.EqualFold(mode, "remote") && len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
+		endpoint := rest[0]
+		rest = append(append([]string(nil), rest[1:]...), endpoint)
+	}
 	normalizedArgs, err := preprocessStoreArgs(rest)
 	if err != nil {
 		return opts, false, ExitErrorf(64, "Invalid arguments: %v", err)
@@ -513,10 +591,6 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 		return opts, true, nil
 	}
 
-	if fs.NArg() > 0 {
-		return opts, false, ExitErrorf(64, "Invalid arguments")
-	}
-
 	opts.Mode = mode
 	opts.Workspace = strings.TrimSpace(*workspace)
 	if opts.Workspace == "" {
@@ -536,6 +610,20 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 	opts.NoStart = *noStart
 	opts.RemoteURL = strings.TrimSpace(*url)
 	opts.RemoteToken = strings.TrimSpace(*token)
+	positional := fs.Args()
+	if strings.EqualFold(mode, "remote") {
+		if len(positional) > 1 {
+			return opts, false, ExitErrorf(64, "Invalid arguments: remote init accepts one endpoint")
+		}
+		if len(positional) == 1 {
+			if opts.RemoteURL != "" {
+				return opts, false, ExitErrorf(64, "Invalid arguments: use either the endpoint argument or --url")
+			}
+			opts.RemoteURL = strings.TrimSpace(positional[0])
+		}
+	} else if len(positional) > 0 {
+		return opts, false, ExitErrorf(64, "Invalid arguments")
+	}
 
 	if size := strings.TrimSpace(*storeSize); size != "" {
 		value, err := parseStoreSizeGB(size)
@@ -554,8 +642,8 @@ func parseInitFlags(args []string, globalWorkspace string) (initOptions, bool, e
 		return opts, false, ExitErrorf(64, "Invalid arguments: unknown init mode")
 	}
 	if mode == "remote" {
-		if opts.RemoteURL == "" || opts.RemoteToken == "" {
-			return opts, false, ExitErrorf(64, "Invalid arguments: --url and --token are required for remote init")
+		if opts.RemoteURL == "" {
+			return opts, false, ExitErrorf(64, "Invalid arguments: remote endpoint is required")
 		}
 		if opts.EnginePath != "" || opts.WSLEnginePath != "" || opts.SharedCache || opts.Snapshot != "" || opts.StoreType != "" || opts.StorePath != "" || opts.StoreSizeGB > 0 || opts.Reinit || opts.Distro != "" || opts.NoStart {
 			return opts, false, ExitErrorf(64, "Invalid arguments: local-only flags are not valid for remote init")
@@ -674,7 +762,17 @@ func buildWorkspaceConfig(opts initOptions, wslResult *wslInitResult, base map[s
 			setNested(cfg, []string{"profiles", "remote", "endpoint"}, opts.RemoteURL)
 		}
 		if opts.RemoteToken != "" {
+			setNested(cfg, []string{"profiles", "remote", "auth", "mode"}, "token")
 			setNested(cfg, []string{"profiles", "remote", "auth", "token"}, opts.RemoteToken)
+		} else if opts.Connection != nil {
+			deleteNested(cfg, "profiles", "remote", "auth", "token")
+			deleteNested(cfg, "profiles", "remote", "auth", "clientID")
+			deleteNested(cfg, "profiles", "remote", "auth", "clientSecret")
+			deleteNested(cfg, "profiles", "remote", "auth", "issuer")
+			setNested(cfg, []string{"profiles", "remote", "installationID"}, opts.Connection.InstallationID)
+			setNested(cfg, []string{"profiles", "remote", "installationEndpoint"}, opts.Connection.Endpoints.Control)
+			setNested(cfg, []string{"profiles", "remote", "auth", "mode"}, "remoteSession")
+			setNested(cfg, []string{"profiles", "remote", "auth", "tokenEnv"}, "SQLRS_TOKEN")
 		}
 	}
 	if wslResult != nil {
@@ -721,6 +819,13 @@ func buildWorkspaceConfig(opts initOptions, wslResult *wslInitResult, base map[s
 		data = append(data, '\n')
 	}
 	return data, nil
+}
+
+func normalizeRemoteEndpoint(endpoint string) string {
+	if normalized, err := client.NormalizeServiceEndpoint(endpoint); err == nil {
+		return normalized
+	}
+	return strings.TrimRight(strings.TrimSpace(endpoint), "/")
 }
 
 func normalizeEnginePath(enginePath, cwd, workspace string) string {
@@ -817,6 +922,21 @@ func setNested(root map[string]any, keys []string, value any) {
 		}
 		current = next
 	}
+}
+
+func deleteNested(root map[string]any, keys ...string) {
+	if len(keys) == 0 {
+		return
+	}
+	current := root
+	for _, key := range keys[:len(keys)-1] {
+		next, ok := current[key].(map[string]any)
+		if !ok {
+			return
+		}
+		current = next
+	}
+	delete(current, keys[len(keys)-1])
 }
 
 func parseStoreSizeGB(value string) (int, error) {

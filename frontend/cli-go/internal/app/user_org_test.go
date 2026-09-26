@@ -1,15 +1,64 @@
 package app
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/sqlrs/cli/internal/authsession"
 	"github.com/sqlrs/cli/internal/cli"
+	"github.com/sqlrs/cli/internal/client"
 	"github.com/sqlrs/cli/internal/config"
 )
+
+func TestReconcileCreatedOrganizationSwitchesStoredRemoteSession(t *testing.T) {
+	workspace := t.TempDir()
+	writeProjectConfig(t, workspace, "defaultProfile: remote\nprofiles:\n  remote:\n    mode: remote\n    endpoint: https://api.example.test\n    installationID: installation-1\n    installationEndpoint: https://api.example.test\n    auth:\n      mode: remoteSession\n")
+	loaded, err := config.Load(config.LoadOptions{WorkingDir: workspace})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := commandContext{profileName: "remote", profile: loaded.Config.Profiles["remote"], cfgResult: loaded, authTokenSource: authsession.TokenSourceStoredRemoteSession}
+	var stderr bytes.Buffer
+	if err := reconcileCreatedOrganization(ctx, client.Organization{Slug: "nsu", Endpoint: "https://api.example.test/nsu"}, &stderr); err != nil {
+		t.Fatalf("reconcileCreatedOrganization: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "switched to organization \"nsu\"") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	raw := loadConfigMap(t, filepath.Join(workspace, ".sqlrs", "config.yaml"))
+	if got := nestedString(raw, "profiles", "remote", "endpoint"); got != "https://api.example.test/nsu" {
+		t.Fatalf("endpoint = %q", got)
+	}
+}
+
+func TestReconcileCreatedOrganizationFailurePolicies(t *testing.T) {
+	base := commandContext{
+		profileName:     "remote",
+		profile:         config.ProfileConfig{Endpoint: "https://api.example.test", InstallationEndpoint: "https://api.example.test", InstallationID: "installation-1", Auth: config.AuthConfig{Mode: "remoteSession"}},
+		authTokenSource: authsession.TokenSourceStoredRemoteSession,
+	}
+
+	unauthenticated := base
+	unauthenticated.authTokenSource = authsession.TokenSourceEnvironmentOverride
+	if err := reconcileCreatedOrganization(unauthenticated, client.Organization{}, io.Discard); err != nil {
+		t.Fatalf("non-stored session reconciliation: %v", err)
+	}
+
+	if err := reconcileCreatedOrganization(base, client.Organization{Slug: "nsu"}, io.Discard); err == nil || !strings.Contains(err.Error(), "canonical organization endpoint") {
+		t.Fatalf("missing canonical endpoint error = %v", err)
+	}
+	if err := reconcileCreatedOrganization(base, client.Organization{Slug: "nsu", Endpoint: "https://other.example.test/nsu"}, io.Discard); err == nil || !strings.Contains(err.Error(), "untrusted canonical") {
+		t.Fatalf("foreign canonical endpoint error = %v", err)
+	}
+	if err := reconcileCreatedOrganization(base, client.Organization{Slug: "nsu", Endpoint: "https://api.example.test/nsu"}, io.Discard); err == nil || !strings.Contains(err.Error(), "config path is unavailable") {
+		t.Fatalf("profile persistence error = %v", err)
+	}
+}
 
 func TestParseUserArgsRegisterRejectsExplicitIdentity(t *testing.T) {
 	_, _, err := parseUserArgs([]string{"register", "--identity-issuer", "https://issuer.example.test"})
@@ -18,16 +67,47 @@ func TestParseUserArgsRegisterRejectsExplicitIdentity(t *testing.T) {
 	}
 }
 
+func TestUserOrganizationArgumentValidationBranches(t *testing.T) {
+	userCases := [][]string{
+		nil,
+		{"register", "--unknown"},
+		{"create", "--unknown"},
+		{"create", "--identity-issuer", "issuer", "--identity-subject", "subject"},
+	}
+	for _, args := range userCases {
+		if _, _, err := parseUserArgs(args); err == nil {
+			t.Fatalf("parseUserArgs(%v) unexpectedly succeeded", args)
+		}
+	}
+	req := userProfileWriteRequest(" User ", " user@example.test ")
+	if req.DisplayName != "User" || req.Email == nil || *req.Email != "user@example.test" {
+		t.Fatalf("userProfileWriteRequest = %+v", req)
+	}
+
+	orgCases := [][]string{
+		nil,
+		{"get", "one", "two"},
+		{"create", "--unknown"},
+		{"create", "one", "two"},
+	}
+	for _, args := range orgCases {
+		if _, _, err := parseOrgArgs(args); err == nil {
+			t.Fatalf("parseOrgArgs(%v) unexpectedly succeeded", args)
+		}
+	}
+}
+
 func TestParseUserArgsCreateRequiresIdentityKey(t *testing.T) {
-	_, _, err := parseUserArgs([]string{"create", "--identity-issuer", "https://issuer.example.test"})
+	_, _, err := parseUserArgs([]string{"create", "--identity-provider", "google", "--identity-issuer", "https://issuer.example.test"})
 	if err == nil || !strings.Contains(err.Error(), "identity subject is required") {
 		t.Fatalf("expected missing subject error, got %v", err)
 	}
 }
 
-func TestParseUserArgsCreateDefaultsOIDCProvider(t *testing.T) {
+func TestParseUserArgsCreateRequiresExplicitProvider(t *testing.T) {
 	cmd, showHelp, err := parseUserArgs([]string{
 		"create",
+		"--identity-provider", "google",
 		"--identity-issuer", "https://issuer.example.test",
 		"--identity-subject", "sub-1",
 		"--display-name", "New User",
@@ -41,7 +121,7 @@ func TestParseUserArgsCreateDefaultsOIDCProvider(t *testing.T) {
 	if cmd.action != "create" {
 		t.Fatalf("action = %q, want create", cmd.action)
 	}
-	if cmd.identity.Provider != "oidc" || cmd.identity.Issuer != "https://issuer.example.test" || cmd.identity.Subject != "sub-1" {
+	if cmd.identity.Provider != "google" || cmd.identity.Issuer != "https://issuer.example.test" || cmd.identity.Subject != "sub-1" {
 		t.Fatalf("unexpected identity: %+v", cmd.identity)
 	}
 	if cmd.profile.DisplayName != "New User" {
@@ -100,7 +180,7 @@ func TestParseUserOrgArgsHelpAndValidation(t *testing.T) {
 		{name: "user me extra", args: []string{"me", "extra"}, want: "user me does not accept arguments"},
 		{name: "register positional", args: []string{"register", "extra"}, want: "does not accept positional arguments"},
 		{name: "create positional", args: []string{"create", "--identity-issuer", "iss", "--identity-subject", "sub", "extra"}, want: "does not accept positional arguments"},
-		{name: "create missing issuer", args: []string{"create", "--identity-subject", "sub"}, want: "identity issuer is required"},
+		{name: "create missing issuer", args: []string{"create", "--identity-provider", "google", "--identity-subject", "sub"}, want: "identity issuer is required"},
 	}
 	for _, tc := range userCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -200,6 +280,7 @@ func TestRunUserCommandsRemoteOutput(t *testing.T) {
 	out.Reset()
 	err := runUser(&out, ctx, []string{
 		"create",
+		"--identity-provider", "google",
 		"--identity-issuer", "https://issuer.example.test",
 		"--identity-subject", "sub-1",
 		"--display-name", "New User",

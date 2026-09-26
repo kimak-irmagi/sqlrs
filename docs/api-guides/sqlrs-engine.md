@@ -214,6 +214,648 @@ Returns engine status. No auth required.
 This operation does not require authentication
 </aside>
 
+<h1 id="the-sqlrs-engine-api-connection">connection</h1>
+
+## getConnectionInfo
+
+<a id="opIdgetConnectionInfo"></a>
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://127.0.0.1:{port}/v1/connection-info \
+  -H 'Accept: application/json' \
+  -H 'If-None-Match: string'
+
+```
+
+```http
+GET http://127.0.0.1:{port}/v1/connection-info HTTP/1.1
+Host: 127.0.0.1
+Accept: application/json
+If-None-Match: string
+
+```
+
+```javascript
+
+const headers = {
+  'Accept':'application/json',
+  'If-None-Match':'string'
+};
+
+fetch('http://127.0.0.1:{port}/v1/connection-info',
+{
+  method: 'GET',
+
+  headers: headers
+})
+.then(function(res) {
+    return res.json();
+}).then(function(body) {
+    console.log(body);
+});
+
+```
+
+```ruby
+require 'rest-client'
+require 'json'
+
+headers = {
+  'Accept' => 'application/json',
+  'If-None-Match' => 'string'
+}
+
+result = RestClient.get 'http://127.0.0.1:{port}/v1/connection-info',
+  params: {
+  }, headers: headers
+
+p JSON.parse(result)
+
+```
+
+```python
+import requests
+headers = {
+  'Accept': 'application/json',
+  'If-None-Match': 'string'
+}
+
+r = requests.get('http://127.0.0.1:{port}/v1/connection-info', headers = headers)
+
+print(r.json())
+
+```
+
+```php
+<?php
+
+require 'vendor/autoload.php';
+
+$headers = array(
+    'Accept' => 'application/json',
+    'If-None-Match' => 'string',
+);
+
+$client = new \GuzzleHttp\Client();
+
+// Define array of request body.
+$request_body = array();
+
+try {
+    $response = $client->request('GET','http://127.0.0.1:{port}/v1/connection-info', array(
+        'headers' => $headers,
+        'json' => $request_body,
+       )
+    );
+    print_r($response->getBody()->getContents());
+ }
+ catch (\GuzzleHttp\Exception\BadResponseException $e) {
+    // handle exception or api errors.
+    print_r($e->getMessage());
+ }
+
+ // ...
+
+```
+
+```java
+URL obj = new URL("http://127.0.0.1:{port}/v1/connection-info");
+HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+con.setRequestMethod("GET");
+int responseCode = con.getResponseCode();
+BufferedReader in = new BufferedReader(
+    new InputStreamReader(con.getInputStream()));
+String inputLine;
+StringBuffer response = new StringBuffer();
+while ((inputLine = in.readLine()) != null) {
+    response.append(inputLine);
+}
+in.close();
+System.out.println(response.toString());
+
+```
+
+```go
+package main
+
+import (
+       "bytes"
+       "net/http"
+)
+
+func main() {
+
+    headers := map[string][]string{
+        "Accept": []string{"application/json"},
+        "If-None-Match": []string{"string"},
+    }
+
+    data := bytes.NewBuffer([]byte{jsonReq})
+    req, err := http.NewRequest("GET", "http://127.0.0.1:{port}/v1/connection-info", data)
+    req.Header = headers
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    // ...
+}
+
+```
+
+`GET /v1/connection-info`
+
+*Discover shared-installation connection metadata*
+
+Shared/team/cloud deployments only. No authentication is required.
+
+This route is exposed relative to the installation-root API base and
+any syntactically valid candidate organization-prefixed API base,
+whether or not that organization slug exists. A candidate is exactly
+one path segment and follows the OrganizationCreateRequest slug
+grammar. Invalid paths are rejected without an organization lookup.
+Root and valid candidate requests use the same installation-owned
+handler and data without querying organization storage. Status, body
+semantics, and cache behavior are identical except for URL-derived
+current-base fields. The response identifies the stable installation,
+the control and current bootstrap bases, and enabled login providers.
+It never confirms organization existence or returns organization
+metadata. Clients must not infer or strip path prefixes.
+
+<h3 id="getconnectioninfo-parameters">Parameters</h3>
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|If-None-Match|header|string|false|Revalidate a previously received bootstrap ETag.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "installation_id": "taidon-production",
+  "endpoints": {
+    "control": "https://api.taidon.dev",
+    "current": "https://api.taidon.dev/nsu"
+  },
+  "auth_providers": [
+    {
+      "id": "google",
+      "display_name": "Google",
+      "adapter": "oidc"
+    }
+  ]
+}
+```
+
+<h3 id="getconnectioninfo-responses">Responses</h3>
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Connection metadata for the requested API base|[ConnectionInfo](#schemaconnectioninfo)|
+|304|[Not Modified](https://tools.ietf.org/html/rfc7232#section-4.1)|Bootstrap metadata has not changed|None|
+|405|[Method Not Allowed](https://tools.ietf.org/html/rfc7231#section-6.5.5)|Method not allowed|None|
+|503|[Service Unavailable](https://tools.ietf.org/html/rfc7231#section-6.6.4)|Bootstrap metadata is temporarily unavailable or invalid|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Headers
+
+|Status|Header|Type|Format|Description|
+|---|---|---|---|---|
+|200|Cache-Control|string||Require revalidation of rotatable bootstrap metadata.|
+|200|ETag|string||Entity tag used to revalidate bootstrap metadata.|
+
+<aside class="success">
+This operation does not require authentication
+</aside>
+
+<h1 id="the-sqlrs-engine-api-auth">auth</h1>
+
+## listAuthProviders
+
+<a id="opIdlistAuthProviders"></a>
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://127.0.0.1:{port}/v1/auth/providers \
+  -H 'Accept: application/json' \
+  -H 'If-None-Match: string'
+
+```
+
+```http
+GET http://127.0.0.1:{port}/v1/auth/providers HTTP/1.1
+Host: 127.0.0.1
+Accept: application/json
+If-None-Match: string
+
+```
+
+```javascript
+
+const headers = {
+  'Accept':'application/json',
+  'If-None-Match':'string'
+};
+
+fetch('http://127.0.0.1:{port}/v1/auth/providers',
+{
+  method: 'GET',
+
+  headers: headers
+})
+.then(function(res) {
+    return res.json();
+}).then(function(body) {
+    console.log(body);
+});
+
+```
+
+```ruby
+require 'rest-client'
+require 'json'
+
+headers = {
+  'Accept' => 'application/json',
+  'If-None-Match' => 'string'
+}
+
+result = RestClient.get 'http://127.0.0.1:{port}/v1/auth/providers',
+  params: {
+  }, headers: headers
+
+p JSON.parse(result)
+
+```
+
+```python
+import requests
+headers = {
+  'Accept': 'application/json',
+  'If-None-Match': 'string'
+}
+
+r = requests.get('http://127.0.0.1:{port}/v1/auth/providers', headers = headers)
+
+print(r.json())
+
+```
+
+```php
+<?php
+
+require 'vendor/autoload.php';
+
+$headers = array(
+    'Accept' => 'application/json',
+    'If-None-Match' => 'string',
+);
+
+$client = new \GuzzleHttp\Client();
+
+// Define array of request body.
+$request_body = array();
+
+try {
+    $response = $client->request('GET','http://127.0.0.1:{port}/v1/auth/providers', array(
+        'headers' => $headers,
+        'json' => $request_body,
+       )
+    );
+    print_r($response->getBody()->getContents());
+ }
+ catch (\GuzzleHttp\Exception\BadResponseException $e) {
+    // handle exception or api errors.
+    print_r($e->getMessage());
+ }
+
+ // ...
+
+```
+
+```java
+URL obj = new URL("http://127.0.0.1:{port}/v1/auth/providers");
+HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+con.setRequestMethod("GET");
+int responseCode = con.getResponseCode();
+BufferedReader in = new BufferedReader(
+    new InputStreamReader(con.getInputStream()));
+String inputLine;
+StringBuffer response = new StringBuffer();
+while ((inputLine = in.readLine()) != null) {
+    response.append(inputLine);
+}
+in.close();
+System.out.println(response.toString());
+
+```
+
+```go
+package main
+
+import (
+       "bytes"
+       "net/http"
+)
+
+func main() {
+
+    headers := map[string][]string{
+        "Accept": []string{"application/json"},
+        "If-None-Match": []string{"string"},
+    }
+
+    data := bytes.NewBuffer([]byte{jsonReq})
+    req, err := http.NewRequest("GET", "http://127.0.0.1:{port}/v1/auth/providers", data)
+    req.Header = headers
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    // ...
+}
+
+```
+
+`GET /v1/auth/providers`
+
+*List login providers enabled by the shared installation*
+
+Shared/team/cloud deployments only. No authentication is required.
+This installation-owned catalogue is exposed relative to the
+installation-root API base and any syntactically valid candidate
+organization prefix. Its availability does not confirm that the
+candidate organization exists. A provider is advertised only when the
+gateway trusts its exact issuer and client ID; inconsistent startup
+configuration makes bootstrap routes return `503`.
+
+<h3 id="listauthproviders-parameters">Parameters</h3>
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|If-None-Match|header|string|false|Revalidate a previously received provider-list ETag.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "providers": [
+    {
+      "id": "string",
+      "display_name": "string",
+      "adapter": "string"
+    }
+  ]
+}
+```
+
+<h3 id="listauthproviders-responses">Responses</h3>
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Enabled login providers|[AuthProviderList](#schemaauthproviderlist)|
+|304|[Not Modified](https://tools.ietf.org/html/rfc7232#section-4.1)|Provider catalogue has not changed|None|
+|405|[Method Not Allowed](https://tools.ietf.org/html/rfc7231#section-6.5.5)|Method not allowed|None|
+|503|[Service Unavailable](https://tools.ietf.org/html/rfc7231#section-6.6.4)|Bootstrap metadata is temporarily unavailable or invalid|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Headers
+
+|Status|Header|Type|Format|Description|
+|---|---|---|---|---|
+|200|Cache-Control|string||Require revalidation of rotatable provider metadata.|
+|200|ETag|string||Entity tag used to revalidate provider metadata.|
+
+<aside class="success">
+This operation does not require authentication
+</aside>
+
+## getAuthProvider
+
+<a id="opIdgetAuthProvider"></a>
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://127.0.0.1:{port}/v1/auth/providers/{provider} \
+  -H 'Accept: application/json' \
+  -H 'If-None-Match: string'
+
+```
+
+```http
+GET http://127.0.0.1:{port}/v1/auth/providers/{provider} HTTP/1.1
+Host: 127.0.0.1
+Accept: application/json
+If-None-Match: string
+
+```
+
+```javascript
+
+const headers = {
+  'Accept':'application/json',
+  'If-None-Match':'string'
+};
+
+fetch('http://127.0.0.1:{port}/v1/auth/providers/{provider}',
+{
+  method: 'GET',
+
+  headers: headers
+})
+.then(function(res) {
+    return res.json();
+}).then(function(body) {
+    console.log(body);
+});
+
+```
+
+```ruby
+require 'rest-client'
+require 'json'
+
+headers = {
+  'Accept' => 'application/json',
+  'If-None-Match' => 'string'
+}
+
+result = RestClient.get 'http://127.0.0.1:{port}/v1/auth/providers/{provider}',
+  params: {
+  }, headers: headers
+
+p JSON.parse(result)
+
+```
+
+```python
+import requests
+headers = {
+  'Accept': 'application/json',
+  'If-None-Match': 'string'
+}
+
+r = requests.get('http://127.0.0.1:{port}/v1/auth/providers/{provider}', headers = headers)
+
+print(r.json())
+
+```
+
+```php
+<?php
+
+require 'vendor/autoload.php';
+
+$headers = array(
+    'Accept' => 'application/json',
+    'If-None-Match' => 'string',
+);
+
+$client = new \GuzzleHttp\Client();
+
+// Define array of request body.
+$request_body = array();
+
+try {
+    $response = $client->request('GET','http://127.0.0.1:{port}/v1/auth/providers/{provider}', array(
+        'headers' => $headers,
+        'json' => $request_body,
+       )
+    );
+    print_r($response->getBody()->getContents());
+ }
+ catch (\GuzzleHttp\Exception\BadResponseException $e) {
+    // handle exception or api errors.
+    print_r($e->getMessage());
+ }
+
+ // ...
+
+```
+
+```java
+URL obj = new URL("http://127.0.0.1:{port}/v1/auth/providers/{provider}");
+HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+con.setRequestMethod("GET");
+int responseCode = con.getResponseCode();
+BufferedReader in = new BufferedReader(
+    new InputStreamReader(con.getInputStream()));
+String inputLine;
+StringBuffer response = new StringBuffer();
+while ((inputLine = in.readLine()) != null) {
+    response.append(inputLine);
+}
+in.close();
+System.out.println(response.toString());
+
+```
+
+```go
+package main
+
+import (
+       "bytes"
+       "net/http"
+)
+
+func main() {
+
+    headers := map[string][]string{
+        "Accept": []string{"application/json"},
+        "If-None-Match": []string{"string"},
+    }
+
+    data := bytes.NewBuffer([]byte{jsonReq})
+    req, err := http.NewRequest("GET", "http://127.0.0.1:{port}/v1/auth/providers/{provider}", data)
+    req.Header = headers
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    // ...
+}
+
+```
+
+`GET /v1/auth/providers/{provider}`
+
+*Get versioned login configuration for one provider*
+
+Shared/team/cloud deployments only. No authentication is required.
+Provider configuration is installation-owned and equivalent through
+installation-root and syntactically valid candidate
+organization-prefixed API bases. Availability does not confirm that the
+candidate organization exists.
+
+Public configuration may contain client identifiers and provider
+endpoints, but never confidential client secrets or user tokens.
+The response `id` must equal the requested path parameter. The
+collection is intended for discovery and UI; clients may fetch this
+fixed detail path directly for login.
+
+<h3 id="getauthprovider-parameters">Parameters</h3>
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|provider|path|[AuthProviderID](#schemaauthproviderid)|true|Stable provider identifier advertised by the catalogue.|
+|If-None-Match|header|string|false|Revalidate a previously received provider-config ETag.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id": "google",
+  "display_name": "Google",
+  "adapter": "oidc",
+  "configuration_version": 1,
+  "flow": "authorizationCodePKCE",
+  "issuer": "https://accounts.google.com",
+  "client_id": "1234567890-abcdef.apps.googleusercontent.com",
+  "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+  "token_endpoint": "https://oauth2.googleapis.com/token",
+  "token_endpoint_auth_method": "none",
+  "authorization_response_iss_parameter_supported": true,
+  "revocation_endpoint": "https://oauth2.googleapis.com/revoke",
+  "scopes": [
+    "openid",
+    "email",
+    "profile"
+  ],
+  "authorization_parameters": {
+    "access_type": "offline",
+    "prompt": "consent"
+  }
+}
+```
+
+<h3 id="getauthprovider-responses">Responses</h3>
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Versioned provider adapter configuration|[AuthProviderConfiguration](#schemaauthproviderconfiguration)|
+|304|[Not Modified](https://tools.ietf.org/html/rfc7232#section-4.1)|Provider configuration has not changed|None|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Provider is not enabled by this installation|[ErrorResponse](#schemaerrorresponse)|
+|405|[Method Not Allowed](https://tools.ietf.org/html/rfc7231#section-6.5.5)|Method not allowed|None|
+|503|[Service Unavailable](https://tools.ietf.org/html/rfc7231#section-6.6.4)|Bootstrap metadata or gateway provider trust is temporarily unavailable or invalid|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Headers
+
+|Status|Header|Type|Format|Description|
+|---|---|---|---|---|
+|200|Cache-Control|string||Require revalidation of rotatable provider configuration.|
+|200|ETag|string||Entity tag used to revalidate provider configuration.|
+
+<aside class="success">
+This operation does not require authentication
+</aside>
+
 <h1 id="the-sqlrs-engine-api-cache">cache</h1>
 
 ## getCacheStatus
@@ -3346,7 +3988,9 @@ func main() {
 *Get current user profile*
 
 Remote/shared deployments only. Returns the current user profile,
-linked external identities, and organization memberships.
+linked external identities, and organization memberships. The gateway
+maps the validated token issuer/client-ID pair to the installation's
+stable provider ID before deriving `provider + issuer + subject`.
 
 > Example responses
 
@@ -3364,7 +4008,7 @@ linked external identities, and organization memberships.
   },
   "identities": [
     {
-      "provider": "oidc",
+      "provider": "string",
       "issuer": "string",
       "subject": "string"
     }
@@ -3375,6 +4019,7 @@ linked external identities, and organization memberships.
         "id": "string",
         "slug": "string",
         "display_name": "string",
+        "endpoint": "string",
         "created_at": "2019-08-24T14:15:22Z",
         "updated_at": "2019-08-24T14:15:22Z"
       },
@@ -3395,7 +4040,8 @@ linked external identities, and organization memberships.
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|OK|[UserProfileResult](#schemauserprofileresult)|
 |401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Unauthorized|None|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User profile not found|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User profile not found, or the candidate organization prefix does
+not identify an organization visible to the authenticated user|[ErrorResponse](#schemaerrorresponse)|
 
 ### Response Headers
 
@@ -3632,7 +4278,7 @@ create-only requests are rejected with `403`.
   },
   "identities": [
     {
-      "provider": "oidc",
+      "provider": "string",
       "issuer": "string",
       "subject": "string"
     }
@@ -3643,6 +4289,7 @@ create-only requests are rejected with `403`.
         "id": "string",
         "slug": "string",
         "display_name": "string",
+        "endpoint": "string",
         "created_at": "2019-08-24T14:15:22Z",
         "updated_at": "2019-08-24T14:15:22Z"
       },
@@ -3666,6 +4313,8 @@ create-only requests are rejected with `403`.
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid input or conflicting preconditions|[ErrorResponse](#schemaerrorresponse)|
 |401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Unauthorized|None|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|Self-registration disabled or forbidden|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The candidate organization prefix does not identify an
+organization visible to the authenticated user|[ErrorResponse](#schemaerrorresponse)|
 |412|[Precondition Failed](https://tools.ietf.org/html/rfc7232#section-4.2)|Precondition failed|[ErrorResponse](#schemaerrorresponse)|
 |428|[Precondition Required](https://tools.ietf.org/html/rfc6585#section-3)|Precondition required|[ErrorResponse](#schemaerrorresponse)|
 
@@ -3690,14 +4339,14 @@ bearerAuth
 
 ```shell
 # You can also use wget
-curl -X GET http://127.0.0.1:{port}/v1/users/by-identity?provider=oidc&issuer=string&subject=string \
+curl -X GET http://127.0.0.1:{port}/v1/users/by-identity?provider=string&issuer=string&subject=string \
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer {access-token}'
 
 ```
 
 ```http
-GET http://127.0.0.1:{port}/v1/users/by-identity?provider=oidc&issuer=string&subject=string HTTP/1.1
+GET http://127.0.0.1:{port}/v1/users/by-identity?provider=string&issuer=string&subject=string HTTP/1.1
 Host: 127.0.0.1
 Accept: application/json
 
@@ -3710,7 +4359,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('http://127.0.0.1:{port}/v1/users/by-identity?provider=oidc&issuer=string&subject=string',
+fetch('http://127.0.0.1:{port}/v1/users/by-identity?provider=string&issuer=string&subject=string',
 {
   method: 'GET',
 
@@ -3735,7 +4384,7 @@ headers = {
 
 result = RestClient.get 'http://127.0.0.1:{port}/v1/users/by-identity',
   params: {
-  'provider' => 'string',
+  'provider' => '[AuthProviderID](#schemaauthproviderid)',
 'issuer' => 'string',
 'subject' => 'string'
 }, headers: headers
@@ -3752,7 +4401,7 @@ headers = {
 }
 
 r = requests.get('http://127.0.0.1:{port}/v1/users/by-identity', params={
-  'provider': 'oidc',  'issuer': 'string',  'subject': 'string'
+  'provider': 'string',  'issuer': 'string',  'subject': 'string'
 }, headers = headers)
 
 print(r.json())
@@ -3792,7 +4441,7 @@ try {
 ```
 
 ```java
-URL obj = new URL("http://127.0.0.1:{port}/v1/users/by-identity?provider=oidc&issuer=string&subject=string");
+URL obj = new URL("http://127.0.0.1:{port}/v1/users/by-identity?provider=string&issuer=string&subject=string");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("GET");
 int responseCode = con.getResponseCode();
@@ -3847,7 +4496,7 @@ external identity key `provider + issuer + subject`.
 
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
-|provider|query|string|true|External identity provider kind.|
+|provider|query|[AuthProviderID](#schemaauthproviderid)|true|Enabled service provider ID, such as `google`, not adapter name `oidc`.|
 |issuer|query|string|true|OAuth/OIDC issuer identifier.|
 |subject|query|string|true|Provider-local subject identifier.|
 
@@ -3867,7 +4516,7 @@ external identity key `provider + issuer + subject`.
   },
   "identities": [
     {
-      "provider": "oidc",
+      "provider": "string",
       "issuer": "string",
       "subject": "string"
     }
@@ -3878,6 +4527,7 @@ external identity key `provider + issuer + subject`.
         "id": "string",
         "slug": "string",
         "display_name": "string",
+        "endpoint": "string",
         "created_at": "2019-08-24T14:15:22Z",
         "updated_at": "2019-08-24T14:15:22Z"
       },
@@ -3921,7 +4571,7 @@ bearerAuth
 
 ```shell
 # You can also use wget
-curl -X PUT http://127.0.0.1:{port}/v1/users/by-identity?provider=oidc&issuer=string&subject=string \
+curl -X PUT http://127.0.0.1:{port}/v1/users/by-identity?provider=string&issuer=string&subject=string \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json' \
   -H 'If-None-Match: string' \
@@ -3931,7 +4581,7 @@ curl -X PUT http://127.0.0.1:{port}/v1/users/by-identity?provider=oidc&issuer=st
 ```
 
 ```http
-PUT http://127.0.0.1:{port}/v1/users/by-identity?provider=oidc&issuer=string&subject=string HTTP/1.1
+PUT http://127.0.0.1:{port}/v1/users/by-identity?provider=string&issuer=string&subject=string HTTP/1.1
 Host: 127.0.0.1
 Content-Type: application/json
 Accept: application/json
@@ -3953,7 +4603,7 @@ const headers = {
   'Authorization':'Bearer {access-token}'
 };
 
-fetch('http://127.0.0.1:{port}/v1/users/by-identity?provider=oidc&issuer=string&subject=string',
+fetch('http://127.0.0.1:{port}/v1/users/by-identity?provider=string&issuer=string&subject=string',
 {
   method: 'PUT',
   body: inputBody,
@@ -3981,7 +4631,7 @@ headers = {
 
 result = RestClient.put 'http://127.0.0.1:{port}/v1/users/by-identity',
   params: {
-  'provider' => 'string',
+  'provider' => '[AuthProviderID](#schemaauthproviderid)',
 'issuer' => 'string',
 'subject' => 'string'
 }, headers: headers
@@ -4001,7 +4651,7 @@ headers = {
 }
 
 r = requests.put('http://127.0.0.1:{port}/v1/users/by-identity', params={
-  'provider': 'oidc',  'issuer': 'string',  'subject': 'string'
+  'provider': 'string',  'issuer': 'string',  'subject': 'string'
 }, headers = headers)
 
 print(r.json())
@@ -4044,7 +4694,7 @@ try {
 ```
 
 ```java
-URL obj = new URL("http://127.0.0.1:{port}/v1/users/by-identity?provider=oidc&issuer=string&subject=string");
+URL obj = new URL("http://127.0.0.1:{port}/v1/users/by-identity?provider=string&issuer=string&subject=string");
 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 con.setRequestMethod("PUT");
 int responseCode = con.getResponseCode();
@@ -4120,7 +4770,7 @@ external identity uniqueness over `provider + issuer + subject`.
 
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
-|provider|query|string|true|External identity provider kind.|
+|provider|query|[AuthProviderID](#schemaauthproviderid)|true|Enabled service provider ID, such as `google`, not adapter name `oidc`.|
 |issuer|query|string|true|OAuth/OIDC issuer identifier.|
 |subject|query|string|true|Provider-local subject identifier.|
 |If-None-Match|header|string|false|Use `*` for create-only provisioning.|
@@ -4143,7 +4793,7 @@ external identity uniqueness over `provider + issuer + subject`.
   },
   "identities": [
     {
-      "provider": "oidc",
+      "provider": "string",
       "issuer": "string",
       "subject": "string"
     }
@@ -4154,6 +4804,7 @@ external identity uniqueness over `provider + issuer + subject`.
         "id": "string",
         "slug": "string",
         "display_name": "string",
+        "endpoint": "string",
         "created_at": "2019-08-24T14:15:22Z",
         "updated_at": "2019-08-24T14:15:22Z"
       },
@@ -4360,6 +5011,7 @@ current authenticated user.
       "id": "string",
       "slug": "string",
       "display_name": "string",
+      "endpoint": "string",
       "created_at": "2019-08-24T14:15:22Z",
       "updated_at": "2019-08-24T14:15:22Z"
     },
@@ -4379,7 +5031,8 @@ current authenticated user.
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|OK|Inline|
 |401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Unauthorized|None|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User profile not found|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User profile not found, or the candidate organization prefix does
+not identify an organization visible to the authenticated user|[ErrorResponse](#schemaerrorresponse)|
 
 <h3 id="listorganizations-responseschema">Response Schema</h3>
 
@@ -4390,8 +5043,26 @@ Status Code **200**
 |*anonymous*|[[OrganizationMembershipView](#schemaorganizationmembershipview)]|false|none|none|
 |» organization|[Organization](#schemaorganization)|true|none|none|
 |»» id|string|true|none|Stable sqlrs organization id.|
-|»» slug|string|true|none|Stable human-readable organization reference.|
+|»» slug|[OrganizationSlug](#schemaorganizationslug)|true|none|Lowercase organization slug, 3 to 63 characters.|
 |»» display_name|string|true|none|none|
+|»» endpoint|[ServiceBaseURL](#schemaservicebaseurl)(uri)|true|none|Absolute API base URL with no userinfo, query, fragment, dot segments,<br>or encoded path separators. Production and non-loopback deployments<br>require HTTPS. Plain HTTP is allowed only for the literal loopback<br>hosts 127.0.0.1 and [::1] in explicit development/test use. A base has<br>no trailing slash. URL validation is structural after percent-decoding;<br>clients must not rely on a regex alone.|
+
+*anyOf*
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|»»» *anonymous*|number|false|none|none|
+
+*or*
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|»»» *anonymous*|number|false|none|none|
+
+*continued*
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
 |»» created_at|string(date-time)|true|none|none|
 |»» updated_at|string(date-time)|true|none|none|
 |» membership|[OrganizationMembership](#schemaorganizationmembership)|true|none|none|
@@ -4602,6 +5273,7 @@ organization.
     "id": "string",
     "slug": "string",
     "display_name": "string",
+    "endpoint": "string",
     "created_at": "2019-08-24T14:15:22Z",
     "updated_at": "2019-08-24T14:15:22Z"
   },
@@ -4621,7 +5293,8 @@ organization.
 |201|[Created](https://tools.ietf.org/html/rfc7231#section-6.3.2)|Organization created|[OrganizationCreateResponse](#schemaorganizationcreateresponse)|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid input|[ErrorResponse](#schemaerrorresponse)|
 |401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Unauthorized|None|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User profile not found|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User profile not found, or the candidate organization prefix does
+not identify an organization visible to the authenticated user|[ErrorResponse](#schemaerrorresponse)|
 |409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|Slug already taken or user is already attached to an organization|[ErrorResponse](#schemaerrorresponse)|
 
 <aside class="warning">
@@ -4800,6 +5473,7 @@ receive `404`.
     "id": "string",
     "slug": "string",
     "display_name": "string",
+    "endpoint": "string",
     "created_at": "2019-08-24T14:15:22Z",
     "updated_at": "2019-08-24T14:15:22Z"
   },
@@ -6641,6 +7315,333 @@ bearerAuth
 
 # Schemas
 
+<h2 id="tocS_AuthProviderID">AuthProviderID</h2>
+<!-- backwards compatibility -->
+<a id="schemaauthproviderid"></a>
+<a id="schema_AuthProviderID"></a>
+<a id="tocSauthproviderid"></a>
+<a id="tocsauthproviderid"></a>
+
+```json
+"string"
+
+```
+
+Stable installation-owned login-provider ID, such as `google`. This is
+also the `provider` component of an external identity key. It is not
+the protocol adapter name such as `oidc`.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|string|false|none|Stable installation-owned login-provider ID, such as `google`. This is<br>also the `provider` component of an external identity key. It is not<br>the protocol adapter name such as `oidc`.|
+
+<h2 id="tocS_OrganizationSlug">OrganizationSlug</h2>
+<!-- backwards compatibility -->
+<a id="schemaorganizationslug"></a>
+<a id="schema_OrganizationSlug"></a>
+<a id="tocSorganizationslug"></a>
+<a id="tocsorganizationslug"></a>
+
+```json
+"string"
+
+```
+
+Lowercase organization slug, 3 to 63 characters.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|string|false|none|Lowercase organization slug, 3 to 63 characters.|
+
+<h2 id="tocS_ServiceBaseURL">ServiceBaseURL</h2>
+<!-- backwards compatibility -->
+<a id="schemaservicebaseurl"></a>
+<a id="schema_ServiceBaseURL"></a>
+<a id="tocSservicebaseurl"></a>
+<a id="tocsservicebaseurl"></a>
+
+```json
+"string"
+
+```
+
+Absolute API base URL with no userinfo, query, fragment, dot segments,
+or encoded path separators. Production and non-loopback deployments
+require HTTPS. Plain HTTP is allowed only for the literal loopback
+hosts 127.0.0.1 and [::1] in explicit development/test use. A base has
+no trailing slash. URL validation is structural after percent-decoding;
+clients must not rely on a regex alone.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|string(uri)|false|none|Absolute API base URL with no userinfo, query, fragment, dot segments,<br>or encoded path separators. Production and non-loopback deployments<br>require HTTPS. Plain HTTP is allowed only for the literal loopback<br>hosts 127.0.0.1 and [::1] in explicit development/test use. A base has<br>no trailing slash. URL validation is structural after percent-decoding;<br>clients must not rely on a regex alone.|
+
+anyOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|number|false|none|none|
+
+or
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|number|false|none|none|
+
+<h2 id="tocS_OIDCIssuerURL">OIDCIssuerURL</h2>
+<!-- backwards compatibility -->
+<a id="schemaoidcissuerurl"></a>
+<a id="schema_OIDCIssuerURL"></a>
+<a id="tocSoidcissuerurl"></a>
+<a id="tocsoidcissuerurl"></a>
+
+```json
+"http://example.com"
+
+```
+
+Absolute HTTPS URL with no userinfo, query, or fragment.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|string(uri)|false|none|Absolute HTTPS URL with no userinfo, query, or fragment.|
+
+<h2 id="tocS_OIDCEndpointURL">OIDCEndpointURL</h2>
+<!-- backwards compatibility -->
+<a id="schemaoidcendpointurl"></a>
+<a id="schema_OIDCEndpointURL"></a>
+<a id="tocSoidcendpointurl"></a>
+<a id="tocsoidcendpointurl"></a>
+
+```json
+"http://example.com"
+
+```
+
+Absolute HTTPS URL with no userinfo or fragment. Existing query
+parameters are allowed only when they do not duplicate or override a
+CLI-owned request parameter.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|string(uri)|false|none|Absolute HTTPS URL with no userinfo or fragment. Existing query<br>parameters are allowed only when they do not duplicate or override a<br>CLI-owned request parameter.|
+
+<h2 id="tocS_ConnectionInfo">ConnectionInfo</h2>
+<!-- backwards compatibility -->
+<a id="schemaconnectioninfo"></a>
+<a id="schema_ConnectionInfo"></a>
+<a id="tocSconnectioninfo"></a>
+<a id="tocsconnectioninfo"></a>
+
+```json
+{
+  "installation_id": "taidon-production",
+  "endpoints": {
+    "control": "https://api.taidon.dev",
+    "current": "https://api.taidon.dev/nsu"
+  },
+  "auth_providers": [
+    {
+      "id": "google",
+      "display_name": "Google",
+      "adapter": "oidc"
+    }
+  ]
+}
+
+```
+
+Installation-owned fields are identical at the root and every
+candidate organization prefix. Only URL fields derived from the
+current bootstrap base vary with that prefix.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|installation_id|string|true|none|Stable identifier shared by root and all candidate bases.|
+|endpoints|[ConnectionEndpoints](#schemaconnectionendpoints)|true|none|The control base is the installation root. The current base has the<br>same scheme and authority and is either that root or exactly one valid<br>organization-slug segment below it. Clients validate these cross-field<br>invariants before persisting either URL.|
+|auth_providers|[[AuthProviderSummary](#schemaauthprovidersummary)]|true|none|Providers enabled for interactive login. Provider IDs are unique.<br>An empty array means that normal remote-session onboarding is not<br>available; clients fail init with an actionable error unless an<br>explicitly selected legacy authentication mode applies.|
+
+<h2 id="tocS_ConnectionEndpoints">ConnectionEndpoints</h2>
+<!-- backwards compatibility -->
+<a id="schemaconnectionendpoints"></a>
+<a id="schema_ConnectionEndpoints"></a>
+<a id="tocSconnectionendpoints"></a>
+<a id="tocsconnectionendpoints"></a>
+
+```json
+{
+  "control": "string",
+  "current": "string"
+}
+
+```
+
+The control base is the installation root. The current base has the
+same scheme and authority and is either that root or exactly one valid
+organization-slug segment below it. Clients validate these cross-field
+invariants before persisting either URL.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|control|[ServiceBaseURL](#schemaservicebaseurl)|true|none|Stable installation control API base URL.|
+|current|[ServiceBaseURL](#schemaservicebaseurl)|true|none|Normalized bootstrap API base corresponding to the caller-supplied<br>endpoint. A path prefix is an unverified organization candidate;<br>this value does not prove that the organization exists.|
+
+<h2 id="tocS_AuthProviderList">AuthProviderList</h2>
+<!-- backwards compatibility -->
+<a id="schemaauthproviderlist"></a>
+<a id="schema_AuthProviderList"></a>
+<a id="tocSauthproviderlist"></a>
+<a id="tocsauthproviderlist"></a>
+
+```json
+{
+  "providers": [
+    {
+      "id": "string",
+      "display_name": "string",
+      "adapter": "string"
+    }
+  ]
+}
+
+```
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|providers|[[AuthProviderSummary](#schemaauthprovidersummary)]|true|none|Provider IDs are unique within this list. An empty array means<br>that interactive remote-session login is unavailable.|
+
+<h2 id="tocS_AuthProviderSummary">AuthProviderSummary</h2>
+<!-- backwards compatibility -->
+<a id="schemaauthprovidersummary"></a>
+<a id="schema_AuthProviderSummary"></a>
+<a id="tocSauthprovidersummary"></a>
+<a id="tocsauthprovidersummary"></a>
+
+```json
+{
+  "id": "string",
+  "display_name": "string",
+  "adapter": "string"
+}
+
+```
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|id|[AuthProviderID](#schemaauthproviderid)|true|none|Stable installation-owned login-provider ID, such as `google`. This is<br>also the `provider` component of an external identity key. It is not<br>the protocol adapter name such as `oidc`.|
+|display_name|string|true|none|none|
+|adapter|string|true|none|Version-independent CLI adapter family identifier.|
+
+<h2 id="tocS_AuthProviderConfiguration">AuthProviderConfiguration</h2>
+<!-- backwards compatibility -->
+<a id="schemaauthproviderconfiguration"></a>
+<a id="schema_AuthProviderConfiguration"></a>
+<a id="tocSauthproviderconfiguration"></a>
+<a id="tocsauthproviderconfiguration"></a>
+
+```json
+{
+  "id": "google",
+  "display_name": "Google",
+  "adapter": "oidc",
+  "configuration_version": 1,
+  "flow": "authorizationCodePKCE",
+  "issuer": "https://accounts.google.com",
+  "client_id": "1234567890-abcdef.apps.googleusercontent.com",
+  "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+  "token_endpoint": "https://oauth2.googleapis.com/token",
+  "token_endpoint_auth_method": "none",
+  "authorization_response_iss_parameter_supported": true,
+  "revocation_endpoint": "https://oauth2.googleapis.com/revoke",
+  "scopes": [
+    "openid",
+    "email",
+    "profile"
+  ],
+  "authorization_parameters": {
+    "access_type": "offline",
+    "prompt": "consent"
+  }
+}
+
+```
+
+### Properties
+
+*None*
+
+<h2 id="tocS_OIDCProviderConfiguration">OIDCProviderConfiguration</h2>
+<!-- backwards compatibility -->
+<a id="schemaoidcproviderconfiguration"></a>
+<a id="schema_OIDCProviderConfiguration"></a>
+<a id="tocSoidcproviderconfiguration"></a>
+<a id="tocsoidcproviderconfiguration"></a>
+
+```json
+{
+  "id": "google",
+  "display_name": "Google",
+  "adapter": "oidc",
+  "configuration_version": 1,
+  "flow": "authorizationCodePKCE",
+  "issuer": "https://accounts.google.com",
+  "client_id": "1234567890-abcdef.apps.googleusercontent.com",
+  "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+  "token_endpoint": "https://oauth2.googleapis.com/token",
+  "token_endpoint_auth_method": "none",
+  "authorization_response_iss_parameter_supported": true,
+  "revocation_endpoint": "https://oauth2.googleapis.com/revoke",
+  "scopes": [
+    "openid",
+    "email",
+    "profile"
+  ],
+  "authorization_parameters": {
+    "access_type": "offline",
+    "prompt": "consent"
+  }
+}
+
+```
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|id|[AuthProviderID](#schemaauthproviderid)|true|none|Stable installation-owned login-provider ID, such as `google`. This is<br>also the `provider` component of an external identity key. It is not<br>the protocol adapter name such as `oidc`.|
+|display_name|string|true|none|none|
+|adapter|string|true|none|none|
+|configuration_version|integer|true|none|none|
+|flow|string|true|none|none|
+|issuer|[OIDCIssuerURL](#schemaoidcissuerurl)|true|none|HTTPS OIDC issuer identifier with no query or fragment.|
+|client_id|string|true|none|Public OAuth client identifier. Configuration version 1 requires it<br>to be the sole ID-token audience; `azp`, when present, also equals<br>this value.|
+|authorization_endpoint|[OIDCEndpointURL](#schemaoidcendpointurl)|true|none|HTTPS login-form URL used by the CLI to build authorization requests.|
+|token_endpoint|[OIDCEndpointURL](#schemaoidcendpointurl)|true|none|Absolute HTTPS URL with no userinfo or fragment. Existing query<br>parameters are allowed only when they do not duplicate or override a<br>CLI-owned request parameter.|
+|token_endpoint_auth_method|string|true|none|The direct native-client flow is limited to public clients and<br>never distributes a confidential client secret.|
+|authorization_response_iss_parameter_supported|boolean|true|none|The authorization server returns RFC 9207 `iss` in every<br>authorization response. The CLI binds the expected issuer to the<br>login attempt and rejects a missing or mismatched callback `iss`.|
+|revocation_endpoint|[OIDCEndpointURL](#schemaoidcendpointurl)|false|none|Absolute HTTPS URL with no userinfo or fragment. Existing query<br>parameters are allowed only when they do not duplicate or override a<br>CLI-owned request parameter.|
+|scopes|[string]|true|none|none|
+|authorization_parameters|object|false|none|Provider-owned static authorization parameters. The CLI rejects<br>security-sensitive attempt parameters in this map and always owns<br>client_id, response_type, redirect_uri, scope, state, nonce,<br>code_challenge, code_challenge_method, login_hint, response_mode,<br>request, and request_uri.|
+|» **additionalProperties**|string|false|none|none|
+
 <h2 id="tocS_HealthResponse">HealthResponse</h2>
 <!-- backwards compatibility -->
 <a id="schemahealthresponse"></a>
@@ -7732,7 +8733,7 @@ xor
   },
   "identities": [
     {
-      "provider": "oidc",
+      "provider": "string",
       "issuer": "string",
       "subject": "string"
     }
@@ -7743,6 +8744,7 @@ xor
         "id": "string",
         "slug": "string",
         "display_name": "string",
+        "endpoint": "string",
         "created_at": "2019-08-24T14:15:22Z",
         "updated_at": "2019-08-24T14:15:22Z"
       },
@@ -7829,7 +8831,7 @@ continued
 
 ```json
 {
-  "provider": "oidc",
+  "provider": "string",
   "issuer": "string",
   "subject": "string"
 }
@@ -7840,7 +8842,7 @@ continued
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|provider|string|true|none|External identity provider kind.|
+|provider|[AuthProviderID](#schemaauthproviderid)|true|none|Service provider ID derived from trusted gateway configuration.|
 |issuer|string|true|none|OAuth/OIDC issuer identifier.|
 |subject|string|true|none|Provider-local subject identifier.|
 
@@ -7863,7 +8865,7 @@ continued
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|slug|string|true|none|Lowercase organization slug, 3 to 63 characters.|
+|slug|[OrganizationSlug](#schemaorganizationslug)|true|none|Lowercase organization slug, 3 to 63 characters.|
 |display_name|string|false|none|Optional human-readable organization name.|
 
 <h2 id="tocS_OrganizationCreateResponse">OrganizationCreateResponse</h2>
@@ -7879,6 +8881,7 @@ continued
     "id": "string",
     "slug": "string",
     "display_name": "string",
+    "endpoint": "string",
     "created_at": "2019-08-24T14:15:22Z",
     "updated_at": "2019-08-24T14:15:22Z"
   },
@@ -7912,6 +8915,7 @@ continued
     "id": "string",
     "slug": "string",
     "display_name": "string",
+    "endpoint": "string",
     "created_at": "2019-08-24T14:15:22Z",
     "updated_at": "2019-08-24T14:15:22Z"
   },
@@ -7944,6 +8948,7 @@ continued
   "id": "string",
   "slug": "string",
   "display_name": "string",
+  "endpoint": "string",
   "created_at": "2019-08-24T14:15:22Z",
   "updated_at": "2019-08-24T14:15:22Z"
 }
@@ -7955,8 +8960,9 @@ continued
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |id|string|true|none|Stable sqlrs organization id.|
-|slug|string|true|none|Stable human-readable organization reference.|
+|slug|[OrganizationSlug](#schemaorganizationslug)|true|none|Stable human-readable organization reference.|
 |display_name|string|true|none|none|
+|endpoint|[ServiceBaseURL](#schemaservicebaseurl)|true|none|Canonical organization-scoped API base URL returned only by an<br>authenticated response. It must belong to the installation control<br>origin and contain exactly one valid organization-slug segment.|
 |created_at|string(date-time)|true|none|none|
 |updated_at|string(date-time)|true|none|none|
 
