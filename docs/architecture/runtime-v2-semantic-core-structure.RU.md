@@ -15,8 +15,9 @@ package runtimev2
 Путь соответствует переименованному каноническому репозиторию. Модуль добавляется
 в корневой `go.work`. Release tags используют префикс каталога module. Tag
 `backend/libs/runtime-go/v0.1.0` указывает на merge commit #107 `52bb255`, но был
-опубликован до полной declaration boundary и заменяется планируемым release
-#108/#124 `backend/libs/runtime-go/v0.2.0`. Runtime v2 — имя семантической схемы;
+опубликован до полной declaration boundary и заменён опубликованным release
+#108/#124 `backend/libs/runtime-go/v0.2.0`. Согласованный cache-record API #110
+добавляется в additive v0.3.0. Runtime v2 — имя семантической схемы;
 оно не требует Go module suffix `/v2`, пока сам Go-модуль не достиг major v2.
 
 Модуль использует только стандартную библиотеку Go и не импортирует внутренности

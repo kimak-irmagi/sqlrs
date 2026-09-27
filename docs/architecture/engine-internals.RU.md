@@ -133,8 +133,15 @@ flowchart LR
 ### 1.8 Registry и metadata store
 
 - `internal/registry` инкапсулирует name/id resolution и list/get операции.
-- `internal/store` задает интерфейсы; `internal/store/sqlite` их реализует.
-- metadata (names/instances/states) и prepare queue таблицы хранятся в `<state-store-root>/state.db`.
+- `internal/store` задаёт legacy/current-runtime interfaces;
+  `internal/store/sqlite` их реализует.
+- metadata (legacy names/instances/states) и prepare queue tables хранятся в
+  `<state-store-root>/state.db`.
+- согласованное dormant-расширение #110 добавляет отдельный интерфейс
+  `internal/runtimev2store` и реализацию `resolver.Cache` на том же concrete
+  SQLite store. Его versioned-таблицы `runtime_v2_*` сосуществуют с legacy
+  metadata и не подключены к текущим API/prepare/run/delete flows. См.
+  согласованную [структуру persistence](runtime-v2-persistence-structure.RU.md).
 
 ### 1.9 Config и discovery
 

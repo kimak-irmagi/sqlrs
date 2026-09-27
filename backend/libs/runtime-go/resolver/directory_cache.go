@@ -82,37 +82,22 @@ func (c *DirectoryCache) Load(ctx context.Context, key CacheKey) (CacheLoad, err
 	if len(raw) > runtimeCacheMaxBytes {
 		return CacheLoad{}, ErrCorruptCache
 	}
-	var record cacheRecord
-	if err := parseCacheRecord(raw, &record); err != nil {
+	record, err := DecodeCacheRecordJSON(raw)
+	if err != nil {
 		return CacheLoad{}, err
 	}
-	if record.Key != key.String() ||
-		record.WorkspaceScope != key.workspaceScope || record.Descriptor != key.descriptor ||
-		!bytes.Equal(record.Declaration, key.declaration) {
+	if !record.Matches(key) {
 		return CacheLoad{}, ErrCorruptCache
 	}
-	return CacheLoad{Hit: true, Resolution: cloneResolution(record.Resolution)}, nil
+	return CacheLoad{Hit: true, Resolution: record.Resolution()}, nil
 }
 
 func parseCacheRecord(raw []byte, record *cacheRecord) error {
-	if rejectDuplicateJSON(raw) != nil {
-		return ErrCorruptCache
+	decoded, err := DecodeCacheRecordJSON(raw)
+	if err != nil {
+		return err
 	}
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(record); err != nil {
-		return ErrCorruptCache
-	}
-	if record.SchemaVersion != cacheSchema {
-		return ErrIncompatibleCache
-	}
-	want := record.Checksum
-	record.Checksum = ""
-	digest, _ := cacheChecksum(*record)
-	record.Checksum = want
-	if want != digest {
-		return ErrCorruptCache
-	}
+	*record = cloneCacheRecord(*decoded.record)
 	return nil
 }
 
@@ -122,16 +107,11 @@ func (c *DirectoryCache) Store(ctx context.Context, key CacheKey, resolution Res
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	record := cacheRecord{SchemaVersion: cacheSchema, Key: key.String(), WorkspaceScope: key.workspaceScope,
-		Descriptor: key.descriptor, Declaration: append(json.RawMessage(nil), key.declaration...), Resolution: cloneResolution(resolution)}
-	checksum, err := cacheChecksum(record)
+	record, err := NewCacheRecord(key, resolution)
 	if err != nil {
 		return err
 	}
-	record.Checksum = checksum
-	// cacheChecksum has just marshalled the same immutable record successfully;
-	// adding a fixed-format checksum string cannot introduce a marshal failure.
-	raw, _ := json.Marshal(record)
+	raw, _ := record.MarshalJSON()
 	if len(raw) > runtimeCacheMaxBytes {
 		return ErrInvalidDeclaration
 	}

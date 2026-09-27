@@ -68,9 +68,21 @@ This document defines the current internal component layout of the local `sqlrs-
 - `internal/store`
   - Storage interfaces and filter models for names/instances/states.
 - `internal/store/sqlite`
-  - SQLite implementation of `internal/store`.
+  - SQLite implementation of the legacy/current-runtime `internal/store`.
 - `internal/stream`
   - List/NDJSON stream helpers for HTTP responses.
+
+### 2.1 Approved dormant Runtime v2 persistence extension
+
+Issue #110 adds `internal/runtimev2store` as a separate logical-state,
+provenance-observation, and materialization interface. The same concrete
+`internal/store/sqlite.Store` implements that interface and `resolver.Cache` in
+separate `runtime_v2_*.go` files, without extending the legacy `store.Store`
+DTOs. `cmd/sqlrs-engine` installs/verifies the side-by-side schema at startup,
+but no HTTP handler or current prepare/run/delete manager receives the v2
+interface before a separate cutover design. See the approved
+[flow](runtime-v2-persistence-flow.md) and
+[component/schema design](runtime-v2-persistence-structure.md).
 
 ## 3. Key types and interfaces
 
@@ -93,13 +105,19 @@ This document defines the current internal component layout of the local `sqlrs-
 - `config.Store` (`config.Manager`)
   - Runtime config API for `/v1/config*`.
 - `store.Store`
-  - Persistent names/instances/states interface.
+  - Persistent legacy/current-runtime names/instances/states interface.
+- `runtimev2store.Store` (approved #110 extension)
+  - Persistent Runtime v2 state identity, provenance observation, lineage, and
+    materialization association interface; dormant until an explicit planner
+    integration.
 - `statefs.StateFS`
   - Filesystem abstraction for clone/snapshot/remove and path derivation.
 
 ## 4. Data ownership
 
-- Metadata DB: `<state-store-root>/state.db` (names/instances/states + prepare queue tables).
+- Metadata DB: `<state-store-root>/state.db` (legacy names/instances/states,
+  prepare queue tables, and approved side-by-side `runtime_v2_*` records after
+  #110 implementation).
 - Snapshot store: `<state-store-root>/engines/<engine>/<version>/base|states/<state_id>`.
 - Per-job runtime dirs: `<state-store-root>/jobs/<job_id>/runtime`.
 - Engine config: `<state-store-root>/config.json`.

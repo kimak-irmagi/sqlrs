@@ -156,13 +156,13 @@ array, а не map, поэтому duplicate names отклоняются и ser
 
 Существующие #107 identity bytes, StateIDs, JSON golden files и public resolved
 types не меняются. Уже опубликованный tag `backend/libs/runtime-go/v0.1.0`
-immutable, но не содержит полной declaration boundary; следующий `go.mod`
-retracts его с actionable reason.
+immutable, но не содержит полной declaration boundary; опубликованный v0.2.0
+`go.mod` retracts его с actionable reason.
 
-Первая рекомендуемая external version — `backend/libs/runtime-go/v0.2.0`.
-Exact intended commit сначала публикуется как immutable
-`backend/libs/runtime-go/v0.2.0-rc.N`; GA использует тот же commit только после
-tests #108/#124 и external-consumer gates.
+Первая рекомендуемая external version — опубликованный
+`backend/libs/runtime-go/v0.2.0`. Его exact commit сначала был опубликован как
+immutable tags `v0.2.0-rc.N`; GA использовал тот же commit после tests #108/#124
+и external-consumer gates.
 Отдельный workflow имеет два режима:
 
 - `workflow_dispatch` preflight проверяет proposed version/commit, clean tree,
@@ -183,8 +183,9 @@ clean consumer; immutable RC tag — public proxy и checksum database; GA со�
 consumer закрывает issue #123. Поэтому GA-only check не требуется до merge или
 до появления самого GA tag.
 
-Workflow никогда не перемещает и не перезаписывает tag. Issue #123 закрывается
-только после успешных post-publication checks.
+Workflow никогда не перемещает и не перезаписывает tag. Publication closure gate
+issue #123 выполнен immutable release v0.2.0. Последующие additive public APIs,
+включая `CacheRecord` из #110, используют новый minor release и те же gates.
 
 Implementation остаётся reviewable как четыре buildable commits в одном PR:
 versioned declarations/extensions, resolver framework, workspace-file/cache/

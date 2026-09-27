@@ -9,6 +9,7 @@
 ```text
 backend/libs/runtime-go/resolver/
   framework.go           contracts, immutable registry, manager и cache key
+  cache_record.go        opaque public cache-record codec из issue #110
   directory_cache.go     restart-safe atomic directory implementation
   cache_prune.go         bounded namespace/age/count pruning
   artifact_store.go      trusted content-addressed acquired artifacts
@@ -176,7 +177,11 @@ cache/artifact directories расположены вне mutable workspace и о
 reparse roots и broad write-capable DACL entries; дочерние objects наследуют
 проверенный ACL. Если deployment не может создать trusted root, store construction завершается ошибкой,
 а не silent downgrade. Checksums сохраняются, но ownership directory — граница
-authentication. Logical states/materializations не сохраняются — это #110.
+authentication. Logical states/materializations сохраняются за границей
+согласованного local-engine persistence из
+[структуры #110](runtime-v2-persistence-structure.RU.md). Engine adapter
+импортирует этот package; resolver module по-прежнему не импортирует engine или
+SQLite code.
 
 `DirectoryCache` также реализует `PrunableCache`. Policies ограничивают inert
 schema/semantic-version namespaces по age и entry count. Pruning использует
@@ -193,19 +198,19 @@ versions fail closed и не переинтерпретируют старые �
 
 Go версионирует nested module, а не отдельные packages. Tag
 `backend/libs/runtime-go/v0.1.0` существует на commit `52bb255`, но был
-опубликован до полной declaration boundary из issue #124. Он immutable и будет
-retracted в следующем `go.mod`; external consumers не должны выбирать его для
-новых зависимостей.
+опубликован до полной declaration boundary из issue #124. Он immutable и
+retracted в v0.2.0; external consumers не должны выбирать его для новых
+зависимостей.
 
-Совместный release #108/#124 сначала публикует immutable
-`backend/libs/runtime-go/v0.2.0-rc.N`. После clean-consumer/public-proxy gates на
-exact RC commit immutable GA tag нацелен на:
+Совместный release #108/#124 опубликовал immutable tags
+`backend/libs/runtime-go/v0.2.0-rc.N`, а после clean-consumer/public-proxy gates
+на exact RC commit — immutable GA tag:
 
 ```text
 backend/libs/runtime-go/v0.2.0
 ```
 
-После публикации consumer фиксирует его так:
+Consumer фиксирует его так:
 
 ```text
 go get github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@v0.2.0
@@ -213,4 +218,6 @@ go get github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@v0.2.0
 
 Package `resolver` не получает отдельный tag. Module release version, resolver
 semantic version, cache schema и identity schema независимы и не
-переинтерпретируют друг друга автоматически.
+переинтерпретируют друг друга автоматически. Issue #110 добавляет opaque,
+wire-compatible public API `CacheRecord` в additive module v0.3.0 после тех же
+RC и external-consumer gates; cache schema v1 не меняется.

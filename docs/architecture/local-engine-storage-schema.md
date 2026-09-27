@@ -49,10 +49,10 @@ CREATE TABLE IF NOT EXISTS states (
 Notes:
 
 - `state_id` is a UUID (see state-cache design).
-- This is the current local-engine storage format. Runtime v2 uses content-derived
-  `sha256:` StateIDs in its standalone semantic module, but issues #107, #108, and
-  #124 do not change this table or reinterpret its rows. The resolver directory
-  cache is separate from engine storage. Issue #110 owns the adoption transition.
+- This remains the legacy/current-runtime local-engine format. Runtime v2 uses
+  content-derived `sha256:` StateIDs and, under the approved #110 design, stores
+  them in separate versioned `runtime_v2_*` tables. It does not reinterpret or
+  add v2 rows to this table. The default prepare/runtime path remains legacy.
 - `parent_state_id` is nullable and models state ancestry for recursive deletes.
 - `state_fingerprint` may equal `state_id`; it is stored for name bindings even
   if the state is evicted.
@@ -120,6 +120,19 @@ Notes:
 ## 3.4 Connection tracking
 
 Connection counts are tracked in memory and are not stored in SQLite.
+
+## 3.5 Side-by-side Runtime v2 persistence
+
+The approved [Runtime v2 persistence flow](runtime-v2-persistence-flow.md) and
+[component/schema design](runtime-v2-persistence-structure.md) reserve separate
+tables in the same database for logical states, resolved identities, provenance
+observations, resolution-cache records, materializations, and named components.
+They have their own marker and per-record version and no foreign key to legacy
+`states`. Runtime v2 reads never fall back to this document's legacy tables.
+
+This section records the boundary only. Until #110 is implemented, the normative
+v2 DDL is the approved component/schema design rather than the current embedded
+legacy `schema.sql` snippets above.
 
 ## 4. Derived fields
 

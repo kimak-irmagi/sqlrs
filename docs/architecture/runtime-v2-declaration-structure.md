@@ -159,12 +159,13 @@ serialization does not depend on map order. Failed unmarshalling is atomic.
 Existing #107 identity bytes, StateIDs, JSON golden files, and public resolved
 types remain unchanged. The previously published nested-module tag
 `backend/libs/runtime-go/v0.1.0` is immutable but incomplete for the declaration
-boundary and is retracted in the next module `go.mod` with an actionable reason.
+boundary and is retracted by the published v0.2.0 `go.mod` with an actionable
+reason.
 
-The first recommended external version is
-`backend/libs/runtime-go/v0.2.0`. The exact intended commit is first published as
-an immutable `backend/libs/runtime-go/v0.2.0-rc.N`; GA uses the same commit only after the RC
-passes #108/#124 tests and external-consumer gates. A dedicated workflow has two
+The first recommended external version is the published
+`backend/libs/runtime-go/v0.2.0`. Its exact commit was first published as
+immutable `v0.2.0-rc.N` tags and GA used the same commit after the RC passed
+#108/#124 tests and external-consumer gates. The dedicated workflow has two
 modes:
 
 - `workflow_dispatch` preflight verifies the proposed version/commit, clean tree,
@@ -185,8 +186,9 @@ consumption; GA is created from that same commit only after RC succeeds; and a
 final GA public-consumer check is the closure gate for issue #123. A GA-only
 check is never required before merge or before its tag exists.
 
-The workflow never moves or overwrites a tag. Issue #123 closes only after the
-post-publication checks pass.
+The workflow never moves or overwrites a tag. Issue #123's publication closure
+gate is satisfied by the immutable v0.2.0 release. Later additive public APIs,
+including #110 `CacheRecord`, use a new minor release and the same gates.
 
 Implementation remains reviewable as four buildable commits in one PR:
 versioned declarations/extensions, resolver framework, workspace-file/cache/

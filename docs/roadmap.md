@@ -74,7 +74,20 @@ gantt
 
 ---
 
-## Status (as of 2026-09-25)
+## Status (as of 2026-09-27)
+
+- **Implementation complete ([#110](https://github.com/kimak-irmagi/sqlrs/issues/110),
+  Runtime v2 persistence)**: the local engine now installs a guarded,
+  side-by-side `runtime_v2_*` SQLite namespace for immutable logical states and
+  provenance, replaceable resolution cache entries, and bounded paged physical
+  materializations. Recipe and relative lineage round-trip across restarts;
+  strict readers recompute public Runtime v2 identities and fail closed on
+  corruption. A pinned populated `v0.1.1-rc.6` fixture proves legacy rows,
+  queue data and unrelated objects survive upgrade and remain usable by legacy
+  CRUD. The public resolver owns one opaque, v0.2-wire-compatible `CacheRecord`
+  codec targeted at runtime-go v0.3.0. The default prepare/run path remains
+  legacy pending a separate cutover. Resolver, DTO and SQLite package coverage
+  is 95.1%, 97.7% and 95.0%, respectively.
 
 - **Implementation complete, publication pending ([#108](https://github.com/kimak-irmagi/sqlrs/issues/108), [#124](https://github.com/kimak-irmagi/sqlrs/issues/124), Runtime v2 declarations and resolver)**: the public nested module now includes strict versioned unresolved declarations, provider-qualified resolved extensions, deterministic composition, role-complete full-tuple resolver dispatch, restart-safe bounded caching, conservative workspace-file resolution, and verified content-addressed acquisition. Resolution captures digest and native continuity evidence as one checked snapshot. Approved NTFS, APFS, ext4, XFS, and Btrfs revisions can revalidate cheaply; unknown and overlay filesystems rehash. Windows store roots must already exist with the current owner and no broad write ACL, while reparse and linked objects fail closed. Killed-writer tests cover every cache/artifact publication barrier. Core and resolver package coverage meet the separate 95% minimum. The immutable `v0.1.0` is retracted; the same-commit RC/GA public proxy gates remain before [#123](https://github.com/kimak-irmagi/sqlrs/issues/123) can close.
 

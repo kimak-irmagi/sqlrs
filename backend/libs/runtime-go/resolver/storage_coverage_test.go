@@ -241,8 +241,8 @@ func TestDirectoryCacheRecordMismatchAndPruneBranches(t *testing.T) {
 	incomplete.Checksum, _ = cacheChecksum(incomplete)
 	incompleteRaw, _ := json.Marshal(incomplete)
 	var parsedIncomplete cacheRecord
-	if err := parseCacheRecord(incompleteRaw, &parsedIncomplete); err != nil {
-		t.Fatalf("incomplete but intact prune envelope: %v", err)
+	if err := parseCacheRecord(incompleteRaw, &parsedIncomplete); !errors.Is(err, ErrCorruptCache) {
+		t.Fatalf("incomplete cache record error = %v, want %v", err, ErrCorruptCache)
 	}
 	_ = os.WriteFile(filepath.Join(cache.root, "incomplete.json"), incompleteRaw, 0o600)
 	_ = os.WriteFile(filepath.Join(cache.root, "misnamed.json"), raw, 0o600)

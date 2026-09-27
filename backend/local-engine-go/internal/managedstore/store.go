@@ -20,7 +20,7 @@ func Initialize(ctx context.Context, db *sql.DB, inventory func(context.Context)
 		return sqlite.ManagedStoreFormat{}, sqlite.ErrManagedPreflightUnavailable
 	}
 	db.SetMaxOpenConns(1)
-	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000"); err != nil {
+	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=0"); err != nil {
 		return sqlite.ManagedStoreFormat{}, failure(ctx)
 	}
 	tx, err := db.BeginTx(ctx, nil)
@@ -40,6 +40,8 @@ func Initialize(ctx context.Context, db *sql.DB, inventory func(context.Context)
 		if err := install(ctx, tx); err != nil {
 			return sqlite.ManagedStoreFormat{}, err
 		}
+	} else if err := sqlite.InstallRuntimeV2Schema(ctx, tx); err != nil {
+		return sqlite.ManagedStoreFormat{}, err
 	}
 	expected, err := expectedSchema(ctx)
 	if err != nil {
@@ -61,7 +63,7 @@ func Initialize(ctx context.Context, db *sql.DB, inventory func(context.Context)
 }
 
 func install(ctx context.Context, tx *sql.Tx) error {
-	for _, fn := range []func(context.Context, *sql.Tx) error{sqlite.InstallManagedStateSchema, queue.InstallManagedSchema, instanceaccess.InstallSchema} {
+	for _, fn := range []func(context.Context, *sql.Tx) error{sqlite.InstallManagedStateSchema, queue.InstallManagedSchema, instanceaccess.InstallSchema, sqlite.InstallRuntimeV2Schema} {
 		if err := fn(ctx, tx); err != nil {
 			return err
 		}

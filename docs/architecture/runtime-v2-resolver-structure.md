@@ -9,6 +9,7 @@ Add package `resolver` to the existing independent module:
 ```text
 backend/libs/runtime-go/resolver/
   framework.go           contracts, immutable registry, manager, cache key
+  cache_record.go        opaque public cache-record codec added by issue #110
   directory_cache.go     restart-safe atomic directory implementation
   cache_prune.go         bounded namespace/age/count pruning
   artifact_store.go      trusted content-addressed acquired artifacts
@@ -186,7 +187,9 @@ that validated ACL. Deployments that cannot establish this trusted root must
 fail before constructing the store rather than downgrade silently. Records remain
 checksummed, but directory ownership is the authentication boundary.
 The package never persists logical states or materializations; that belongs to
-later Runtime v2 persistence work.
+the approved local-engine persistence boundary in
+[the #110 structure](runtime-v2-persistence-structure.md). The engine adapter
+imports this package; the resolver module still imports no engine or SQLite code.
 
 `DirectoryCache` additionally implements `PrunableCache`. Policies bound inert
 schema/semantic-version namespaces by age and entry count. Pruning uses the same
@@ -204,18 +207,17 @@ semantic versions; unknown versions fail closed and cannot reinterpret old data.
 Go versions the nested module, not individual packages. Tag
 `backend/libs/runtime-go/v0.1.0` exists at commit `52bb255`, but was published
 before the complete declaration boundary from issue #124. It is immutable and
-will be retracted in the next `go.mod`; external consumers must not select it for
-new dependencies.
+retracted by v0.2.0; external consumers must not select it for new dependencies.
 
-The combined #108/#124 release first publishes an immutable
-`backend/libs/runtime-go/v0.2.0-rc.N`. After the exact RC commit passes the
-clean-consumer and public-proxy gates, the immutable GA tag targets:
+The combined #108/#124 release published immutable
+`backend/libs/runtime-go/v0.2.0-rc.N` tags and, after the exact RC commit passed
+the clean-consumer and public-proxy gates, the immutable GA tag:
 
 ```text
 backend/libs/runtime-go/v0.2.0
 ```
 
-After publication, consumers pin it with:
+Consumers pin it with:
 
 ```text
 go get github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@v0.2.0
@@ -223,4 +225,6 @@ go get github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@v0.2.0
 
 Package `resolver` receives no independent tag. Module release versions,
 resolver semantic versions, cache schema versions, and identity schema versions
-are distinct and do not implicitly reinterpret one another.
+are distinct and do not implicitly reinterpret one another. Issue #110 adds the
+opaque, wire-compatible public `CacheRecord` API in additive module v0.3.0 after
+the same RC and external-consumer gates; it does not change cache schema v1.

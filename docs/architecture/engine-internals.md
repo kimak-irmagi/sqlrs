@@ -142,8 +142,15 @@ not separate packages.
 ### 1.8 Registry and metadata store
 
 - `internal/registry` encapsulates name/id resolution and list/get operations.
-- `internal/store` defines interfaces; `internal/store/sqlite` implements them.
-- metadata (names/instances/states) and prepare queue tables are stored in `<state-store-root>/state.db`.
+- `internal/store` defines the legacy/current-runtime interfaces;
+  `internal/store/sqlite` implements them.
+- metadata (legacy names/instances/states) and prepare queue tables are stored in
+  `<state-store-root>/state.db`.
+- the approved dormant #110 extension adds a separate `internal/runtimev2store`
+  interface and `resolver.Cache` implementation on the same concrete SQLite
+  store. Its versioned `runtime_v2_*` tables coexist with legacy metadata and are
+  not wired into current API/prepare/run/delete flows. See the approved
+  [persistence structure](runtime-v2-persistence-structure.md).
 
 ### 1.9 Config and discovery
 

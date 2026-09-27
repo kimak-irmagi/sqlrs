@@ -68,9 +68,21 @@
 - `internal/store`
   - Интерфейсы хранения и фильтры для names/instances/states.
 - `internal/store/sqlite`
-  - Реализация `internal/store` на SQLite.
+  - SQLite-реализация legacy/current-runtime `internal/store`.
 - `internal/stream`
   - Хелперы list/NDJSON стриминга для HTTP-ответов.
+
+### 2.1 Согласованное dormant-расширение persistence Runtime v2
+
+Issue #110 добавляет `internal/runtimev2store` как отдельный интерфейс logical
+state, provenance observations и materializations. Тот же concrete
+`internal/store/sqlite.Store` реализует этот интерфейс и `resolver.Cache` в
+отдельных файлах `runtime_v2_*.go`, не расширяя legacy DTO `store.Store`.
+`cmd/sqlrs-engine` устанавливает/проверяет side-by-side schema при startup, но ни
+HTTP handler, ни текущие prepare/run/delete managers не получают v2-интерфейс до
+отдельного cutover design. См. согласованные
+[поток](runtime-v2-persistence-flow.RU.md) и
+[дизайн компонентов/схемы](runtime-v2-persistence-structure.RU.md).
 
 ## 3. Ключевые типы и интерфейсы
 
@@ -93,13 +105,18 @@
 - `config.Store` (`config.Manager`)
   - Runtime config API для `/v1/config*`.
 - `store.Store`
-  - Интерфейс персистентного хранения names/instances/states.
+  - Интерфейс persistence legacy/current-runtime names/instances/states.
+- `runtimev2store.Store` (согласованное расширение #110)
+  - Интерфейс persistence identity State Runtime v2, provenance observations,
+    lineage и materialization associations; dormant до явной интеграции planner.
 - `statefs.StateFS`
   - Файловая абстракция для clone/snapshot/remove + деривации путей.
 
 ## 4. Владение данными
 
-- Metadata DB: `<state-store-root>/state.db` (names/instances/states + таблицы prepare queue).
+- Metadata DB: `<state-store-root>/state.db` (legacy names/instances/states,
+  таблицы prepare queue и согласованные side-by-side records `runtime_v2_*`
+  после реализации #110).
 - Snapshot store: `<state-store-root>/engines/<engine>/<version>/base|states/<state_id>`.
 - Runtime-директории job: `<state-store-root>/jobs/<job_id>/runtime`.
 - Конфиг engine: `<state-store-root>/config.json`.

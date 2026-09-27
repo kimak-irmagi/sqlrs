@@ -75,7 +75,21 @@ gantt
 
 ---
 
-## Статус (на 2026-09-25)
+## Статус (на 2026-09-27)
+
+- **Реализация завершена ([#110](https://github.com/kimak-irmagi/sqlrs/issues/110),
+  persistence Runtime v2)**: local engine теперь устанавливает защищённое
+  параллельное SQLite-пространство `runtime_v2_*` для неизменяемых логических
+  состояний и provenance, заменяемых записей resolution cache и ограниченно
+  постраничных физических materializations. Recipe и relative lineage
+  восстанавливаются после перезапуска; строгие readers повторно вычисляют
+  публичные идентичности Runtime v2 и закрываются при повреждении. Закреплённый
+  заполненный fixture `v0.1.1-rc.6` доказывает сохранность legacy-строк, данных
+  очереди и посторонних объектов при upgrade, а также работоспособность legacy
+  CRUD. Публичный resolver владеет единым непрозрачным codec `CacheRecord`,
+  байтово совместимым с v0.2 и предназначенным для runtime-go v0.3.0. Дефолтный
+  путь prepare/run остаётся legacy до отдельного cutover. Покрытие пакетов
+  resolver, DTO и SQLite составляет 95,1%, 97,7% и 95,0% соответственно.
 
 - **Реализация завершена, публикация ожидается ([#108](https://github.com/kimak-irmagi/sqlrs/issues/108), [#124](https://github.com/kimak-irmagi/sqlrs/issues/124), declarations и resolver Runtime v2)**: публичный nested-модуль теперь содержит строгие версионированные unresolved declarations, квалифицированные провайдером resolved extensions, детерминированную композицию, role-complete dispatch resolver по полному tuple, ограниченный restart-safe cache, консервативное разрешение workspace-файлов и проверенное content-addressed acquisition. Digest и native continuity evidence фиксируются как единый проверенный snapshot. Утверждённые revisions NTFS, APFS, ext4, XFS и Btrfs допускают дешёвую revalidation; неизвестные и overlay-файловые системы повторно хешируются. На Windows корень store должен быть заранее создан, принадлежать текущему владельцу и не иметь broad write ACL; reparse и linked objects отклоняются. Killed-writer тесты проходят каждую границу публикации cache/artifact. Покрытие пакетов core и resolver отдельно достигает минимальных 95%. Неизменяемая версия `v0.1.0` отозвана; до закрытия [#123](https://github.com/kimak-irmagi/sqlrs/issues/123) остаются public-proxy gates RC/GA на одном commit.
 
