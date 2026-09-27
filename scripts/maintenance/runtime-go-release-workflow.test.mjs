@@ -31,6 +31,11 @@ test("manual validation checks out the requested commit and gates each package",
   assert.match(workflow, /Verify protected nested-tag policy before publication/);
   assert.match(workflow, /git tag --list "backend\/libs\/runtime-go\/\$\{VERSION\}-rc\.\*"/);
   assert.doesNotMatch(workflow, /\$\{VERSION\}-rc\.1/);
+  assert.match(workflow, /github\.event_name == 'push' \|\| inputs\.verify_published/);
+  assert.match(workflow, /GITHUB_EVENT_NAME.*workflow_dispatch/);
+  assert.match(workflow, /go list -m -retracted -json/);
+  assert.match(workflow, /\.Retracted \| length > 0/);
+  assert.doesNotMatch(workflow, /\[retracted:/);
 });
 
 test("Runtime v2 workflows use Node 24 actions and explicit Go cache inputs", () => {

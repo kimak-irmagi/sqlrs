@@ -206,6 +206,8 @@ contradictions.
   one immutable `v0.2.0-rc.N` tag and `v0.2.0` point to the same tested commit.
   A second clean
   public-consumer check verifies GA; only that post-tag result closes issue #123.
+  A harness-only failure may be retried by an explicit published-tag verification
+  dispatch that cannot create, update, or replace the immutable coordinate.
   Neither RC nor GA public checks are represented as pre-merge PR requirements.
 - **P07 — tag-policy and workflow authority:** a repository-policy check proves
   that the nested tag namespace rejects update/deletion and that release jobs use

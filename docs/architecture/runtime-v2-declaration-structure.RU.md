@@ -168,6 +168,8 @@ tests #108/#124 и external-consumer gates.
 - `workflow_dispatch` preflight проверяет proposed version/commit, clean tree,
   module path, unit/conformance/golden/race/fuzz-smoke/coverage/dependency gates и
   standalone `GOWORK=off` consumer до создания tag maintainer-ом;
+- явный dispatch `verify_published` повторяет public checks существующего
+  immutable tag после harness-only failure и никогда не перемещает tag;
 - push `backend/libs/runtime-go/v*` проверяет prefix, module path и exact tag
   commit, затем строит clean consumer против immutable tagged version без
   `replace` и с fresh module cache;
