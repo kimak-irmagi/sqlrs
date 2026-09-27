@@ -156,8 +156,9 @@
 - **P05 — RC public gate:** после immutable RC tag clean consumer без `replace`,
   с fresh cache и `GOWORK=off` получает RC через явно заданные public proxy и
   checksum database, проверяя version, source metadata, module zip и sums.
-- **P06 — GA/closure:** GA creation доказывает, что RC и `v0.2.0` указывают на один
-  tested commit; затем второй clean public consumer проверяет GA и закрывает #123.
+- **P06 — GA/closure:** GA creation доказывает, что хотя бы один immutable
+  `v0.2.0-rc.N` и `v0.2.0` указывают на один tested commit; затем второй clean
+  public consumer проверяет GA и закрывает #123.
   RC/GA public checks не выдаются за pre-merge PR requirements.
 - **P07:** repository-policy check доказывает запрет update/delete nested tags и
   least-privilege release jobs; failure блокирует RC/GA как external policy error.
