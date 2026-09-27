@@ -2,12 +2,14 @@ package resolver
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
@@ -267,5 +269,67 @@ func TestDecodeCacheRecordJSONTrustBoundary(t *testing.T) {
 				t.Fatalf("error = %v, want %v", err, test.want)
 			}
 		})
+	}
+}
+
+func TestCacheRecordInternalValidationBranches(t *testing.T) {
+	key, resolution := coverageKey(t, "1")
+	record, err := NewCacheRecord(key, resolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := cloneCacheRecord(*record.record)
+	envelope.Checksum = ""
+	if err := validateCacheRecord(envelope, false); !errors.Is(err, ErrCorruptCache) {
+		t.Fatalf("missing checksum = %v", err)
+	}
+
+	for _, role := range []string{"execution_environment", "deployment"} {
+		if _, err := decodeCacheDeclaration([]byte(`{`), role); err == nil {
+			t.Fatalf("malformed %s declaration accepted", role)
+		}
+	}
+	if _, err := decodeCacheDeclaration([]byte(`{}`), "future"); !errors.Is(err, ErrCorruptCache) {
+		t.Fatalf("unknown role = %v", err)
+	}
+
+	malformedScope := envelope
+	malformedScope.WorkspaceScope = "not-hex"
+	if err := validateCacheKeyDigest(malformedScope); !errors.Is(err, ErrCorruptCache) {
+		t.Fatalf("malformed workspace scope = %v", err)
+	}
+	mismatchedKey := envelope
+	mismatchedKey.Key = strings.Repeat("0", sha256.Size*2)
+	if err := validateCacheKeyDigest(mismatchedKey); !errors.Is(err, ErrCorruptCache) {
+		t.Fatalf("mismatched key = %v", err)
+	}
+}
+
+func TestDirectoryCacheLoadRejectsValidRecordForAnotherKeyAndOversize(t *testing.T) {
+	cache, err := NewDirectoryCache(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantedKey, _ := coverageKey(t, "1")
+	otherKey, otherResolution := coverageKey(t, "2")
+	otherRecord, err := NewCacheRecord(otherKey, otherResolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := otherRecord.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cache.path(wantedKey), raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cache.Load(context.Background(), wantedKey); !errors.Is(err, ErrCorruptCache) {
+		t.Fatalf("mismatched record = %v", err)
+	}
+	if err := os.WriteFile(cache.path(wantedKey), bytes.Repeat([]byte("x"), runtimeCacheMaxBytes+1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cache.Load(context.Background(), wantedKey); !errors.Is(err, ErrCorruptCache) {
+		t.Fatalf("oversized record = %v", err)
 	}
 }
