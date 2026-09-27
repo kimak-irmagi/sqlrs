@@ -202,8 +202,9 @@ contradictions.
   with no `replace`, fresh module cache, and `GOWORK=off` resolves it through the
   explicitly configured public proxy and checksum database with bounded retries,
   verifies the selected version, source commit metadata, module zip, and sums.
-- **P06 — GA provenance and closure gate:** GA creation verifies that
-  `v0.2.0-rc.1` and `v0.2.0` point to the same tested commit. A second clean
+- **P06 — GA provenance and closure gate:** GA creation verifies that at least
+  one immutable `v0.2.0-rc.N` tag and `v0.2.0` point to the same tested commit.
+  A second clean
   public-consumer check verifies GA; only that post-tag result closes issue #123.
   Neither RC nor GA public checks are represented as pre-merge PR requirements.
 - **P07 — tag-policy and workflow authority:** a repository-policy check proves

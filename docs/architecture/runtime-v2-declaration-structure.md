@@ -163,7 +163,7 @@ boundary and is retracted in the next module `go.mod` with an actionable reason.
 
 The first recommended external version is
 `backend/libs/runtime-go/v0.2.0`. The exact intended commit is first published as
-`backend/libs/runtime-go/v0.2.0-rc.1`; GA uses the same commit only after the RC
+an immutable `backend/libs/runtime-go/v0.2.0-rc.N`; GA uses the same commit only after the RC
 passes #108/#124 tests and external-consumer gates. A dedicated workflow has two
 modes:
 

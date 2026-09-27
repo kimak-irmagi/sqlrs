@@ -18,6 +18,8 @@ test("nested release uses clean public consumption gates", () => {
     assert.ok(workflow.includes(required), `missing ${required}`);
   }
   assert.doesNotMatch(workflow, /\breplace\b/);
+  assert.match(workflow, /gh release view .*--repo "\$GITHUB_REPOSITORY"/);
+  assert.match(workflow, /gh release create .*--repo "\$GITHUB_REPOSITORY"/);
 });
 
 test("manual validation checks out the requested commit and gates each package", () => {
@@ -27,6 +29,8 @@ test("manual validation checks out the requested commit and gates each package",
   assert.match(workflow, /GoModSum/);
   assert.match(workflow, /\.Zip \| length > 0/);
   assert.match(workflow, /Verify protected nested-tag policy before publication/);
+  assert.match(workflow, /git tag --list "backend\/libs\/runtime-go\/\$\{VERSION\}-rc\.\*"/);
+  assert.doesNotMatch(workflow, /\$\{VERSION\}-rc\.1/);
 });
 
 test("Runtime v2 workflows use Node 24 actions and explicit Go cache inputs", () => {

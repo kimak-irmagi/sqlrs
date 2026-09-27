@@ -160,8 +160,8 @@ immutable, но не содержит полной declaration boundary; сле�
 retracts его с actionable reason.
 
 Первая рекомендуемая external version — `backend/libs/runtime-go/v0.2.0`.
-Exact intended commit сначала публикуется как
-`backend/libs/runtime-go/v0.2.0-rc.1`; GA использует тот же commit только после
+Exact intended commit сначала публикуется как immutable
+`backend/libs/runtime-go/v0.2.0-rc.N`; GA использует тот же commit только после
 tests #108/#124 и external-consumer gates.
 Отдельный workflow имеет два режима:
 

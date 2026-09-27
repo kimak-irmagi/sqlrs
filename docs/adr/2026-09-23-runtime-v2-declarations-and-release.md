@@ -168,3 +168,28 @@ updates and deletions while permitting creation of new version tags.
 
 Rationale: consumers get immutable published coordinates, while authorized
 release automation can still add a previously unused semantic version.
+
+## Decision 10: recover a failed RC verification without moving a tag
+
+Conversation timestamp: 2026-09-27 17:02 Asia/Novosibirsk
+(2026-09-27 10:02 UTC).
+
+GitHub user: `@evilguest`. Agent: OpenAI Codex (GPT-5).
+
+Question: how should the `v0.2.0` release proceed after immutable `v0.2.0-rc.1`
+passed public proxy, checksum-database, download, and consumer tests, but its
+workflow failed while reading GitHub release metadata from a temporary directory?
+
+Alternatives: accept a red release workflow and verify GA manually; move or
+replace `rc.1`; fix repository context and publish a new RC from the corrected
+workflow commit; abandon `v0.2.0` for a later version.
+
+Decision: preserve `rc.1` unchanged, pass `--repo "$GITHUB_REPOSITORY"` to every
+GitHub release lookup/creation, and allow GA only when at least one immutable
+`v0.2.0-rc.N` tag points to the exact GA commit. Publish `v0.2.0-rc.2` from the
+workflow-fix commit, require its full green public gate, and publish `v0.2.0`
+from that same commit.
+
+Rationale: no observed coordinate is mutated; the next RC proves the repaired
+automation end to end; and the GA-to-RC provenance rule remains strict without
+hard-coding a particular attempt number.

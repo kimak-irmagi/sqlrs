@@ -197,8 +197,8 @@ Go версионирует nested module, а не отдельные packages. 
 retracted в следующем `go.mod`; external consumers не должны выбирать его для
 новых зависимостей.
 
-Совместный release #108/#124 сначала публикует
-`backend/libs/runtime-go/v0.2.0-rc.1`. После clean-consumer/public-proxy gates на
+Совместный release #108/#124 сначала публикует immutable
+`backend/libs/runtime-go/v0.2.0-rc.N`. После clean-consumer/public-proxy gates на
 exact RC commit immutable GA tag нацелен на:
 
 ```text

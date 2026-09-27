@@ -207,8 +207,8 @@ before the complete declaration boundary from issue #124. It is immutable and
 will be retracted in the next `go.mod`; external consumers must not select it for
 new dependencies.
 
-The combined #108/#124 release first publishes
-`backend/libs/runtime-go/v0.2.0-rc.1`. After the exact RC commit passes the
+The combined #108/#124 release first publishes an immutable
+`backend/libs/runtime-go/v0.2.0-rc.N`. After the exact RC commit passes the
 clean-consumer and public-proxy gates, the immutable GA tag targets:
 
 ```text

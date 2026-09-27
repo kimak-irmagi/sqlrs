@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Nested module version (v0.2.0-rc.1 or v0.2.0)
+        description: Nested module version (v0.2.0-rc.N or v0.2.0)
         required: true
       commit:
         description: Exact source commit to validate
@@ -137,11 +137,19 @@ jobs:
           set -euo pipefail
           tag="backend/libs/runtime-go/$VERSION"
           if [[ "$VERSION" != *-rc.* ]]; then
-            rc_commit=$(git rev-list -n 1 "backend/libs/runtime-go/${VERSION}-rc.1")
-            test "$rc_commit" = "$COMMIT"
+            mapfile -t rc_tags < <(git tag --list "backend/libs/runtime-go/${VERSION}-rc.*")
+            test "${#rc_tags[@]}" -gt 0
+            matching_rc=false
+            for rc_tag in "${rc_tags[@]}"; do
+              if [[ "$(git rev-list -n 1 "$rc_tag")" == "$COMMIT" ]]; then
+                matching_rc=true
+                break
+              fi
+            done
+            [[ "$matching_rc" == true ]]
           fi
           notes=$(printf 'Module: github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go\nSchema: sqlrs.runtime.v2\nSource commit: %s\n' "$COMMIT")
-          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "Runtime Go module $VERSION" --notes "$notes" $([[ "$VERSION" == *-rc.* ]] && echo --prerelease)
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "Runtime Go module $VERSION" --notes "$notes" $([[ "$VERSION" == *-rc.* ]] && echo --prerelease)
       - name: Verify public proxy and checksum database
         env:
           GH_TOKEN: ${{ github.token }}
@@ -180,7 +188,7 @@ jobs:
           EOF
           GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go test ./...
           GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -m all | grep -Fq "$module $VERSION"
-          notes=$(gh release view "backend/libs/runtime-go/$VERSION" --json body --jq .body)
+          notes=$(gh release view "backend/libs/runtime-go/$VERSION" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
           grep -Fq 'Schema: sqlrs.runtime.v2' <<<"$notes"
           grep -Fq "Source commit: $COMMIT" <<<"$notes"
           if [[ "$VERSION" != *-rc.* ]]; then
