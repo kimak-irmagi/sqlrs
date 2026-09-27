@@ -45,6 +45,17 @@ function readSnippet(resolvedPath, hash) {
   let start = 1;
   let end = lines.length;
   if (hash) {
+	if (hash.startsWith("region=")) {
+	  const region = decodeURIComponent(hash.slice("region=".length));
+	  const beginMarker = `-- BEGIN ${region}`;
+	  const endMarker = `-- END ${region}`;
+	  const begin = lines.indexOf(beginMarker);
+	  const finish = lines.indexOf(endMarker, begin + 1);
+	  if (begin === -1 || finish === -1 || finish <= begin) {
+		throw new Error(`Invalid region "${region}" in ${resolvedPath}`);
+	  }
+	  return lines.slice(begin + 1, finish).join("\n").trim();
+	}
     const match = hash.match(/L(\d+)(?:-L(\d+))?/i);
     if (!match) {
       throw new Error(`Invalid line range "${hash}" in ${resolvedPath}`);

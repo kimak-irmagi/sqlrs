@@ -10,6 +10,11 @@ Resolver layer преобразует изменяемые декларации 
 Изменений CLI, HTTP API и схемы БД нет. Persistent resolution cache — новое
 versioned directory storage, которое не читает и не меняет legacy cache records.
 
+Согласованный issue #110 позже переиспользует тот же cache envelope через
+additive public codec `CacheRecord` и side-by-side SQLite adapter. Directory
+store остаётся reference filesystem implementation; оба adapter не читают
+legacy state/cache rows, а default prepare/runtime path не меняется.
+
 ## Разрешение с кешем
 
 ```mermaid
@@ -192,3 +197,7 @@ Cache предоставляет bounded pruning по schema/semantic-version na
 maximum age и entry count. Pruning игнорирует active temporary files и не следует
 links. Ошибка fallback resolution возвращает structured error с предыдущим
 `STALE`/`UNKNOWN` status и reason, сохраняя observability без partial replacement.
+
+Issue #110 экспортирует уже versioned envelope как opaque `CacheRecord` в
+runtime-go v0.3.0. `DirectoryCache` и SQLite используют один strict codec и
+full-key matching, сохраняя byte compatibility с directory records v0.2.0.

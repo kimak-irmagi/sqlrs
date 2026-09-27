@@ -27,6 +27,14 @@
   generic flow resolution, revalidation, acquisition и workspace-file.
 - [Структура resolver Runtime v2](runtime-v2-resolver-structure.RU.md) -
   согласованные resolver package, cache format, contracts и владение данными.
+- [Поток persistence Runtime v2](runtime-v2-persistence-flow.RU.md) -
+  согласованный side-by-side persistence local engine и restart behavior для #110.
+- [Структура persistence Runtime v2](runtime-v2-persistence-structure.RU.md) -
+  согласованные store APIs, versioned SQLite schema, provenance observations и
+  разделение logical state/materialization для #110.
+- [Тесты persistence Runtime v2](runtime-v2-persistence-tests.RU.md) -
+  предлагаемый test matrix cache-record, upgrade, restart, lineage,
+  materialization, isolation и coverage для #110.
 - [Тесты declarations/resolver Runtime v2](runtime-v2-declaration-resolver-tests.RU.md) -
   согласованная test matrix для #108, #123 и #124.
 - [`state-cache-design.RU.md`](state-cache-design.RU.md) - cache keys, триггеры,

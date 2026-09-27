@@ -16,7 +16,8 @@ The path follows the renamed canonical repository. Add the module to root
 `go.work`. Releases use repository tags prefixed with the module subdirectory.
 Tag `backend/libs/runtime-go/v0.1.0` points to the #107 merge commit `52bb255`,
 but was published before the complete declaration boundary and is superseded by
-the planned #108/#124 `backend/libs/runtime-go/v0.2.0` release. Runtime v2 is the
+the published #108/#124 `backend/libs/runtime-go/v0.2.0` release. The approved
+#110 cache-record API is additive in v0.3.0. Runtime v2 is the
 semantic schema name; it does not force a Go module `/v2` suffix before the Go
 module itself reaches major version 2.
 

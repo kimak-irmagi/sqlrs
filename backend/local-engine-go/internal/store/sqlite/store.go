@@ -16,7 +16,8 @@ import (
 )
 
 type Store struct {
-	db *sql.DB
+	db  *sql.DB
+	now func() time.Time
 }
 
 func Open(path string) (*Store, error) {
@@ -34,7 +35,7 @@ func Open(path string) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	return &Store{db: db}, nil
+	return &Store{db: db, now: time.Now}, nil
 }
 
 func New(db *sql.DB) (*Store, error) {
@@ -44,7 +45,7 @@ func New(db *sql.DB) (*Store, error) {
 	if err := initDB(db); err != nil {
 		return nil, err
 	}
-	return &Store{db: db}, nil
+	return &Store{db: db, now: time.Now}, nil
 }
 
 func (s *Store) Close() error {
@@ -393,7 +394,7 @@ func (s *Store) UpdateInstanceRuntime(ctx context.Context, instanceID string, ru
 func initDB(db *sql.DB) error {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+	if _, err := db.Exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 0"); err != nil {
 		return err
 	}
 	if err := ensureParentStateColumn(db); err != nil {
@@ -421,6 +422,9 @@ func initDB(db *sql.DB) error {
 		return err
 	}
 	if _, err := db.Exec(SchemaSQL()); err != nil {
+		return err
+	}
+	if err := EnsureRuntimeV2Schema(context.Background(), db); err != nil {
 		return err
 	}
 	// Transitional constructor support; production cutover installs the guarded

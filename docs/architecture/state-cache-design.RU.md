@@ -109,9 +109,10 @@ Taidon стремится делать snapshot "как можно чаще" н�
 [структуру компонентов](runtime-v2-semantic-core-structure.RU.md). Issues #107,
 #108 и #124 добавляют semantic module, versioned declarations и локальный для
 resolver directory cache без миграции engine state cache. Resolver cache хранит
-evidence разрешения, а не материализованные состояния движка. Последующая
-интеграция принадлежит #110 и должна заменить MVP derivation атомарно, а не
-переосмыслить существующие ID.
+evidence разрешения, а не материализованные состояния движка. Согласованный
+[persistence design #110](runtime-v2-persistence-structure.RU.md) добавляет
+side-by-side v2 records, не меняя этот MVP contract или default runtime. Будущий
+cutover должен заменить MVP derivation атомарно, а не переосмыслить ID.
 
 ### 6.1 Идентичность состояния
 
@@ -217,7 +218,7 @@ Taidon должен поддерживать Liquibase-aware режим, где 
 
 Это проще всего, когда Taidon вызывает Liquibase сам ("Liquibase master") или предоставляет wrapper вокруг Liquibase CLI.
 
-Примечание: та же модель кэша используется в local и shared деплойментах. Отличается только _где_ живет Runner (локальный процесс engine или shared сервис). См. [`docs/architecture/sql-runner-api.RU.md`](docs/architecture/sql-runner-api.RU.md).
+Примечание: та же модель кэша используется в local и shared деплойментах. Отличается только _где_ живет Runner (локальный процесс engine или shared сервис). См. [`sql-runner-api.RU.md`](sql-runner-api.RU.md).
 
 ### 9.2 Определение change block
 

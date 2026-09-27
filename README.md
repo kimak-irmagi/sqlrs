@@ -120,8 +120,10 @@ Common libraries, API contracts, and utilities live in `backend/libs/`.
 
 `backend/libs/runtime-go` is an independently versioned public Go module for the
 Runtime v2 semantic contract. Its published `v0.1.0` is superseded and must not
-be selected for new dependencies; the first recommended version will be `v0.2.0`
-after the declaration/resolver release gates pass.
+be selected for new dependencies. Published `v0.2.0` is the recommended
+declaration/resolver baseline; the approved #110 persistence adapter adds an
+opaque cache-record API in the next additive `v0.3.0` line without changing
+Runtime v2 StateID semantics.
 
 Each service includes its own documentation and tooling.
 

@@ -49,10 +49,11 @@ CREATE TABLE IF NOT EXISTS states (
 Примечания:
 
 - `state_id` имеет формат UUID (см. state-cache design).
-- Это текущий storage format local engine. Самостоятельный модуль Runtime v2
-  использует content-derived StateID с префиксом `sha256:`, но issues #107, #108
-  и #124 не меняют эту таблицу и не переосмысливают её строки. Directory cache
-  resolver-а отделён от engine storage; переход внедрения принадлежит issue #110.
+- Это остаётся legacy/current-runtime storage format local engine. Runtime v2
+  использует content-derived StateID с префиксом `sha256:` и по согласованному
+  дизайну #110 хранит их в отдельных versioned-таблицах `runtime_v2_*`. Он не
+  переосмысливает эту таблицу и не добавляет в неё v2 rows. Default
+  prepare/runtime path остаётся legacy.
 - `parent_state_id` nullable и задает иерархию состояний для рекурсивного удаления.
 - `state_fingerprint` может совпадать с `state_id`; он нужен для name binding
   даже при эвикшне state.
@@ -118,6 +119,20 @@ CREATE TABLE IF NOT EXISTS names (
 ## 3.4 Трекинг подключений
 
 Счетчик активных подключений хранится в памяти и не записывается в SQLite.
+
+## 3.5 Side-by-side persistence Runtime v2
+
+Согласованные [поток persistence Runtime v2](runtime-v2-persistence-flow.RU.md)
+и [дизайн компонентов/схемы](runtime-v2-persistence-structure.RU.md) резервируют
+в той же БД отдельные таблицы для logical states, resolved identities,
+provenance observations, resolution-cache records, materializations и named
+components. У них собственный marker и version каждой записи и нет foreign key
+к legacy `states`. Runtime v2 reads никогда не fallback-ятся к legacy-таблицам
+этого документа.
+
+Раздел фиксирует только границу. До реализации #110 нормативный v2 DDL находится
+в согласованном component/schema design, а не в текущих embedded snippets legacy
+`schema.sql` выше.
 
 ## 4. Вычисляемые поля
 

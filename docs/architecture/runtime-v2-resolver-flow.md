@@ -12,6 +12,11 @@ There are no CLI, HTTP API, or database-schema changes in this issue. The
 persistent resolution cache is a new, versioned directory store and never reads
 or rewrites legacy state/cache records.
 
+Approved issue #110 later reuses this exact cache envelope through an additive
+public `CacheRecord` codec and a side-by-side SQLite adapter. The directory store
+remains the reference filesystem implementation; neither adapter reads legacy
+state/cache rows, and the default prepare/runtime path remains unchanged.
+
 ## Cached resolution
 
 ```mermaid
@@ -203,3 +208,7 @@ age, and maximum entry count. Pruning ignores active temporary files and never
 follows links. A failed fallback resolution returns a structured error carrying
 the prior `STALE` or `UNKNOWN` status and reason, so observability is retained
 without returning a partial replacement resolution.
+
+Issue #110 exports the already versioned envelope as an opaque `CacheRecord` in
+runtime-go v0.3.0. `DirectoryCache` and SQLite use the same strict codec and
+full-key matching, preserving byte compatibility with v0.2.0 directory records.

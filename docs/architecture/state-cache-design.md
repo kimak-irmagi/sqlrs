@@ -109,9 +109,10 @@ semantic core is specified in
 [component structure](runtime-v2-semantic-core-structure.md). Issues #107, #108,
 and #124 add the semantic module, versioned declarations, and a resolver-local
 directory cache without migrating this engine state cache. The resolver cache
-stores resolution evidence, not materialized engine states. Issue #110 owns any
-later engine integration, which must replace the MVP derivation atomically rather
-than reinterpret existing IDs.
+stores resolution evidence, not materialized engine states. The approved #110
+[persistence design](runtime-v2-persistence-structure.md) adds side-by-side v2
+records without changing this MVP contract or the default runtime. A later
+cutover must replace the MVP derivation atomically rather than reinterpret IDs.
 
 ### 6.1 State identity
 
@@ -217,7 +218,7 @@ Taidon should support a Liquibase-aware mode where it can:
 
 This is easiest when Taidon acts as the caller of Liquibase ("Liquibase master") or provides a wrapper around Liquibase CLI.
 
-Note: the same cache model is used in local and shared deployments. The difference is _where_ the Runner lives (local engine process vs shared service). See [`docs/architecture/sql-runner-api.md`](docs/architecture/sql-runner-api.md).
+Note: the same cache model is used in local and shared deployments. The difference is _where_ the Runner lives (local engine process vs shared service). See [`sql-runner-api.md`](sql-runner-api.md).
 
 ### 9.2 Change block definition
 
