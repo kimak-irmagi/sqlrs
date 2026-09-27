@@ -170,6 +170,8 @@ modes:
 - `workflow_dispatch` preflight verifies the proposed version/commit, clean tree,
   module path, unit/conformance/golden/race/fuzz-smoke/coverage/dependency gates,
   and a standalone `GOWORK=off` consumer before a maintainer creates the tag;
+- an explicit `verify_published` dispatch repeats the public checks for an
+  existing immutable tag after a harness-only failure and never moves the tag;
 - a `backend/libs/runtime-go/v*` push verifies prefix, module path, and exact tag
   commit, then builds a clean consumer against the immutable tagged version with
   no `replace` and a fresh module cache;

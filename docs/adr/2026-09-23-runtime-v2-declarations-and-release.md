@@ -193,3 +193,27 @@ from that same commit.
 Rationale: no observed coordinate is mutated; the next RC proves the repaired
 automation end to end; and the GA-to-RC provenance rule remains strict without
 hard-coding a particular attempt number.
+
+## Decision 11: re-verify an immutable GA after a harness-only failure
+
+Conversation timestamp: 2026-09-27 17:20 Asia/Novosibirsk
+(2026-09-27 10:20 UTC).
+
+GitHub user: `@evilguest`. Agent: OpenAI Codex (GPT-5).
+
+Question: how should GA verification recover when all public download and
+consumer checks pass, but a textual assertion expects an obsolete Go CLI
+retraction format?
+
+Alternatives: move the GA tag; accept a permanently red gate; rely on a manual
+check only; fix the assertion and explicitly re-verify the existing tag.
+
+Decision: keep the GA tag unchanged, verify retraction through the structured
+`go list -m -retracted -json` `Retracted` field, and add an explicit
+`verify_published` dispatch. That dispatch runs the same tag-policy, provenance,
+proxy, checksum, release-note, retraction, and clean-consumer gates but neither
+creates nor moves a published coordinate.
+
+Rationale: structured output is stable across presentation changes, while a
+separate opt-in recovery mode produces auditable green evidence for the exact
+immutable GA artifact without weakening tag immutability.

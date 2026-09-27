@@ -9,6 +9,11 @@ on:
       commit:
         description: Exact source commit to validate
         required: true
+      verify_published:
+        description: Re-verify an existing immutable tag after a harness-only failure
+        required: false
+        type: boolean
+        default: false
   push:
     tags:
       - "backend/libs/runtime-go/v*"
@@ -100,7 +105,7 @@ jobs:
         run: GOWORK=off go test -count=1 ./...
 
   publish-and-verify:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || inputs.verify_published
     needs: validate
     runs-on: ubuntu-24.04
     permissions:
@@ -149,7 +154,11 @@ jobs:
             [[ "$matching_rc" == true ]]
           fi
           notes=$(printf 'Module: github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go\nSchema: sqlrs.runtime.v2\nSource commit: %s\n' "$COMMIT")
-          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "Runtime Go module $VERSION" --notes "$notes" $([[ "$VERSION" == *-rc.* ]] && echo --prerelease)
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null
+          else
+            gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "Runtime Go module $VERSION" --notes "$notes" $([[ "$VERSION" == *-rc.* ]] && echo --prerelease)
+          fi
       - name: Verify public proxy and checksum database
         env:
           GH_TOKEN: ${{ github.token }}
@@ -192,5 +201,6 @@ jobs:
           grep -Fq 'Schema: sqlrs.runtime.v2' <<<"$notes"
           grep -Fq "Source commit: $COMMIT" <<<"$notes"
           if [[ "$VERSION" != *-rc.* ]]; then
-            GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -m -u -retracted "$module@v0.1.0" | grep -Fq '[retracted:'
+            GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -m -retracted -json "$module@v0.1.0" \
+              | jq -e '.Retracted | length > 0' >/dev/null
           fi
