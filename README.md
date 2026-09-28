@@ -119,11 +119,14 @@ Backend services are split into microservices under `backend/services/`, with a 
 Common libraries, API contracts, and utilities live in `backend/libs/`.
 
 `backend/libs/runtime-go` is an independently versioned public Go module for the
-Runtime v2 semantic contract. Its published `v0.1.0` is superseded and must not
-be selected for new dependencies. Published `v0.2.0` is the recommended
-declaration/resolver baseline; the approved #110 persistence adapter adds an
-opaque cache-record API in the next additive `v0.3.0` line without changing
-Runtime v2 StateID semantics.
+Runtime v2 semantic contract. Published `v0.2.0` is the immutable legacy-v2
+contract identified by `sqlrs.runtime.v2`; its fingerprints and StateIDs are
+never reinterpreted. The #110 persistence adapter adds an opaque,
+v0.2-wire-compatible cache-record API without changing those identities. Issues
+#130/#131 add the side-by-side `sqlrs.runtime.v2.canonical.v1` contract and
+target the same additive `v0.3.0` release after its conformance and release gates
+pass. Published `v0.1.0` remains superseded and must not be selected for new
+dependencies.
 
 Each service includes its own documentation and tooling.
 

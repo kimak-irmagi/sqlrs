@@ -12,16 +12,25 @@ Entry points for Taidon architecture and service design.
   engine.
 - [`runtime-snapshotting.md`](runtime-snapshotting.md) — runtime storage model,
   snapshot/backends (OverlayFS/copy/etc).
-- [Runtime v2 semantic-core flow](runtime-v2-semantic-core-flow.md) -
-  approved engine-neutral resolved-state and lineage interaction flow.
-- [Runtime v2 semantic-core structure](runtime-v2-semantic-core-structure.md) -
-  approved public Go module, semantic types, and ownership for Runtime v2.
-- [Runtime v2 semantic-core tests](runtime-v2-semantic-core-tests.md) - proposed
-  golden, validation, lineage, boundary, and import-conformance test design.
-- [Runtime v2 versioned-declaration flow](runtime-v2-declaration-flow.md) -
-  approved unresolved recipe and typed-extension resolution flow for #124.
-- [Runtime v2 versioned-declaration structure](runtime-v2-declaration-structure.md) -
-  approved declaration types, wire contracts, and module release gate.
+- [Runtime v2 canonical-v1 flow](runtime-v2-canonical-contract-flow.md) -
+  approved side-by-side typed identity, integrity, disclosure, and release flow.
+- [Runtime v2 canonical-v1 structure](runtime-v2-canonical-contract-structure.md) -
+  approved module boundary, public types, trust boundary, and data ownership.
+- [Runtime v2 canonical-v1 conformance bundle](runtime-v2-conformance-bundle-schema.md) -
+  approved bundle schema, detached digest, and verification contract.
+- [Runtime v2 canonical-v1 tests](runtime-v2-canonical-contract-tests.md) -
+  proposed canonical values, identity, integrity, bundle, compatibility, and
+  release test matrix for #130/#131.
+- [Runtime v2 legacy-v2 semantic-core flow](runtime-v2-semantic-core-flow.md) -
+  approved immutable `sqlrs.runtime.v2` resolved-state and lineage flow.
+- [Runtime v2 legacy-v2 semantic-core structure](runtime-v2-semantic-core-structure.md) -
+  approved v0.2.0 public types and ownership retained for compatibility.
+- [Runtime v2 legacy-v2 semantic-core tests](runtime-v2-semantic-core-tests.md) -
+  implemented v0.2.0 golden, validation, lineage, and boundary evidence.
+- [Runtime v2 legacy-v2 versioned-declaration flow](runtime-v2-declaration-flow.md) -
+  approved v0.2.0 unresolved recipe and typed-extension resolution flow.
+- [Runtime v2 legacy-v2 versioned-declaration structure](runtime-v2-declaration-structure.md) -
+  approved v0.2.0 declaration types, wire contracts, and historical release gate.
 - [Runtime v2 alias-composition flow](runtime-v2-composition-flow.md) - approved
   deterministic transform/recipe alias expansion before resolution for #109.
 - [Runtime v2 alias-composition structure](runtime-v2-composition-structure.md) -
@@ -30,9 +39,9 @@ Entry points for Taidon architecture and service design.
 - [Runtime v2 alias-composition test design](runtime-v2-composition-tests.md) -
   proposed conformance, expansion, trace, YAML, compatibility, and release gates
   for #109.
-- [Runtime v2 resolver flow](runtime-v2-resolver-flow.md) - approved generic
+- [Runtime v2 legacy-v2 resolver flow](runtime-v2-resolver-flow.md) - approved generic
   resolution, revalidation, acquisition, and workspace-file flow.
-- [Runtime v2 resolver structure](runtime-v2-resolver-structure.md) - approved
+- [Runtime v2 legacy-v2 resolver structure](runtime-v2-resolver-structure.md) - approved
   resolver package, cache format, contracts, and data ownership.
 - [Runtime v2 persistence flow](runtime-v2-persistence-flow.md) - approved
   side-by-side local-engine persistence and restart behavior for #110.
@@ -42,8 +51,8 @@ Entry points for Taidon architecture and service design.
 - [Runtime v2 persistence tests](runtime-v2-persistence-tests.md) - proposed
   cache-record, upgrade, restart, lineage, materialization, isolation, and
   coverage test matrix for #110.
-- [Runtime v2 declaration/resolver tests](runtime-v2-declaration-resolver-tests.md) -
-  approved test matrix for #108, #123, and #124.
+- [Runtime v2 legacy-v2 declaration/resolver tests](runtime-v2-declaration-resolver-tests.md) -
+  implemented v0.2.0 test matrix for #108, #123, and #124.
 - [`state-cache-design.md`](state-cache-design.md) — cache keys, triggers,
   retention, local store layout.
 - [`state-cache-capacity-control.md`](state-cache-capacity-control.md) -

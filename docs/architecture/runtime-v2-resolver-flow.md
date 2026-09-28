@@ -2,6 +2,10 @@
 
 Status: approved by @evilguest for issue #108, 2026-09-24.
 
+Compatibility scope: this is the v0.2.0 resolver flow for legacy-v2 extension
+identities. Canonical-v1 consumes resolver results only through its separate,
+schema-bound composition boundary; it never rehashes a legacy result.
+
 The resolver layer converts mutable resource declarations into replay-stable
 content identities. It is an engine-neutral library beside the Runtime v2
 semantic core. Resolution, revalidation, acquisition, and execution remain

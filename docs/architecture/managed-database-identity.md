@@ -51,6 +51,10 @@ resolved factory identities. Issues #124 and #108 provide the typed extension,
 composition, and resolution primitives, but do not map managed identities into
 that model. A managed-database adapter remains later integration work.
 
+The referenced primitives are the v0.2.0 legacy-v2 contract. A future adapter
+may instead explicitly target canonical-v1 through its schema-bound builder, but
+must not reinterpret existing managed-identity bindings or legacy StateIDs.
+
 No new CLI option or public identity field is proposed. The existing authorized
 DSN contains the actual username. Use the approved error envelope; introducing
 public error codes requires separate OpenAPI approval.

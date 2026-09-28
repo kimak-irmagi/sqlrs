@@ -114,6 +114,11 @@ evidence разрешения, а не материализованные сос
 side-by-side v2 records, не меняя этот MVP contract или default runtime. Будущий
 cutover должен заменить MVP derivation атомарно, а не переосмыслить ID.
 
+Эти ссылки описывают неизменяемую формулу legacy-v2 из v0.2.0. Отдельный
+[contract canonical-v1](runtime-v2-canonical-contract-flow.RU.md) также opt-in;
+будущая интеграция движка обязана хранить явный schema discriminator и не может
+decode или rehash legacy StateID как canonical-v1.
+
 ### 6.1 Идентичность состояния
 
 State уникально определяется:

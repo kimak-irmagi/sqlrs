@@ -3,6 +3,10 @@
 Статус: согласован; evidence реализации повторно проверены для issue #107
 2026-09-23.
 
+Граница совместимости: suite — завершённые evidence неизменяемого legacy-v2
+contract v0.2.0. Это не test plan canonical-v1; его goldens нельзя
+перегенерировать canonical-v1 encoders.
+
 Документ определяет conformance evidence для согласованных
 [потока взаимодействия](runtime-v2-semantic-core-flow.RU.md) и
 [структуры компонентов](runtime-v2-semantic-core-structure.RU.md). Тесты проверяют

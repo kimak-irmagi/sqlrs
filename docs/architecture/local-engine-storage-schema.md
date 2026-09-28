@@ -50,9 +50,13 @@ Notes:
 
 - `state_id` is a UUID (see state-cache design).
 - This remains the legacy/current-runtime local-engine format. Runtime v2 uses
-  content-derived `sha256:` StateIDs and, under the approved #110 design, stores
-  them in separate versioned `runtime_v2_*` tables. It does not reinterpret or
-  add v2 rows to this table. The default prepare/runtime path remains legacy.
+  content-derived `sha256:` StateIDs and stores them in separate versioned
+  `runtime_v2_*` tables introduced by #110; it neither reinterprets nor adds v2
+  rows to this table. Those persisted IDs are v0.2.0 legacy-v2, while
+  canonical-v1 is a distinct opt-in revision. Any future adoption must record
+  the selected revision without rewriting existing IDs. The resolver directory
+  cache remains separate from engine storage, and the default prepare/runtime
+  path remains legacy.
 - `parent_state_id` is nullable and models state ancestry for recursive deletes.
 - `state_fingerprint` may equal `state_id`; it is stored for name bindings even
   if the state is evicted.

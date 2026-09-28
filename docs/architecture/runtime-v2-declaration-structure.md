@@ -2,6 +2,11 @@
 
 Status: approved by @evilguest for issues #108, #123, and #124, 2026-09-24.
 
+Compatibility scope: this document records the v0.2.0 legacy-v2 declaration
+API and its completed historical release gate. Canonical-v1 retains these APIs
+unchanged and introduces distinct types described in the
+[canonical-v1 component structure](runtime-v2-canonical-contract-structure.md).
+
 ## Files and ownership
 
 Extend the existing `runtimev2` package without changing canonical identity code:

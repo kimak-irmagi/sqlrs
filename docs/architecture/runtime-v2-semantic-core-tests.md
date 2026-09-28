@@ -3,6 +3,10 @@
 Status: approved and implementation evidence reverified for issue #107 on
 2026-09-23.
 
+Compatibility scope: this suite is completed evidence for the immutable v0.2.0
+legacy-v2 contract. It is not the test plan for canonical-v1 and its goldens
+must never be regenerated with canonical-v1 encoders.
+
 This document defines conformance evidence for the approved
 [interaction flow](runtime-v2-semantic-core-flow.md) and
 [component structure](runtime-v2-semantic-core-structure.md). Tests verify the

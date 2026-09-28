@@ -2,6 +2,10 @@
 
 Status: approved by @evilguest for issues #108, #123, and #124, 2026-09-24.
 
+Compatibility scope: this completed plan covers the v0.2.0 legacy-v2
+declaration, resolver, and release contract. Its v0.2.0 tag assertions remain
+historical evidence and do not define the canonical-v1 v0.3.0 release gate.
+
 This plan verifies the approved declaration, resolver, cache, acquisition, and
 release contracts. Test IDs are stable requirement references. Implementation
 starts only after this list is approved and existing tests are reviewed for

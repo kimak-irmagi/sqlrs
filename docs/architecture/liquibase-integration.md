@@ -279,6 +279,10 @@ resolved Liquibase plan to `ResolvedTransformIdentity` values and derives states
 through the engine-neutral Runtime v2 parent/transform formula; checkpoint and
 planning policy stay outside that semantic core.
 
+That mapping names the v0.2.0 legacy-v2 API. A future integration may explicitly
+select the canonical-v1 schema-bound builder instead, but it must persist the
+revision and cannot reinterpret a legacy fingerprint or StateID.
+
 ### 9.1 Canonical key
 
 ```code

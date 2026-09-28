@@ -108,11 +108,14 @@ Backend‑сервисы расположены в `backend/services/`, а об�
 Общие библиотеки, API‑контракты и утилиты — в `backend/libs/`.
 
 `backend/libs/runtime-go` — независимо версионируемый публичный Go-модуль с
-семантическим контрактом Runtime v2. Опубликованный `v0.1.0` заменён последующей
-версией и не должен использоваться в новых зависимостях. Опубликованный `v0.2.0`
-является рекомендуемым baseline declarations/resolver; согласованный persistence
-adapter #110 добавляет opaque cache-record API в следующей additive-линии
-`v0.3.0`, не меняя семантику StateID Runtime v2.
+семантическим контрактом Runtime v2. Опубликованный `v0.2.0` — неизменяемый
+legacy-v2 contract с discriminator `sqlrs.runtime.v2`; его fingerprints и
+StateIDs никогда не переосмысливаются. Persistence adapter #110 добавляет opaque,
+v0.2-wire-compatible cache-record API без изменения этих identity. Issues
+#130/#131 добавляют рядом контракт `sqlrs.runtime.v2.canonical.v1` с тем же
+целевым additive release `v0.3.0` после conformance и release gates.
+Опубликованный `v0.1.0` остаётся superseded и не должен использоваться в новых
+зависимостях.
 
 У каждого сервиса есть своя документация и инструменты.
 
