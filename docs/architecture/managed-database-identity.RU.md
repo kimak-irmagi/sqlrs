@@ -51,6 +51,10 @@ factory identities. Issues #124 и #108 предоставляют typed extensi
 и resolution primitives, но не отображают managed identities в эту модель.
 Managed-database adapter остаётся последующей интеграционной работой.
 
+Указанные primitives относятся к legacy-v2 contract v0.2.0. Будущий adapter
+может явно выбрать canonical-v1 через schema-bound builder, но не должен
+переосмысливать существующие managed-identity bindings или legacy StateID.
+
 Новые параметры CLI и публичное поле идентичности не предлагаются. Существующий
 DSN для авторизованного клиента содержит фактическое имя. Сохраняется согласованный
 формат ошибок; новые публичные коды требуют отдельного согласования OpenAPI.

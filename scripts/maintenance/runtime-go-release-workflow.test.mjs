@@ -14,18 +14,28 @@ test("nested and product tag triggers are isolated", () => {
 });
 
 test("nested release uses clean public consumption gates", () => {
-  for (const required of ["GOWORK=off", "proxy.golang.org", "sum.golang.org", "go mod download", "retract v0.1.0", "sqlrs.runtime.v2"]) {
+  for (const required of ["GOWORK=off", "proxy.golang.org", "sum.golang.org", "go mod download", "retract v0.1.0", "sqlrs.runtime.v2", "sqlrs.runtime.v2.canonical.v1", "v0.3.0", "create-runtime-v2-attestation.mjs", "manifest.sha256"]) {
     assert.ok(workflow.includes(required), `missing ${required}`);
   }
   assert.doesNotMatch(workflow, /\breplace\b/);
+  assert.match(workflow, /stage-runtime-module\.go/);
+  assert.match(workflow, /verify-runtime-v2-canonical-bundle\.mjs/);
+  assert.match(workflow, /check-runtime-v2-bundle-policy\.mjs/);
+  assert.match(ci, /check-runtime-v2-bundle-policy\.mjs "\$BASELINE_SHA"/);
+  assert.doesNotMatch(workflow, /gh release upload[^\n]*--clobber/);
   assert.match(workflow, /gh release view .*--repo "\$GITHUB_REPOSITORY"/);
   assert.match(workflow, /gh release create .*--repo "\$GITHUB_REPOSITORY"/);
 });
 
 test("manual validation checks out the requested commit and gates each package", () => {
   assert.match(workflow, /ref:.*inputs\.commit/);
-  assert.match(workflow, /coverage-core\.out/);
-  assert.match(workflow, /coverage-resolver\.out/);
+  assert.match(workflow, /publish-and-verify:[\s\S]*?ref:\s*\$\{\{ needs\.validate\.outputs\.commit \}\}/);
+  assert.match(workflow, /\^v0\\\.3\\\.0\(-rc\\\.\[1-9\]\[0-9\]\*\)\?\$/);
+  assert.match(workflow, /git fetch --no-tags origin main:refs\/remotes\/origin\/main/);
+  assert.match(workflow, /git merge-base --is-ancestor "\$commit" origin\/main/);
+  assert.match(workflow, /grep -Fxv "backend\/libs\/runtime-go\/\$VERSION"/);
+  assert.match(workflow, /go test[^\n]*-coverpkg=\.\/\.\.\.[^\n]*\.\/\.\.\./);
+  assert.match(workflow, /coverage-runtime-all\.out/);
   assert.match(workflow, /GoModSum/);
   assert.match(workflow, /\.Zip \| length > 0/);
   assert.match(workflow, /Verify protected nested-tag policy before publication/);

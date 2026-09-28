@@ -2,9 +2,12 @@
 
 This directory is the independent Go module
 `github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go`. It defines the
-engine-neutral `sqlrs.runtime.v2` semantic contract and, starting with the
-published v0.2 line, versioned declarations and reusable resolver infrastructure.
-All new APIs remain opt-in; the current engine does not adopt them implicitly.
+engine-neutral Runtime v2 contracts. Published `v0.2.0` defines the immutable
+legacy discriminator `sqlrs.runtime.v2`, versioned declarations, and reusable
+resolver infrastructure. Issues #130/#131 add a separate
+`sqlrs.runtime.v2.canonical.v1` revision with typed identity fields and a
+manifest-backed conformance bundle. All new APIs remain opt-in; the current
+engine does not adopt them implicitly.
 
 ## Version policy
 
@@ -13,11 +16,15 @@ The published `v0.1.0` is immutable, retracted, and superseded because it
 predates the versioned declaration and resolver boundary. Do not select it for
 new dependencies.
 
-Published `v0.2.0` is the first recommended external dependency. The approved
-#110 persistence design adds an opaque, wire-compatible resolver `CacheRecord`
-API in additive `v0.3.0`; it does not change Runtime v2 identity domains or
-StateIDs. External consumers should pin immutable tags and never use a local
-`replace` as a production dependency.
+Version `v0.2.0` remains the published legacy-v2 dependency. Its values must be
+decoded only as `sqlrs.runtime.v2` and never upgraded or rehashed in place. The
+#110 persistence work adds an opaque, v0.2-wire-compatible resolver
+`CacheRecord` API without changing those identity domains or StateIDs. Together
+with the opt-in composition package below, these additions are planned for
+`v0.3.0`; that version is published only
+after the exact release commit passes the conformance-bundle, release-candidate,
+clean-consumer, and public-module-proxy gates. Consumers must not pin an
+unreleased version or use a local `replace` as a production dependency.
 
 Architecture contracts are documented in the
 [Runtime v2 index](../../../docs/architecture/README.md).

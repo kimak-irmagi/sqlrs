@@ -2,6 +2,11 @@
 
 Status: approved by @evilguest for issue #108, 2026-09-24.
 
+Compatibility scope: the resolver API, cache, and release coordinates below are
+the v0.2.0 legacy-v2 contract. They remain valid as published; canonical-v1 adds
+a separate composition boundary and does not silently change cached identity
+meaning.
+
 ## Module boundary
 
 Add package `resolver` to the existing independent module:

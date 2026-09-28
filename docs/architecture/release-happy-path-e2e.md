@@ -13,8 +13,11 @@ The design goal is to ensure users receive the same binaries that passed E2E.
 
 This workflow is exclusively for product tags `v*`. Nested Go-module tags under
 `backend/libs/runtime-go/v*` do not build or publish product binaries; they use
-the dedicated Runtime v2 module gate described in
-[the declaration structure](runtime-v2-declaration-structure.md).
+dedicated Runtime v2 module gates. The v0.2.0 historical gate is recorded in
+[the legacy declaration structure](runtime-v2-declaration-structure.md);
+canonical-v1 releases additionally follow the
+[canonical-v1 release boundary](runtime-v2-canonical-contract-structure.md) and
+[conformance-bundle gate](runtime-v2-conformance-bundle-schema.md).
 
 ---
 

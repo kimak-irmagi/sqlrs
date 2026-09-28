@@ -50,10 +50,13 @@ CREATE TABLE IF NOT EXISTS states (
 
 - `state_id` имеет формат UUID (см. state-cache design).
 - Это остаётся legacy/current-runtime storage format local engine. Runtime v2
-  использует content-derived StateID с префиксом `sha256:` и по согласованному
-  дизайну #110 хранит их в отдельных versioned-таблицах `runtime_v2_*`. Он не
-  переосмысливает эту таблицу и не добавляет в неё v2 rows. Default
-  prepare/runtime path остаётся legacy.
+  использует content-derived StateID с префиксом `sha256:` и хранит их в
+  отдельных versioned-таблицах `runtime_v2_*`, добавленных в #110; он не
+  переосмысливает эту таблицу и не добавляет в неё v2 rows. Сохранённые ID
+  относятся к legacy-v2 из v0.2.0, а canonical-v1 является отдельной opt-in
+  revision. Будущий переход обязан записывать выбранную revision без
+  переписывания существующих ID. Directory cache resolver-а остаётся отделён от
+  engine storage, а default prepare/runtime path — legacy.
 - `parent_state_id` nullable и задает иерархию состояний для рекурсивного удаления.
 - `state_fingerprint` может совпадать с `state_id`; он нужен для name binding
   даже при эвикшне state.

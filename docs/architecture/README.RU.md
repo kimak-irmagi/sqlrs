@@ -13,16 +13,25 @@
   engine.
 - [`runtime-snapshotting.RU.md`](runtime-snapshotting.RU.md) - модель хранения,
   snapshot/backends (OverlayFS/копирование/etc).
-- [Поток semantic core Runtime v2](runtime-v2-semantic-core-flow.RU.md) -
-  согласованный независимый от движка поток resolved-state и lineage Runtime v2.
-- [Структура semantic core Runtime v2](runtime-v2-semantic-core-structure.RU.md) -
-  согласованная граница публичного Go-модуля, типы и владение Runtime v2.
-- [Тесты semantic core Runtime v2](runtime-v2-semantic-core-tests.RU.md) -
-  предлагаемый план golden, validation, lineage, boundary и import tests.
-- [Поток versioned declarations Runtime v2](runtime-v2-declaration-flow.RU.md) -
-  согласованный unresolved recipe и typed-extension resolution flow для #124.
-- [Структура versioned declarations Runtime v2](runtime-v2-declaration-structure.RU.md) -
-  согласованные declaration types, wire contracts и module release gate.
+- [Поток canonical-v1 Runtime v2](runtime-v2-canonical-contract-flow.RU.md) -
+  согласованный side-by-side flow typed identity, integrity, disclosure и release.
+- [Структура canonical-v1 Runtime v2](runtime-v2-canonical-contract-structure.RU.md) -
+  согласованные module boundary, public types, trust boundary и владение данными.
+- [Conformance bundle canonical-v1 Runtime v2](runtime-v2-conformance-bundle-schema.RU.md) -
+  согласованные bundle schema, detached digest и verification contract.
+- [Тесты canonical-v1 Runtime v2](runtime-v2-canonical-contract-tests.RU.md) -
+  предлагаемый test matrix canonical values, identity, integrity, bundle,
+  compatibility и release для #130/#131.
+- [Поток semantic core legacy-v2](runtime-v2-semantic-core-flow.RU.md) -
+  согласованный неизменяемый поток `sqlrs.runtime.v2` resolved-state и lineage.
+- [Структура semantic core legacy-v2](runtime-v2-semantic-core-structure.RU.md) -
+  согласованные public types v0.2.0 и владение для совместимости.
+- [Тесты semantic core legacy-v2](runtime-v2-semantic-core-tests.RU.md) -
+  реализованные v0.2.0 golden, validation, lineage и boundary evidence.
+- [Поток versioned declarations legacy-v2](runtime-v2-declaration-flow.RU.md) -
+  согласованный v0.2.0 unresolved recipe и typed-extension resolution flow.
+- [Структура versioned declarations legacy-v2](runtime-v2-declaration-structure.RU.md) -
+  согласованные v0.2.0 declaration types, wire contracts и historical release gate.
 - [Поток композиции aliases Runtime v2](runtime-v2-composition-flow.RU.md) -
   согласованный детерминированный expansion transform/recipe aliases до
   resolution для #109.
@@ -32,9 +41,9 @@
 - [Дизайн тестов композиции aliases Runtime v2](runtime-v2-composition-tests.RU.md) -
   предложенные conformance, expansion, trace, YAML, compatibility и release
   gates для #109.
-- [Поток resolver Runtime v2](runtime-v2-resolver-flow.RU.md) - согласованный
+- [Поток resolver legacy-v2](runtime-v2-resolver-flow.RU.md) - согласованный
   generic flow resolution, revalidation, acquisition и workspace-file.
-- [Структура resolver Runtime v2](runtime-v2-resolver-structure.RU.md) -
+- [Структура resolver legacy-v2](runtime-v2-resolver-structure.RU.md) -
   согласованные resolver package, cache format, contracts и владение данными.
 - [Поток persistence Runtime v2](runtime-v2-persistence-flow.RU.md) -
   согласованный side-by-side persistence local engine и restart behavior для #110.
@@ -44,8 +53,8 @@
 - [Тесты persistence Runtime v2](runtime-v2-persistence-tests.RU.md) -
   предлагаемый test matrix cache-record, upgrade, restart, lineage,
   materialization, isolation и coverage для #110.
-- [Тесты declarations/resolver Runtime v2](runtime-v2-declaration-resolver-tests.RU.md) -
-  согласованная test matrix для #108, #123 и #124.
+- [Тесты declarations/resolver legacy-v2](runtime-v2-declaration-resolver-tests.RU.md) -
+  реализованная v0.2.0 test matrix для #108, #123 и #124.
 - [`state-cache-design.RU.md`](state-cache-design.RU.md) - cache keys, триггеры,
   retention, локальный layout.
 - [`state-cache-capacity-control.RU.md`](state-cache-capacity-control.RU.md) -

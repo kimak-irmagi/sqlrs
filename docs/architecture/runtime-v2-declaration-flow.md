@@ -2,6 +2,11 @@
 
 Status: approved by @evilguest for issues #108, #123, and #124, 2026-09-24.
 
+Compatibility scope: this is the v0.2.0 legacy-v2 declaration/resolution flow.
+Its `sqlrs.runtime.v2` values and adapters remain frozen. Canonical-v1 uses
+separate types and schema-bound builders defined by the
+[canonical-v1 flow](runtime-v2-canonical-contract-flow.md).
+
 Issue #124 completes the unresolved side of the Runtime v2 contract without
 changing the identity, fingerprint, StateID, or lineage algorithms from #107.
 Issue #108 consumes this boundary instead of defining a competing declaration or

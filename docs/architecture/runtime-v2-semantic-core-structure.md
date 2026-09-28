@@ -3,6 +3,12 @@
 Status: approved by @evilguest for issue #107, 2026-09-23. The critical-review
 corrections were approved in the same conversation before test design.
 
+Compatibility scope: the types, encodings, and domains in this document are the
+immutable legacy-v2 contract `sqlrs.runtime.v2` published in module v0.2.0.
+Canonical-v1 is a separate revision documented in the
+[canonical-v1 component structure](runtime-v2-canonical-contract-structure.md);
+it does not modify the contract below.
+
 ## Public module boundary
 
 Create `backend/libs/runtime-go` as an independent nested Go module:

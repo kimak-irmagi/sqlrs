@@ -2,6 +2,11 @@
 
 Статус: согласовано @evilguest для issues #108, #123 и #124, 2026-09-24.
 
+Граница совместимости: документ фиксирует declaration API legacy-v2 из v0.2.0
+и его завершённый historical release gate. Canonical-v1 сохраняет эти API без
+изменений и добавляет отдельные types из
+[структуры canonical-v1](runtime-v2-canonical-contract-structure.RU.md).
+
 ## Файлы и владение
 
 Существующий package `runtimev2` расширяется без изменения canonical identity:

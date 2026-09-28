@@ -1,0 +1,1 @@
+{"vector_schema":"sqlrs.runtime.v2.canonical.conformance-vector.v1","cases":[{"expected":{"error":{"code":"revision_mismatch","path":"schema_version"},"status":"error"},"id":"compatibility/legacy","input":{"schema_version":"sqlrs.runtime.v2"},"operation":"legacy-decode","tags":["legacy-non-reinterpretation"]}],"relations":[]}

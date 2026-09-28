@@ -13,8 +13,12 @@
 
 Этот workflow предназначен только для продуктовых тегов `v*`. Теги вложенного
 Go-модуля `backend/libs/runtime-go/v*` не собирают и не публикуют продуктовые
-бинарники; для них используется отдельный Runtime v2 module gate из
-[документа о структуре declarations](runtime-v2-declaration-structure.RU.md).
+бинарники; для них используются отдельные Runtime v2 module gates. Historical
+gate v0.2.0 зафиксирован в
+[структуре legacy declarations](runtime-v2-declaration-structure.RU.md), а
+release canonical-v1 дополнительно проходит
+[release boundary canonical-v1](runtime-v2-canonical-contract-structure.RU.md) и
+[conformance-bundle gate](runtime-v2-conformance-bundle-schema.RU.md).
 
 ---
 

@@ -114,6 +114,11 @@ stores resolution evidence, not materialized engine states. The approved #110
 records without changing this MVP contract or the default runtime. A later
 cutover must replace the MVP derivation atomically rather than reinterpret IDs.
 
+Those links describe the immutable v0.2.0 legacy-v2 formula. The separate
+[canonical-v1 contract](runtime-v2-canonical-contract-flow.md) is also opt-in;
+future engine integration must persist an explicit schema discriminator and may
+not decode or rehash legacy StateIDs as canonical-v1.
+
 ### 6.1 State identity
 
 A State is uniquely identified by:

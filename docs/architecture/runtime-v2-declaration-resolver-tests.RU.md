@@ -2,6 +2,10 @@
 
 Статус: согласовано @evilguest для issues #108, #123 и #124, 2026-09-24.
 
+Граница совместимости: завершённый план покрывает declaration, resolver и
+release contract legacy-v2 из v0.2.0. Assertions для tag v0.2.0 остаются
+historical evidence и не задают release gate canonical-v1 v0.3.0.
+
 План проверяет согласованные contracts declarations, resolver, cache, acquisition
 и release. ID тестов служат стабильными ссылками на требования. Реализация
 начинается только после согласования списка и проверки существующих тестов на

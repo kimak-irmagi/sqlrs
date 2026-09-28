@@ -66,6 +66,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Go (Runtime v2)
         uses: actions/setup-go@v7
@@ -86,16 +88,11 @@ jobs:
         run: |
           set -euo pipefail
           profile=../../../coverage-runtime-v2-${{ matrix.runner }}.out
-          go test . -covermode=count -coverprofile=coverage-core.out
-          go test ./resolver -covermode=count -coverprofile=coverage-resolver.out
-          core=$(go tool cover -func=coverage-core.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
-          resolver=$(go tool cover -func=coverage-resolver.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
-          echo "Runtime v2 coverage: core=${core}% resolver=${resolver}%"
-          awk -v value="$core" 'BEGIN { if (value + 0 < 95) exit 1 }'
-          awk -v value="$resolver" 'BEGIN { if (value + 0 < 95) exit 1 }'
-          head -n 1 coverage-core.out > "$profile"
-          tail -n +2 coverage-core.out >> "$profile"
-          tail -n +2 coverage-resolver.out >> "$profile"
+          go test -count=1 -coverpkg=./... -covermode=count -coverprofile=coverage-runtime-all.out ./...
+          runtime=$(go tool cover -func=coverage-runtime-all.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
+          echo "Runtime v2 aggregate coverage: ${runtime}%"
+          awk -v value="$runtime" 'BEGIN { if (value + 0 < 95) exit 1 }'
+          cp coverage-runtime-all.out "$profile"
 
       - name: Check Runtime v2 dependency boundary
         if: matrix.runner == 'ubuntu-24.04'
@@ -122,15 +119,30 @@ jobs:
         run: |
           node scripts/maintenance/verify-runtime-v2-golden.mjs backend/libs/runtime-go/testdata/golden
           node scripts/maintenance/verify-runtime-v2-extension-golden.mjs backend/libs/runtime-go/testdata/extension-golden.json
+          node scripts/maintenance/verify-runtime-v2-canonical-bundle.mjs
+          node --test scripts/maintenance/verify-runtime-v2-canonical-bundle.test.mjs scripts/maintenance/check-runtime-v2-bundle-policy.test.mjs
+
+      - name: Enforce Runtime v2 conformance bundle immutability
+        if: matrix.runner == 'ubuntu-24.04'
+        env:
+          BASELINE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/maintenance/check-runtime-v2-bundle-policy.mjs "$BASELINE_SHA"
 
       - name: Verify Runtime v2 release workflow contract
         if: matrix.runner == 'ubuntu-24.04'
         run: node --test scripts/maintenance/runtime-go-release-workflow.test.mjs
 
-      - name: Test standalone Runtime v2 consumer
-        working-directory: test/runtime-v2-consumer
+      - name: Test standalone Runtime v2 consumer through staged proxy
+        if: matrix.runner == 'ubuntu-24.04'
         shell: bash
-        run: GOWORK=off go test ./...
+        run: |
+          set -euo pipefail
+          temp=$(mktemp -d)
+          trap 'rm -rf "$temp"' EXIT
+          go run ./scripts/maintenance/stage-runtime-module.go backend/libs/runtime-go "$temp/proxy" v0.3.0-pr.0
+          cd test/runtime-v2-consumer
+          GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go mod download github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@v0.3.0-pr.0
+          GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go test -count=1 ./...
 
       - name: Upload Runtime v2 coverage
         uses: actions/upload-artifact@v7

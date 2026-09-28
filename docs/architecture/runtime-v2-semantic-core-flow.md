@@ -4,6 +4,13 @@ Status: approved by @evilguest for issue #107, 2026-09-23. The critical-review
 corrections were approved in the same conversation before test design.
 The #108/#124 boundary clarification was approved 2026-09-24.
 
+Compatibility scope: this document is normative only for the immutable
+legacy-v2 schema `sqlrs.runtime.v2` published in module v0.2.0. The distinct
+`sqlrs.runtime.v2.canonical.v1` revision, its typed fields, and migration
+boundary are specified in the
+[canonical-v1 flow](runtime-v2-canonical-contract-flow.md); no rule below may
+be used to reinterpret or rehash a legacy value.
+
 Runtime v2 separates logical state identity from resolution, execution, and
 physical materialization. The semantic core is a pure, engine-neutral Go module.
 It accepts already resolved immutable identities and predicts self-contained

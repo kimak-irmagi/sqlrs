@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -21,6 +22,61 @@ func FuzzDigestAndCanonicalScalars(f *testing.F) {
 		}
 		if !bytes.Equal(encoded, encodeBytes(payload)) || !bytes.Equal(encodeString(string(payload)), encodeString(string(payload))) {
 			t.Fatal("canonical scalar encoding is not deterministic")
+		}
+	})
+}
+
+// FuzzCanonicalCollectionPermutations covers CV03 for larger deterministic
+// map/set inputs while allowing the fuzzer to generate arbitrary swap streams.
+func FuzzCanonicalCollectionPermutations(f *testing.F) {
+	f.Add([]byte{7, 0, 5, 2, 4, 1, 6, 3})
+	values := make([]CanonicalValue, 8)
+	entries := make([]CanonicalMapEntry, 8)
+	for index := range values {
+		values[index], _ = CanonicalString(fmt.Sprintf("value-%d", index))
+		entries[index] = CanonicalMapEntry{Key: fmt.Sprintf("key-%d", index), Value: values[index]}
+	}
+	wantMap, _ := CanonicalMap(entries)
+	wantSet, _ := CanonicalSet(values)
+	f.Fuzz(func(t *testing.T, swaps []byte) {
+		mapInput := append([]CanonicalMapEntry(nil), entries...)
+		setInput := append([]CanonicalValue(nil), values...)
+		for index, swap := range swaps {
+			left, right := index%len(values), int(swap)%len(values)
+			mapInput[left], mapInput[right] = mapInput[right], mapInput[left]
+			setInput[left], setInput[right] = setInput[right], setInput[left]
+		}
+		gotMap, err := CanonicalMap(mapInput)
+		if err != nil || !bytes.Equal(gotMap.CanonicalBytes(), wantMap.CanonicalBytes()) {
+			t.Fatalf("map permutation changed canonical bytes: %v", err)
+		}
+		gotSet, err := CanonicalSet(setInput)
+		if err != nil || !bytes.Equal(gotSet.CanonicalBytes(), wantSet.CanonicalBytes()) {
+			t.Fatalf("set permutation changed canonical bytes: %v", err)
+		}
+	})
+}
+
+func FuzzCanonicalValueEnvelope(f *testing.F) {
+	text, _ := CanonicalString("seed")
+	list, _ := CanonicalList([]CanonicalValue{CanonicalNull(), text})
+	for _, seed := range [][]byte{CanonicalNull().CanonicalBytes(), text.CanonicalBytes(), list.CanonicalBytes(), {}, {0xff}} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, raw []byte) {
+		value, err := ParseCanonicalValueEnvelope(raw)
+		if err != nil {
+			if value.Valid() || !errors.Is(err, ErrInvalid) {
+				t.Fatalf("non-atomic or unstructured failure: %v", err)
+			}
+			return
+		}
+		if !bytes.Equal(value.CanonicalBytes(), raw) {
+			t.Fatal("successful decode did not round-trip exactly")
+		}
+		parsed, err := ParseCanonicalValueToken(value.Token().String())
+		if err != nil || parsed.String() != value.Token().String() {
+			t.Fatalf("derived token did not parse: %v", err)
 		}
 	})
 }

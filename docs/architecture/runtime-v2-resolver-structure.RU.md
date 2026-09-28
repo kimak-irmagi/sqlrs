@@ -2,6 +2,10 @@
 
 Статус: согласовано @evilguest для issue #108, 2026-09-24.
 
+Граница совместимости: resolver API, cache и release coordinates ниже относятся
+к legacy-v2 contract v0.2.0 и сохраняются как опубликованные. Canonical-v1
+добавляет отдельную composition boundary и не меняет молча смысл cached identity.
+
 ## Граница модуля
 
 В существующий независимый модуль добавляется package `resolver`:
