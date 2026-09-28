@@ -5,6 +5,12 @@
 **Status: implemented for the current local CLI, except for the name-binding
 follow-ups called out below.**
 
+This guide describes the current legacy execution path. The approved Runtime v2
+transform/recipe composition schema is documented separately in
+[Runtime v2 alias composition](sqlrs-runtime-v2-composition.md). It is not yet
+implemented or selected by `sqlrs plan <ref>` / `sqlrs prepare <ref>`, and it
+does not reinterpret the alias files described below.
+
 Current local CLI support includes:
 
 - `sqlrs plan <prepare-ref>`

@@ -23,6 +23,13 @@ compatibility; document constructors валидируют и deep-copy их. С�
 fields остаётся вне core. Resolver, filesystem, Docker, DBMS, storage и execution
 dependencies не добавляются.
 
+Issue #109 оставляет alias graphs вне этого root package в opt-in subpackage
+`runtime-go/composition`. Этот слой импортирует данные declaration types и
+разворачивает aliases в `RecipeDeclaration` или
+`TransformDeclarationDocument`; alias fields не добавляются в описанные ниже
+declaration wire contracts. См.
+[структуру композиции](runtime-v2-composition-structure.RU.md).
+
 ## Public model
 
 Существующие nested diagnostic declarations получают optional typed-extension и

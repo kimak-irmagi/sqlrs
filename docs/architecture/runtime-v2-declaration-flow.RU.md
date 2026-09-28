@@ -8,6 +8,12 @@ fingerprint, StateID и lineage algorithms из #107. Issue #108 использ�
 
 CLI, HTTP API, схема БД и default runtime в этом slice не меняются.
 
+Issue #109 добавляет опциональный composition stage перед этим flow. Alias graph
+разворачивается в тот же `RecipeDeclaration`, который описан здесь; alias names
+и отдельный expansion trace не участвуют в resolution или identity. См.
+[поток композиции](runtime-v2-composition-flow.RU.md). Прямой путь declaration
+остаётся допустимым и неизменным.
+
 ## Поток declaration-to-resolution
 
 ```mermaid
