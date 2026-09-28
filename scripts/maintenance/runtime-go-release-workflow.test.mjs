@@ -26,6 +26,7 @@ test("nested release uses clean public consumption gates", () => {
   const stagedVersion = consumerMod.match(/runtime-go (v0\.3\.0-pr\.[0-9]+)/)?.[1];
   assert.ok(stagedVersion, "clean consumer must pin one staged prerelease");
   assert.ok(workflow.includes(stagedVersion), "workflow and clean consumer staged versions differ");
+  assert.ok(ci.includes(stagedVersion), "CI and clean consumer staged versions differ");
   assert.ok(consumerSum.includes(`runtime-go ${stagedVersion} h1:`), "staged module checksum is missing");
   assert.match(workflow, /verify-runtime-v2-canonical-bundle\.mjs/);
   assert.match(workflow, /check-runtime-v2-bundle-policy\.mjs/);
