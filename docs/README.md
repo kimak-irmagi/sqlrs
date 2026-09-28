@@ -18,7 +18,9 @@ Key doc categories and entry points:
   [`sqlrs-config.md`](user-guides/sqlrs-config.md)
 - Prepare and plan: [`sqlrs-prepare.md`](user-guides/sqlrs-prepare.md),
   [`sqlrs-plan.md`](user-guides/sqlrs-plan.md), and
-  [`sqlrs-aliases.md`](user-guides/sqlrs-aliases.md)
+  [`sqlrs-aliases.md`](user-guides/sqlrs-aliases.md); the approved but not yet
+  implemented Runtime v2 composition schema is documented in
+  [`sqlrs-runtime-v2-composition.md`](user-guides/sqlrs-runtime-v2-composition.md)
 - Repository-aware workflows: [`sqlrs-ref.md`](user-guides/sqlrs-ref.md),
   [`sqlrs-run-ref.md`](user-guides/sqlrs-run-ref.md),
   [`sqlrs-diff.md`](user-guides/sqlrs-diff.md), and

@@ -23,6 +23,13 @@ source compatibility; document constructors validate and deep-copy them.
 Provider field meaning remains outside the core. No resolver, filesystem,
 Docker, DBMS, storage, or execution dependency is introduced.
 
+Issue #109 keeps alias graphs outside this root package in the opt-in
+`runtime-go/composition` subpackage. That layer imports these declaration types
+and expands aliases into `RecipeDeclaration` or
+`TransformDeclarationDocument`; it does not add alias fields to the declaration
+wire contracts below. See the
+[composition structure](runtime-v2-composition-structure.md).
+
 ## Public model
 
 The existing nested diagnostic declarations gain optional typed-extension and

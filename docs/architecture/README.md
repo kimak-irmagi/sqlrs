@@ -22,6 +22,14 @@ Entry points for Taidon architecture and service design.
   approved unresolved recipe and typed-extension resolution flow for #124.
 - [Runtime v2 versioned-declaration structure](runtime-v2-declaration-structure.md) -
   approved declaration types, wire contracts, and module release gate.
+- [Runtime v2 alias-composition flow](runtime-v2-composition-flow.md) - approved
+  deterministic transform/recipe alias expansion before resolution for #109.
+- [Runtime v2 alias-composition structure](runtime-v2-composition-structure.md) -
+  approved public composition package, versioned document, catalog, trace, and
+  legacy boundary for #109.
+- [Runtime v2 alias-composition test design](runtime-v2-composition-tests.md) -
+  proposed conformance, expansion, trace, YAML, compatibility, and release gates
+  for #109.
 - [Runtime v2 resolver flow](runtime-v2-resolver-flow.md) - approved generic
   resolution, revalidation, acquisition, and workspace-file flow.
 - [Runtime v2 resolver structure](runtime-v2-resolver-structure.md) - approved

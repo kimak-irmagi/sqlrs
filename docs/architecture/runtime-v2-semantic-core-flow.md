@@ -77,6 +77,12 @@ specified separately in the [declaration flow](runtime-v2-declaration-flow.md)
 and [resolver flow](runtime-v2-resolver-flow.md). This clarification does not
 change the #107 fingerprint, StateID, or lineage algorithms.
 
+User-facing alias/recipe graphs are a still earlier, non-semantic authoring
+layer. Their deterministic expansion and separate diagnostic trace are specified
+in the [Runtime v2 composition flow](runtime-v2-composition-flow.md). The
+semantic core continues to receive only resolved provenance and never alias
+names or source locations.
+
 Each resolved identity contains `Provider`, `Kind`, `IdentitySchema`, and unique
 named `ResolvedField` values. `IdentitySchema` versions the provider's semantic
 field contract. A resolver binary/build version is diagnostic and does not change

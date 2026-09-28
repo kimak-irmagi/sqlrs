@@ -75,7 +75,19 @@ gantt
 
 ---
 
-## Статус (на 2026-09-27)
+## Статус (на 2026-09-28)
+
+- **Реализация публичной библиотеки завершена, публикация и совместимость CLI
+  ожидаются ([#109](https://github.com/kimak-irmagi/sqlrs/issues/109), композиция
+  Runtime v2)**: `backend/libs/runtime-go/composition` теперь предоставляет
+  строгие версионированные alias-документы, неизменяемые каталоги с явными
+  источниками, детерминированное раскрытие recipe-prefix и standalone transform,
+  стабильные structured failures и отдельный occurrence-based provenance trace.
+  Дублирующиеся определения, циклы, рёбра неверного типа, враждебные trace-графы
+  и превышения лимитов документа, каталога и результата отклоняются без
+  частичных результатов. Полный conformance- и boundary-набор пакета проходит
+  при statement coverage 96,8%. CLI compatibility slice намеренно ожидает
+  неизменяемого публичного релиза runtime-go, содержащего этот пакет.
 
 - **Реализация завершена ([#110](https://github.com/kimak-irmagi/sqlrs/issues/110),
   persistence Runtime v2)**: local engine теперь устанавливает защищённое

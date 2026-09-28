@@ -23,6 +23,15 @@
   согласованный unresolved recipe и typed-extension resolution flow для #124.
 - [Структура versioned declarations Runtime v2](runtime-v2-declaration-structure.RU.md) -
   согласованные declaration types, wire contracts и module release gate.
+- [Поток композиции aliases Runtime v2](runtime-v2-composition-flow.RU.md) -
+  согласованный детерминированный expansion transform/recipe aliases до
+  resolution для #109.
+- [Структура композиции aliases Runtime v2](runtime-v2-composition-structure.RU.md) -
+  согласованные public composition package, versioned document, catalog, trace
+  и legacy boundary для #109.
+- [Дизайн тестов композиции aliases Runtime v2](runtime-v2-composition-tests.RU.md) -
+  предложенные conformance, expansion, trace, YAML, compatibility и release
+  gates для #109.
 - [Поток resolver Runtime v2](runtime-v2-resolver-flow.RU.md) - согласованный
   generic flow resolution, revalidation, acquisition и workspace-file.
 - [Структура resolver Runtime v2](runtime-v2-resolver-structure.RU.md) -

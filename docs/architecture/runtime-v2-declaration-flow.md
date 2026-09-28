@@ -10,6 +10,12 @@ resource-identity model.
 There are no CLI, HTTP API, database-schema, or default-runtime changes in this
 slice.
 
+Issue #109 adds an optional composition stage before this flow. Its alias graph
+expands to the same `RecipeDeclaration` type described here; alias names and the
+separate expansion trace do not enter resolution or identity. See the
+[composition flow](runtime-v2-composition-flow.md). The direct declaration path
+remains valid and unchanged.
+
 ## Declaration-to-resolution flow
 
 ```mermaid

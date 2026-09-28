@@ -76,6 +76,12 @@ Semantic core и extension boundary предоставляют явно разд
 [потоке resolver](runtime-v2-resolver-flow.RU.md). Уточнение не меняет алгоритмы
 fingerprint, StateID и lineage, принятые в #107.
 
+Пользовательские alias/recipe graphs являются ещё более ранним non-semantic
+authoring layer. Их детерминированный expansion и отдельный diagnostic trace
+заданы в [потоке композиции Runtime v2](runtime-v2-composition-flow.RU.md).
+Semantic core по-прежнему получает только resolved provenance и никогда не
+получает alias names или source locations.
+
 Resolved identity содержит `Provider`, `Kind`, `IdentitySchema` и уникальные
 именованные `ResolvedField`. `IdentitySchema` версионирует смысловой контракт
 полей provider-а. Версия бинарника или сборки resolver-а диагностическая и не

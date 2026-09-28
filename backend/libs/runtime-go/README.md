@@ -21,3 +21,9 @@ StateIDs. External consumers should pin immutable tags and never use a local
 
 Architecture contracts are documented in the
 [Runtime v2 index](../../../docs/architecture/README.md).
+
+Issue #109 adds the opt-in `composition` subpackage for deterministic
+transform/recipe alias expansion. The implementation is present in this module
+but is not yet available from the immutable published versions above; it does
+not change the current engine path. See the
+[composition structure](../../../docs/architecture/runtime-v2-composition-structure.md).
