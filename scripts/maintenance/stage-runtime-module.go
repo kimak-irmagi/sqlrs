@@ -4,9 +4,9 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -29,6 +29,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	goMod = canonicalText(goMod)
 	if err := os.WriteFile(filepath.Join(target, version+".mod"), goMod, 0o644); err != nil {
 		panic(err)
 	}
@@ -63,34 +64,25 @@ func main() {
 		if strings.HasPrefix(filepath.Base(relative), "coverage-") {
 			return nil
 		}
-		status, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if !status.Mode().IsRegular() {
+		if entry.Type()&fs.ModeType != 0 {
 			return fmt.Errorf("non-regular module file: %s", relative)
 		}
-		header, err := zip.FileInfoHeader(status)
-		if err != nil {
-			return err
-		}
-		header.Name = prefix + relative
-		header.Method = zip.Deflate
+		header := &zip.FileHeader{Name: prefix + relative, Method: zip.Deflate}
+		header.SetMode(0o644)
 		header.SetModTime(time.Unix(0, 0).UTC())
 		output, err := writer.CreateHeader(header)
 		if err != nil {
 			return err
 		}
-		input, err := os.Open(name)
+		content, err := os.ReadFile(name)
 		if err != nil {
 			return err
 		}
-		_, copyErr := io.Copy(output, input)
-		closeErr := input.Close()
-		if copyErr != nil {
-			return copyErr
+		if isTextModuleFile(relative) {
+			content = canonicalText(content)
 		}
-		return closeErr
+		_, err = output.Write(content)
+		return err
 	})
 	if err != nil {
 		_ = writer.Close()
@@ -103,5 +95,22 @@ func main() {
 	}
 	if err := archive.Close(); err != nil {
 		panic(err)
+	}
+}
+
+// canonicalText matches the LF-normalized bytes stored by Git, so a proxy
+// staged from Windows has the same module checksums as one staged on Unix.
+func canonicalText(content []byte) []byte {
+	return bytes.ReplaceAll(content, []byte("\r\n"), []byte("\n"))
+}
+
+// isTextModuleFile identifies source formats whose Git-canonical representation
+// uses LF line endings and can therefore be normalized without altering data.
+func isTextModuleFile(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".go", ".json", ".md", ".mod", ".sha256", ".sum", ".txt", ".yaml", ".yml":
+		return true
+	default:
+		return false
 	}
 }
