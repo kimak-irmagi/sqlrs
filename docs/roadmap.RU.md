@@ -75,7 +75,7 @@ gantt
 
 ---
 
-## Статус (на 2026-09-28)
+## Статус (на 2026-09-29)
 
 - **Реализация публичной библиотеки завершена, публикация и совместимость CLI
   ожидаются ([#109](https://github.com/kimak-irmagi/sqlrs/issues/109), композиция
@@ -86,8 +86,11 @@ gantt
   Дублирующиеся определения, циклы, рёбра неверного типа, враждебные trace-графы
   и превышения лимитов документа, каталога и результата отклоняются без
   частичных результатов. Полный conformance- и boundary-набор пакета проходит
-  при statement coverage 96,8%. CLI compatibility slice намеренно ожидает
-  неизменяемого публичного релиза runtime-go, содержащего этот пакет.
+  при statement coverage 96,8%. Release-readiness consumer теперь покрывает
+  factory-only, ordered, nested, error, rename-invariance и CacheRecord-
+  compatibility сценарии через staged и public proxy gates. Публикация
+  отслеживается в [#133](https://github.com/kimak-irmagi/sqlrs/issues/133);
+  CLI compatibility slice намеренно ожидает этот неизменяемый релиз.
 
 - **Реализация завершена ([#110](https://github.com/kimak-irmagi/sqlrs/issues/110),
   persistence Runtime v2)**: local engine теперь устанавливает защищённое
@@ -103,7 +106,7 @@ gantt
   путь prepare/run остаётся legacy до отдельного cutover. Покрытие пакетов
   resolver, DTO и SQLite составляет 95,1%, 97,7% и 95,0% соответственно.
 
-- **Реализация завершена, публикация ожидается
+- **Реализация завершена; release readiness и публикация ожидаются
   ([#130](https://github.com/kimak-irmagi/sqlrs/issues/130),
   [#131](https://github.com/kimak-irmagi/sqlrs/issues/131), canonical-контракт
   Runtime v2)**: `sqlrs.runtime.v2.canonical.v1` теперь сосуществует с
@@ -114,9 +117,10 @@ gantt
   имеет независимый Node verifier и detached digest. CI потребляет staged module
   zip через file-backed proxy без `replace`; публикация RC/GA создаёт
   content-addressed attestation с source SHA и требует продвижения того же
-  commit. Покрытие core составляет 95,1%. Для завершения остаются внешние
-  public-proxy/checksum gates неизменяемых `v0.3.0-rc.N` и `v0.3.0`; issue #131
-  закрывается только после их успешного прохождения.
+  commit. Покрытие core составляет 95,1%. Implementation issues #130 и #131
+  закрыты PR #135. Issue [#133](https://github.com/kimak-irmagi/sqlrs/issues/133)
+  отслеживает оставшиеся exact-commit validation и public-proxy/checksum gates
+  неизменяемых `v0.3.0-rc.N`/`v0.3.0`.
 
 - **Реализация завершена, публикация ожидается ([#108](https://github.com/kimak-irmagi/sqlrs/issues/108), [#124](https://github.com/kimak-irmagi/sqlrs/issues/124), declarations и resolver Runtime v2)**: публичный nested-модуль теперь содержит строгие версионированные unresolved declarations, квалифицированные провайдером resolved extensions, детерминированную композицию, role-complete dispatch resolver по полному tuple, ограниченный restart-safe cache, консервативное разрешение workspace-файлов и проверенное content-addressed acquisition. Digest и native continuity evidence фиксируются как единый проверенный snapshot. Утверждённые revisions NTFS, APFS, ext4, XFS и Btrfs допускают дешёвую revalidation; неизвестные и overlay-файловые системы повторно хешируются. На Windows корень store должен быть заранее создан, принадлежать текущему владельцу и не иметь broad write ACL; reparse и linked objects отклоняются. Killed-writer тесты проходят каждую границу публикации cache/artifact. Покрытие пакетов core и resolver отдельно достигает минимальных 95%. Неизменяемая версия `v0.1.0` отозвана; до закрытия [#123](https://github.com/kimak-irmagi/sqlrs/issues/123) остаются public-proxy gates RC/GA на одном commit.
 

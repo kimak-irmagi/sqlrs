@@ -268,6 +268,19 @@ own expected traversal, origins, error pointers, or compatibility result.
   consumer pass before the CLI module pins a published immutable version. The
   compatibility slice compiles without a parent/subpackage import cycle and does
   not become a default-runtime cutover gate.
+- **X09 — release success matrix:** the clean external consumer expands
+  factory-only, one-step, multi-step, and nested recipes and verifies exact
+  transform order plus the public alias-document and expansion-trace schemas.
+- **X10 — release identity and failures:** that consumer proves alias renaming is
+  identity-neutral, step reordering is identity-bearing, and missing, cycle, and
+  cross-source ambiguity failures retain their stable public codes and ordered
+  diagnostics.
+- **X11 — release cache compatibility:** the same consumer constructs and
+  round-trips `resolver.CacheRecord` through exported APIs and decodes then
+  byte-for-byte re-encodes the published v0.2.0 wire fixture.
+- **X12 — one staged/public oracle:** the staged file-proxy gate and the public
+  proxy/checksum gate run the same checked-in clean-consumer test sources. The
+  public gate must not substitute a narrower inline smoke test.
 
 ## 8. Coverage and acceptance
 
@@ -283,6 +296,7 @@ Coverage is measured separately for `runtime-go/composition` and
 100%; 95% is the minimum. Any shortfall follows the repository's separately
 approved remediation loop.
 
-The composition-module slice is acceptable when D01-D10, C01-C08, E01-E14,
-T01-T13, X01-X07, and its external-consumer gate pass. Issue #109 remains open
-until the later compatibility slice also passes L01-L13 and X08.
+The composition-module release slice is acceptable when D01-D10, C01-C08,
+E01-E14, T01-T13, X01-X12, and its staged/public consumer gates pass. Issue #109
+remains open until the later compatibility slice also passes L01-L13; executable
+CLI `legacy_only` classification is not a runtime-go v0.3.0 publication gate.

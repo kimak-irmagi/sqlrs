@@ -20,7 +20,7 @@ Evidence runs at the stage where its dependencies exist:
 | PR fuzz | bounded-time fuzz jobs and checked-in seed corpus | defect discovery; never the sole proof of a resource bound |
 | RC | immutable RC tag, public proxy artifact | clean consumer, proxy zip/metadata, bundle and attestation-candidate checks |
 | GA | immutable GA tag, checksum database, release asset | same-commit, checksum, final attestation and consumer checks |
-| post-GA | successful GA evidence | issue #131 closure only; not a PR test |
+| post-GA | successful GA evidence | issue #133 release closure only; not a PR test |
 
 The oracle policy is:
 
@@ -265,8 +265,9 @@ budgets, and the stricter key-byte rule defined by the flow:
 - **RL05 — same-commit GA (GA):** exact `backend/libs/runtime-go/v0.3.0` and an
   already verified RC tag point to the same completion commit; public proxy and
   checksum database serve matching content and the final attestation asset.
-- **RL06 — closure (post-GA):** issue #131 closes only after RL03–RL05 evidence
-  succeeds. A pre-tag failure publishes nothing. A failure discovered after an
+- **RL06 — closure (post-GA):** issue #133 closes only after RL03–RL05 evidence
+  succeeds; implementation issues #130/#131 closed with PR #135. A pre-tag
+  failure publishes nothing. A failure discovered after an
   RC/GA tag exists leaves that tag immutable and blocks promotion/closure; a
   transient verification may be rerun against the same tag, never by moving it.
 

@@ -14,11 +14,13 @@ test("nested and product tag triggers are isolated", () => {
 });
 
 test("nested release uses clean public consumption gates", () => {
-  for (const required of ["GOWORK=off", "proxy.golang.org", "sum.golang.org", "go mod download", "retract v0.1.0", "sqlrs.runtime.v2", "sqlrs.runtime.v2.canonical.v1", "v0.3.0", "create-runtime-v2-attestation.mjs", "manifest.sha256"]) {
+  for (const required of ["GOWORK=off", "proxy.golang.org", "sum.golang.org", "go mod download", "retract v0.1.0", "sqlrs.runtime.v2", "sqlrs.runtime.v2.canonical.v1", "sqlrs.runtime.v2.aliases.v1", "sqlrs.runtime.v2.alias-expansion-trace.v1", "sqlrs.resolution-cache.v1", "sqlrs.runtime.conformance.bundle-schema.v1", "runtime-v2-canonical-v1.1", "v0.1.1-rc.6", "v0.3.0", "create-runtime-v2-attestation.mjs", "manifest.sha256"]) {
     assert.ok(workflow.includes(required), `missing ${required}`);
   }
   assert.doesNotMatch(workflow, /\breplace\b/);
   assert.match(workflow, /stage-runtime-module\.go/);
+  assert.match(workflow, /test\/runtime-v2-consumer\/"\*_test\.go/);
+  assert.doesNotMatch(workflow, /cat > runtime_test\.go/);
   assert.match(workflow, /verify-runtime-v2-canonical-bundle\.mjs/);
   assert.match(workflow, /check-runtime-v2-bundle-policy\.mjs/);
   assert.match(ci, /check-runtime-v2-bundle-policy\.mjs "\$BASELINE_SHA"/);

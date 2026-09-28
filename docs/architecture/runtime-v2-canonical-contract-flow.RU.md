@@ -182,4 +182,5 @@ manifest digest. Verifier связывает asset с protected tag/proxy; stora
 
 Gates разделены: pre-merge tests/policy; RC proxy и clean consumer; GA proxy,
 checksum и attestation; post-release closure. Более поздний gate не считается
-PR unit test. #131 закрывается только после GA verification.
+PR unit test. PR #135 закрыл implementation issues #130/#131; evidence публикации
+и post-GA closure отслеживаются issue #133.

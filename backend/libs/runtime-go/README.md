@@ -4,10 +4,10 @@ This directory is the independent Go module
 `github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go`. It defines the
 engine-neutral Runtime v2 contracts. Published `v0.2.0` defines the immutable
 legacy discriminator `sqlrs.runtime.v2`, versioned declarations, and reusable
-resolver infrastructure. Issues #130/#131 add a separate
-`sqlrs.runtime.v2.canonical.v1` revision with typed identity fields and a
-manifest-backed conformance bundle. All new APIs remain opt-in; the current
-engine does not adopt them implicitly.
+resolver infrastructure. PR #135 completed issues #130/#131 with a separate
+`sqlrs.runtime.v2.canonical.v1` revision, typed identity fields, and a
+manifest-backed conformance bundle. Issue #133 tracks its v0.3.0 publication.
+All new APIs remain opt-in; the current engine does not adopt them implicitly.
 
 ## Version policy
 

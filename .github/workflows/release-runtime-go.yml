@@ -212,23 +212,21 @@ jobs:
             (.GoMod | length > 0)
           ' download.json >/dev/null
           GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go get "$module@$VERSION"
-          cat > runtime_test.go <<'EOF'
-          package consumer
-          import (
-            "testing"
-            runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
-          )
-          func TestPublicModule(t *testing.T) {
-            if runtimev2.SchemaVersion != "sqlrs.runtime.v2" { t.Fatal(runtimev2.SchemaVersion) }
-            if runtimev2.CanonicalSchemaVersion != "sqlrs.runtime.v2.canonical.v1" { t.Fatal(runtimev2.CanonicalSchemaVersion) }
-            if _, err := runtimev2.LoadConformanceBundle(); err != nil { t.Fatal(err) }
-          }
-          EOF
+          cp "$GITHUB_WORKSPACE/test/runtime-v2-consumer/"*_test.go .
           GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go test ./...
           GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -m all | grep -Fq "$module $VERSION"
           notes=$(gh release view "backend/libs/runtime-go/$VERSION" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
-          grep -Fq 'sqlrs.runtime.v2.canonical.v1' <<<"$notes"
-          grep -Fq 'sqlrs.runtime.v2' <<<"$notes"
+          for marker in \
+            'published `sqlrs.runtime.v2` v0.2.0 contract' \
+            'sqlrs.runtime.v2.canonical.v1' \
+            'sqlrs.runtime.v2.aliases.v1' \
+            'sqlrs.runtime.v2.alias-expansion-trace.v1' \
+            'sqlrs.resolution-cache.v1' \
+            'sqlrs.runtime.conformance.bundle-schema.v1' \
+            'runtime-v2-canonical-v1.1' \
+            'v0.1.1-rc.6'; do
+            grep -Fq "$marker" <<<"$notes"
+          done
           assets=$(gh release view "backend/libs/runtime-go/$VERSION" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name | select(test("^runtime-go-.*\\.attestation\\.json(\\.sha256)?$"))] | length')
           test "$assets" -eq 2
           if [[ "$VERSION" != *-rc.* ]]; then
