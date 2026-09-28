@@ -111,9 +111,10 @@ Backend‑сервисы расположены в `backend/services/`, а об�
 семантическим контрактом Runtime v2. Опубликованный `v0.2.0` — неизменяемый
 legacy-v2 contract с discriminator `sqlrs.runtime.v2`; его fingerprints и
 StateIDs никогда не переосмысливаются. Persistence adapter #110 добавляет opaque,
-v0.2-wire-compatible cache-record API без изменения этих identity. Issues
-#130/#131 добавляют рядом контракт `sqlrs.runtime.v2.canonical.v1` с тем же
-целевым additive release `v0.3.0` после conformance и release gates.
+v0.2-wire-compatible cache-record API без изменения этих identity. PR #135
+завершил #130/#131, добавив рядом контракт
+`sqlrs.runtime.v2.canonical.v1`. Issue #133 отслеживает same-commit RC/GA
+публикацию additive release `v0.3.0` после conformance и proxy gates.
 Опубликованный `v0.1.0` остаётся superseded и не должен использоваться в новых
 зависимостях.
 

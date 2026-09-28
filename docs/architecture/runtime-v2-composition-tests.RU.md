@@ -267,6 +267,19 @@ result.
   consumer проходят до pin опубликованной immutable version CLI module.
   Compatibility slice компилируется без parent/subpackage import cycle и не
   становится default-runtime cutover gate.
+- **X09 — release success matrix:** чистый external consumer раскрывает
+  factory-only, one-step, multi-step и nested recipes и проверяет точный порядок
+  transforms, а также публичные схемы alias document и expansion trace.
+- **X10 — release identity and failures:** тот же consumer доказывает, что
+  переименование alias не влияет на identity, перестановка steps влияет, а
+  missing, cycle и cross-source ambiguity failures сохраняют стабильные
+  публичные codes и упорядоченную диагностику.
+- **X11 — release cache compatibility:** тот же consumer создаёт и round-trip-ит
+  `resolver.CacheRecord` только через exported API, затем декодирует и байт-в-байт
+  кодирует опубликованный wire fixture v0.2.0.
+- **X12 — один staged/public oracle:** staged file-proxy gate и public
+  proxy/checksum gate запускают одни и те же checked-in исходники тестов чистого
+  consumer. Public gate не подменяет их более узким inline smoke test.
 
 ## 8. Coverage и acceptance
 
@@ -280,6 +293,7 @@ Coverage измеряется отдельно для `runtime-go/composition` �
 `frontend/cli-go/internal/alias/runtimev2` с per-line reports. Target — 100%,
 minimum — 95%. Любой shortfall следует отдельному approval loop репозитория.
 
-Composition-module slice принимается после D01-D10, C01-C08, E01-E14, T01-T13,
-X01-X07 и external-consumer gate. Issue #109 остаётся открытой, пока later
-compatibility slice также не пройдёт L01-L13 и X08.
+Release slice composition module принимается после D01-D10, C01-C08, E01-E14,
+T01-T13, X01-X12 и staged/public consumer gates. Issue #109 остаётся открытой,
+пока later compatibility slice также не пройдёт L01-L13; исполняемая CLI-
+классификация `legacy_only` не является gate публикации runtime-go v0.3.0.

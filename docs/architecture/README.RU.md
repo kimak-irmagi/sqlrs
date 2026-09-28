@@ -20,8 +20,8 @@
 - [Conformance bundle canonical-v1 Runtime v2](runtime-v2-conformance-bundle-schema.RU.md) -
   согласованные bundle schema, detached digest и verification contract.
 - [Тесты canonical-v1 Runtime v2](runtime-v2-canonical-contract-tests.RU.md) -
-  предлагаемый test matrix canonical values, identity, integrity, bundle,
-  compatibility и release для #130/#131.
+  test matrix evidence для canonical values, identity, integrity, bundle,
+  compatibility и release, реализованный в #130/#131 и публикуемый через #133.
 - [Поток semantic core legacy-v2](runtime-v2-semantic-core-flow.RU.md) -
   согласованный неизменяемый поток `sqlrs.runtime.v2` resolved-state и lineage.
 - [Структура semantic core legacy-v2](runtime-v2-semantic-core-structure.RU.md) -

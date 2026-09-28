@@ -6,6 +6,8 @@ const workflow = await readFile(new URL("../../.github/workflows/release-runtime
 const product = await readFile(new URL("../../.github/workflows/release-local.yml", import.meta.url), "utf8");
 const ci = await readFile(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
 const fuzz = await readFile(new URL("../../.github/workflows/runtime-v2-fuzz.yml", import.meta.url), "utf8");
+const consumerMod = await readFile(new URL("../../test/runtime-v2-consumer/go.mod", import.meta.url), "utf8");
+const consumerSum = await readFile(new URL("../../test/runtime-v2-consumer/go.sum", import.meta.url), "utf8");
 
 test("nested and product tag triggers are isolated", () => {
   assert.match(workflow, /backend\/libs\/runtime-go\/v\*/);
@@ -14,11 +16,18 @@ test("nested and product tag triggers are isolated", () => {
 });
 
 test("nested release uses clean public consumption gates", () => {
-  for (const required of ["GOWORK=off", "proxy.golang.org", "sum.golang.org", "go mod download", "retract v0.1.0", "sqlrs.runtime.v2", "sqlrs.runtime.v2.canonical.v1", "v0.3.0", "create-runtime-v2-attestation.mjs", "manifest.sha256"]) {
+  for (const required of ["GOWORK=off", "proxy.golang.org", "sum.golang.org", "go mod download", "retract v0.1.0", "sqlrs.runtime.v2", "sqlrs.runtime.v2.canonical.v1", "sqlrs.runtime.v2.aliases.v1", "sqlrs.runtime.v2.alias-expansion-trace.v1", "sqlrs.resolution-cache.v1", "sqlrs.runtime.conformance.bundle-schema.v1", "runtime-v2-canonical-v1.1", "v0.1.1-rc.6", "v0.3.0", "create-runtime-v2-attestation.mjs", "manifest.sha256"]) {
     assert.ok(workflow.includes(required), `missing ${required}`);
   }
   assert.doesNotMatch(workflow, /\breplace\b/);
   assert.match(workflow, /stage-runtime-module\.go/);
+  assert.match(workflow, /test\/runtime-v2-consumer\/"\*_test\.go/);
+  assert.doesNotMatch(workflow, /cat > runtime_test\.go/);
+  const stagedVersion = consumerMod.match(/runtime-go (v0\.3\.0-pr\.[0-9]+)/)?.[1];
+  assert.ok(stagedVersion, "clean consumer must pin one staged prerelease");
+  assert.ok(workflow.includes(stagedVersion), "workflow and clean consumer staged versions differ");
+  assert.ok(ci.includes(stagedVersion), "CI and clean consumer staged versions differ");
+  assert.ok(consumerSum.includes(`runtime-go ${stagedVersion} h1:`), "staged module checksum is missing");
   assert.match(workflow, /verify-runtime-v2-canonical-bundle\.mjs/);
   assert.match(workflow, /check-runtime-v2-bundle-policy\.mjs/);
   assert.match(ci, /check-runtime-v2-bundle-policy\.mjs "\$BASELINE_SHA"/);

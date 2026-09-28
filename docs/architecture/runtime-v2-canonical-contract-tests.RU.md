@@ -20,7 +20,7 @@ Evidence выполняется на стадии, где доступны ег�
 | PR fuzz | bounded-time fuzz jobs и checked-in seeds | поиск дефектов, но не единственное доказательство resource bound |
 | RC | immutable RC tag и public proxy artifact | clean consumer, proxy zip/metadata, bundle и attestation-candidate checks |
 | GA | immutable GA tag, checksum DB, release asset | same-commit, checksum, final attestation и consumer checks |
-| post-GA | успешные GA evidence | только closure #131, не PR test |
+| post-GA | успешные GA evidence | только release closure #133, не PR test |
 
 Oracle policy:
 
@@ -236,8 +236,9 @@ nodes/bytes и stricter key limit:
 - **RL05 — same-commit GA (GA):** exact `backend/libs/runtime-go/v0.3.0` и
   verified RC tag указывают на один completion commit; proxy/checksum DB serve
   matching content и final attestation.
-- **RL06 — closure (post-GA):** #131 закрывается только после RL03–RL05; failure
-  до tag ничего не публикует. Failure после RC/GA tag оставляет его immutable и
+- **RL06 — closure (post-GA):** #133 закрывается только после RL03–RL05;
+  implementation issues #130/#131 закрыты PR #135. Failure до tag ничего не
+  публикует. Failure после RC/GA tag оставляет его immutable и
   блокирует promotion/closure; transient verification можно rerun только для
   того же tag, без move.
 

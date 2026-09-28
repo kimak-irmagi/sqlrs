@@ -143,6 +143,12 @@ are independently detectable without copied expected hashes.
 
 ## Decision 8: one PR and immutable v0.3.0 release
 
+Status: superseded in part by
+[the v0.3.0 release-boundary decision](2026-09-29-runtime-go-v0.3.0-release-boundary.md).
+The release candidate may be a descendant of the #135 merge that adds #133
+release evidence, and #133 owns publication completion after #130/#131 closed
+with PR #135; the same-commit RC/GA rule remains in force.
+
 Question: which module version and release sequence should publish canonical-v1?
 
 Alternatives: patch v0.2.x; wait for v1.0.0; publish the additive API/new semantic
@@ -159,7 +165,8 @@ tagging and is verified against the protected tag/proxy.
 
 Rationale: Go consumers receive an additive module feature release, while the
 semantic discriminator—not the module version—prevents any legacy identity
-reinterpretation. Issue #131 remains open until public-proxy verification passes.
+reinterpretation. Under the superseding release-boundary decision, PR #135
+closed #130/#131 and issue #133 owns public-proxy publication verification.
 
 ## Decision 9: executable evidence boundaries after test-plan review
 

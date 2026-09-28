@@ -19,8 +19,8 @@ Entry points for Taidon architecture and service design.
 - [Runtime v2 canonical-v1 conformance bundle](runtime-v2-conformance-bundle-schema.md) -
   approved bundle schema, detached digest, and verification contract.
 - [Runtime v2 canonical-v1 tests](runtime-v2-canonical-contract-tests.md) -
-  proposed canonical values, identity, integrity, bundle, compatibility, and
-  release test matrix for #130/#131.
+  canonical values, identity, integrity, bundle, compatibility, and release
+  evidence matrix implemented by #130/#131 and published through #133.
 - [Runtime v2 legacy-v2 semantic-core flow](runtime-v2-semantic-core-flow.md) -
   approved immutable `sqlrs.runtime.v2` resolved-state and lineage flow.
 - [Runtime v2 legacy-v2 semantic-core structure](runtime-v2-semantic-core-structure.md) -

@@ -293,4 +293,5 @@ root.
 The gates are sequential: pre-merge tests and bundle policy; RC tag/proxy and
 clean-consumer verification; GA tag/proxy/checksum and attestation verification;
 post-release issue closure. A later gate cannot be represented as a passing PR
-unit test. Issue #131 closes only after the GA checks succeed.
+unit test. PR #135 closed implementation issues #130/#131; publication evidence
+and post-GA closure are tracked by issue #133.

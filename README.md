@@ -122,11 +122,12 @@ Common libraries, API contracts, and utilities live in `backend/libs/`.
 Runtime v2 semantic contract. Published `v0.2.0` is the immutable legacy-v2
 contract identified by `sqlrs.runtime.v2`; its fingerprints and StateIDs are
 never reinterpreted. The #110 persistence adapter adds an opaque,
-v0.2-wire-compatible cache-record API without changing those identities. Issues
-#130/#131 add the side-by-side `sqlrs.runtime.v2.canonical.v1` contract and
-target the same additive `v0.3.0` release after its conformance and release gates
-pass. Published `v0.1.0` remains superseded and must not be selected for new
-dependencies.
+v0.2-wire-compatible cache-record API without changing those identities. PR
+#135 completed #130/#131 with the side-by-side
+`sqlrs.runtime.v2.canonical.v1` contract. Issue #133 tracks the same-commit RC/GA
+publication of the additive `v0.3.0` release after its conformance and proxy
+gates pass. Published `v0.1.0` remains superseded and must not be selected for
+new dependencies.
 
 Each service includes its own documentation and tooling.
 
