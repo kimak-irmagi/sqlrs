@@ -22,9 +22,9 @@ preserving the published `sqlrs.runtime.v2` v0.2.0 contract unchanged.
   `sha256:4009154c578097c86d42aa6f457208a2c84f7d70a86c696ad4ae37b55a78edb4`.
 
 Existing `v0.1.1-rc.6` product state, cache, queue, and alias data remain legacy
-data. This module does not automatically migrate, reinterpret, or classify it;
-the executable CLI compatibility and `legacy_only` classification work remains
-a separate integration step.
+data. This module does not automatically migrate or reinterpret it. Issue #137
+adds the separate CLI YAML and `legacy_only` compatibility boundary without
+switching the default execution path.
 
 RC and GA source identity is recorded in a generated content-addressed release
 attestation rather than in this source-controlled note.

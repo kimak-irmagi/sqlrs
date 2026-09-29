@@ -20,7 +20,7 @@ Entry points for Taidon architecture and service design.
   approved bundle schema, detached digest, and verification contract.
 - [Runtime v2 canonical-v1 tests](runtime-v2-canonical-contract-tests.md) -
   canonical values, identity, integrity, bundle, compatibility, and release
-  evidence matrix implemented by #130/#131 and published through #133.
+  evidence matrix implemented by #130/#131 and published in v0.3.0 through #133.
 - [Runtime v2 legacy-v2 semantic-core flow](runtime-v2-semantic-core-flow.md) -
   approved immutable `sqlrs.runtime.v2` resolved-state and lineage flow.
 - [Runtime v2 legacy-v2 semantic-core structure](runtime-v2-semantic-core-structure.md) -
@@ -32,13 +32,14 @@ Entry points for Taidon architecture and service design.
 - [Runtime v2 legacy-v2 versioned-declaration structure](runtime-v2-declaration-structure.md) -
   approved v0.2.0 declaration types, wire contracts, and historical release gate.
 - [Runtime v2 alias-composition flow](runtime-v2-composition-flow.md) - approved
-  deterministic transform/recipe alias expansion before resolution for #109.
+  deterministic transform/recipe alias expansion before resolution for #109,
+  with the CLI boundary implemented by #137.
 - [Runtime v2 alias-composition structure](runtime-v2-composition-structure.md) -
   approved public composition package, versioned document, catalog, trace, and
-  legacy boundary for #109.
+  legacy boundary for #109/#137.
 - [Runtime v2 alias-composition test design](runtime-v2-composition-tests.md) -
-  proposed conformance, expansion, trace, YAML, compatibility, and release gates
-  for #109.
+  implemented conformance, expansion, trace, YAML, compatibility, and release
+  gates for #109/#137.
 - [Runtime v2 legacy-v2 resolver flow](runtime-v2-resolver-flow.md) - approved generic
   resolution, revalidation, acquisition, and workspace-file flow.
 - [Runtime v2 legacy-v2 resolver structure](runtime-v2-resolver-structure.md) - approved

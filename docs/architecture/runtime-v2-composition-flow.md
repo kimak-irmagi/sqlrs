@@ -1,7 +1,8 @@
 # Runtime v2 alias composition: interaction flow
 
 Status: approved by @evilguest for issue #109 after critical design review,
-2026-09-27.
+2026-09-27; public composition shipped in runtime-go v0.3.0 and the CLI boundary
+is implemented by #137.
 
 Runtime v2 alias composition turns user-authored transform and recipe aliases
 into the existing engine-neutral `runtimev2` declaration types. Expansion
@@ -43,7 +44,7 @@ sequenceDiagram
     Core-->>Caller: Lineage and StateIDs
 ```
 
-The core package accepts strict JSON and constructor inputs. A future CLI-side
+The core package accepts strict JSON and constructor inputs. The #137 CLI-side
 YAML adapter maps the same logical schema into those constructors; it does not
 introduce a second semantic model. The adapter accepts one document, rejects
 duplicate keys, anchors, aliases, merge keys, custom tags, multiple YAML
@@ -175,8 +176,8 @@ composition layer. The core expander never reads workspace or global config.
 
 Legacy alias translation is outside the generic package because current
 `kind`/`image`/`args` values require CLI path binding and provider-specific
-declaration semantics. Closing issue #109 requires an independently mergeable
-CLI compatibility slice after the public composition module is released. That
+declaration semantics. Issue #137 provides the independently mergeable CLI
+compatibility slice against the published public composition module. That
 adapter initially accepts only legacy prepare aliases and translates them only
 when it can construct a complete, deterministic Runtime v2 factory and transform
 declaration. A legacy run preset is classified as

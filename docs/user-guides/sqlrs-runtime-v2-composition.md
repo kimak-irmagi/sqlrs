@@ -2,7 +2,7 @@
 
 ## Status
 
-This document describes the approved design for issue #109. The composition
+This document describes the approved design for issues #109 and #137. The composition
 schema and library are not implemented or connected to the current `sqlrs`
 commands yet.
 
@@ -245,8 +245,8 @@ sentinel. Duplicate source IDs are `invalid_document`.
 ## Legacy aliases
 
 Legacy prepare aliases are not silently reinterpreted as Runtime v2 recipes.
-Closing #109 requires a separate compatibility slice after publication of the
-composition module. Its provider-aware adapter translates an alias only when it
+Issue #137 supplies the separate compatibility slice that consumes the
+published composition module. Its provider-aware adapter translates an alias only when it
 can produce a complete deterministic factory and transform declaration after
 the existing path and default rules have been applied.
 

@@ -483,8 +483,8 @@ silently change a path base.
 
 ## Required CLI compatibility slice
 
-Closing issue #109 requires a later independently mergeable CLI slice after the
-public module release:
+Issue #137 implements the independently mergeable CLI slice against the
+published public module:
 
 ```text
 frontend/cli-go/internal/alias/runtimev2/

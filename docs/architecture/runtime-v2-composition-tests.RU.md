@@ -1,6 +1,8 @@
 # Композиция aliases Runtime v2: дизайн тестов
 
-Статус: согласовано @evilguest по issue #109, 2026-09-28 18:28:21 +07:00.
+Статус: согласовано @evilguest по issues #109 и #137 в
+2026-09-28 18:28:21 +07:00. Package #137 проходит L01-L13 при statement coverage
+100%.
 Review существующих тестов на противоречия завершён 2026-09-28 18:28:21
 +07:00; противоречия не найдены.
 
@@ -294,6 +296,7 @@ Coverage измеряется отдельно для `runtime-go/composition` �
 minimum — 95%. Любой shortfall следует отдельному approval loop репозитория.
 
 Release slice composition module принимается после D01-D10, C01-C08, E01-E14,
-T01-T13, X01-X12 и staged/public consumer gates. Issue #109 остаётся открытой,
-пока later compatibility slice также не пройдёт L01-L13; исполняемая CLI-
-классификация `legacy_only` не является gate публикации runtime-go v0.3.0.
+T01-T13, X01-X12 и staged/public consumer gates. Эти gates опубликовали
+runtime-go v0.3.0 и закрыли #109. Выделенный compatibility slice #137 независимо
+проходит L01-L13; исполняемая CLI-классификация `legacy_only` не являлась gate
+публикации runtime-go v0.3.0.

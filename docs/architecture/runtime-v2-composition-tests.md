@@ -1,6 +1,8 @@
 # Runtime v2 alias composition: test design
 
-Status: approved by @evilguest for issue #109, 2026-09-28 18:28:21 +07:00.
+Status: approved by @evilguest for issues #109 and #137 at
+2026-09-28 18:28:21 +07:00. The #137 package passes L01-L13 at 100% statement
+coverage.
 Existing-test contradiction review completed 2026-09-28 18:28:21 +07:00;
 no contradictions were found.
 
@@ -297,6 +299,7 @@ Coverage is measured separately for `runtime-go/composition` and
 approved remediation loop.
 
 The composition-module release slice is acceptable when D01-D10, C01-C08,
-E01-E14, T01-T13, X01-X12, and its staged/public consumer gates pass. Issue #109
-remains open until the later compatibility slice also passes L01-L13; executable
-CLI `legacy_only` classification is not a runtime-go v0.3.0 publication gate.
+E01-E14, T01-T13, X01-X12, and its staged/public consumer gates pass. Those
+gates published runtime-go v0.3.0 and closed #109. The extracted #137
+compatibility slice passes L01-L13 independently; executable CLI `legacy_only`
+classification was not a runtime-go v0.3.0 publication gate.
