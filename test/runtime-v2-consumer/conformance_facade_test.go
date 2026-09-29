@@ -14,22 +14,29 @@ type consumerAuthorizer struct{}
 
 func (consumerAuthorizer) AuthorizeInternalDisclosure(context.Context) error { return nil }
 
+func consumerMust[T any](value T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
+
 func consumerExtension(t *testing.T, version string) runtimev2.CanonicalResolvedExtensionIdentity {
 	t.Helper()
 	builder, err := conformancev1.NewExtensionBuilder()
 	if err != nil {
 		t.Fatal(err)
 	}
-	locator, _ := runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "extension")
-	reference, _ := runtimev2.NewSecretReference("vault", "consumer-secret", version)
-	credential, _ := runtimev2.NewSecretReferenceIdentityField(conformancev1.FieldCredential, reference)
+	locator := consumerMust(runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "extension"))
+	reference := consumerMust(runtimev2.NewSecretReference("vault", "consumer-secret", version))
+	credential := consumerMust(runtimev2.NewSecretReferenceIdentityField(conformancev1.FieldCredential, reference))
 	if err := builder.AddIdentityField(locator); err != nil {
 		t.Fatal(err)
 	}
 	if err := builder.AddIdentityField(credential); err != nil {
 		t.Fatal(err)
 	}
-	observation, _ := conformancev1.NewExtensionObservation(map[string]string{conformancev1.ObservationCheckpointBackend: "local"})
+	observation := consumerMust(conformancev1.NewExtensionObservation(map[string]string{conformancev1.ObservationCheckpointBackend: "local"}))
 	if err := builder.AddObservation(observation); err != nil {
 		t.Fatal(err)
 	}
@@ -45,8 +52,8 @@ func TestExternalConformanceFacade(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	environment, _ := conformancev1.NewExecutionEnvironmentDeclaration("environment")
-	deployment, _ := conformancev1.NewDeploymentDeclaration("deployment")
+	environment := consumerMust(conformancev1.NewExecutionEnvironmentDeclaration("environment"))
+	deployment := consumerMust(conformancev1.NewDeploymentDeclaration("deployment"))
 	extension := consumerExtension(t, "v1")
 
 	factory, err := conformancev1.NewFactoryBuilder(runtimev2.FactoryDeclaration{
@@ -56,18 +63,20 @@ func TestExternalConformanceFacade(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	locator, _ := runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "factory")
-	planValue, _ := runtimev2.CanonicalString("plan")
-	plan, _ := runtimev2.NewCanonicalValueIdentityField(conformancev1.FieldPlan, planValue)
-	reference, _ := runtimev2.NewSecretReference("vault", "consumer-secret", "v1")
-	credential, _ := runtimev2.NewSecretReferenceIdentityField(conformancev1.FieldCredential, reference)
+	locator := consumerMust(runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "factory"))
+	planValue := consumerMust(runtimev2.CanonicalString("plan"))
+	plan := consumerMust(runtimev2.NewCanonicalValueIdentityField(conformancev1.FieldPlan, planValue))
+	reference := consumerMust(runtimev2.NewSecretReference("vault", "consumer-secret", "v1"))
+	credential := consumerMust(runtimev2.NewSecretReferenceIdentityField(conformancev1.FieldCredential, reference))
 	for _, field := range []runtimev2.IdentityField{locator, plan, credential} {
 		if err := factory.AddIdentityField(field); err != nil {
 			t.Fatal(err)
 		}
 	}
-	observation, _ := conformancev1.NewFactoryObservation(map[string]string{conformancev1.ObservationJobID: "job-one"})
-	_ = factory.AddObservation(observation)
+	observation := consumerMust(conformancev1.NewFactoryObservation(map[string]string{conformancev1.ObservationJobID: "job-one"}))
+	if err := factory.AddObservation(observation); err != nil {
+		t.Fatal(err)
+	}
 	if err := factory.BindExtensions(runtimev2.ResolvedFactoryExtensions{
 		Inputs: []runtimev2.CanonicalResolvedExtensionIdentity{extension}, ExecutionEnvironment: &extension, Deployment: &extension,
 	}); err != nil {
@@ -77,13 +86,13 @@ func TestExternalConformanceFacade(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	factoryFingerprint, _ := runtimev2.CanonicalFactoryFingerprint(factoryResult.Identity())
+	factoryFingerprint := consumerMust(runtimev2.CanonicalFactoryFingerprint(factoryResult.Identity()))
 	envelope, err := runtimev2.NewFactoryEnvelope(factoryResult.Identity())
 	if err != nil {
 		t.Fatal(err)
 	}
-	safe, _ := runtimev2.ExplainSafe(envelope)
-	safeJSON, _ := json.Marshal(safe)
+	safe := consumerMust(runtimev2.ExplainSafe(envelope))
+	safeJSON := consumerMust(json.Marshal(safe))
 	if strings.Contains(string(safeJSON), "consumer-secret") {
 		t.Fatalf("safe explanation leaked secret reference: %s", safeJSON)
 	}
@@ -98,8 +107,10 @@ func TestExternalConformanceFacade(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	transformLocator, _ := runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "transform")
-	_ = transform.AddIdentityField(transformLocator)
+	transformLocator := consumerMust(runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "transform"))
+	if err := transform.AddIdentityField(transformLocator); err != nil {
+		t.Fatal(err)
+	}
 	if err := transform.BindExtensions(runtimev2.ResolvedTransformExtensions{
 		Inputs: []runtimev2.CanonicalResolvedExtensionIdentity{extension}, ExecutionEnvironment: &extension,
 	}); err != nil {
@@ -110,17 +121,22 @@ func TestExternalConformanceFacade(t *testing.T) {
 	}
 
 	build := func(version, job string) runtimev2.CanonicalFingerprint {
-		builder, _ := conformancev1.NewFactoryBuilder(runtimev2.FactoryDeclaration{Kind: conformancev1.FactoryKind, Reference: "factory"})
-		field, _ := runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "factory")
-		_ = builder.AddIdentityField(field)
-		secret, _ := runtimev2.NewSecretReference("vault", "consumer-secret", version)
-		secretField, _ := runtimev2.NewSecretReferenceIdentityField(conformancev1.FieldCredential, secret)
-		_ = builder.AddIdentityField(secretField)
-		observation, _ := conformancev1.NewFactoryObservation(map[string]string{conformancev1.ObservationJobID: job})
-		_ = builder.AddObservation(observation)
-		result, _ := builder.Build()
-		fingerprint, _ := runtimev2.CanonicalFactoryFingerprint(result.Identity())
-		return fingerprint
+		builder := consumerMust(conformancev1.NewFactoryBuilder(runtimev2.FactoryDeclaration{Kind: conformancev1.FactoryKind, Reference: "factory"}))
+		field := consumerMust(runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "factory"))
+		if err := builder.AddIdentityField(field); err != nil {
+			t.Fatal(err)
+		}
+		secret := consumerMust(runtimev2.NewSecretReference("vault", "consumer-secret", version))
+		secretField := consumerMust(runtimev2.NewSecretReferenceIdentityField(conformancev1.FieldCredential, secret))
+		if err := builder.AddIdentityField(secretField); err != nil {
+			t.Fatal(err)
+		}
+		observation := consumerMust(conformancev1.NewFactoryObservation(map[string]string{conformancev1.ObservationJobID: job}))
+		if err := builder.AddObservation(observation); err != nil {
+			t.Fatal(err)
+		}
+		result := consumerMust(builder.Build())
+		return consumerMust(runtimev2.CanonicalFactoryFingerprint(result.Identity()))
 	}
 	if build("v1", "one") != build("v1", "two") || build("v1", "one") == build("v2", "one") {
 		t.Fatal("external sensitivity/isolation contract failed")

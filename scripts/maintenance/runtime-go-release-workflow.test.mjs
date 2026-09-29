@@ -40,7 +40,14 @@ test("nested release uses reusable clean public consumption gates", () => {
 test("manual validation checks out the requested commit and gates each package", () => {
   assert.match(workflow, /ref:.*inputs\.commit/);
   assert.match(workflow, /publish-and-verify:[\s\S]*?ref:\s*\$\{\{ needs\.validate\.outputs\.commit \}\}/);
-  assert.match(workflow, /\^v0\\\.\[1-9\]\[0-9\]\*\\\.\[0-9\]\+\(-rc\\\.\[1-9\]\[0-9\]\*\)\?\$/);
+  assert.match(workflow, /\^v0\\\.\(0\|\[1-9\]\[0-9\]\*\)\\\.\(0\|\[1-9\]\[0-9\]\*\)\(-rc\\\.\[1-9\]\[0-9\]\*\)\?\$/);
+  const supportedVersion = /^v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$/;
+  for (const version of ["v0.0.1", "v0.1.0", "v0.12.34", "v0.2.0-rc.1", "v0.20.300-rc.42"]) {
+    assert.match(version, supportedVersion);
+  }
+  for (const version of ["v0.01.0", "v0.1.00", "v0.1.0-rc.0", "v0.1.0-rc.01", "v1.1.0"]) {
+    assert.doesNotMatch(version, supportedVersion);
+  }
   assert.match(workflow, /base_version="\$\{version%%-rc\.\*\}"/);
   assert.match(workflow, /RELEASE-\$\{base_version\}\.md/);
   assert.doesNotMatch(workflow, /RELEASE-v0\.3\.0\.md/);
