@@ -159,6 +159,38 @@ func TestBuilderFailuresAreTransactional(t *testing.T) {
 		t.Fatal("wrong-kind transform constructor returned a builder")
 	}
 	requireValidation(t, err, runtimev2.CodeValueInvalid, "declaration.kind")
+	transformBuilder, err = conformancev1.NewTransformBuilder(transformDeclaration())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := transformBuilder.Build(); err == nil {
+		t.Fatal("transform builder accepted missing locator")
+	} else {
+		requireValidation(t, err, runtimev2.CodeShapeInvalid, "fields.locator")
+	}
+	transformLocator, _ := runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "transform")
+	if err := transformBuilder.AddIdentityField(transformLocator); err != nil {
+		t.Fatalf("transform builder was corrupted by premature build: %v", err)
+	}
+	if _, err := transformBuilder.Build(); err != nil {
+		t.Fatal(err)
+	}
+	extensionBuilder, err := conformancev1.NewExtensionBuilder()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := extensionBuilder.Build(); err == nil {
+		t.Fatal("extension builder accepted missing locator")
+	} else {
+		requireValidation(t, err, runtimev2.CodeShapeInvalid, "fields.locator")
+	}
+	extensionLocator, _ := runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "extension")
+	if err := extensionBuilder.AddIdentityField(extensionLocator); err != nil {
+		t.Fatalf("extension builder was corrupted by premature build: %v", err)
+	}
+	if _, err := extensionBuilder.Build(); err != nil {
+		t.Fatal(err)
+	}
 
 	builder, err = conformancev1.NewFactoryBuilder(factoryDeclaration())
 	if err != nil {
@@ -307,6 +339,50 @@ func TestObservationsAreDeterministicIsolatedAndDefensive(t *testing.T) {
 	if len(fresh) != 1 || fresh[0] == (runtimev2.OperationalObservation{}) {
 		t.Fatal("returned observation slice was not defensive")
 	}
+	buildOrder := func(values []string) (runtimev2.CanonicalFingerprint, string) {
+		builder, err := conformancev1.NewFactoryBuilder(factoryDeclaration())
+		if err != nil {
+			t.Fatal(err)
+		}
+		locator, err := runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "ordered")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := builder.AddIdentityField(locator); err != nil {
+			t.Fatal(err)
+		}
+		for _, value := range values {
+			observation, err := conformancev1.NewFactoryObservation(map[string]string{conformancev1.ObservationJobID: value})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := builder.AddObservation(observation); err != nil {
+				t.Fatal(err)
+			}
+		}
+		result, err := builder.Build()
+		if err != nil {
+			t.Fatal(err)
+		}
+		fingerprint, err := runtimev2.CanonicalFactoryFingerprint(result.Identity())
+		if err != nil {
+			t.Fatal(err)
+		}
+		envelope, err := runtimev2.NewFactoryEnvelope(result.Identity())
+		if err != nil {
+			t.Fatal(err)
+		}
+		encoded, err := json.Marshal(envelope)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return fingerprint, string(encoded)
+	}
+	forwardFingerprint, forwardEnvelope := buildOrder([]string{"one", "two"})
+	reverseFingerprint, reverseEnvelope := buildOrder([]string{"two", "one"})
+	if forwardFingerprint != reverseFingerprint || forwardEnvelope != reverseEnvelope {
+		t.Fatal("observation order changed canonical identity or envelope")
+	}
 }
 
 func TestEveryBuilderAcceptsCompleteMatchingObservationAndRejectsCrossRole(t *testing.T) {
@@ -349,11 +425,20 @@ func TestEveryBuilderAcceptsCompleteMatchingObservationAndRejectsCrossRole(t *te
 	if err := factory.AddObservation(transformObservation); err == nil {
 		t.Fatal("factory accepted transform observation")
 	}
+	if err := factory.AddObservation(extensionObservation); err == nil {
+		t.Fatal("factory accepted extension observation")
+	}
+	if err := transform.AddObservation(factoryObservation); err == nil {
+		t.Fatal("transform accepted factory observation")
+	}
 	if err := transform.AddObservation(extensionObservation); err == nil {
 		t.Fatal("transform accepted extension observation")
 	}
 	if err := extension.AddObservation(factoryObservation); err == nil {
 		t.Fatal("extension accepted factory observation")
+	}
+	if err := extension.AddObservation(transformObservation); err == nil {
+		t.Fatal("extension accepted transform observation")
 	}
 	if result, err := factory.Build(); err != nil || len(result.Observations()) != 1 {
 		t.Fatalf("factory complete observation: count=%d err=%v", len(result.Observations()), err)
@@ -399,17 +484,23 @@ func TestObservationValidationOrderLimitsAndSafety(t *testing.T) {
 
 	for _, value := range []string{
 		strings.Repeat("a", runtimev2.MaxCanonicalStringBytes-1),
+		strings.Repeat("a", runtimev2.MaxCanonicalStringBytes),
+		strings.Repeat("é", (runtimev2.MaxCanonicalStringBytes-2)/2) + "a",
 		strings.Repeat("é", runtimev2.MaxCanonicalStringBytes/utf8.RuneLen('é')),
 	} {
 		if _, err := conformancev1.NewFactoryObservation(map[string]string{conformancev1.ObservationJobID: value}); err != nil {
 			t.Fatalf("valid boundary rejected: %v", err)
 		}
 	}
-	tooLong := strings.Repeat("é", runtimev2.MaxCanonicalStringBytes/2) + "a"
-	zero, err = conformancev1.NewFactoryObservation(map[string]string{conformancev1.ObservationJobID: tooLong})
-	requireValidation(t, err, runtimev2.CodeLimitExceeded, "fields.job_id")
-	if zero != (runtimev2.OperationalObservation{}) || strings.Contains(err.Error(), tooLong) {
-		t.Fatal("limit error returned data or leaked the value")
+	for _, tooLong := range []string{
+		strings.Repeat("a", runtimev2.MaxCanonicalStringBytes+1),
+		strings.Repeat("é", runtimev2.MaxCanonicalStringBytes/2) + "a",
+	} {
+		zero, err = conformancev1.NewFactoryObservation(map[string]string{conformancev1.ObservationJobID: tooLong})
+		requireValidation(t, err, runtimev2.CodeLimitExceeded, "fields.job_id")
+		if zero != (runtimev2.OperationalObservation{}) || strings.Contains(err.Error(), tooLong) {
+			t.Fatal("limit error returned data or leaked the value")
+		}
 	}
 }
 
@@ -452,6 +543,7 @@ func TestDeclarationHelpersAndBoundaries(t *testing.T) {
 		{"", runtimev2.CodeValueInvalid},
 		{string([]byte{0xff}), runtimev2.CodeValueInvalid},
 		{strings.Repeat("a", runtimev2.MaxResolvedValueBytes+1), runtimev2.CodeLimitExceeded},
+		{strings.Repeat("é", runtimev2.MaxResolvedValueBytes/2) + "a", runtimev2.CodeLimitExceeded},
 	} {
 		zero, err := conformancev1.NewInputDeclaration(bad.value)
 		if zero != (runtimev2.InputDeclaration{}) {
@@ -474,6 +566,8 @@ func TestDeclarationHelpersAndBoundaries(t *testing.T) {
 	}
 	for _, value := range []string{
 		strings.Repeat("a", runtimev2.MaxResolvedValueBytes-1),
+		strings.Repeat("a", runtimev2.MaxResolvedValueBytes),
+		strings.Repeat("é", (runtimev2.MaxResolvedValueBytes-2)/2) + "a",
 		strings.Repeat("é", runtimev2.MaxResolvedValueBytes/2),
 	} {
 		if _, err := conformancev1.NewInputDeclaration(value); err != nil {
@@ -674,6 +768,24 @@ func TestSensitivityAndDisclosure(t *testing.T) {
 	if !strings.Contains(safeText, "public-locator") || !strings.Contains(safeText, `"redacted":true`) || !strings.Contains(safeText, `"commitment":"sha256:`) {
 		t.Fatalf("safe explanation omitted public/redaction evidence: %s", safeJSON)
 	}
+	var safeProjection struct {
+		Fields []struct {
+			Name       string `json:"name"`
+			Redacted   bool   `json:"redacted"`
+			Commitment string `json:"commitment"`
+		} `json:"fields"`
+	}
+	if err := json.Unmarshal(safeJSON, &safeProjection); err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range safeProjection.Fields {
+		if field.Name == conformancev1.FieldLocator && (field.Redacted || field.Commitment == "") {
+			t.Fatalf("public locator disclosure changed: %#v", field)
+		}
+		if (field.Name == conformancev1.FieldPlan || field.Name == conformancev1.FieldCredential) && (!field.Redacted || field.Commitment != "") {
+			t.Fatalf("protected field exposed a commitment: %#v", field)
+		}
+	}
 
 	internal, err := runtimev2.ExplainInternal(context.Background(), envelope, allowAuthorizer{})
 	if err != nil {
@@ -712,15 +824,92 @@ func TestSensitivityAndDisclosure(t *testing.T) {
 
 func TestConcurrentConstructionIsDeterministicAndRaceFree(t *testing.T) {
 	const workers = 64
-	declaration := factoryDeclaration()
-	declaration.Attributes = map[string]string{"shared": "value"}
+	factoryInput := factoryDeclaration()
+	factoryInput.Attributes = map[string]string{"shared": "value"}
+	transformInput := transformDeclaration()
+	transformInput.Attributes = map[string]string{"shared": "value"}
 	observationFields := map[string]string{
 		conformancev1.ObservationJobID:     "job",
 		conformancev1.ObservationTimestamp: "timestamp",
 	}
 	type outcome struct {
-		fingerprint runtimev2.CanonicalFingerprint
-		err         error
+		factory, transform, extension runtimev2.CanonicalFingerprint
+		err                           error
+	}
+	buildFactory := func() (runtimev2.CanonicalFingerprint, error) {
+		builder, err := conformancev1.NewFactoryBuilder(factoryInput)
+		if err != nil {
+			return "", err
+		}
+		locator, err := runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "shared-locator")
+		if err != nil {
+			return "", err
+		}
+		if err := builder.AddIdentityField(locator); err != nil {
+			return "", err
+		}
+		observation, err := conformancev1.NewFactoryObservation(observationFields)
+		if err != nil {
+			return "", err
+		}
+		if err := builder.AddObservation(observation); err != nil {
+			return "", err
+		}
+		composition, err := builder.Build()
+		if err != nil {
+			return "", err
+		}
+		return runtimev2.CanonicalFactoryFingerprint(composition.Identity())
+	}
+	buildTransform := func() (runtimev2.CanonicalFingerprint, error) {
+		builder, err := conformancev1.NewTransformBuilder(transformInput)
+		if err != nil {
+			return "", err
+		}
+		locator, err := runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "shared-locator")
+		if err != nil {
+			return "", err
+		}
+		if err := builder.AddIdentityField(locator); err != nil {
+			return "", err
+		}
+		observation, err := conformancev1.NewTransformObservation(observationFields)
+		if err != nil {
+			return "", err
+		}
+		if err := builder.AddObservation(observation); err != nil {
+			return "", err
+		}
+		composition, err := builder.Build()
+		if err != nil {
+			return "", err
+		}
+		return runtimev2.CanonicalTransformFingerprint(composition.Identity())
+	}
+	buildExtension := func() (runtimev2.CanonicalFingerprint, error) {
+		builder, err := conformancev1.NewExtensionBuilder()
+		if err != nil {
+			return "", err
+		}
+		locator, err := runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "shared-locator")
+		if err != nil {
+			return "", err
+		}
+		if err := builder.AddIdentityField(locator); err != nil {
+			return "", err
+		}
+		observation, err := conformancev1.NewExtensionObservation(observationFields)
+		if err != nil {
+			return "", err
+		}
+		if err := builder.AddObservation(observation); err != nil {
+			return "", err
+		}
+		composition, err := builder.Build()
+		if err != nil {
+			return "", err
+		}
+		return runtimev2.CanonicalExtensionFingerprint(composition.Identity())
 	}
 	results := make(chan outcome, workers)
 	var group sync.WaitGroup
@@ -728,52 +917,39 @@ func TestConcurrentConstructionIsDeterministicAndRaceFree(t *testing.T) {
 		group.Add(1)
 		go func() {
 			defer group.Done()
-			builder, err := conformancev1.NewFactoryBuilder(declaration)
+			factory, err := buildFactory()
 			if err != nil {
 				results <- outcome{err: err}
 				return
 			}
-			locator, err := runtimev2.NewTextIdentityField(conformancev1.FieldLocator, "shared-locator")
+			transform, err := buildTransform()
 			if err != nil {
 				results <- outcome{err: err}
 				return
 			}
-			if err := builder.AddIdentityField(locator); err != nil {
-				results <- outcome{err: err}
-				return
-			}
-			observation, err := conformancev1.NewFactoryObservation(observationFields)
+			extension, err := buildExtension()
 			if err != nil {
 				results <- outcome{err: err}
 				return
 			}
-			if err := builder.AddObservation(observation); err != nil {
-				results <- outcome{err: err}
-				return
-			}
-			composition, err := builder.Build()
-			if err != nil {
-				results <- outcome{err: err}
-				return
-			}
-			fingerprint, err := runtimev2.CanonicalFactoryFingerprint(composition.Identity())
-			results <- outcome{fingerprint: fingerprint, err: err}
+			results <- outcome{factory: factory, transform: transform, extension: extension}
 		}()
 	}
 	group.Wait()
 	close(results)
-	var expected runtimev2.CanonicalFingerprint
+	var expected outcome
 	for result := range results {
 		if result.err != nil {
 			t.Fatal(result.err)
 		}
-		if expected == "" {
-			expected = result.fingerprint
-		} else if result.fingerprint != expected {
-			t.Fatalf("concurrent fingerprint = %q, want %q", result.fingerprint, expected)
+		if expected.factory == "" {
+			expected = result
+		} else if result.factory != expected.factory || result.transform != expected.transform || result.extension != expected.extension {
+			t.Fatalf("concurrent fingerprints = %#v, want %#v", result, expected)
 		}
 	}
-	if len(declaration.Attributes) != 1 || declaration.Attributes["shared"] != "value" || len(observationFields) != 2 {
+	if len(factoryInput.Attributes) != 1 || factoryInput.Attributes["shared"] != "value" ||
+		len(transformInput.Attributes) != 1 || transformInput.Attributes["shared"] != "value" || len(observationFields) != 2 {
 		t.Fatal("concurrent construction mutated shared caller input")
 	}
 }
