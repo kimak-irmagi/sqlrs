@@ -77,7 +77,7 @@ gantt
 
 ## Статус (на 2026-09-29)
 
-- **Реализация завершена, ожидаются PR и выпуск
+- **Выпущено в Runtime Go v0.4.0
   ([#138](https://github.com/kimak-irmagi/sqlrs/issues/138),
   [#139](https://github.com/kimak-irmagi/sqlrs/issues/139), внешний conformance
   facade Runtime v2)**: `runtime-go/schemas/conformancev1` теперь предоставляет
@@ -89,7 +89,8 @@ gantt
   локальный proxy нейтральную версию `v0.0.0-pr.0`. Release validation принимает
   будущие RC и GA версии v0 с произвольными minor/patch и динамически выбирает
   release notes, поэтому обычные выпуски больше не требуют правок тестовых
-  fixtures. Общее покрытие Runtime v2 составляет 95,5%; schemaauthor и его
+  fixtures. Неизменяемый выпуск проверен через публичные module proxy и checksum
+  database. Общее покрытие Runtime v2 составляет 95,5%; schemaauthor и его
   неизменяемая внутренняя модель схем покрыты на 100%.
 
 - **Реализация завершена, ожидается PR
