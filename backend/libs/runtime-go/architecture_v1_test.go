@@ -156,3 +156,53 @@ func TestSchemaFacadesDoNotExposeGenericSchemaTypes(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestConformanceFacadeImportBoundary(t *testing.T) {
+	const target = "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/schemas/conformancev1"
+	repositoryRoot, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fs.Stat(os.DirFS(repositoryRoot), ".github"); err != nil {
+		t.Skip("not running from a complete repository checkout")
+	}
+	err = filepath.WalkDir(repositoryRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(repositoryRoot, path)
+		if err != nil {
+			return err
+		}
+		clean := filepath.ToSlash(relative)
+		if entry.IsDir() {
+			base := entry.Name()
+			if base == ".git" || base == "vendor" || base == "node_modules" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(clean, ".go") || strings.HasSuffix(clean, "_test.go") {
+			return nil
+		}
+		allowed := strings.HasPrefix(clean, "backend/libs/runtime-go/schemas/conformancev1/") ||
+			strings.HasPrefix(clean, "test/runtime-v2-consumer/")
+		parsed, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, spec := range parsed.Imports {
+			value, _ := strconv.Unquote(spec.Path.Value)
+			if value == target && !allowed {
+				t.Errorf("%s imports the contract-verification-only facade", clean)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join("schemas", "conformance")); !os.IsNotExist(err) {
+		t.Fatal("unversioned conformance facade must not exist")
+	}
+}

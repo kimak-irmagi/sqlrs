@@ -2,6 +2,44 @@
 
 Статус: согласовано для issues #130/#131 2026-09-27 после уточнения требований.
 
+Дополнение внешнего conformance facade: согласовано для issue #138 2026-09-29.
+
+## Flow внешнего conformance facade
+
+Facade не добавляет runtime или production execution path. Чистый consumer
+использует те же production builders через фиксированную schema capability:
+
+```text
+consumer declaration
+  -> role-specific declaration helper из schemas/conformancev1
+  -> фиксированная factory/transform/extension schema из schemas/conformancev1
+  -> schema-bound builder runtimev2
+       |-> типизированные IdentityField values
+       |-> typed observation helper из schemas/conformancev1
+       `-> role-complete resolved extension bindings
+  -> canonical identity / envelope / explanation
+  -> consumer assertions
+```
+
+Только реализация facade импортирует `schemaauthor`. Consumer видит root
+semantic types и фиксированный, versioned для canonical-v1 facade. Declaration
+spelling и observations могут изменяться независимо: declaration helpers
+принимают одну reference string, а observation helpers валидируют фиксированный
+operational vocabulary и связывают его скрытую schema capability. Identity
+schema гарантирует, что только locator, plan и credential входят в semantic
+channel. СУБД, filesystem, registry, container, network client и command runner
+не участвуют.
+
+Repository production files не могут импортировать facade. Tests и внешний
+clean-consumer module используют его так:
+
+```text
+fixed facade builder + typed fields + optional observation/extensions
+  -> Build
+  -> ordinary canonical-v1 identity/envelope/explanation
+  -> проверка equality, sensitivity, redaction и diagnostic isolation
+```
+
 ## Compatibility boundary
 
 Новый контракт имеет discriminator `sqlrs.runtime.v2.canonical.v1`; typed fields

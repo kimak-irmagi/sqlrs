@@ -2,6 +2,8 @@
 
 Статус: согласовано для issues #130/#131 2026-09-27.
 
+Дополнение внешнего conformance facade: согласовано для issue #138 2026-09-29.
+
 ## Module boundary
 
 Существующие `canonical.go`/`identity.go` остаются frozen legacy-v2. Новая
@@ -69,6 +71,101 @@ environment/deployment с declaration. Canonical binding names fixed.
 `CanonicalExtensionFingerprint`/`ComposeCanonicalResolvedFields` принимают
 только new types; текущие одноимённые legacy functions сохраняют old signatures
 и bytes.
+
+### Schema-safe внешний conformance facade
+
+Чистому внешнему consumer требуется проверять все canonical-v1 builder channels
+без импорта generic trust boundary `schemaauthor` и без копирования provider
+schema. Поэтому package `runtime-go/schemas/conformancev1` владеет одним
+фиксированным семейством schemas для проверки контракта:
+
+```go
+const Provider = "runtime-conformance"
+const FactoryKind = "fixture-factory"
+const TransformKind = "fixture-transform"
+const ExtensionKind = "fixture-extension"
+
+const FactoryIdentitySchema = "runtime-conformance.factory.v1"
+const TransformIdentitySchema = "runtime-conformance.transform.v1"
+const ExtensionIdentitySchema = "runtime-conformance.extension.v1"
+const FactoryObservationSchema = "runtime-conformance.factory-observation.v1"
+const TransformObservationSchema = "runtime-conformance.transform-observation.v1"
+const ExtensionObservationSchema = "runtime-conformance.extension-observation.v1"
+const ExtensionSpecificationSchema = "runtime-conformance.extension-specification.v1"
+
+const FieldLocator = "locator"       // обязательный public text
+const FieldPlan = "plan"             // необязательное protected canonical value
+const FieldCredential = "credential" // необязательная protected secret reference
+
+const ObservationJobID = "job_id"
+const ObservationContainerID = "container_id"
+const ObservationTimestamp = "timestamp"
+const ObservationPhysicalSize = "physical_size"
+const ObservationMaterializationPath = "materialization_path"
+const ObservationCheckpointBackend = "checkpoint_backend"
+const DeclarationReference = "reference"
+
+func NewFactoryBuilder(runtimev2.FactoryDeclaration) (*runtimev2.FactoryIdentityBuilder, error)
+func NewTransformBuilder(runtimev2.TransformDeclaration) (*runtimev2.TransformIdentityBuilder, error)
+func NewExtensionBuilder() (*runtimev2.ExtensionIdentityBuilder, error)
+
+func NewFactoryObservation(map[string]string) (runtimev2.OperationalObservation, error)
+func NewTransformObservation(map[string]string) (runtimev2.OperationalObservation, error)
+func NewExtensionObservation(map[string]string) (runtimev2.OperationalObservation, error)
+
+func NewInputDeclaration(reference string) (runtimev2.InputDeclaration, error)
+func NewExecutionEnvironmentDeclaration(reference string) (runtimev2.ExecutionEnvironmentDeclaration, error)
+func NewDeploymentDeclaration(reference string) (runtimev2.DeploymentDeclaration, error)
+```
+
+Три identity schemas используют один фиксированный словарь semantic fields,
+чтобы внешний contract test мог проверить text, structured values, secret
+references, disclosure и diagnostic isolation для каждого builder kind.
+Helpers operational observations связывают правильные provider, kind и
+observation schema, принимают только фиксированные names выше, задают protected
+disclosure и оставляют значения вне identity. Helpers extension declarations
+фиксируют owner, kind, specification schema и одно непустое UTF-8 поле
+`reference`; caller может менять declaration spelling без передачи map или
+authoring identity schema.
+
+Declaration helpers используют существующий immutable discriminator declarations
+`runtimev2.SchemaVersion`: canonical-v1 меняет resolved identity, а не уже
+опубликованный declaration wire contract. Их specification schema равна
+`ExtensionSpecificationSchema`.
+
+Observation helpers делают defensive copy map и сортируют names по raw bytes Go
+string. Они проверяют все names в этом порядке до проверки values в том же
+порядке. Name с invalid UTF-8 или не соответствующий grammar identifiers Runtime
+возвращает `ValidationError{Code: CodeValueInvalid, Path: "fields.name"}`;
+unsafe name не включается в path. Первый well-formed, но неизвестный identifier
+возвращает `ValidationError{Code: CodeUnknownMember, Path: "fields." + name}`.
+`nil` и empty maps допустимы, как и empty operational values. Invalid UTF-8
+observation values возвращают `CodeValueInvalid`; значения длиннее
+`MaxCanonicalStringBytes` bytes возвращают `CodeLimitExceeded`, оба с path
+`"fields." + name`.
+
+Declaration helpers отклоняют invalid UTF-8 или empty references с
+`CodeValueInvalid`, а references длиннее `MaxResolvedValueBytes` bytes — с
+`CodeLimitExceeded`, оба с path `reference`. Каждая validation error facade
+поддерживает `errors.Is(err, runtimev2.ErrInvalid)`, обнаруживается как
+`*runtimev2.ValidationError` через `errors.As`, возвращает zero result и не
+включает reference/observation payloads или unsafe names в сообщение.
+
+Facade не экспортирует schema type, field definition, произвольные
+provider/kind, generic schema constructor или mutable variable. Constants и
+functions из блока signatures выше являются точным allowlist exported API;
+каждый symbol имеет Go documentation comment. Это API проверки контракта, а не
+production provider schema. Production packages продолжают использовать свои
+approved facades в `schemas/**`. Package path и identifiers навсегда связаны с
+canonical-v1 и никогда не перенаправляются на следующую semantic revision.
+
+Repository architecture checks сохраняют direct imports `schemaauthor` только
+внутри реализаций schema facade и module-owned conformance fixtures. Отдельное
+AST import rule отклоняет `schemas/conformancev1` из любого non-test Go file вне
+самого facade и явно разрешённого fixture `test/runtime-v2-consumer`. Module
+tests и этот clean external-consumer fixture могут его импортировать; repository
+production code — нет. Так classification contract-verification-only становится
+исполнимой внутри этого репозитория.
 
 ## Diagnostics, integrity и explain
 

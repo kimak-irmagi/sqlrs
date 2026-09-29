@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Nested module version (v0.3.0-rc.N or v0.3.0)
+        description: Nested module version (v0.MINOR.PATCH-rc.N or v0.MINOR.PATCH)
         required: true
       commit:
         description: Exact source commit to validate
@@ -27,6 +27,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.value }}
       commit: ${{ steps.version.outputs.commit }}
+      notes_file: ${{ steps.version.outputs.notes_file }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -57,7 +58,10 @@ jobs:
             version="${REF_NAME#backend/libs/runtime-go/}"
             commit="$SHA"
           fi
-          [[ "$version" =~ ^v0\.3\.0(-rc\.[1-9][0-9]*)?$ ]]
+          [[ "$version" =~ ^v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]]
+          base_version="${version%%-rc.*}"
+          notes_file="backend/libs/runtime-go/RELEASE-${base_version}.md"
+          test -f "$notes_file"
           test "$(git rev-parse "$commit^{commit}")" = "$(git rev-parse HEAD^{commit})"
           git fetch --no-tags origin main:refs/remotes/origin/main
           git merge-base --is-ancestor "$commit" origin/main
@@ -66,6 +70,7 @@ jobs:
           test -z "$(git status --porcelain)"
           echo "value=$version" >> "$GITHUB_OUTPUT"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "notes_file=$notes_file" >> "$GITHUB_OUTPUT"
       - name: Verify protected nested-tag policy before publication
         env:
           GH_TOKEN: ${{ github.token }}
@@ -113,9 +118,13 @@ jobs:
           set -euo pipefail
           temp=$(mktemp -d)
           trap 'rm -rf "$temp"' EXIT
-          go run ./scripts/maintenance/stage-runtime-module.go backend/libs/runtime-go "$temp/proxy" v0.3.0-pr.133
-          cd test/runtime-v2-consumer
-          GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go mod download github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@v0.3.0-pr.133
+          staged_version=v0.0.0-pr.0
+          go run ./scripts/maintenance/stage-runtime-module.go backend/libs/runtime-go "$temp/proxy" "$staged_version"
+          mkdir "$temp/consumer"
+          cp test/runtime-v2-consumer/*_test.go "$temp/consumer/"
+          cd "$temp/consumer"
+          go mod init example.invalid/runtime-v2-consumer
+          GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go get "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@$staged_version"
           GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go test -count=1 ./...
 
   publish-and-verify:
@@ -155,6 +164,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.validate.outputs.version }}
           COMMIT: ${{ needs.validate.outputs.commit }}
+          NOTES_FILE: ${{ needs.validate.outputs.notes_file }}
         shell: bash
         run: |
           set -euo pipefail
@@ -174,7 +184,7 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
             gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null
           else
-            gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "Runtime Go module $VERSION" --notes-file backend/libs/runtime-go/RELEASE-v0.3.0.md $([[ "$VERSION" == *-rc.* ]] && echo --prerelease)
+            gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "Runtime Go module $VERSION" --notes-file "$NOTES_FILE" $([[ "$VERSION" == *-rc.* ]] && echo --prerelease)
           fi
           attest_dir=$(mktemp -d)
           asset=$(node scripts/maintenance/create-runtime-v2-attestation.mjs "$attest_dir" "$VERSION" "$COMMIT" backend/libs/runtime-go/conformance/canonical-v1/manifest.sha256)

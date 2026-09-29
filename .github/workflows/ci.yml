@@ -139,9 +139,13 @@ jobs:
           set -euo pipefail
           temp=$(mktemp -d)
           trap 'rm -rf "$temp"' EXIT
-          go run ./scripts/maintenance/stage-runtime-module.go backend/libs/runtime-go "$temp/proxy" v0.3.0-pr.133
-          cd test/runtime-v2-consumer
-          GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go mod download github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@v0.3.0-pr.133
+          staged_version=v0.0.0-pr.0
+          go run ./scripts/maintenance/stage-runtime-module.go backend/libs/runtime-go "$temp/proxy" "$staged_version"
+          mkdir "$temp/consumer"
+          cp test/runtime-v2-consumer/*_test.go "$temp/consumer/"
+          cd "$temp/consumer"
+          go mod init example.invalid/runtime-v2-consumer
+          GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go get "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@$staged_version"
           GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go test -count=1 ./...
 
       - name: Upload Runtime v2 coverage

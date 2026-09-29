@@ -3,6 +3,43 @@
 Status: approved for issues #130 and #131 on 2026-09-27 after the issue
 clarifications.
 
+External conformance-facade addendum: approved for issue #138 on 2026-09-29.
+
+## External conformance-facade flow
+
+The facade adds no runtime or production execution path. A clean consumer uses
+the same production builders through a fixed schema capability:
+
+```text
+consumer declaration
+  -> schemas/conformancev1 role-specific declaration helper
+  -> schemas/conformancev1 fixed factory/transform/extension schema
+  -> runtimev2 schema-bound builder
+       |-> typed IdentityField values
+       |-> schemas/conformancev1 typed observation helper
+       `-> role-complete resolved extension bindings
+  -> canonical identity / envelope / explanation
+  -> consumer assertions
+```
+
+Only the facade implementation imports `schemaauthor`. The consumer sees the
+root semantic types and the fixed, canonical-v1-versioned facade. Declaration
+spelling and observations can vary independently; declaration helpers accept
+one reference string, while observation helpers validate the fixed operational
+vocabulary and bind its hidden schema capability. The identity schema ensures
+only locator, plan, and credential enter the semantic channel. No DBMS,
+filesystem, registry, container, network client, or command runner participates.
+
+Repository production files cannot import the facade. Tests and an external
+clean-consumer module exercise it as follows:
+
+```text
+fixed facade builder + typed fields + optional observation/extensions
+  -> Build
+  -> ordinary canonical-v1 identity/envelope/explanation
+  -> verify equality, sensitivity, redaction, and diagnostic isolation
+```
+
 ## Scope and compatibility boundary
 
 The completed contract is a new semantic revision identified by

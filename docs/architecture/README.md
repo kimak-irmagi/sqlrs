@@ -13,14 +13,17 @@ Entry points for Taidon architecture and service design.
 - [`runtime-snapshotting.md`](runtime-snapshotting.md) — runtime storage model,
   snapshot/backends (OverlayFS/copy/etc).
 - [Runtime v2 canonical-v1 flow](runtime-v2-canonical-contract-flow.md) -
-  approved side-by-side typed identity, integrity, disclosure, and release flow.
+  approved side-by-side typed identity, integrity, disclosure, release, and
+  external conformance-facade flow.
 - [Runtime v2 canonical-v1 structure](runtime-v2-canonical-contract-structure.md) -
-  approved module boundary, public types, trust boundary, and data ownership.
+  approved module boundary, public types, trust boundary, data ownership, and
+  versioned `schemas/conformancev1` facade for #138.
 - [Runtime v2 canonical-v1 conformance bundle](runtime-v2-conformance-bundle-schema.md) -
   approved bundle schema, detached digest, and verification contract.
 - [Runtime v2 canonical-v1 tests](runtime-v2-canonical-contract-tests.md) -
   canonical values, identity, integrity, bundle, compatibility, and release
-  evidence matrix implemented by #130/#131 and published in v0.3.0 through #133.
+  evidence matrix implemented by #130/#131 and published in v0.3.0 through
+  #133, with the approved #138/#139 facade addendum.
 - [Runtime v2 legacy-v2 semantic-core flow](runtime-v2-semantic-core-flow.md) -
   approved immutable `sqlrs.runtime.v2` resolved-state and lineage flow.
 - [Runtime v2 legacy-v2 semantic-core structure](runtime-v2-semantic-core-structure.md) -

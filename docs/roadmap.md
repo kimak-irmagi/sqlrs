@@ -76,6 +76,20 @@ gantt
 
 ## Status (as of 2026-09-29)
 
+- **Implementation complete, PR and release pending
+  ([#138](https://github.com/kimak-irmagi/sqlrs/issues/138),
+  [#139](https://github.com/kimak-irmagi/sqlrs/issues/139), external Runtime v2
+  conformance facade)**: `runtime-go/schemas/conformancev1` now exposes a stable,
+  non-production fixture surface for external contract verification. It covers
+  role-specific builders and observations, declaration helpers, deterministic
+  fail-closed validation, extension composition, disclosure, and exact exported
+  API boundaries. The standalone consumer is source-only; CI creates a temporary
+  module and stages the neutral `v0.0.0-pr.0` version. Release validation accepts
+  future v0 minor/patch RC and GA versions and selects release notes dynamically,
+  so routine releases do not require test-fixture edits. Runtime v2 aggregate
+  coverage is 95.5%; schemaauthor and its immutable internal schema model are at
+  100%.
+
 - **Implementation complete, PR pending
   ([#137](https://github.com/kimak-irmagi/sqlrs/issues/137), Runtime v2 CLI
   compatibility)**: the `runtime-go/composition` contract from closed #109 is

@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 
 const workflow = await readFile(new URL("../../.github/workflows/release-runtime-go.yml", import.meta.url), "utf8");
 const product = await readFile(new URL("../../.github/workflows/release-local.yml", import.meta.url), "utf8");
 const ci = await readFile(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
 const fuzz = await readFile(new URL("../../.github/workflows/runtime-v2-fuzz.yml", import.meta.url), "utf8");
-const consumerMod = await readFile(new URL("../../test/runtime-v2-consumer/go.mod", import.meta.url), "utf8");
-const consumerSum = await readFile(new URL("../../test/runtime-v2-consumer/go.sum", import.meta.url), "utf8");
+const consumerFiles = await readdir(new URL("../../test/runtime-v2-consumer/", import.meta.url));
+const historicalNotes = await readFile(new URL("../../backend/libs/runtime-go/RELEASE-v0.3.0.md", import.meta.url), "utf8");
 
 test("nested and product tag triggers are isolated", () => {
   assert.match(workflow, /backend\/libs\/runtime-go\/v\*/);
@@ -15,19 +15,20 @@ test("nested and product tag triggers are isolated", () => {
   assert.doesNotMatch(product, /backend\/libs\/runtime-go\/v\*/);
 });
 
-test("nested release uses clean public consumption gates", () => {
-  for (const required of ["GOWORK=off", "proxy.golang.org", "sum.golang.org", "go mod download", "retract v0.1.0", "sqlrs.runtime.v2", "sqlrs.runtime.v2.canonical.v1", "sqlrs.runtime.v2.aliases.v1", "sqlrs.runtime.v2.alias-expansion-trace.v1", "sqlrs.resolution-cache.v1", "sqlrs.runtime.conformance.bundle-schema.v1", "runtime-v2-canonical-v1.1", "v0.1.1-rc.6", "v0.3.0", "create-runtime-v2-attestation.mjs", "manifest.sha256"]) {
+test("nested release uses reusable clean public consumption gates", () => {
+  for (const required of ["GOWORK=off", "proxy.golang.org", "sum.golang.org", "go mod download", "retract v0.1.0", "sqlrs.runtime.v2", "sqlrs.runtime.v2.canonical.v1", "sqlrs.runtime.v2.aliases.v1", "sqlrs.runtime.v2.alias-expansion-trace.v1", "sqlrs.resolution-cache.v1", "sqlrs.runtime.conformance.bundle-schema.v1", "runtime-v2-canonical-v1.1", "v0.1.1-rc.6", "create-runtime-v2-attestation.mjs", "manifest.sha256"]) {
     assert.ok(workflow.includes(required), `missing ${required}`);
   }
+  assert.match(historicalNotes, /v0\.3\.0/);
   assert.doesNotMatch(workflow, /\breplace\b/);
   assert.match(workflow, /stage-runtime-module\.go/);
   assert.match(workflow, /test\/runtime-v2-consumer\/"\*_test\.go/);
   assert.doesNotMatch(workflow, /cat > runtime_test\.go/);
-  const stagedVersion = consumerMod.match(/runtime-go (v0\.3\.0-pr\.[0-9]+)/)?.[1];
-  assert.ok(stagedVersion, "clean consumer must pin one staged prerelease");
-  assert.ok(workflow.includes(stagedVersion), "workflow and clean consumer staged versions differ");
-  assert.ok(ci.includes(stagedVersion), "CI and clean consumer staged versions differ");
-  assert.ok(consumerSum.includes(`runtime-go ${stagedVersion} h1:`), "staged module checksum is missing");
+  assert.match(workflow, /staged_version=v0\.0\.0-pr\.0/);
+  assert.match(ci, /staged_version=v0\.0\.0-pr\.0/);
+  assert.match(workflow, /go mod init example\.invalid\/runtime-v2-consumer/);
+  assert.match(ci, /go mod init example\.invalid\/runtime-v2-consumer/);
+  assert.ok(!consumerFiles.includes("go.mod") && !consumerFiles.includes("go.sum"), "fixture sources must not pin a release version");
   assert.match(workflow, /verify-runtime-v2-canonical-bundle\.mjs/);
   assert.match(workflow, /check-runtime-v2-bundle-policy\.mjs/);
   assert.match(ci, /check-runtime-v2-bundle-policy\.mjs "\$BASELINE_SHA"/);
@@ -39,7 +40,17 @@ test("nested release uses clean public consumption gates", () => {
 test("manual validation checks out the requested commit and gates each package", () => {
   assert.match(workflow, /ref:.*inputs\.commit/);
   assert.match(workflow, /publish-and-verify:[\s\S]*?ref:\s*\$\{\{ needs\.validate\.outputs\.commit \}\}/);
-  assert.match(workflow, /\^v0\\\.3\\\.0\(-rc\\\.\[1-9\]\[0-9\]\*\)\?\$/);
+  assert.match(workflow, /\^v0\\\.\(0\|\[1-9\]\[0-9\]\*\)\\\.\(0\|\[1-9\]\[0-9\]\*\)\(-rc\\\.\[1-9\]\[0-9\]\*\)\?\$/);
+  const supportedVersion = /^v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$/;
+  for (const version of ["v0.0.1", "v0.1.0", "v0.12.34", "v0.2.0-rc.1", "v0.20.300-rc.42"]) {
+    assert.match(version, supportedVersion);
+  }
+  for (const version of ["v0.01.0", "v0.1.00", "v0.1.0-rc.0", "v0.1.0-rc.01", "v1.1.0"]) {
+    assert.doesNotMatch(version, supportedVersion);
+  }
+  assert.match(workflow, /base_version="\$\{version%%-rc\.\*\}"/);
+  assert.match(workflow, /RELEASE-\$\{base_version\}\.md/);
+  assert.doesNotMatch(workflow, /RELEASE-v0\.3\.0\.md/);
   assert.match(workflow, /git fetch --no-tags origin main:refs\/remotes\/origin\/main/);
   assert.match(workflow, /git merge-base --is-ancestor "\$commit" origin\/main/);
   assert.match(workflow, /grep -Fxv "backend\/libs\/runtime-go\/\$VERSION"/);

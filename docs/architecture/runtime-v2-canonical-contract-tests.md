@@ -3,6 +3,9 @@
 Status: approved for issues #130 and #131 on 2026-09-27 at 23:31
 Asia/Novosibirsk (16:31 UTC), after critical review and revision.
 
+External conformance-facade test addendum: approved for issues #138/#139 on
+2026-09-29 after critical review and revision.
+
 This plan verifies the approved
 [canonical-v1 flow](runtime-v2-canonical-contract-flow.md),
 [component structure](runtime-v2-canonical-contract-structure.md), and
@@ -291,3 +294,138 @@ After implementation, coverage is measured according to the repository policy.
 Coverage work is requirement-driven: uncovered branches are mapped to an
 approved requirement or treated as candidate dead code; it is not satisfied by
 tests of undocumented implementation details.
+
+## 10. External conformance-facade addendum
+
+The addendum reuses the existing canonical-v1 oracles and does not change the
+bundle or its locked vectors. All facade behavioral tests use external package
+`conformancev1_test`; source/API architecture policy may inspect syntax but does
+not call private implementation helpers. The clean-consumer fixture must compile
+outside `go.work` and must not import `schemaauthor`.
+
+- **CF01 — exact public API and documentation (PR):** an AST/API allowlist
+  rejects any exported symbol beyond the designed constants and functions,
+  including exported variables, schema capabilities, generic helpers, and type
+  aliases. Compile-time and behavioral assertions cover every exported provider,
+  kind, identity schema, observation schema, specification schema,
+  semantic-field, observation-field, and declaration-field constant. Source
+  policy and `go doc` verify a doc comment for every symbol and state that the
+  package is for contract verification, not a production provider.
+- **CF02 — role-specific builder construction (PR):** factory, transform, and
+  extension constructors build identities with the exact provider, kind, and
+  identity schema. Factory/transform declarations with the wrong kind fail with
+  the existing stable builder code/path. A missing required `locator` fails;
+  each valid builder seals after one successful build. Before sealing, rejected
+  identity-field and observation additions leave the builder usable by the next
+  valid operation; a premature build missing `locator` can also be completed and
+  retried. Each constructor failure returns a nil builder, supports
+  `errors.Is`/`errors.As`, and has the exact code/path. Each failure is
+  transactional.
+- **CF03 — all identity field kinds (PR):** each of the three builders accepts
+  `locator` as public text, `plan` as protected canonical value, and `credential`
+  as protected secret reference; wrong names and wrong kinds fail. Optional
+  fields may be absent, and caller mutation cannot alter accepted values.
+- **CF04 — role-specific observations and isolation (PR):** every published
+  operational name is accepted by each matching observation constructor and
+  builder. Cross-role observations fail. Observation-only value changes and
+  order changes leave canonical bytes, fingerprints, and envelopes unchanged;
+  observations remain present in the composition result. Input maps and returned
+  slices are defensive copies. `nil` maps, empty maps, empty values, and maps
+  containing every allowed name are accepted explicitly.
+- **CF05 — deterministic observation validation (PR):** names are checked in
+  raw-byte order before values, which are checked in that same order. Multiple
+  unknown identifiers return the first sorted path with `CodeUnknownMember`;
+  invalid UTF-8, control-character, and otherwise invalid identifier names
+  return `CodeValueInvalid` at `fields.name` without embedding the name. Multiple
+  invalid values select the first sorted field. Invalid UTF-8 values return
+  `CodeValueInvalid`; ASCII and multibyte UTF-8 values at
+  `MaxCanonicalStringBytes-1`, the byte limit, and the byte limit plus one verify
+  acceptance and `CodeLimitExceeded`. Mixed invalid-name/invalid-value cases
+  prove that the name phase wins. Every failure returns a zero observation,
+  satisfies `errors.Is(..., runtimev2.ErrInvalid)`, is discoverable as
+  `*runtimev2.ValidationError` through `errors.As`, has the exact code/path, and
+  does not expose the rejected payload or unsafe name through `%v` or `%+v`.
+- **CF06 — narrow extension declarations (PR):** input,
+  execution-environment, and deployment helpers return the exact role,
+  `runtimev2.SchemaVersion`, owner, kind, specification schema, and one
+  `reference` field. References test empty, invalid UTF-8, and
+  ASCII/multibyte `MaxResolvedValueBytes-1`/byte-limit/byte-limit-plus-one
+  boundaries; valid non-ASCII and NUL-bearing references round-trip unchanged.
+  Every failure returns the role's zero declaration, supports
+  `errors.Is`/`errors.As`, has the canonical code and `reference` path, and does
+  not expose the rejected value through `%v` or `%+v`.
+- **CF07 — role-complete extension composition (PR):** facade-created extension
+  identities bind to factory input/environment/deployment and transform
+  input/environment roles. Position and role are preserved: missing and extra
+  identities fail atomically, while reordering two valid input identities is
+  accepted and changes the position-sensitive factory/transform identity.
+  Deployment is available only in the factory binding type; the transform API
+  has no deployment channel. Existing root builder tests remain the oracle for
+  owner/kind mismatch rejection. A rejected bind is transactional and permits a
+  subsequent valid complete binding on the same builder.
+- **CF08 — sensitivity and disclosure (PR):** changing locator, plan, or any
+  secret-reference component changes identity; changing only an observation
+  does not. Safe explanation reveals public locator text/commitment and typed
+  redaction markers, but no protected plan payload, opaque secret identifier, or
+  protected-field commitment. An
+  authorized internal explanation reveals permitted protected values/reference
+  parts and never a raw secret. Nil authorizer, deny/authorizer error, and
+  cancellation before or during authorization return the documented
+  authorization error and zero projection without leaking a partial protected
+  result.
+- **CF09 — executable import boundary (PR policy):** repository-wide AST tests
+  allow `schemaauthor` only in approved schema packages/fixtures and allow
+  `schemas/conformancev1` only in its own implementation, Go test files, and the
+  explicit `test/runtime-v2-consumer` fixture. Direct, aliased, wrapped, and
+  re-exported production imports fail. The facade exports no generic schema type
+  or constructor. `go.mod` remains unchanged and the facade introduces no
+  third-party module dependency. No unversioned forwarding facade or alias
+  package is introduced.
+- **CF10 — clean external consumer (PR):** the staged-module, file-backed proxy
+  fixture, outside `go.work` and without `replace`, imports
+  `schemas/conformancev1` but not `schemaauthor`; it constructs all three
+  identities, all field kinds, all extension roles, observations, envelopes,
+  and safe/internal explanations. It asserts secret-version sensitivity and
+  observation isolation.
+- **CF11 — concurrency and ownership (PR/race):** concurrent constructor use is
+  deterministic and race-free. Package-owned schema state is immutable; input
+  maps, declarations, fields, and returned observations cannot mutate another
+  builder or subsequent construction.
+- **CF12 — compatibility and bundle immutability (PR):** all existing legacy-v2
+  and canonical-v1 tests/goldens pass unchanged. Existing canonical-v1 vector
+  files, bundle version, manifest, and detached digest remain byte-identical
+  unless a separately reviewed bundle revision is introduced.
+- **RF01 — release material for #139 (PR/RC):** checked-in release notes identify
+  the facade as contract-verification-only, preserve both published semantic
+  revisions, and record unchanged bundle metadata without a self-referential
+  source SHA. Generated provenance/attestation binds the exact module tag and
+  source commit. After fetching `origin/main` and remote tags, release automation
+  selects the next available unused minor module release, following the existing
+  additive-API version policy, and proves that neither its RC nor GA tag exists
+  before creation. The workflow and its contract tests validate generic Runtime
+  module semver/RC syntax and dynamically select the matching release-notes file;
+  adding a later release does not require changing version literals in tests.
+  License, module zip, checksum,
+  conformance-bundle, and provenance/attestation gates run against that same
+  immutable candidate.
+- **RF02 — public-proxy consumer for #139 (RC/GA):** after an immutable candidate
+  and then GA tag exist, the same CF10 source resolves through the public Go
+  proxy and checksum database without `replace`, using a clean module cache and
+  explicit public proxy/checksum settings. Availability may use bounded retry;
+  a served metadata, checksum, zip, or source mismatch is terminal. Proxy zip
+  contents match the reviewed tag. Failures never move an existing tag and block
+  issue closure.
+
+Existing-test contradiction review completed on 2026-09-29 after approval. The
+canonical builder, disclosure, architecture, bundle, legacy golden, and external
+consumer assertions are compatible and remain additive evidence. The review
+found one obsolete harness constraint: the release workflow, its contract test,
+and the staged consumer pinned the already published `v0.3.0` cycle. The user
+approved replacing those version-specific assertions with reusable semver,
+dynamic release-note, and temporary staged-consumer gates while retaining
+`v0.3.0` as immutable historical compatibility evidence. No requirement
+contradiction remains.
+
+Coverage is measured per package with a 100% target and 95% minimum; any
+shortfall is reported with per-line evidence and a separately approved
+remediation plan.
