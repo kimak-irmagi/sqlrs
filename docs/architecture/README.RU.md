@@ -21,7 +21,8 @@
   согласованные bundle schema, detached digest и verification contract.
 - [Тесты canonical-v1 Runtime v2](runtime-v2-canonical-contract-tests.RU.md) -
   test matrix evidence для canonical values, identity, integrity, bundle,
-  compatibility и release, реализованный в #130/#131 и публикуемый через #133.
+  compatibility и release, реализованный в #130/#131 и опубликованный в v0.3.0
+  через #133.
 - [Поток semantic core legacy-v2](runtime-v2-semantic-core-flow.RU.md) -
   согласованный неизменяемый поток `sqlrs.runtime.v2` resolved-state и lineage.
 - [Структура semantic core legacy-v2](runtime-v2-semantic-core-structure.RU.md) -
@@ -34,13 +35,13 @@
   согласованные v0.2.0 declaration types, wire contracts и historical release gate.
 - [Поток композиции aliases Runtime v2](runtime-v2-composition-flow.RU.md) -
   согласованный детерминированный expansion transform/recipe aliases до
-  resolution для #109.
+  resolution для #109 с CLI boundary, реализованным в #137.
 - [Структура композиции aliases Runtime v2](runtime-v2-composition-structure.RU.md) -
   согласованные public composition package, versioned document, catalog, trace
-  и legacy boundary для #109.
+  и legacy boundary для #109/#137.
 - [Дизайн тестов композиции aliases Runtime v2](runtime-v2-composition-tests.RU.md) -
-  предложенные conformance, expansion, trace, YAML, compatibility и release
-  gates для #109.
+  реализованные conformance, expansion, trace, YAML, compatibility и release
+  gates для #109/#137.
 - [Поток resolver legacy-v2](runtime-v2-resolver-flow.RU.md) - согласованный
   generic flow resolution, revalidation, acquisition и workspace-file.
 - [Структура resolver legacy-v2](runtime-v2-resolver-structure.RU.md) -

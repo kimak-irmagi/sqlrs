@@ -484,8 +484,8 @@ declaration. Поэтому само перемещение source не може
 
 ## Обязательный CLI compatibility slice
 
-Для закрытия issue #109 после release public module требуется более поздний
-independently mergeable CLI slice:
+Issue #137 реализует independently mergeable CLI slice поверх опубликованного
+public module:
 
 ```text
 frontend/cli-go/internal/alias/runtimev2/

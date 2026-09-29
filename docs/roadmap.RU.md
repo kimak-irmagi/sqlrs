@@ -77,20 +77,16 @@ gantt
 
 ## Статус (на 2026-09-29)
 
-- **Реализация публичной библиотеки завершена, публикация и совместимость CLI
-  ожидаются ([#109](https://github.com/kimak-irmagi/sqlrs/issues/109), композиция
-  Runtime v2)**: `backend/libs/runtime-go/composition` теперь предоставляет
-  строгие версионированные alias-документы, неизменяемые каталоги с явными
-  источниками, детерминированное раскрытие recipe-prefix и standalone transform,
-  стабильные structured failures и отдельный occurrence-based provenance trace.
-  Дублирующиеся определения, циклы, рёбра неверного типа, враждебные trace-графы
-  и превышения лимитов документа, каталога и результата отклоняются без
-  частичных результатов. Полный conformance- и boundary-набор пакета проходит
-  при statement coverage 96,8%. Release-readiness consumer теперь покрывает
-  factory-only, ordered, nested, error, rename-invariance и CacheRecord-
-  compatibility сценарии через staged и public proxy gates. Публикация
-  отслеживается в [#133](https://github.com/kimak-irmagi/sqlrs/issues/133);
-  CLI compatibility slice намеренно ожидает этот неизменяемый релиз.
+- **Реализация завершена, ожидается PR
+  ([#137](https://github.com/kimak-irmagi/sqlrs/issues/137), CLI compatibility
+  Runtime v2)**: контракт `runtime-go/composition` из закрытой #109 опубликован
+  в неизменяемой v0.3.0. CLI теперь закрепляет эту публичную версию и добавляет
+  bounded atomic string-only YAML adapter, а также эксклюзивную prepare-only
+  границу translated/`legacy_only`. Canonical workspace-relative source IDs,
+  provenance image/default, typed-nil и hostile provider adapters,
+  классификация run aliases и неизменяемость результата fail closed, не меняя
+  текущее выполнение `plan`/`prepare`/`run`. L01-L13 проходят при package
+  coverage 100%; полный CLI suite и public-module тест с `GOWORK=off` успешны.
 
 - **Реализация завершена ([#110](https://github.com/kimak-irmagi/sqlrs/issues/110),
   persistence Runtime v2)**: local engine теперь устанавливает защищённое
@@ -106,7 +102,7 @@ gantt
   путь prepare/run остаётся legacy до отдельного cutover. Покрытие пакетов
   resolver, DTO и SQLite составляет 95,1%, 97,7% и 95,0% соответственно.
 
-- **Реализация завершена; release readiness и публикация ожидаются
+- **Сделано и опубликовано
   ([#130](https://github.com/kimak-irmagi/sqlrs/issues/130),
   [#131](https://github.com/kimak-irmagi/sqlrs/issues/131), canonical-контракт
   Runtime v2)**: `sqlrs.runtime.v2.canonical.v1` теперь сосуществует с
@@ -119,10 +115,10 @@ gantt
   content-addressed attestation с source SHA и требует продвижения того же
   commit. Покрытие core составляет 95,1%. Implementation issues #130 и #131
   закрыты PR #135. Issue [#133](https://github.com/kimak-irmagi/sqlrs/issues/133)
-  отслеживает оставшиеся exact-commit validation и public-proxy/checksum gates
-  неизменяемых `v0.3.0-rc.N`/`v0.3.0`.
+  завершила exact-commit validation и public-proxy/checksum публикацию
+  неизменяемых same-commit `v0.3.0-rc.1`/`v0.3.0` из commit `6e60578c`.
 
-- **Реализация завершена, публикация ожидается ([#108](https://github.com/kimak-irmagi/sqlrs/issues/108), [#124](https://github.com/kimak-irmagi/sqlrs/issues/124), declarations и resolver Runtime v2)**: публичный nested-модуль теперь содержит строгие версионированные unresolved declarations, квалифицированные провайдером resolved extensions, детерминированную композицию, role-complete dispatch resolver по полному tuple, ограниченный restart-safe cache, консервативное разрешение workspace-файлов и проверенное content-addressed acquisition. Digest и native continuity evidence фиксируются как единый проверенный snapshot. Утверждённые revisions NTFS, APFS, ext4, XFS и Btrfs допускают дешёвую revalidation; неизвестные и overlay-файловые системы повторно хешируются. На Windows корень store должен быть заранее создан, принадлежать текущему владельцу и не иметь broad write ACL; reparse и linked objects отклоняются. Killed-writer тесты проходят каждую границу публикации cache/artifact. Покрытие пакетов core и resolver отдельно достигает минимальных 95%. Неизменяемая версия `v0.1.0` отозвана; до закрытия [#123](https://github.com/kimak-irmagi/sqlrs/issues/123) остаются public-proxy gates RC/GA на одном commit.
+- **Сделано и опубликовано ([#108](https://github.com/kimak-irmagi/sqlrs/issues/108), [#124](https://github.com/kimak-irmagi/sqlrs/issues/124), declarations и resolver Runtime v2)**: публичный nested-модуль содержит строгие версионированные unresolved declarations, квалифицированные провайдером resolved extensions, детерминированную композицию, role-complete dispatch resolver по полному tuple, ограниченный restart-safe cache, консервативное разрешение workspace-файлов и проверенное content-addressed acquisition. Digest и native continuity evidence фиксируются как единый проверенный snapshot. Утверждённые revisions NTFS, APFS, ext4, XFS и Btrfs допускают дешёвую revalidation; неизвестные и overlay-файловые системы повторно хешируются. На Windows корень store должен быть заранее создан, принадлежать текущему владельцу и не иметь broad write ACL; reparse и linked objects отклоняются. Killed-writer тесты проходят каждую границу публикации cache/artifact. Покрытие пакетов core и resolver отдельно достигает минимальных 95%. Неизменяемая версия `v0.1.0` отозвана; контракты доступны из опубликованной runtime-go v0.3.0.
 
 - **Сделано (усиление legacy coverage и CI)**: объединённое кроссплатформенное
   покрытие теперь составляет 95,3% для local engine, 95,0% для CLI и 95,1%

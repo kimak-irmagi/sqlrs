@@ -1,7 +1,8 @@
 # Композиция aliases Runtime v2: поток взаимодействия
 
 Статус: согласовано @evilguest для issue #109 после критического анализа
-дизайна, 2026-09-27.
+дизайна, 2026-09-27; public composition выпущен в runtime-go v0.3.0, а CLI
+boundary реализован в #137.
 
 Композиция aliases Runtime v2 преобразует пользовательские aliases transforms и
 recipes в существующие engine-neutral declaration types `runtimev2`. Expansion
@@ -43,7 +44,7 @@ sequenceDiagram
     Core-->>Caller: Lineage и StateIDs
 ```
 
-Core package принимает strict JSON и constructor inputs. Будущий CLI-side YAML
+Core package принимает strict JSON и constructor inputs. CLI-side YAML adapter #137
 adapter отображает ту же логическую схему в эти constructors и не создаёт вторую
 семантическую модель. Adapter принимает один документ и отклоняет duplicate
 keys, anchors, aliases, merge keys, custom tags, несколько YAML documents,
@@ -174,8 +175,8 @@ layer. Core expander не читает workspace или global config.
 
 Legacy alias translation находится вне generic package, поскольку текущие
 `kind`/`image`/`args` требуют CLI path binding и provider-specific declaration
-semantics. Для закрытия issue #109 после публикации public composition module
-требуется independently mergeable CLI compatibility slice. Этот adapter
+semantics. Issue #137 предоставляет independently mergeable CLI compatibility
+slice поверх опубликованного public composition module. Этот adapter
 сначала принимает только legacy prepare aliases и переводит их только когда
 способен построить полные и детерминированные Runtime v2 factory и transform
 declarations. Legacy run preset получает classification

@@ -248,6 +248,10 @@ translated-declaration or legacy-only-reason state.
 Rationale: the acceptance criterion is satisfied honestly while PR and release
 sequencing remain independently buildable.
 
+Implementation outcome (2026-09-29): runtime-go v0.3.0 publication and its
+evidence closed #109; the independently mergeable CLI implementation was
+extracted as #137 and retains this decision unchanged.
+
 ## Decision 13: trace nodes represent reference occurrences
 
 Refinement timestamp: 2026-09-28 00:12:41 Asia/Novosibirsk
