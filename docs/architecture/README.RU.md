@@ -14,15 +14,17 @@
 - [`runtime-snapshotting.RU.md`](runtime-snapshotting.RU.md) - модель хранения,
   snapshot/backends (OverlayFS/копирование/etc).
 - [Поток canonical-v1 Runtime v2](runtime-v2-canonical-contract-flow.RU.md) -
-  согласованный side-by-side flow typed identity, integrity, disclosure и release.
+  согласованный side-by-side flow typed identity, integrity, disclosure, release
+  и внешнего conformance facade.
 - [Структура canonical-v1 Runtime v2](runtime-v2-canonical-contract-structure.RU.md) -
-  согласованные module boundary, public types, trust boundary и владение данными.
+  согласованные module boundary, public types, trust boundary, владение данными
+  и versioned facade `schemas/conformancev1` для #138.
 - [Conformance bundle canonical-v1 Runtime v2](runtime-v2-conformance-bundle-schema.RU.md) -
   согласованные bundle schema, detached digest и verification contract.
 - [Тесты canonical-v1 Runtime v2](runtime-v2-canonical-contract-tests.RU.md) -
   test matrix evidence для canonical values, identity, integrity, bundle,
   compatibility и release, реализованный в #130/#131 и опубликованный в v0.3.0
-  через #133.
+  через #133, с согласованным addendum facade #138/#139.
 - [Поток semantic core legacy-v2](runtime-v2-semantic-core-flow.RU.md) -
   согласованный неизменяемый поток `sqlrs.runtime.v2` resolved-state и lineage.
 - [Структура semantic core legacy-v2](runtime-v2-semantic-core-structure.RU.md) -

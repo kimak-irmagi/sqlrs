@@ -2,6 +2,8 @@
 
 Status: approved for issues #130 and #131 on 2026-09-27.
 
+External conformance-facade addendum: approved for issue #138 on 2026-09-29.
+
 ## Module layout
 
 ```text
@@ -213,6 +215,101 @@ are fixed. `CanonicalExtensionFingerprint` and
 
 Legacy `ExtensionFingerprint` and `ComposeResolvedFields` retain their existing
 signatures and bytes and are explicitly documented as legacy-v2.
+
+### Schema-safe external conformance facade
+
+Clean external consumers must be able to verify every canonical-v1 builder
+channel without importing the generic `schemaauthor` trust boundary or copying
+a provider schema. Package `runtime-go/schemas/conformancev1` therefore owns one
+fixed contract-verification schema family:
+
+```go
+const Provider = "runtime-conformance"
+const FactoryKind = "fixture-factory"
+const TransformKind = "fixture-transform"
+const ExtensionKind = "fixture-extension"
+
+const FactoryIdentitySchema = "runtime-conformance.factory.v1"
+const TransformIdentitySchema = "runtime-conformance.transform.v1"
+const ExtensionIdentitySchema = "runtime-conformance.extension.v1"
+const FactoryObservationSchema = "runtime-conformance.factory-observation.v1"
+const TransformObservationSchema = "runtime-conformance.transform-observation.v1"
+const ExtensionObservationSchema = "runtime-conformance.extension-observation.v1"
+const ExtensionSpecificationSchema = "runtime-conformance.extension-specification.v1"
+
+const FieldLocator = "locator"       // required public text
+const FieldPlan = "plan"             // optional protected canonical value
+const FieldCredential = "credential" // optional protected secret reference
+
+const ObservationJobID = "job_id"
+const ObservationContainerID = "container_id"
+const ObservationTimestamp = "timestamp"
+const ObservationPhysicalSize = "physical_size"
+const ObservationMaterializationPath = "materialization_path"
+const ObservationCheckpointBackend = "checkpoint_backend"
+const DeclarationReference = "reference"
+
+func NewFactoryBuilder(runtimev2.FactoryDeclaration) (*runtimev2.FactoryIdentityBuilder, error)
+func NewTransformBuilder(runtimev2.TransformDeclaration) (*runtimev2.TransformIdentityBuilder, error)
+func NewExtensionBuilder() (*runtimev2.ExtensionIdentityBuilder, error)
+
+func NewFactoryObservation(map[string]string) (runtimev2.OperationalObservation, error)
+func NewTransformObservation(map[string]string) (runtimev2.OperationalObservation, error)
+func NewExtensionObservation(map[string]string) (runtimev2.OperationalObservation, error)
+
+func NewInputDeclaration(reference string) (runtimev2.InputDeclaration, error)
+func NewExecutionEnvironmentDeclaration(reference string) (runtimev2.ExecutionEnvironmentDeclaration, error)
+func NewDeploymentDeclaration(reference string) (runtimev2.DeploymentDeclaration, error)
+```
+
+The three identity schemas expose the same fixed semantic field vocabulary so
+an external contract test can exercise text, structured values, secret
+references, disclosure, and diagnostic isolation for every builder kind.
+Operational-observation helpers bind the correct provider, kind, and observation
+schema, accept only the fixed names above, mark them protected, and keep them
+outside identity. Extension-declaration helpers fix owner, kind, specification
+schema, and one non-empty UTF-8 `reference` field; callers can vary declaration
+spelling without supplying a map or authoring an identity schema.
+
+The declaration helpers use the existing immutable declaration discriminator
+`runtimev2.SchemaVersion`; canonical-v1 changes resolved identity, not the
+already published declaration wire contract. Their specification schema is
+`ExtensionSpecificationSchema`.
+
+Observation helpers defensively copy the map and sort names by raw Go string
+bytes.
+They validate every name in that order before validating values in the same
+order. A name that is invalid UTF-8 or does not satisfy the Runtime identifier
+grammar returns `ValidationError{Code: CodeValueInvalid, Path: "fields.name"}`;
+the unsafe name is not embedded in the path. The first well-formed but unknown
+identifier returns `ValidationError{Code: CodeUnknownMember, Path: "fields." +
+name}`. `nil` and empty maps are valid, as are empty operational values. Invalid
+UTF-8 observation values return `CodeValueInvalid`; values beyond
+`MaxCanonicalStringBytes` bytes return `CodeLimitExceeded`, both at
+`"fields." + name`.
+
+Declaration helpers reject invalid UTF-8 or empty references with
+`CodeValueInvalid` and references beyond `MaxResolvedValueBytes` bytes with
+`CodeLimitExceeded`, both at `reference`. Every facade validation error supports
+`errors.Is(err, runtimev2.ErrInvalid)`, is discoverable as
+`*runtimev2.ValidationError` through `errors.As`, returns the zero result, and
+omits reference/observation payloads and unsafe names from its message.
+
+The facade exports no schema type, field definition, arbitrary provider/kind,
+generic schema constructor, or mutable variable. The constants and functions in
+the signature block above are the exact exported API allowlist; every symbol has
+a Go documentation comment. It is contract-verification API, not a production
+provider schema. Production packages continue to use their own approved facade
+under `schemas/**`. The package path and identifiers are permanently bound to
+canonical-v1 and are never repointed to a later semantic revision.
+
+Repository architecture checks keep direct `schemaauthor` imports confined to
+schema facade implementations and module-owned conformance fixtures. A separate
+AST import rule rejects `schemas/conformancev1` from every non-test Go file
+outside the facade itself and the explicitly allowlisted
+`test/runtime-v2-consumer` fixture. Module tests and that clean external-consumer
+fixture may import it; repository production code may not. This makes the
+contract-verification-only classification executable inside this repository.
 
 ## Operational observations
 

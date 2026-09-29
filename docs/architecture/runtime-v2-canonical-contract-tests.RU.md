@@ -3,6 +3,9 @@
 Статус: согласовано для issues #130/#131 2026-09-27 в 23:31
 Asia/Novosibirsk (16:31 UTC), после критического review и переработки.
 
+Дополнение test plan внешнего conformance facade согласовано 2026-09-29 для
+issues #138/#139 после критического review и переработки.
+
 План проверяет согласованные
 [поток canonical-v1](runtime-v2-canonical-contract-flow.RU.md),
 [структуру компонентов](runtime-v2-canonical-contract-structure.RU.md) и
@@ -259,3 +262,133 @@ file-backed proxy; legacy assertions сохраняются, canonical доба�
 После реализации coverage измеряется по repository policy. Uncovered branch
 связывается с approved requirement или рассматривается как candidate dead code;
 tests undocumented implementation details не считаются целью сами по себе.
+
+## 10. Дополнение внешнего conformance facade
+
+Дополнение переиспользует существующие canonical-v1 oracles и не меняет bundle
+или его locked vectors. Все behavioral tests facade используют внешний package
+`conformancev1_test`; source/API architecture policy может проверять syntax, но
+не вызывает private implementation helpers. Clean-consumer fixture компилируется
+вне `go.work` и не импортирует `schemaauthor`.
+
+- **CF01 — точный public API и документация (PR):** AST/API allowlist отклоняет
+  любой exported symbol вне спроектированных constants и functions, включая
+  exported variables, schema capabilities, generic helpers и type aliases.
+  Compile-time и behavioral assertions покрывают каждую exported константу
+  provider, kind, identity schema, observation schema, specification schema,
+  semantic field, observation field и declaration field. `go doc`/source policy
+  проверяет doc comment каждого symbol и указывает, что package предназначен для
+  contract verification, а не production provider.
+- **CF02 — role-specific construction builders (PR):** constructors factory,
+  transform и extension строят identities с точными provider, kind и identity
+  schema. Factory/transform declarations с неверным kind возвращают существующий
+  stable builder code/path. Отсутствующий обязательный `locator` отклоняется;
+  каждый valid builder закрывается после одного успешного build. До sealing
+  rejected additions identity field и observation оставляют builder пригодным
+  для следующей valid operation; premature build без `locator` также можно
+  дополнить и повторить. Каждый constructor failure возвращает nil builder,
+  поддерживает `errors.Is`/`errors.As` и имеет exact code/path. Каждый failure
+  transactional.
+- **CF03 — все kinds identity fields (PR):** каждый из трёх builders принимает
+  `locator` как public text, `plan` как protected canonical value и `credential`
+  как protected secret reference; неверные names и kinds отклоняются. Optional
+  fields могут отсутствовать, mutation caller не меняет принятые values.
+- **CF04 — role-specific observations и isolation (PR):** каждый опубликованный
+  operational name принимается соответствующим observation constructor и
+  builder. Cross-role observations отклоняются. Изменение только observation
+  value или порядка не меняет canonical bytes, fingerprints и envelopes;
+  observations остаются в composition result. Input maps и возвращаемые slices
+  являются defensive copies. `nil` maps, empty maps, empty values и maps со всеми
+  разрешёнными names явно принимаются.
+- **CF05 — deterministic validation observations (PR):** names проверяются в
+  raw-byte order до values, которые проверяются в том же порядке. Несколько
+  неизвестных identifiers возвращают первый sorted path с `CodeUnknownMember`;
+  invalid UTF-8, control-character и прочие invalid identifier names возвращают
+  `CodeValueInvalid` с `fields.name` без включения name. Несколько invalid values
+  выбирают первое sorted field. Invalid UTF-8 values возвращают
+  `CodeValueInvalid`; ASCII и multibyte UTF-8 values на границах
+  `MaxCanonicalStringBytes-1`, byte limit и byte-limit-plus-one проверяют
+  acceptance и `CodeLimitExceeded`. Mixed invalid-name/invalid-value cases
+  доказывают приоритет name phase. Каждый failure возвращает zero observation,
+  удовлетворяет `errors.Is(..., runtimev2.ErrInvalid)`, обнаруживается как
+  `*runtimev2.ValidationError` через `errors.As`, имеет exact code/path и не
+  раскрывает rejected payload или unsafe name через `%v` или `%+v`.
+- **CF06 — узкие extension declarations (PR):** helpers input,
+  execution-environment и deployment возвращают точные role,
+  `runtimev2.SchemaVersion`, owner, kind, specification schema и одно поле
+  `reference`. References проверяются на empty, invalid UTF-8 и границах
+  ASCII/multibyte `MaxResolvedValueBytes-1`/byte-limit/byte-limit-plus-one.
+  Valid non-ASCII и NUL-bearing references round-trip без изменений. Каждый
+  failure возвращает zero declaration соответствующей role, поддерживает
+  `errors.Is`/`errors.As`, имеет canonical code и path `reference` и не раскрывает
+  rejected value через `%v` или `%+v`.
+- **CF07 — role-complete composition extensions (PR):** созданные facade
+  extension identities связываются с ролями factory input/environment/deployment
+  и transform input/environment. Position и role сохраняются: missing и extra
+  identities атомарно отклоняются, а reorder двух valid input identities
+  принимается и меняет position-sensitive identity factory/transform. Deployment
+  доступен только в factory binding type; transform API не имеет deployment
+  channel. Существующие root builder tests остаются oracle для rejection
+  owner/kind mismatch. Rejected bind transactional и допускает последующий valid
+  complete binding на том же builder.
+- **CF08 — sensitivity и disclosure (PR):** изменение locator, plan или любого
+  компонента secret reference меняет identity; изменение только observation —
+  нет. Safe explanation показывает text/commitment public locator и typed
+  redaction markers, но не protected plan payload, opaque secret identifier или
+  commitment protected field. Авторизованный
+  internal explanation показывает разрешённые protected values/reference parts
+  и никогда raw secret. Nil authorizer, deny/authorizer error и cancellation до
+  или во время authorization возвращают документированный authorization error и
+  zero projection без утечки partial protected result.
+- **CF09 — исполнимая import boundary (PR policy):** repository-wide AST tests
+  разрешают `schemaauthor` только approved schema packages/fixtures, а
+  `schemas/conformancev1` — только собственной реализации, Go test files и явно
+  указанному fixture `test/runtime-v2-consumer`. Direct, aliased, wrapped и
+  re-exported production imports отклоняются. Facade не экспортирует generic
+  schema type или constructor. `go.mod` остаётся unchanged, facade не добавляет
+  third-party module dependency. Unversioned forwarding facade или alias package
+  не добавляется.
+- **CF10 — чистый внешний consumer (PR):** staged-module fixture через
+  file-backed proxy, вне `go.work` и без `replace`, импортирует
+  `schemas/conformancev1`, но не `schemaauthor`; он строит все три identities,
+  все field kinds, все extension roles, observations, envelopes и safe/internal
+  explanations. Проверяются sensitivity secret version и isolation observations.
+- **CF11 — concurrency и ownership (PR/race):** concurrent constructor use
+  deterministic и race-free. Package-owned schema state immutable; input maps,
+  declarations, fields и возвращаемые observations не могут изменить другой
+  builder или последующую construction.
+- **CF12 — compatibility и bundle immutability (PR):** все существующие tests и
+  goldens legacy-v2/canonical-v1 проходят без изменений. Существующие vector
+  files canonical-v1, bundle version, manifest и detached digest остаются
+  byte-identical без отдельно согласованной bundle revision.
+- **RF01 — release material для #139 (PR/RC):** checked-in release notes называют
+  facade contract-verification-only, сохраняют обе опубликованные semantic
+  revisions и фиксируют неизменённые bundle metadata без self-referential source
+  SHA. Generated provenance/attestation связывает exact module tag и source
+  commit. После fetch `origin/main` и remote tags release automation выбирает
+  следующий свободный minor release модуля по существующей version policy для
+  additive API и доказывает отсутствие его RC/GA tags до создания. License,
+  Workflow и его contract tests проверяют generic syntax semver/RC Runtime
+  module и динамически выбирают соответствующий release-notes file; следующий
+  release не требует изменения version literals в tests. Module zip, checksum,
+  license, conformance-bundle и
+  provenance/attestation gates выполняются для одного immutable candidate.
+- **RF02 — public-proxy consumer для #139 (RC/GA):** после создания immutable
+  candidate и GA tag тот же source CF10 разрешается через public Go proxy и
+  checksum database без `replace`, с clean module cache и explicit public
+  proxy/checksum settings. Availability может использовать bounded retry;
+  mismatch metadata, checksum, zip или source является terminal. Proxy zip
+  совпадает с reviewed tag. Failure не перемещает существующий tag и блокирует
+  закрытие issue.
+
+Review существующих tests на противоречия завершён 2026-09-29 после согласования.
+Assertions canonical builders, disclosure, architecture, bundle, legacy goldens
+и external consumer совместимы и остаются additive evidence. Review нашёл одно
+устаревшее ограничение harness: release workflow, его contract test и staged
+consumer были закреплены за уже опубликованным циклом `v0.3.0`. Пользователь
+согласовал замену version-specific assertions на reusable gates semver, dynamic
+release notes и temporary staged consumer с сохранением `v0.3.0` как immutable
+historical compatibility evidence. Противоречий требований больше нет.
+
+Coverage измеряется per package с target 100% и минимумом 95%; deficit
+публикуется с per-line evidence и отдельным планом исправления для согласования.
