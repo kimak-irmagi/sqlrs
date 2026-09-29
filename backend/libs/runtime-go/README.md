@@ -35,9 +35,8 @@ transform/recipe alias expansion. It is available in `v0.3.0` and does not
 change the current engine path. See the
 [composition structure](../../../docs/architecture/runtime-v2-composition-structure.md).
 
-The approved `schemas/conformancev1` facade tracked by issue #138 will expose a
-fixed canonical-v1 schema family for external contract verification without
-granting generic `schemaauthor` authority. It is not a production provider
-schema and remains unavailable until the release tracked by issue #139 passes
-the clean-consumer and public-proxy gates. See the
+The `schemas/conformancev1` facade tracked by issues #138/#139 is available in
+`v0.4.0`. It exposes a fixed canonical-v1 schema family for external contract
+verification without granting generic `schemaauthor` authority. It is not a
+production provider schema. See the
 [canonical-v1 structure](../../../docs/architecture/runtime-v2-canonical-contract-structure.md#schema-safe-external-conformance-facade).
