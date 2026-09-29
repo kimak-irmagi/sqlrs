@@ -3,7 +3,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const [outputDirectory, version, sourceSHA, manifestPath] = process.argv.slice(2);
-if (!outputDirectory || !/^v0\.3\.0(?:-rc\.[1-9][0-9]*)?$/.test(version ?? "") || !/^[0-9a-f]{40}$/.test(sourceSHA ?? "") || !manifestPath) {
+const supportedVersion = /^v0\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-rc\.[1-9][0-9]*)?$/;
+if (!outputDirectory || !supportedVersion.test(version ?? "") || !/^[0-9a-f]{40}$/.test(sourceSHA ?? "") || !manifestPath) {
   throw new Error("usage: create-runtime-v2-attestation OUTPUT VERSION SOURCE_SHA MANIFEST_SHA256");
 }
 const manifestDigest = (await readFile(manifestPath, "utf8")).trim();
