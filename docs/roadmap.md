@@ -76,7 +76,8 @@ gantt
 
 ## Status (as of 2026-10-02)
 
-- **Locally implemented, pending PR/CI and publication
+- **Implemented in [PR #148](https://github.com/kimak-irmagi/sqlrs/pull/148),
+  pending merge and publication
   ([#146](https://github.com/kimak-irmagi/sqlrs/issues/146),
   [#147](https://github.com/kimak-irmagi/sqlrs/issues/147), Runtime Go v0.5.0
   canonical resolver)**: resolver results, the workspace-file provider, and

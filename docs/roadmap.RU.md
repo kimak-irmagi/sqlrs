@@ -77,7 +77,8 @@ gantt
 
 ## Статус (на 2026-10-02)
 
-- **Реализовано локально; ожидаются запрос на слияние, проверка CI и публикация
+- **Реализовано в [PR #148](https://github.com/kimak-irmagi/sqlrs/pull/148);
+  ожидаются слияние и публикация
   ([#146](https://github.com/kimak-irmagi/sqlrs/issues/146),
   [#147](https://github.com/kimak-irmagi/sqlrs/issues/147), канонический
   результат разрешения в Runtime Go v0.5.0)**: результат разрешения, поставщик
