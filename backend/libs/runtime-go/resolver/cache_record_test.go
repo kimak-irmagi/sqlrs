@@ -13,38 +13,47 @@ import (
 	"testing"
 
 	runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
+	"github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/schemaauthor"
 )
 
-// These tests specify the public cache envelope described by
-// docs/architecture/runtime-v2-persistence-structure.md.
-func TestCacheRecordLegacyWireCompatibility(t *testing.T) {
+// These tests specify the canonical cache envelope described by
+// docs/architecture/runtime-v2-canonical-resolver-structure.md.
+func TestCacheRecordRejectsLegacyWire(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("testdata", "resolution-cache-v0.2.0.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	raw = bytes.TrimSpace(raw)
+	if _, err := DecodeCacheRecordJSON(raw, coverageSchema()); !errors.Is(err, ErrIncompatibleCache) {
+		t.Fatalf("legacy record = %v, want incompatible", err)
+	}
+}
+
+// CR07: fixed cache bytes, key, and checksum come from a separate Node
+// crypto/Buffer calculation of the normative wire grammar. The synthetic
+// workspace scope is SHA-256 of "/workspace", independent of the host OS.
+func TestCanonicalCacheRecordIndependentWire(t *testing.T) {
+	const expected = `{"schema_version":"sqlrs.resolution-cache.canonical.v1","key":"2d9dbd344b61347b74cc4b4ad98dae7ce61f046373c1eb7a2c6763f4222ebb08","workspace_scope":"c52ddf65534b7b46035084358ab7902be4bfef220bdb503ac7039cc861905b05","resolver":{"role":"input","owner":"owner","kind":"kind","specification_schema":"owner.kind.v1","semantic_version":"1"},"normalized_declaration":{"schema_version":"sqlrs.runtime.v2","owner":"owner","kind":"kind","specification_schema":"owner.kind.v1","fields":[]},"resolution":{"identity":{"schema_version":"sqlrs.runtime.v2.canonical.v1","provider":"owner","kind":"kind","identity_schema":"owner.kind.v1","fields":[],"canonical_bytes":"AAAAAAAAADBzcWxycy5ydW50aW1lLnYyLmNhbm9uaWNhbC52MS9yZXNvbHZlZC1leHRlbnNpb24AAAAFAAEAAAAAAAAAHXNxbHJzLnJ1bnRpbWUudjIuY2Fub25pY2FsLnYxAAIAAAAAAAAABW93bmVyAAMAAAAAAAAABGtpbmQABAAAAAAAAAANb3duZXIua2luZC52MQAFAAAAAAAAAAQAAAAA","fingerprint":"sha256:403df2fd592b9ce0fd62769eac1a7ebb96648a8c05197c57c8a1ae295bdd1dfb"},"evidence":{}},"checksum":"sha256:c793bcd55a9597ad784d3f6f3a05c60d1d5cce032df4496ae95e65f932e3fa58"}`
 	key := CacheKey{
-		digest:         "54f09db3aa36879ab19fa6b7e8aa3844929ff88859a1e104e10b4cbad64c0fdb",
-		workspaceScope: "9400f1b21cb527d7fa3d3eabba93557d81f3918c6eabd22fc6bd8ef8bedc2722",
-		descriptor: Descriptor{
-			Role: "input", Owner: "owner", Kind: "kind",
-			SpecificationSchema: "owner.kind.v1", SemanticVersion: "1",
-		},
-		declaration: json.RawMessage(`{"schema_version":"sqlrs.runtime.v2","owner":"owner","kind":"kind","specification_schema":"owner.kind.v1","fields":[]}`),
+		digest:         "2d9dbd344b61347b74cc4b4ad98dae7ce61f046373c1eb7a2c6763f4222ebb08",
+		workspaceScope: "c52ddf65534b7b46035084358ab7902be4bfef220bdb503ac7039cc861905b05",
+		descriptor:     Descriptor{Role: "input", Owner: "owner", Kind: "kind", SpecificationSchema: "owner.kind.v1", SemanticVersion: "1"},
+		declaration:    json.RawMessage(`{"schema_version":"sqlrs.runtime.v2","owner":"owner","kind":"kind","specification_schema":"owner.kind.v1","fields":[]}`),
 	}
-	record, err := DecodeCacheRecordJSON(raw)
+	record, err := NewCacheRecord(key, coverageSchema(), coverageResolution(t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !record.Matches(key) {
-		t.Fatal("legacy record did not match its complete cache key")
-	}
-	encoded, err := record.MarshalJSON()
+	raw, err := record.MarshalJSON()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(encoded, raw) {
-		t.Fatalf("legacy record changed on re-encode\n got: %s\nwant: %s", encoded, raw)
+	if string(raw) != expected {
+		t.Fatalf("cache wire disagrees with independent fixture\nactual: %s\nexpected: %s", raw, expected)
+	}
+	decoded, err := DecodeCacheRecordJSON([]byte(expected), coverageSchema())
+	if err != nil || !decoded.Matches(key) {
+		t.Fatalf("independent fixture rejected: %v", err)
 	}
 }
 
@@ -68,7 +77,7 @@ func TestCacheRecordSupportsEveryDeclarationRole(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			record, err := NewCacheRecord(key, coverageResolution(t))
+			record, err := NewCacheRecord(key, coverageSchema(), coverageResolution(t))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -76,7 +85,7 @@ func TestCacheRecordSupportsEveryDeclarationRole(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			decoded, err := DecodeCacheRecordJSON(raw)
+			decoded, err := DecodeCacheRecordJSON(raw, coverageSchema())
 			if err != nil || !decoded.Matches(key) {
 				t.Fatalf("round trip = %v, matches=%v", err, decoded.Matches(key))
 			}
@@ -87,7 +96,7 @@ func TestCacheRecordSupportsEveryDeclarationRole(t *testing.T) {
 func TestCacheRecordConstructionRoundTripAndDefensiveCopies(t *testing.T) {
 	key, resolution := coverageKey(t, "1")
 	inputEvidence := resolution.Evidence
-	record, err := NewCacheRecord(key, resolution)
+	record, err := NewCacheRecord(key, coverageSchema(), resolution)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +109,7 @@ func TestCacheRecordConstructionRoundTripAndDefensiveCopies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	decoded, err := DecodeCacheRecordJSON(raw)
+	decoded, err := DecodeCacheRecordJSON(raw, coverageSchema())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +132,7 @@ func TestCacheRecordConstructionRoundTripAndDefensiveCopies(t *testing.T) {
 
 func TestCacheRecordMatchesEveryKeyConstituent(t *testing.T) {
 	key, resolution := coverageKey(t, "1")
-	record, err := NewCacheRecord(key, resolution)
+	record, err := NewCacheRecord(key, coverageSchema(), resolution)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,6 +157,24 @@ func TestCacheRecordMatchesEveryKeyConstituent(t *testing.T) {
 
 func TestCacheRecordRejectsInvalidConstruction(t *testing.T) {
 	key, resolution := coverageKey(t, "1")
+	wrongSchema, err := schemaauthor.NewExtensionSchema(schemaauthor.SchemaInput{Provider: "other", SemanticKind: "kind", IdentitySchema: "owner.kind.v1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewCacheRecord(key, wrongSchema, resolution); !errors.Is(err, ErrInvalidDeclaration) {
+		t.Fatalf("mismatched schema = %v", err)
+	}
+	otherDeclaration, err := runtimev2.NewInputDeclaration(runtimev2.ExtensionSpecificationInput{SchemaVersion: runtimev2.SchemaVersion, Owner: "other", Kind: "kind", SpecificationSchema: "other.kind.v1", Fields: []runtimev2.DeclarationField{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherKey, err := NewCacheKey(Workspace{Root: t.TempDir()}, Descriptor{Role: "input", Owner: "other", Kind: "kind", SpecificationSchema: "other.kind.v1", SemanticVersion: "1"}, NormalizedDeclaration{Declaration: otherDeclaration})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewCacheRecord(otherKey, coverageSchema(), resolution); !errors.Is(err, ErrInvalidDeclaration) {
+		t.Fatalf("schema disagrees with descriptor = %v", err)
+	}
 	for name, change := range map[string]func(*CacheKey, *Resolution){
 		"zero key":         func(key *CacheKey, _ *Resolution) { *key = CacheKey{} },
 		"zero resolution":  func(_ *CacheKey, resolution *Resolution) { *resolution = Resolution{} },
@@ -156,7 +183,7 @@ func TestCacheRecordRejectsInvalidConstruction(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			candidateKey, candidateResolution := key, resolution
 			change(&candidateKey, &candidateResolution)
-			if _, err := NewCacheRecord(candidateKey, candidateResolution); !errors.Is(err, ErrInvalidDeclaration) {
+			if _, err := NewCacheRecord(candidateKey, coverageSchema(), candidateResolution); !errors.Is(err, ErrInvalidDeclaration) {
 				t.Fatalf("error = %v, want %v", err, ErrInvalidDeclaration)
 			}
 		})
@@ -168,7 +195,7 @@ func TestCacheRecordZeroValueAndMalformedDeclaration(t *testing.T) {
 	if zero.Matches(CacheKey{}) {
 		t.Fatal("zero record matched")
 	}
-	if zero.Resolution().Identity.SchemaVersion() != "" {
+	if zero.Resolution().Identity.Provider() != "" {
 		t.Fatal("zero record returned resolution")
 	}
 	if _, err := zero.MarshalJSON(); !errors.Is(err, ErrInvalidDeclaration) {
@@ -176,19 +203,19 @@ func TestCacheRecordZeroValueAndMalformedDeclaration(t *testing.T) {
 	}
 	key, resolution := coverageKey(t, "1")
 	key.declaration = json.RawMessage(`{}`)
-	if _, err := NewCacheRecord(key, resolution); !errors.Is(err, ErrInvalidDeclaration) {
+	if _, err := NewCacheRecord(key, coverageSchema(), resolution); !errors.Is(err, ErrInvalidDeclaration) {
 		t.Fatalf("malformed declaration=%v", err)
 	}
 	key, _ = coverageKey(t, "1")
 	key.descriptor.Owner = "other"
-	if _, err := NewCacheRecord(key, resolution); !errors.Is(err, ErrInvalidDeclaration) {
+	if _, err := NewCacheRecord(key, coverageSchema(), resolution); !errors.Is(err, ErrInvalidDeclaration) {
 		t.Fatalf("descriptor mismatch=%v", err)
 	}
 }
 
 func TestDecodeCacheRecordJSONTrustBoundary(t *testing.T) {
 	key, resolution := coverageKey(t, "1")
-	record, err := NewCacheRecord(key, resolution)
+	record, err := NewCacheRecord(key, coverageSchema(), resolution)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +242,7 @@ func TestDecodeCacheRecordJSONTrustBoundary(t *testing.T) {
 		if unmarshalErr := json.Unmarshal(valid, &candidate); unmarshalErr != nil {
 			t.Fatalf("decode valid envelope: %v: %q", unmarshalErr, valid)
 		}
-		candidate.Resolution = bytes.Replace(candidate.Resolution, []byte(`"owner":"owner"`), []byte(`"owner":""`), 1)
+		candidate.Resolution = bytes.Replace(candidate.Resolution, []byte(`"provider":"owner"`), []byte(`"provider":""`), 1)
 		candidate.Checksum = ""
 		withoutChecksum, marshalErr := json.Marshal(candidate)
 		if marshalErr != nil {
@@ -232,7 +259,8 @@ func TestDecodeCacheRecordJSONTrustBoundary(t *testing.T) {
 	reencode := func(change func(*cacheRecord)) []byte {
 		candidate := envelope
 		candidate.Declaration = append(json.RawMessage(nil), envelope.Declaration...)
-		candidate.Resolution = cloneResolution(envelope.Resolution)
+		candidate.Resolution.Identity = append(json.RawMessage(nil), envelope.Resolution.Identity...)
+		candidate.Resolution.Evidence = append(json.RawMessage(nil), envelope.Resolution.Evidence...)
 		change(&candidate)
 		candidate.Checksum = ""
 		checksum, checksumErr := cacheChecksum(candidate)
@@ -253,7 +281,16 @@ func TestDecodeCacheRecordJSONTrustBoundary(t *testing.T) {
 		want error
 	}{
 		{"unknown member", append(append([]byte(nil), valid[:len(valid)-1]...), []byte(`,"unknown":true}`)...), ErrCorruptCache},
-		{"duplicate member", append([]byte(`{"schema_version":"sqlrs.resolution-cache.v1",`), valid[1:]...), ErrCorruptCache},
+		{"duplicate member", append([]byte(`{"schema_version":"sqlrs.resolution-cache.canonical.v1",`), valid[1:]...), ErrCorruptCache},
+		{"case-variant member", bytes.Replace(valid, []byte(`"key":"`), []byte(`"Key":"`), 1), ErrCorruptCache},
+		{"case-variant resolver member", bytes.Replace(valid, []byte(`"role":"input"`), []byte(`"Role":"input"`), 1), ErrCorruptCache},
+		{"case-variant resolution member", bytes.Replace(valid, []byte(`"identity":{`), []byte(`"Identity":{`), 1), ErrCorruptCache},
+		{"case-variant declaration member", reencode(func(candidate *cacheRecord) {
+			candidate.Declaration = bytes.Replace(candidate.Declaration, []byte(`"owner":"owner"`), []byte(`"Owner":"owner"`), 1)
+		}), ErrCorruptCache},
+		{"case-variant identity member", reencode(func(candidate *cacheRecord) {
+			candidate.Resolution.Identity = bytes.Replace(candidate.Resolution.Identity, []byte(`"provider":"owner"`), []byte(`"Provider":"owner"`), 1)
+		}), ErrCorruptCache},
 		{"null required member", bytes.Replace(valid, []byte(`"key":"`+key.String()+`"`), []byte(`"key":null`), 1), ErrCorruptCache},
 		{"missing required member", reencode(func(candidate *cacheRecord) { candidate.Key = "" }), ErrCorruptCache},
 		{"trailing token", append(append([]byte(nil), valid...), []byte(` {}`)...), ErrCorruptCache},
@@ -261,11 +298,16 @@ func TestDecodeCacheRecordJSONTrustBoundary(t *testing.T) {
 		{"checksum", bytes.Replace(valid, []byte(`"checksum":"sha256:`), []byte(`"checksum":"sha256:x`), 1), ErrCorruptCache},
 		{"unsupported schema", reencode(func(candidate *cacheRecord) { candidate.SchemaVersion = "future" }), ErrIncompatibleCache},
 		{"malformed identity", malformedIdentity(), ErrCorruptCache},
+		{"invalid utf8", append(append([]byte(nil), valid[:len(valid)-1]...), []byte{',', '"', 'x', '"', ':', '"', 0xff, '"', '}'}...), ErrCorruptCache},
+		{"unpaired surrogate", bytes.Replace(valid, []byte(`"schema_version":"`+cacheSchema+`"`), []byte(`"schema_version":"\ud800"`), 1), ErrCorruptCache},
+		{"identity version", reencode(func(candidate *cacheRecord) {
+			candidate.Resolution.Identity = bytes.Replace(candidate.Resolution.Identity, []byte(`"schema_version":"`+runtimev2.CanonicalSchemaVersion+`"`), []byte(`"schema_version":"future"`), 1)
+		}), ErrIncompatibleCache},
 		{"zero value", []byte(`{}`), ErrCorruptCache},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := DecodeCacheRecordJSON(test.raw); !errors.Is(err, test.want) {
+			if _, err := DecodeCacheRecordJSON(test.raw, coverageSchema()); !errors.Is(err, test.want) {
 				t.Fatalf("error = %v, want %v", err, test.want)
 			}
 		})
@@ -274,7 +316,7 @@ func TestDecodeCacheRecordJSONTrustBoundary(t *testing.T) {
 
 func TestCacheRecordInternalValidationBranches(t *testing.T) {
 	key, resolution := coverageKey(t, "1")
-	record, err := NewCacheRecord(key, resolution)
+	record, err := NewCacheRecord(key, coverageSchema(), resolution)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +354,7 @@ func TestDirectoryCacheLoadRejectsValidRecordForAnotherKeyAndOversize(t *testing
 	}
 	wantedKey, _ := coverageKey(t, "1")
 	otherKey, otherResolution := coverageKey(t, "2")
-	otherRecord, err := NewCacheRecord(otherKey, otherResolution)
+	otherRecord, err := NewCacheRecord(otherKey, coverageSchema(), otherResolution)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,13 +365,13 @@ func TestDirectoryCacheLoadRejectsValidRecordForAnotherKeyAndOversize(t *testing
 	if err := os.WriteFile(cache.path(wantedKey), raw, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := cache.Load(context.Background(), wantedKey); !errors.Is(err, ErrCorruptCache) {
+	if _, err := cache.Load(context.Background(), wantedKey, coverageSchema()); !errors.Is(err, ErrCorruptCache) {
 		t.Fatalf("mismatched record = %v", err)
 	}
 	if err := os.WriteFile(cache.path(wantedKey), bytes.Repeat([]byte("x"), runtimeCacheMaxBytes+1), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := cache.Load(context.Background(), wantedKey); !errors.Is(err, ErrCorruptCache) {
+	if _, err := cache.Load(context.Background(), wantedKey, coverageSchema()); !errors.Is(err, ErrCorruptCache) {
 		t.Fatalf("oversized record = %v", err)
 	}
 }

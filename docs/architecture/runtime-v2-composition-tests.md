@@ -279,7 +279,9 @@ own expected traversal, origins, error pointers, or compatibility result.
   diagnostics.
 - **X11 — release cache compatibility:** the same consumer constructs and
   round-trips `resolver.CacheRecord` through exported APIs and decodes then
-  byte-for-byte re-encodes the published v0.2.0 wire fixture.
+  byte-for-byte re-encodes the published v0.2.0 wire fixture. This is historical
+  v0.3.0 release evidence; the v0.5.0 consumer uses the canonical record from
+  [the new resolver plan](runtime-v2-canonical-resolver-tests.md).
 - **X12 — one staged/public oracle:** the staged file-proxy gate and the public
   proxy/checksum gate run the same checked-in clean-consumer test sources. The
   public gate must not substitute a narrower inline smoke test.

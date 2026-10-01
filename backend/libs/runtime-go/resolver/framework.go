@@ -1,5 +1,5 @@
 // Package resolver resolves mutable declarations into Runtime v2 identities.
-// Requirements: docs/architecture/runtime-v2-resolver-structure.md.
+// Requirements: docs/architecture/runtime-v2-canonical-resolver-structure.md.
 package resolver
 
 import (
@@ -42,7 +42,7 @@ type NormalizedDeclaration struct {
 	Declaration runtimev2.ExtensionDeclaration
 }
 type Resolution struct {
-	Identity runtimev2.ResolvedExtensionIdentity
+	Identity runtimev2.CanonicalResolvedExtensionIdentity
 	Evidence json.RawMessage
 }
 type RevalidationStatus string
@@ -100,6 +100,7 @@ type Artifact interface {
 
 type Resolver interface {
 	Descriptor() Descriptor
+	IdentitySchema() runtimev2.ExtensionIdentitySchema
 	Normalize(context.Context, Workspace, runtimev2.ExtensionDeclaration) (NormalizedDeclaration, error)
 	Resolve(context.Context, Workspace, NormalizedDeclaration) (Resolution, error)
 	ValidateResolution(Resolution) error
@@ -126,7 +127,7 @@ func NewCacheKey(workspace Workspace, descriptor Descriptor, normalized Normaliz
 		return CacheKey{}, err
 	}
 	scope := sha256.Sum256([]byte(filepath.Clean(root)))
-	parts := [][]byte{[]byte("sqlrs.resolution-cache.v1"), scope[:], []byte(descriptor.Role), []byte(descriptor.Owner), []byte(descriptor.Kind), []byte(descriptor.SpecificationSchema), []byte(descriptor.SemanticVersion), declaration}
+	parts := [][]byte{[]byte(cacheSchema), scope[:], []byte(descriptor.Role), []byte(descriptor.Owner), []byte(descriptor.Kind), []byte(descriptor.SpecificationSchema), []byte(descriptor.SemanticVersion), declaration}
 	var preimage bytes.Buffer
 	for _, part := range parts {
 		_ = binary.Write(&preimage, binary.BigEndian, uint64(len(part)))
@@ -137,13 +138,14 @@ func NewCacheKey(workspace Workspace, descriptor Descriptor, normalized Normaliz
 }
 
 type Cache interface {
-	Load(context.Context, CacheKey) (CacheLoad, error)
-	Store(context.Context, CacheKey, Resolution) error
+	Load(context.Context, CacheKey, runtimev2.ExtensionIdentitySchema) (CacheLoad, error)
+	Store(context.Context, CacheKey, runtimev2.ExtensionIdentitySchema, Resolution) error
 }
 
 type dispatchKey struct{ Role, Owner, Kind, SpecificationSchema string }
 type registryEntry struct {
 	descriptor Descriptor
+	schema     runtimev2.ExtensionIdentitySchema
 	resolver   Resolver
 }
 type Registry struct{ resolvers map[dispatchKey]registryEntry }
@@ -162,11 +164,15 @@ func NewRegistry(values ...Resolver) (Registry, error) {
 		if !validDescriptor(descriptor) {
 			return Registry{}, ErrInvalidDeclaration
 		}
+		schema := value.IdentitySchema()
+		if !schema.Valid() || schema.Provider() != descriptor.Owner || schema.SemanticKind() != descriptor.Kind {
+			return Registry{}, ErrInvalidDeclaration
+		}
 		key := descriptorKey(descriptor)
 		if _, ok := result.resolvers[key]; ok {
 			return Registry{}, ErrDuplicate
 		}
-		result.resolvers[key] = registryEntry{descriptor: descriptor, resolver: value}
+		result.resolvers[key] = registryEntry{descriptor: descriptor, schema: schema, resolver: value}
 	}
 	return result, nil
 }
@@ -214,7 +220,7 @@ func nilInterface(value any) bool {
 
 func outcomeFor(resolution Resolution, key CacheKey, status RevalidationStatus, reason string, cacheHit bool) Outcome {
 	return Outcome{
-		Resolution: resolution, PriorStatus: status, Reason: reason, CacheHit: cacheHit,
+		Resolution: cloneResolution(resolution), PriorStatus: status, Reason: reason, CacheHit: cacheHit,
 		Provenance: Provenance{Resolver: key.descriptor, NormalizedDeclaration: append(json.RawMessage(nil), key.declaration...)},
 		Freshness:  Freshness{Status: status, Reason: reason, Evidence: append(json.RawMessage(nil), resolution.Evidence...)},
 	}
@@ -242,7 +248,7 @@ func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declar
 		return Outcome{}, resolverError("cache_key", classifyError(err), keyDescriptor, err)
 	}
 	fallbackReason := "cache_miss"
-	loaded, err := m.cache.Load(ctx, key)
+	loaded, err := m.cache.Load(ctx, key, entry.schema)
 	if err != nil {
 		if !errors.Is(err, ErrCorruptCache) && !errors.Is(err, ErrIncompatibleCache) {
 			return Outcome{}, resolverError("cache_load", classifyError(err), keyDescriptor, err)
@@ -271,7 +277,7 @@ func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declar
 				if err := provider.ValidateResolution(loaded.Resolution); err != nil {
 					return Outcome{}, resolverError("validate_resolution", CodeInvalidResolution, keyDescriptor, err)
 				}
-				if err := m.cache.Store(ctx, key, loaded.Resolution); err != nil {
+				if err := m.cache.Store(ctx, key, entry.schema, loaded.Resolution); err != nil {
 					return Outcome{}, resolverError("cache_store", classifyError(err), keyDescriptor, err)
 				}
 				return outcomeFor(loaded.Resolution, key, Current, revalidation.Reason, true), nil
@@ -286,7 +292,7 @@ func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declar
 			if err := provider.ValidateResolution(fresh); err != nil {
 				return Outcome{}, resolverError("validate_resolution", CodeInvalidResolution, keyDescriptor, err)
 			}
-			if err := m.cache.Store(ctx, key, fresh); err != nil {
+			if err := m.cache.Store(ctx, key, entry.schema, fresh); err != nil {
 				return Outcome{}, resolverError("cache_store", classifyError(err), keyDescriptor, err)
 			}
 			return outcomeFor(fresh, key, revalidation.Status, revalidation.Reason, true), nil
@@ -299,7 +305,7 @@ func (m Manager) ResolveCurrent(ctx context.Context, workspace Workspace, declar
 	if err := provider.ValidateResolution(fresh); err != nil {
 		return Outcome{}, resolverError("validate_resolution", CodeInvalidResolution, keyDescriptor, err)
 	}
-	if err := m.cache.Store(ctx, key, fresh); err != nil {
+	if err := m.cache.Store(ctx, key, entry.schema, fresh); err != nil {
 		return Outcome{}, resolverError("cache_store", classifyError(err), keyDescriptor, err)
 	}
 	return outcomeFor(fresh, key, "", fallbackReason, false), nil

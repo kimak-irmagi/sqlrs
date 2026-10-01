@@ -15,33 +15,79 @@ import (
 // persistent adapters. Requirements:
 // docs/architecture/runtime-v2-persistence-structure.md.
 type CacheRecord struct {
-	record *cacheRecord
+	record     *cacheRecord
+	resolution Resolution
 }
 
 // NewCacheRecord constructs a cache record after validating the complete key
 // and resolution. All caller-owned byte slices are copied.
-func NewCacheRecord(key CacheKey, resolution Resolution) (CacheRecord, error) {
+func NewCacheRecord(key CacheKey, schema runtimev2.ExtensionIdentitySchema, resolution Resolution) (CacheRecord, error) {
+	if !schema.Valid() || schema.Provider() != key.descriptor.Owner || schema.SemanticKind() != key.descriptor.Kind {
+		return CacheRecord{}, ErrInvalidDeclaration
+	}
+	if rejectDuplicateJSON(resolution.Evidence) != nil {
+		return CacheRecord{}, ErrInvalidDeclaration
+	}
+	identity, err := runtimev2.MarshalCanonicalExtensionIdentityJSON(resolution.Identity, schema)
+	if err != nil {
+		return CacheRecord{}, ErrInvalidDeclaration
+	}
 	wire := cacheRecord{
 		SchemaVersion:  cacheSchema,
 		Key:            key.digest,
 		WorkspaceScope: key.workspaceScope,
 		Descriptor:     key.descriptor,
 		Declaration:    append(json.RawMessage(nil), key.declaration...),
-		Resolution:     cloneResolution(resolution),
+		Resolution:     cacheResolution{Identity: identity, Evidence: append(json.RawMessage(nil), resolution.Evidence...)},
 	}
 	if err := validateCacheRecord(wire, true); err != nil {
 		return CacheRecord{}, ErrInvalidDeclaration
 	}
 	checksum, _ := cacheChecksum(wire)
 	wire.Checksum = checksum
-	return CacheRecord{record: &wire}, nil
+	raw, err := json.Marshal(wire)
+	if err != nil || len(raw) > runtimeCacheMaxBytes || rejectDuplicateJSON(raw) != nil {
+		return CacheRecord{}, ErrInvalidDeclaration
+	}
+	return CacheRecord{record: &wire, resolution: cloneResolution(resolution)}, nil
 }
 
 // DecodeCacheRecordJSON strictly decodes and validates an untrusted cache
 // envelope. Unsupported format versions are distinguished from corruption.
-func DecodeCacheRecordJSON(raw []byte) (CacheRecord, error) {
+func DecodeCacheRecordJSON(raw []byte, schema runtimev2.ExtensionIdentitySchema) (CacheRecord, error) {
+	decoded, err := decodeCacheEnvelope(raw)
+	if err != nil {
+		return CacheRecord{}, err
+	}
+	if !schema.Valid() || schema.Provider() != decoded.record.Descriptor.Owner || schema.SemanticKind() != decoded.record.Descriptor.Kind {
+		return CacheRecord{}, ErrCorruptCache
+	}
+	var identityVersion struct {
+		SchemaVersion string `json:"schema_version"`
+	}
+	if err := json.Unmarshal(decoded.record.Resolution.Identity, &identityVersion); err != nil || identityVersion.SchemaVersion == "" {
+		return CacheRecord{}, ErrCorruptCache
+	}
+	if identityVersion.SchemaVersion != runtimev2.CanonicalSchemaVersion {
+		return CacheRecord{}, ErrIncompatibleCache
+	}
+	identity, err := runtimev2.DecodeCanonicalExtensionIdentityJSON(decoded.record.Resolution.Identity, schema)
+	if err != nil {
+		return CacheRecord{}, ErrCorruptCache
+	}
+	decoded.resolution = Resolution{Identity: identity, Evidence: append(json.RawMessage(nil), decoded.record.Resolution.Evidence...)}
+	return decoded, nil
+}
+
+// decodeCacheEnvelope validates the provider-independent boundary for loading
+// and pruning; it does not claim to validate schema-bound identity fields.
+func decodeCacheEnvelope(raw []byte) (CacheRecord, error) {
 	if len(raw) > runtimeCacheMaxBytes || rejectDuplicateJSON(raw) != nil {
 		return CacheRecord{}, ErrCorruptCache
+	}
+	root, err := cacheObjectMembers(raw, "schema_version", "key", "workspace_scope", "resolver", "normalized_declaration", "resolution", "checksum")
+	if err != nil {
+		return CacheRecord{}, err
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
@@ -55,6 +101,9 @@ func DecodeCacheRecordJSON(raw []byte) (CacheRecord, error) {
 	if wire.SchemaVersion != cacheSchema {
 		return CacheRecord{}, ErrIncompatibleCache
 	}
+	if err := validateCacheMemberSpelling(root); err != nil {
+		return CacheRecord{}, err
+	}
 	want := wire.Checksum
 	wire.Checksum = ""
 	digest, err := cacheChecksum(wire)
@@ -67,6 +116,48 @@ func DecodeCacheRecordJSON(raw []byte) (CacheRecord, error) {
 	}
 	copy := cloneCacheRecord(wire)
 	return CacheRecord{record: &copy}, nil
+}
+
+// validateCacheMemberSpelling enforces the closed envelope's exact JSON keys.
+// Provider evidence and schema-bound identity are checked at their own layers.
+func validateCacheMemberSpelling(root map[string]json.RawMessage) error {
+	if _, err := cacheObjectMembers(root["resolver"], "role", "owner", "kind", "specification_schema", "semantic_version"); err != nil {
+		return err
+	}
+	if _, err := cacheObjectMembers(root["resolution"], "identity", "evidence"); err != nil {
+		return err
+	}
+	declaration, err := cacheObjectMembers(root["normalized_declaration"], "schema_version", "owner", "kind", "specification_schema", "fields")
+	if err != nil {
+		return err
+	}
+	var fields []json.RawMessage
+	if err := json.Unmarshal(declaration["fields"], &fields); err != nil {
+		return ErrCorruptCache
+	}
+	for _, field := range fields {
+		if _, err := cacheObjectMembers(field, "name", "value"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func cacheObjectMembers(raw []byte, allowed ...string) (map[string]json.RawMessage, error) {
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &members); err != nil || members == nil {
+		return nil, ErrCorruptCache
+	}
+	permitted := make(map[string]bool, len(allowed))
+	for _, name := range allowed {
+		permitted[name] = true
+	}
+	for name := range members {
+		if !permitted[name] {
+			return nil, ErrCorruptCache
+		}
+	}
+	return members, nil
 }
 
 // Matches reports whether every identity-bearing cache-key constituent is the
@@ -86,10 +177,10 @@ func (r CacheRecord) Resolution() Resolution {
 	if r.record == nil {
 		return Resolution{}
 	}
-	return cloneResolution(r.record.Resolution)
+	return cloneResolution(r.resolution)
 }
 
-// MarshalJSON emits the existing v0.2.0 wire representation byte-for-byte.
+// MarshalJSON emits the canonical v0.5.0 cache wire representation.
 func (r CacheRecord) MarshalJSON() ([]byte, error) {
 	if r.record == nil {
 		return nil, ErrInvalidDeclaration
@@ -99,7 +190,8 @@ func (r CacheRecord) MarshalJSON() ([]byte, error) {
 
 func cloneCacheRecord(value cacheRecord) cacheRecord {
 	value.Declaration = append(json.RawMessage(nil), value.Declaration...)
-	value.Resolution = cloneResolution(value.Resolution)
+	value.Resolution.Identity = append(json.RawMessage(nil), value.Resolution.Identity...)
+	value.Resolution.Evidence = append(json.RawMessage(nil), value.Resolution.Evidence...)
 	return value
 }
 
@@ -116,12 +208,8 @@ func validateCacheRecord(value cacheRecord, withoutChecksum bool) error {
 		declaration.SpecificationSchema() != value.Descriptor.SpecificationSchema {
 		return ErrCorruptCache
 	}
-	identityJSON, err := json.Marshal(value.Resolution.Identity)
-	if err != nil {
-		return ErrCorruptCache
-	}
-	var identity runtimev2.ResolvedExtensionIdentity
-	if err := json.Unmarshal(identityJSON, &identity); err != nil {
+	if len(value.Resolution.Identity) == 0 || !json.Valid(value.Resolution.Identity) ||
+		bytes.Equal(bytes.TrimSpace(value.Resolution.Identity), []byte("null")) {
 		return ErrCorruptCache
 	}
 	if len(value.Resolution.Evidence) == 0 || !json.Valid(value.Resolution.Evidence) ||

@@ -8,6 +8,7 @@ import (
 
 	runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
 	"github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/resolver"
+	"github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/schemaauthor"
 )
 
 func TestRegistryDispatchesFullDescriptorAndRejectsDuplicates(t *testing.T) {
@@ -78,6 +79,27 @@ func TestManagerFallbackErrorRetainsPriorStatus(t *testing.T) {
 	}
 }
 
+func TestOutcomeDoesNotExposeProviderEvidenceBuffer(t *testing.T) {
+	declaration := workspaceDeclaration(t)
+	provider := &fakeResolver{descriptor: descriptor("one"), resolution: resolution(t, declaration)}
+	registry, err := resolver.NewRegistry(provider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := resolver.NewManager(registry, &fakeCache{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := manager.ResolveCurrent(context.Background(), resolver.Workspace{Root: t.TempDir()}, declaration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome.Resolution.Evidence[0] = '['
+	if string(provider.resolution.Evidence) != `{"schema_version":"test"}` || string(outcome.Freshness.Evidence) != `{"schema_version":"test"}` {
+		t.Fatal("outcome leaked the provider's evidence buffer")
+	}
+}
+
 type fakeResolver struct {
 	descriptor                 resolver.Descriptor
 	resolution                 resolver.Resolution
@@ -87,6 +109,13 @@ type fakeResolver struct {
 }
 
 func (f *fakeResolver) Descriptor() resolver.Descriptor { return f.descriptor }
+func (f *fakeResolver) IdentitySchema() runtimev2.ExtensionIdentitySchema {
+	return fileTestSchema(f.descriptor.Owner, f.descriptor.Kind)
+}
+func fileTestSchema(owner, kind string) runtimev2.ExtensionIdentitySchema {
+	schema, _ := schemaauthor.NewExtensionSchema(schemaauthor.SchemaInput{Provider: owner, SemanticKind: kind, IdentitySchema: "file.v1", Fields: []schemaauthor.FieldDefinition{{Name: "content.digest", Role: schemaauthor.FieldRoleSemantic, Kind: runtimev2.IdentityFieldText, Required: false, Disclosure: schemaauthor.DisclosurePublic}}})
+	return schema
+}
 func (f *fakeResolver) Normalize(_ context.Context, _ resolver.Workspace, declaration runtimev2.ExtensionDeclaration) (resolver.NormalizedDeclaration, error) {
 	return resolver.NormalizedDeclaration{Declaration: declaration}, nil
 }
@@ -151,10 +180,10 @@ type fakeCache struct {
 	storeCalls int
 }
 
-func (f *fakeCache) Load(context.Context, resolver.CacheKey) (resolver.CacheLoad, error) {
+func (f *fakeCache) Load(context.Context, resolver.CacheKey, runtimev2.ExtensionIdentitySchema) (resolver.CacheLoad, error) {
 	return f.load, nil
 }
-func (f *fakeCache) Store(context.Context, resolver.CacheKey, resolver.Resolution) error {
+func (f *fakeCache) Store(context.Context, resolver.CacheKey, runtimev2.ExtensionIdentitySchema, resolver.Resolution) error {
 	f.storeCalls++
 	return nil
 }
@@ -172,6 +201,11 @@ func workspaceDeclarationNoTest() runtimev2.InputDeclaration {
 }
 func resolution(t *testing.T, declaration runtimev2.ExtensionDeclaration) resolver.Resolution {
 	t.Helper()
-	identity, _ := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{SchemaVersion: runtimev2.SchemaVersion, Owner: declaration.Owner(), Kind: declaration.Kind(), IdentitySchema: "file.v1", Fields: []runtimev2.ResolvedField{{Name: "content.digest", Value: "sha256:" + string(make([]byte, 0)) + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}})
+	schema, _ := schemaauthor.NewExtensionSchema(schemaauthor.SchemaInput{Provider: declaration.Owner(), SemanticKind: declaration.Kind(), IdentitySchema: "file.v1", Fields: []schemaauthor.FieldDefinition{{Name: "content.digest", Role: schemaauthor.FieldRoleSemantic, Kind: runtimev2.IdentityFieldText, Required: true, Disclosure: schemaauthor.DisclosurePublic}}})
+	builder, _ := runtimev2.NewExtensionIdentityBuilder(schema)
+	field, _ := runtimev2.NewTextIdentityField("content.digest", "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	_ = builder.AddIdentityField(field)
+	composition, _ := builder.Build()
+	identity := composition.Identity()
 	return resolver.Resolution{Identity: identity, Evidence: json.RawMessage(`{"schema_version":"test"}`)}
 }

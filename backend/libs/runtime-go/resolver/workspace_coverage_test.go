@@ -12,7 +12,40 @@ import (
 	"time"
 
 	runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
+	"github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/schemaauthor"
 )
+
+// workspaceTestIdentity constructs only typed canonical identities; legacy
+// string-only identities remain covered by their historical semantic tests.
+func workspaceTestIdentity(t *testing.T, owner, kind, identitySchema string, fields []runtimev2.ResolvedField) runtimev2.CanonicalResolvedExtensionIdentity {
+	t.Helper()
+	definitions := make([]schemaauthor.FieldDefinition, len(fields))
+	for index, field := range fields {
+		definitions[index] = schemaauthor.FieldDefinition{Name: field.Name, Role: schemaauthor.FieldRoleSemantic, Kind: runtimev2.IdentityFieldText, Required: true, Disclosure: schemaauthor.DisclosurePublic}
+	}
+	schema, err := schemaauthor.NewExtensionSchema(schemaauthor.SchemaInput{Provider: owner, SemanticKind: kind, IdentitySchema: identitySchema, Fields: definitions})
+	if err != nil {
+		t.Fatal(err)
+	}
+	builder, err := runtimev2.NewExtensionIdentityBuilder(schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range fields {
+		field, err := runtimev2.NewTextIdentityField(value.Name, value.Value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := builder.AddIdentityField(field); err != nil {
+			t.Fatal(err)
+		}
+	}
+	composition, err := builder.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return composition.Identity()
+}
 
 type snapshotStub struct {
 	reader      *bytes.Reader
@@ -138,12 +171,8 @@ func TestWorkspaceProviderNormalizationAndValidationBranches(t *testing.T) {
 		t.Fatal("normalization mismatch")
 	}
 
-	identity := func(owner, kind, schema string, fields []runtimev2.ResolvedField) runtimev2.ResolvedExtensionIdentity {
-		value, err := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{SchemaVersion: runtimev2.SchemaVersion, Owner: owner, Kind: kind, IdentitySchema: schema, Fields: fields})
-		if err != nil {
-			t.Fatal(err)
-		}
-		return value
+	identity := func(owner, kind, schema string, fields []runtimev2.ResolvedField) runtimev2.CanonicalResolvedExtensionIdentity {
+		return workspaceTestIdentity(t, owner, kind, schema, fields)
 	}
 	digest := digestOf([]byte("x"))
 	validIdentity := identity(workspaceOwner, workspaceKind, workspaceIdentity, []runtimev2.ResolvedField{{Name: "content.digest", Value: digest}})
@@ -201,10 +230,7 @@ func TestWorkspaceResolveRevalidateAcquireFailureBranches(t *testing.T) {
 		t.Fatalf("cancel resolve: %v", err)
 	}
 	weakEvidence, _ := json.Marshal(fileEvidence{SchemaVersion: "sqlrs.workspace-file.evidence.v1", Path: "missing", Size: 1, FilesystemClass: "unsupported"})
-	resolution := Resolution{Identity: func() runtimev2.ResolvedExtensionIdentity {
-		v, _ := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{SchemaVersion: runtimev2.SchemaVersion, Owner: workspaceOwner, Kind: workspaceKind, IdentitySchema: workspaceIdentity, Fields: []runtimev2.ResolvedField{{Name: "content.digest", Value: digestOf([]byte("x"))}}})
-		return v
-	}(), Evidence: weakEvidence}
+	resolution := Resolution{Identity: workspaceTestIdentity(t, workspaceOwner, workspaceKind, workspaceIdentity, []runtimev2.ResolvedField{{Name: "content.digest", Value: digestOf([]byte("x"))}}), Evidence: weakEvidence}
 	status, err := provider.Revalidate(context.Background(), workspace, resolution)
 	if err != nil || status.Status != Stale {
 		t.Fatalf("missing revalidate: %+v %v", status, err)
@@ -291,13 +317,7 @@ func TestWorkspaceRevalidateStrongContinuityOnEveryPlatform(t *testing.T) {
 		FilesystemClass: native.Class, EvidenceRevision: native.Revision, Strong: true,
 		VolumeID: native.VolumeID, FileID: native.FileID, ChangeToken: native.ChangeToken,
 	})
-	resolvedIdentity, err := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{
-		SchemaVersion: runtimev2.SchemaVersion, Owner: workspaceOwner, Kind: workspaceKind, IdentitySchema: workspaceIdentity,
-		Fields: []runtimev2.ResolvedField{{Name: "content.digest", Value: digestOf([]byte("content"))}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	resolvedIdentity := workspaceTestIdentity(t, workspaceOwner, workspaceKind, workspaceIdentity, []runtimev2.ResolvedField{{Name: "content.digest", Value: digestOf([]byte("content"))}})
 	resolution := Resolution{Identity: resolvedIdentity, Evidence: evidence}
 	providerValue, _ := NewWorkspaceFileResolver(nil)
 	result, err := providerValue.Revalidate(context.Background(), workspace, resolution)

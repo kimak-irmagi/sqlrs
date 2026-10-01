@@ -3,6 +3,10 @@
 Status: approved by the user for issue #110 after a second critical design
 review, 2026-09-27.
 
+Version note: the resolver-cache assertions below are historical #110 release
+evidence. The v0.5.0 canonical record and SQLite adapter require the new
+[canonical resolver test plan](runtime-v2-canonical-resolver-tests.md).
+
 This plan verifies the approved
 [interaction flow](runtime-v2-persistence-flow.md) and
 [component/schema design](runtime-v2-persistence-structure.md). Tests exercise

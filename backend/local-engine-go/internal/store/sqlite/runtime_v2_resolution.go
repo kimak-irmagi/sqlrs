@@ -6,12 +6,13 @@ import (
 	"errors"
 	"time"
 
+	runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
 	"github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/resolver"
 )
 
 // Load implements resolver.Cache over the isolated Runtime v2 resolution
 // namespace. Requirements: runtime-v2-persistence-structure.md.
-func (s *Store) Load(ctx context.Context, key resolver.CacheKey) (resolver.CacheLoad, error) {
+func (s *Store) Load(ctx context.Context, key resolver.CacheKey, schema runtimev2.ExtensionIdentitySchema) (resolver.CacheLoad, error) {
 	if err := ctx.Err(); err != nil {
 		return resolver.CacheLoad{}, err
 	}
@@ -30,7 +31,7 @@ func (s *Store) Load(ctx context.Context, key resolver.CacheKey) (resolver.Cache
 	if !validRuntimeV2Timestamp(storedAt) {
 		return resolver.CacheLoad{}, resolver.ErrCorruptCache
 	}
-	record, err := resolver.DecodeCacheRecordJSON(raw)
+	record, err := resolver.DecodeCacheRecordJSON(raw, schema)
 	if err != nil {
 		return resolver.CacheLoad{}, err
 	}
@@ -41,11 +42,11 @@ func (s *Store) Load(ctx context.Context, key resolver.CacheKey) (resolver.Cache
 }
 
 // Store atomically replaces evidence for one exact, versioned cache key.
-func (s *Store) Store(ctx context.Context, key resolver.CacheKey, resolution resolver.Resolution) error {
+func (s *Store) Store(ctx context.Context, key resolver.CacheKey, schema runtimev2.ExtensionIdentitySchema, resolution resolver.Resolution) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	record, err := resolver.NewCacheRecord(key, resolution)
+	record, err := resolver.NewCacheRecord(key, schema, resolution)
 	if err != nil {
 		return err
 	}

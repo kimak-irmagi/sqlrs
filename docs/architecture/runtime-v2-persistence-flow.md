@@ -2,6 +2,12 @@
 
 Status: approved by the user for issue #110, 2026-09-27.
 
+Version note: the resolution-cache sequence below documents the original #110
+Go contract. In v0.5.0, the same SQLite table uses the schema-bound canonical
+resolver result and new record codec from the
+[canonical resolver flow](runtime-v2-canonical-resolver-flow.md). Logical-state
+and materialization behavior below is unchanged.
+
 Runtime v2 persistence is an internal local-engine capability. It adds no CLI or
 HTTP API and does not switch the supported prepare/runtime path from the legacy
 rc.6 semantics. The new store consumes the public immutable values from

@@ -47,7 +47,7 @@ func TestPruneReportsWindowsSharingFailures(t *testing.T) {
 			t.Fatal(err)
 		}
 		key, value := coverageKey(t, "1")
-		if err := cache.Store(context.Background(), key, value); err != nil {
+		if err := cache.Store(context.Background(), key, coverageSchema(), value); err != nil {
 			t.Fatal(err)
 		}
 		return cache, key
@@ -231,11 +231,11 @@ func TestWindowsLinkAndSharingBoundaries(t *testing.T) {
 			t.Fatal(err)
 		}
 		key, value := coverageKey(t, "1")
-		if err := cache.Store(context.Background(), key, value); err != nil {
+		if err := cache.Store(context.Background(), key, coverageSchema(), value); err != nil {
 			t.Fatal(err)
 		}
 		_ = openWithoutDeleteSharing(t, cache.path(key), 0)
-		loaded, err := cache.Load(context.Background(), key)
+		loaded, err := cache.Load(context.Background(), key, coverageSchema())
 		if err == nil && !loaded.Hit {
 			t.Fatal("permitted shared read did not return the cache record")
 		}

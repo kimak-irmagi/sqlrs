@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
+	"github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/schemaauthor"
 )
 
 type coverageResolver struct {
@@ -22,6 +23,9 @@ type coverageResolver struct {
 }
 
 func (r *coverageResolver) Descriptor() Descriptor { return r.descriptor }
+func (r *coverageResolver) IdentitySchema() runtimev2.ExtensionIdentitySchema {
+	return coverageSchema()
+}
 func (r *coverageResolver) Normalize(context.Context, Workspace, runtimev2.ExtensionDeclaration) (NormalizedDeclaration, error) {
 	return r.normalized, r.normalizeErr
 }
@@ -49,8 +53,17 @@ type coverageCache struct {
 	storeErr error
 }
 
-func (c *coverageCache) Load(context.Context, CacheKey) (CacheLoad, error) { return c.load, c.loadErr }
-func (c *coverageCache) Store(context.Context, CacheKey, Resolution) error { return c.storeErr }
+func (c *coverageCache) Load(context.Context, CacheKey, runtimev2.ExtensionIdentitySchema) (CacheLoad, error) {
+	return c.load, c.loadErr
+}
+func (c *coverageCache) Store(context.Context, CacheKey, runtimev2.ExtensionIdentitySchema, Resolution) error {
+	return c.storeErr
+}
+
+func coverageSchema() runtimev2.ExtensionIdentitySchema {
+	schema, _ := schemaauthor.NewExtensionSchema(schemaauthor.SchemaInput{Provider: "owner", SemanticKind: "kind", IdentitySchema: "owner.kind.v1"})
+	return schema
+}
 
 func coverageDeclaration(t *testing.T) runtimev2.InputDeclaration {
 	t.Helper()
@@ -66,14 +79,15 @@ func coverageDeclaration(t *testing.T) runtimev2.InputDeclaration {
 
 func coverageResolution(t *testing.T) Resolution {
 	t.Helper()
-	identity, err := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{
-		SchemaVersion: runtimev2.SchemaVersion, Owner: "owner", Kind: "kind",
-		IdentitySchema: "owner.kind.v1", Fields: []runtimev2.ResolvedField{},
-	})
+	builder, err := runtimev2.NewExtensionIdentityBuilder(coverageSchema())
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Resolution{Identity: identity, Evidence: []byte(`{}`)}
+	composition, err := builder.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Resolution{Identity: composition.Identity(), Evidence: []byte(`{}`)}
 }
 
 func TestClosedDeclarationBoundaryRejectsNilValues(t *testing.T) {

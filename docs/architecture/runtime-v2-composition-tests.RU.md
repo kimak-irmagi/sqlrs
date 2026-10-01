@@ -278,7 +278,9 @@ result.
   публичные codes и упорядоченную диагностику.
 - **X11 — release cache compatibility:** тот же consumer создаёт и round-trip-ит
   `resolver.CacheRecord` только через exported API, затем декодирует и байт-в-байт
-  кодирует опубликованный wire fixture v0.2.0.
+  кодирует опубликованный wire fixture v0.2.0. Это свидетельство выпуска версии
+  0.3.0; потребитель версии 0.5.0 проверяет каноническую запись согласно
+  [новому перечню](runtime-v2-canonical-resolver-tests.RU.md).
 - **X12 — один staged/public oracle:** staged file-proxy gate и public
   proxy/checksum gate запускают одни и те же checked-in исходники тестов чистого
   consumer. Public gate не подменяет их более узким inline smoke test.

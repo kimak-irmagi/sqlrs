@@ -18,7 +18,7 @@ func TestCacheRecordPublicSurface(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	record, err := resolver.NewCacheRecord(key, resolution(t, declaration))
+	record, err := resolver.NewCacheRecord(key, fileTestSchema(declaration.Owner(), declaration.Kind()), resolution(t, declaration))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,7 @@ func TestCacheRecordPublicSurface(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	decoded, err := resolver.DecodeCacheRecordJSON(raw)
+	decoded, err := resolver.DecodeCacheRecordJSON(raw, fileTestSchema(declaration.Owner(), declaration.Kind()))
 	if err != nil {
 		t.Fatal(err)
 	}

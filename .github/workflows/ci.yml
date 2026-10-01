@@ -114,6 +114,15 @@ jobs:
         working-directory: backend/libs/runtime-go
         run: go test -race -count=1 ./...
 
+      - name: Fuzz canonical identity and cache decoders
+        if: matrix.runner == 'ubuntu-24.04'
+        working-directory: backend/libs/runtime-go
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -run '^$' -fuzz '^FuzzDecodeCanonicalExtensionIdentityJSON$' -fuzztime=2s -timeout=30s .
+          go test -run '^$' -fuzz '^FuzzDecodeCacheRecordJSON$' -fuzztime=2s -timeout=30s ./resolver
+
       - name: Verify Runtime v2 golden vectors independently
         shell: bash
         run: |
@@ -147,6 +156,19 @@ jobs:
           go mod init example.invalid/runtime-v2-consumer
           GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go get "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@$staged_version"
           GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go test -count=1 ./...
+
+      - name: Reject new cache record with immutable v0.4.0 decoder
+        if: matrix.runner == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+          temp=$(mktemp -d)
+          trap 'rm -rf "$temp"' EXIT
+          cp test/runtime-v2-old-consumer/* "$temp/"
+          cd "$temp"
+          go mod init example.invalid/runtime-v2-old-consumer
+          GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go get github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@v0.4.0
+          GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go test -count=1 ./...
 
       - name: Upload Runtime v2 coverage
         uses: actions/upload-artifact@v7

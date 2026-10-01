@@ -40,7 +40,7 @@ func TestPublicationCrashHelper(t *testing.T) {
 			t.Fatal(err)
 		}
 		key, resolution := publicationCrashCacheValues(t, os.Getenv("SQLRS_TEST_PUBLICATION_WORKSPACE"))
-		if err := cache.Store(context.Background(), key, resolution); err != nil {
+		if err := cache.Store(context.Background(), key, coverageSchema(), resolution); err != nil {
 			t.Fatal(err)
 		}
 	case "artifact":
@@ -131,7 +131,7 @@ func assertPublicationAfterCrash(t *testing.T, kind, root, workspace string, com
 			t.Fatal(err)
 		}
 		key, _ := publicationCrashCacheValues(t, workspace)
-		load, err := cache.Load(context.Background(), key)
+		load, err := cache.Load(context.Background(), key, coverageSchema())
 		if err != nil {
 			t.Fatalf("partial cache publication: %v", err)
 		}

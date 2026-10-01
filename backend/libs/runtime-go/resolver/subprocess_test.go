@@ -28,10 +28,7 @@ func subprocessValues(t *testing.T, workspaceRoot string) (CacheKey, Resolution)
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity, err := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{SchemaVersion: runtimev2.SchemaVersion, Owner: "owner", Kind: "kind", IdentitySchema: "owner.kind.v1", Fields: []runtimev2.ResolvedField{}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	identity := coverageResolution(t).Identity
 	return key, Resolution{Identity: identity, Evidence: []byte(`{}`)}
 }
 
@@ -55,7 +52,7 @@ func TestRuntimeV2SubprocessHelper(t *testing.T) {
 		}
 		key, value := subprocessValues(t, os.Getenv("SQLRS_WORKSPACE_ROOT"))
 		for index := 0; index < 20; index++ {
-			if err := cache.Store(context.Background(), key, value); err != nil {
+			if err := cache.Store(context.Background(), key, coverageSchema(), value); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -104,7 +101,7 @@ func TestDirectoryCacheAndArtifactSubprocessPublication(t *testing.T) {
 		t.Fatal(err)
 	}
 	key, _ := subprocessValues(t, workspaceRoot)
-	loaded, err := cache.Load(context.Background(), key)
+	loaded, err := cache.Load(context.Background(), key, coverageSchema())
 	if err != nil || !loaded.Hit {
 		t.Fatalf("cache=%+v err=%v", loaded, err)
 	}

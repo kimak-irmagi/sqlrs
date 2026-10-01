@@ -40,3 +40,12 @@ The `schemas/conformancev1` facade tracked by issues #138/#139 is available in
 verification without granting generic `schemaauthor` authority. It is not a
 production provider schema. See the
 [canonical-v1 structure](../../../docs/architecture/runtime-v2-canonical-contract-structure.md#schema-safe-external-conformance-facade).
+
+For issues #146/#147, the planned v0.5.0 release changes the existing
+`resolver.Resolution` to carry `CanonicalResolvedExtensionIdentity` and
+introduces a new versioned cache record. It does not add a parallel resolver
+API, migrate old cache records, or reinterpret previously published identities.
+The workspace-file reference provider and the in-repository SQLite adapter
+migrate with this breaking source change. See the
+[canonical resolver flow](../../../docs/architecture/runtime-v2-canonical-resolver-flow.md)
+and [structure](../../../docs/architecture/runtime-v2-canonical-resolver-structure.md).

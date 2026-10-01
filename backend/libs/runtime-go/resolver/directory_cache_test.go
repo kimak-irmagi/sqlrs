@@ -23,11 +23,11 @@ func TestDirectoryCacheRoundTripRestartAndCorruption(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := resolution(t, declaration)
-	if err := cache.Store(context.Background(), key, want); err != nil {
+	if err := cache.Store(context.Background(), key, fileTestSchema(declaration.Owner(), declaration.Kind()), want); err != nil {
 		t.Fatal(err)
 	}
 	restarted, _ := resolver.NewDirectoryCache(directory)
-	got, err := restarted.Load(context.Background(), key)
+	got, err := restarted.Load(context.Background(), key, fileTestSchema(declaration.Owner(), declaration.Kind()))
 	if err != nil || !got.Hit || got.Resolution.Identity.IdentitySchema() != want.Identity.IdentitySchema() {
 		t.Fatalf("load = %+v, %v", got, err)
 	}
@@ -39,7 +39,7 @@ func TestDirectoryCacheRoundTripRestartAndCorruption(t *testing.T) {
 	if err := os.WriteFile(path, []byte(`{"schema_version":"sqlrs.resolution-cache.v1"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := restarted.Load(context.Background(), key); err == nil {
+	if _, err := restarted.Load(context.Background(), key, fileTestSchema(declaration.Owner(), declaration.Kind())); err == nil {
 		t.Fatal("corrupt cache accepted")
 	}
 }
@@ -57,11 +57,11 @@ func TestDirectoryCacheConcurrentReplacementAndPrune(t *testing.T) {
 		go func() {
 			defer wait.Done()
 			for attempt := 0; attempt < 10; attempt++ {
-				if err := cache.Store(context.Background(), key, value); err != nil {
+				if err := cache.Store(context.Background(), key, fileTestSchema(declaration.Declaration.Owner(), declaration.Declaration.Kind()), value); err != nil {
 					t.Errorf("store: %v", err)
 					return
 				}
-				loaded, err := cache.Load(context.Background(), key)
+				loaded, err := cache.Load(context.Background(), key, fileTestSchema(declaration.Declaration.Owner(), declaration.Declaration.Kind()))
 				if err != nil || !loaded.Hit {
 					t.Errorf("load: %+v %v", loaded, err)
 					return
@@ -74,7 +74,7 @@ func TestDirectoryCacheConcurrentReplacementAndPrune(t *testing.T) {
 	if err != nil || result.Removed != 1 {
 		t.Fatalf("prune = %+v, %v", result, err)
 	}
-	if loaded, err := cache.Load(context.Background(), key); err != nil || loaded.Hit {
+	if loaded, err := cache.Load(context.Background(), key, fileTestSchema(declaration.Declaration.Owner(), declaration.Declaration.Kind())); err != nil || loaded.Hit {
 		t.Fatalf("post-prune = %+v, %v", loaded, err)
 	}
 }

@@ -66,24 +66,24 @@ func TestDirectoryCacheValidationAndCancellationBranches(t *testing.T) {
 	key, value := coverageKey(t, "1")
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := cache.Load(cancelled, key); !errors.Is(err, context.Canceled) {
+	if _, err := cache.Load(cancelled, key, coverageSchema()); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancel load: %v", err)
 	}
-	if err := cache.Store(cancelled, key, value); !errors.Is(err, context.Canceled) {
+	if err := cache.Store(cancelled, key, coverageSchema(), value); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancel store: %v", err)
 	}
-	if err := cache.Store(context.Background(), key, value); err != nil {
+	if err := cache.Store(context.Background(), key, coverageSchema(), value); err != nil {
 		t.Fatal(err)
 	}
-	if err := cache.Store(&stagedCancelContext{allow: 1}, key, value); !errors.Is(err, context.Canceled) {
+	if err := cache.Store(&stagedCancelContext{allow: 1}, key, coverageSchema(), value); !errors.Is(err, context.Canceled) {
 		t.Fatalf("late cancellation: %v", err)
 	}
-	if err := cache.Store(context.Background(), key, Resolution{}); err == nil {
+	if err := cache.Store(context.Background(), key, coverageSchema(), Resolution{}); err == nil {
 		t.Fatal("invalid resolution serialized")
 	}
 	oversized := value
 	oversized.Evidence = append(append([]byte{'"'}, bytes.Repeat([]byte("x"), runtimeCacheMaxBytes+1)...), '"')
-	if err := cache.Store(context.Background(), key, oversized); !errors.Is(err, ErrInvalidDeclaration) {
+	if err := cache.Store(context.Background(), key, coverageSchema(), oversized); !errors.Is(err, ErrInvalidDeclaration) {
 		t.Fatalf("oversized store: %v", err)
 	}
 	if err := os.Remove(cache.path(key)); err != nil {
@@ -92,13 +92,13 @@ func TestDirectoryCacheValidationAndCancellationBranches(t *testing.T) {
 	if err := os.Mkdir(cache.path(key), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := cache.Load(context.Background(), key); err == nil || errors.Is(err, ErrCorruptCache) {
+	if _, err := cache.Load(context.Background(), key, coverageSchema()); err == nil || errors.Is(err, ErrCorruptCache) {
 		t.Fatalf("cache I/O error = %v", err)
 	}
 	if err := os.Remove(cache.path(key)); err != nil {
 		t.Fatal(err)
 	}
-	if err := cache.Store(context.Background(), key, value); err != nil {
+	if err := cache.Store(context.Background(), key, coverageSchema(), value); err != nil {
 		t.Fatal(err)
 	}
 	blockingTarget := cache.path(key)
@@ -111,7 +111,7 @@ func TestDirectoryCacheValidationAndCancellationBranches(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(blockingTarget, "child"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := cache.Store(context.Background(), key, value); err == nil {
+	if err := cache.Store(context.Background(), key, coverageSchema(), value); err == nil {
 		t.Fatal("replacement of non-empty directory succeeded")
 	}
 	if err := os.Remove(filepath.Join(blockingTarget, "child")); err != nil {
@@ -120,7 +120,7 @@ func TestDirectoryCacheValidationAndCancellationBranches(t *testing.T) {
 	if err := os.Remove(blockingTarget); err != nil {
 		t.Fatal(err)
 	}
-	if err := cache.Store(context.Background(), key, value); err != nil {
+	if err := cache.Store(context.Background(), key, coverageSchema(), value); err != nil {
 		t.Fatal(err)
 	}
 	missingRoot, _ := NewDirectoryCache(t.TempDir())
@@ -128,7 +128,7 @@ func TestDirectoryCacheValidationAndCancellationBranches(t *testing.T) {
 	if err := os.Remove(missingRoot.root); err != nil {
 		t.Fatal(err)
 	}
-	if err := missingRoot.Store(context.Background(), missingKey, missingValue); err == nil {
+	if err := missingRoot.Store(context.Background(), missingKey, coverageSchema(), missingValue); err == nil {
 		t.Fatal("store in missing root succeeded")
 	}
 
@@ -147,25 +147,25 @@ func TestDirectoryCacheValidationAndCancellationBranches(t *testing.T) {
 		if err := os.WriteFile(cache.path(key), raw, 0o600); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := cache.Load(context.Background(), key); !errors.Is(err, ErrCorruptCache) {
+		if _, err := cache.Load(context.Background(), key, coverageSchema()); !errors.Is(err, ErrCorruptCache) {
 			t.Errorf("corruption %d: %v", index, err)
 		}
 	}
 
-	if err := cache.Store(context.Background(), key, value); err != nil {
+	if err := cache.Store(context.Background(), key, coverageSchema(), value); err != nil {
 		t.Fatal(err)
 	}
 	_ = original
 }
 
 func TestDuplicateJSONScannerBranches(t *testing.T) {
-	valid := []string{`null`, `true`, `123`, `"text"`, `[]`, `[1,{"a":2}]`, `{"a":[1,2],"b":{"c":3}}`}
+	valid := []string{`null`, `true`, `123`, `"text"`, `[]`, `[1,{"a":2}]`, `{"a":[1,2],"b":{"c":3}}`, `{"\u0041":"\ud83d\ude00"}`}
 	for _, raw := range valid {
 		if err := rejectDuplicateJSON([]byte(raw)); err != nil {
 			t.Errorf("valid %s: %v", raw, err)
 		}
 	}
-	invalid := []string{``, `{`, `{"`, `[`, `}`, `[{"a":`, `{"a":1,"a":2}`, `{"a":{"b":1,"b":2}}`, `{} {}`}
+	invalid := []string{``, `{`, `{"`, `[`, `}`, `[{"a":`, `{"a":1,"a":2}`, `{"a":{"b":1,"b":2}}`, `{} {}`, `{"x":"\u12xz"}`, `{"x":"\udc00"}`, `{"x":"\ud800"}`, `{"x":"\ud800\u0041"}`, `{"x":"\ud800\u12xz"}`, `{"x":"\u123"}`, strings.Repeat("[", 65) + "0" + strings.Repeat("]", 65)}
 	for _, raw := range invalid {
 		if err := rejectDuplicateJSON([]byte(raw)); err == nil {
 			t.Errorf("invalid accepted: %s", raw)
@@ -176,7 +176,7 @@ func TestDuplicateJSONScannerBranches(t *testing.T) {
 func TestDirectoryCacheRecordMismatchAndPruneBranches(t *testing.T) {
 	cache, _ := NewDirectoryCache(t.TempDir())
 	key, value := coverageKey(t, "1")
-	if err := cache.Store(context.Background(), key, value); err != nil {
+	if err := cache.Store(context.Background(), key, coverageSchema(), value); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(cache.path(key))
@@ -210,7 +210,7 @@ func TestDirectoryCacheRecordMismatchAndPruneBranches(t *testing.T) {
 		if err := os.WriteFile(cache.path(key), encoded, 0o600); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := cache.Load(context.Background(), key); !errors.Is(err, mutation.want) {
+		if _, err := cache.Load(context.Background(), key, coverageSchema()); !errors.Is(err, mutation.want) {
 			t.Errorf("mismatch %d: %v", index, err)
 		}
 	}
@@ -224,7 +224,7 @@ func TestDirectoryCacheRecordMismatchAndPruneBranches(t *testing.T) {
 		k CacheKey
 		v Resolution
 	}{{key1, value1}, {key2, value2}, {key3, value3}} {
-		if err := cache.Store(context.Background(), item.k, item.v); err != nil {
+		if err := cache.Store(context.Background(), item.k, coverageSchema(), item.v); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -283,11 +283,11 @@ func TestDirectoryCacheRecordMismatchAndPruneBranches(t *testing.T) {
 	ordering, _ := NewDirectoryCache(t.TempDir())
 	first, firstValue := coverageKey(t, "1")
 	second, secondValue := coverageKey(t, "1")
-	if err := ordering.Store(context.Background(), first, firstValue); err != nil {
+	if err := ordering.Store(context.Background(), first, coverageSchema(), firstValue); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(time.Millisecond)
-	if err := ordering.Store(context.Background(), second, secondValue); err != nil {
+	if err := ordering.Store(context.Background(), second, coverageSchema(), secondValue); err != nil {
 		t.Fatal(err)
 	}
 	ordered, err := ordering.Prune(context.Background(), PrunePolicy{MaximumEntries: 1})

@@ -129,6 +129,11 @@ published from commit `6e60578c` after its same-commit RC/GA conformance and
 public-proxy gates passed. Published `v0.1.0` remains superseded and must not be
 selected for new dependencies.
 
+The planned v0.5.0 module release changes the current resolver result to
+`CanonicalResolvedExtensionIdentity` and versions its cache record without
+converting old entries. This is a breaking Go API change; see the
+[canonical resolver design](docs/architecture/runtime-v2-canonical-resolver-flow.md).
+
 Each service includes its own documentation and tooling.
 
 ---
