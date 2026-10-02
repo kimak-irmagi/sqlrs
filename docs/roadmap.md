@@ -76,17 +76,18 @@ gantt
 
 ## Status (as of 2026-10-02)
 
-- **Implemented in [PR #148](https://github.com/kimak-irmagi/sqlrs/pull/148),
-  pending merge and publication
-  ([#146](https://github.com/kimak-irmagi/sqlrs/issues/146),
-  [#147](https://github.com/kimak-irmagi/sqlrs/issues/147), Runtime Go v0.5.0
-  canonical resolver)**: resolver results, the workspace-file provider, and
+- **Released in [Runtime Go v0.5.0](https://github.com/kimak-irmagi/sqlrs/releases/tag/backend/libs/runtime-go/v0.5.0)
+  ([PR #148](https://github.com/kimak-irmagi/sqlrs/pull/148),
+  [#146](https://github.com/kimak-irmagi/sqlrs/issues/146),
+  [#147](https://github.com/kimak-irmagi/sqlrs/issues/147), canonical resolver)**:
+  resolver results, the workspace-file provider, and
   directory/SQLite caches now use one schema-bound canonical extension identity
   without a parallel legacy resolver API. Old string-only cache records are
   rejected. Typed wire and cache fixtures, an isolated v0.4.0 consumer, native
   CI/fuzz gates, and release notes are in place. The runtime-go module passes
-  at 4,297/4,523 covered statements (95.003%); RC/GA publication remains a
-  separate post-merge requirement under #147.
+  at 4,297/4,523 covered statements (95.003%). The RC and GA tags identify
+  the same reviewed commit `bde7192e`; release gates, public-proxy/checksum
+  resolution, clean-consumer tests, and provenance verification passed.
 
 - **Released in Runtime Go v0.4.0
   ([#138](https://github.com/kimak-irmagi/sqlrs/issues/138),
