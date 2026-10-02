@@ -2,10 +2,10 @@
 
 Status: approved by @evilguest for issue #108, 2026-09-24.
 
-Compatibility scope: the resolver API, cache, and release coordinates below are
-the v0.2.0 legacy-v2 contract. They remain valid as published; canonical-v1 adds
-a separate composition boundary and does not silently change cached identity
-meaning.
+Compatibility scope: the resolver API, cache, and release coordinates below
+describe the published v0.2.0 contract, not the current v0.5.0 source API.
+The [canonical resolver structure](runtime-v2-canonical-resolver-structure.md)
+replaces its result and cache format without changing old record meaning.
 
 ## Module boundary
 

@@ -140,6 +140,13 @@ func TestSchemaFacadesDoNotExposeGenericSchemaTypes(t *testing.T) {
 			switch value := declaration.(type) {
 			case *ast.FuncDecl:
 				if value.Name.IsExported() && forbidden(value.Type) {
+					// v0.5.0 exposes this one immutable, schema-specific
+					// capability so the registry and cache can validate the
+					// reference provider without importing schemaauthor.
+					// It accepts no caller-authored schema definition.
+					if filepath.ToSlash(path) == "schemas/sqlrs/schema.go" && value.Name.Name == "WorkspaceFileExtensionSchema" && value.Type.Params.NumFields() == 0 {
+						continue
+					}
 					t.Errorf("%s exports generic schema type from %s", path, value.Name.Name)
 				}
 			case *ast.GenDecl:

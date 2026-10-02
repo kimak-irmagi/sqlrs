@@ -33,8 +33,10 @@ jobs:
             ".:FuzzFieldPermutations"
             ".:FuzzLineageJSON"
             ".:FuzzExtensionDeclarations"
+            ".:FuzzDecodeCanonicalExtensionIdentityJSON"
             "./resolver:FuzzWorkspacePathAndEvidence"
             "./resolver:FuzzCacheJSONScanner"
+            "./resolver:FuzzDecodeCacheRecordJSON"
           )
           for item in "${targets[@]}"; do
             package="${item%%:*}"

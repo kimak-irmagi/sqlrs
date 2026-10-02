@@ -2,6 +2,12 @@
 
 Status: approved by the user for issue #110, 2026-09-27.
 
+Version note: the resolver `Cache` and `CacheRecord` signatures below describe
+the original #110 contract. The v0.5.0 source API uses the selected provider's
+schema to decode the canonical result; see the
+[canonical resolver structure](runtime-v2-canonical-resolver-structure.md).
+The SQLite table layout and other persistence APIs here remain unchanged.
+
 ## Boundaries and ownership
 
 The public resolver module adds an opaque, validated persistence representation

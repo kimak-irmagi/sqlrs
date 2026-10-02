@@ -33,6 +33,49 @@ type CanonicalTransformIdentity struct{ data *canonicalIdentityData }
 // CanonicalResolvedExtensionIdentity is an immutable schema-bound extension.
 type CanonicalResolvedExtensionIdentity struct{ data *canonicalIdentityData }
 
+// CanonicalIdentityField exposes one immutable field and its schema disclosure.
+// Requirements: docs/architecture/runtime-v2-canonical-resolver-structure.md.
+type CanonicalIdentityField struct {
+	Field      IdentityField
+	Disclosure DisclosureClass
+}
+
+// Provider identifies the schema author of this resolved extension.
+func (i CanonicalResolvedExtensionIdentity) Provider() string {
+	if i.data == nil {
+		return ""
+	}
+	return i.data.provider
+}
+
+// Kind returns the provider-defined semantic extension kind.
+func (i CanonicalResolvedExtensionIdentity) Kind() string {
+	if i.data == nil {
+		return ""
+	}
+	return i.data.semanticKind
+}
+
+// IdentitySchema returns the schema that validated the typed fields.
+func (i CanonicalResolvedExtensionIdentity) IdentitySchema() string {
+	if i.data == nil {
+		return ""
+	}
+	return i.data.identitySchema
+}
+
+// Fields returns a defensive, name-ordered view of typed identity fields.
+func (i CanonicalResolvedExtensionIdentity) Fields() []CanonicalIdentityField {
+	if i.data == nil {
+		return nil
+	}
+	result := make([]CanonicalIdentityField, len(i.data.fields))
+	for index, item := range i.data.fields {
+		result[index] = CanonicalIdentityField{Field: item.field, Disclosure: item.disclosure}
+	}
+	return result
+}
+
 func copyCanonicalIdentityData(source *canonicalIdentityData) *canonicalIdentityData {
 	if source == nil {
 		return nil

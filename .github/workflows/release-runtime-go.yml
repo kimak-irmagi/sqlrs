@@ -95,7 +95,9 @@ jobs:
           awk -v value="$runtime" 'BEGIN { if (value + 0 < 95) exit 1 }'
           go test -race -count=1 ./...
           go test -run '^$' -fuzz '^FuzzResolvedTransformJSON$' -fuzztime=2s -timeout=30s .
+          go test -run '^$' -fuzz '^FuzzDecodeCanonicalExtensionIdentityJSON$' -fuzztime=2s -timeout=30s .
           go test -run '^$' -fuzz '^FuzzWorkspacePathAndEvidence$' -fuzztime=2s -timeout=30s ./resolver
+          go test -run '^$' -fuzz '^FuzzDecodeCacheRecordJSON$' -fuzztime=2s -timeout=30s ./resolver
       - name: Verify independent goldens and dependencies
         env:
           VERSION: ${{ steps.version.outputs.value }}

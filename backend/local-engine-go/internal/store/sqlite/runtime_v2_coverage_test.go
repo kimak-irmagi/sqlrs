@@ -58,7 +58,7 @@ func TestRuntimeV2PublicOperationsRejectInvalidInputs(t *testing.T) {
 		t.Fatalf("missing material state=%v", err)
 	}
 	key, _ := runtimeV2CacheFixture(t, t.TempDir(), "1")
-	if err := store.Store(ctx, key, resolver.Resolution{}); !errors.Is(err, resolver.ErrInvalidDeclaration) {
+	if err := store.Store(ctx, key, runtimeV2TestSchema(), resolver.Resolution{}); !errors.Is(err, resolver.ErrInvalidDeclaration) {
 		t.Fatalf("invalid cache resolution=%v", err)
 	}
 }
@@ -376,8 +376,8 @@ func TestRuntimeV2OperationsPropagateClosedDatabaseErrors(t *testing.T) {
 			_, e := store.ListMaterializations(ctx, lineage.Root().ID(), runtimev2store.MaterializationPageRequest{Limit: 1})
 			return e
 		}},
-		{"load cache", func() error { _, e := store.Load(ctx, key); return e }},
-		{"store cache", func() error { return store.Store(ctx, key, resolution) }},
+		{"load cache", func() error { _, e := store.Load(ctx, key, runtimeV2TestSchema()); return e }},
+		{"store cache", func() error { return store.Store(ctx, key, runtimeV2TestSchema(), resolution) }},
 		{"classify", func() error { _, e := store.ClassifyState(ctx, "legacy"); return e }},
 	}
 	for _, check := range checks {

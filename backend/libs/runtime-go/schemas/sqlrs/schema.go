@@ -42,3 +42,16 @@ func NewPSQLTransformBuilder(declaration runtimev2.TransformDeclaration) (*runti
 	}
 	return runtimev2.NewTransformIdentityBuilder(schema, declaration)
 }
+
+// WorkspaceFileExtensionSchema is the reviewed schema for the reference
+// workspace-file provider. Requirements:
+// docs/architecture/runtime-v2-canonical-resolver-structure.md.
+func WorkspaceFileExtensionSchema() runtimev2.ExtensionIdentitySchema {
+	schema, _ := schemaauthor.NewExtensionSchema(schemaauthor.SchemaInput{
+		Provider: "sqlrs.workspace", SemanticKind: "file", IdentitySchema: "sqlrs.workspace-file.v1",
+		Fields: []schemaauthor.FieldDefinition{
+			{Name: "content.digest", Role: schemaauthor.FieldRoleSemantic, Kind: runtimev2.IdentityFieldText, Required: true, Disclosure: schemaauthor.DisclosurePublic},
+		},
+	})
+	return schema
+}

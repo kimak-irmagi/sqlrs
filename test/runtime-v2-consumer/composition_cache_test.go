@@ -9,6 +9,7 @@ import (
 	runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
 	"github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/composition"
 	"github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/resolver"
+	"github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/schemaauthor"
 )
 
 // X09: a clean external consumer exercises every supported recipe composition
@@ -109,8 +110,8 @@ func TestCompositionReleaseConsumerIdentityAndErrors(t *testing.T) {
 	}
 }
 
-// X11: a clean consumer can construct and round-trip CacheRecord while the
-// published v0.2.0 wire representation remains byte-for-byte stable.
+// X11: a clean consumer round-trips the canonical record and rejects the
+// published v0.2.0 string-only representation.
 func TestCacheRecordReleaseConsumer(t *testing.T) {
 	declaration, err := runtimev2.NewInputDeclaration(runtimev2.ExtensionSpecificationInput{
 		SchemaVersion:       runtimev2.SchemaVersion,
@@ -134,14 +135,15 @@ func TestCacheRecordReleaseConsumer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity, err := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{
-		SchemaVersion: runtimev2.SchemaVersion, Owner: "owner", Kind: "kind",
-		IdentitySchema: "owner.kind.v1", Fields: []runtimev2.ResolvedField{},
-	})
+	schema, err := schemaauthor.NewExtensionSchema(schemaauthor.SchemaInput{Provider: "owner", SemanticKind: "kind", IdentitySchema: "owner.kind.v1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	record, err := resolver.NewCacheRecord(key, resolver.Resolution{Identity: identity, Evidence: json.RawMessage(`{}`)})
+	builder, err := runtimev2.NewExtensionIdentityBuilder(schema)
+	if err != nil { t.Fatal(err) }
+	composition, err := builder.Build()
+	if err != nil { t.Fatal(err) }
+	record, err := resolver.NewCacheRecord(key, schema, resolver.Resolution{Identity: composition.Identity(), Evidence: json.RawMessage(`{}`)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +151,7 @@ func TestCacheRecordReleaseConsumer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	decoded, err := resolver.DecodeCacheRecordJSON(raw)
+	decoded, err := resolver.DecodeCacheRecordJSON(raw, schema)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,16 +160,8 @@ func TestCacheRecordReleaseConsumer(t *testing.T) {
 	}
 
 	legacy := []byte(`{"schema_version":"sqlrs.resolution-cache.v1","key":"54f09db3aa36879ab19fa6b7e8aa3844929ff88859a1e104e10b4cbad64c0fdb","workspace_scope":"9400f1b21cb527d7fa3d3eabba93557d81f3918c6eabd22fc6bd8ef8bedc2722","resolver":{"role":"input","owner":"owner","kind":"kind","specification_schema":"owner.kind.v1","semantic_version":"1"},"normalized_declaration":{"schema_version":"sqlrs.runtime.v2","owner":"owner","kind":"kind","specification_schema":"owner.kind.v1","fields":[]},"resolution":{"Identity":{"schema_version":"sqlrs.runtime.v2","owner":"owner","kind":"kind","identity_schema":"owner.kind.v1","fields":[]},"Evidence":{}},"checksum":"sha256:133036d75465b288ddde5655d40bab0ffce6c1825488815758be938c7ae8bb0d"}`)
-	legacyRecord, err := resolver.DecodeCacheRecordJSON(legacy)
-	if err != nil {
-		t.Fatal(err)
-	}
-	legacyRoundTrip, err := json.Marshal(legacyRecord)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(legacyRoundTrip, legacy) {
-		t.Fatalf("v0.2.0 CacheRecord wire changed:\n%s\n%s", legacy, legacyRoundTrip)
+	if _, err := resolver.DecodeCacheRecordJSON(legacy, schema); !errors.Is(err, resolver.ErrIncompatibleCache) {
+		t.Fatalf("old cache record = %v, want incompatible", err)
 	}
 }
 

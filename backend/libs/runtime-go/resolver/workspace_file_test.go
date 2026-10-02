@@ -39,7 +39,7 @@ func TestWorkspaceFileResolveRevalidateAndAcquire(t *testing.T) {
 	}
 	wantRaw := sha256.Sum256([]byte("select 1"))
 	want := "sha256:" + hex.EncodeToString(wantRaw[:])
-	if fields := got.Identity.Fields(); len(fields) != 1 || fields[0].Name != "content.digest" || fields[0].Value != want {
+	if fields := got.Identity.Fields(); len(fields) != 1 || fields[0].Field.Name() != "content.digest" || fields[0].Field.Text() != want {
 		t.Fatalf("identity = %+v", fields)
 	}
 	if err := provider.ValidateResolution(got); err != nil {

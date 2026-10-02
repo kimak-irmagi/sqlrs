@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	runtimev2 "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
+	"github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/schemas/sqlrs"
 )
 
 const (
@@ -47,7 +48,12 @@ func NewWorkspaceFileResolver(artifacts ArtifactStore) (Resolver, error) {
 	return &workspaceFileResolver{artifacts: artifacts}, nil
 }
 func (r *workspaceFileResolver) Descriptor() Descriptor {
-	return Descriptor{Role: "input", Owner: workspaceOwner, Kind: workspaceKind, SpecificationSchema: workspaceSpecification, SemanticVersion: "1"}
+	return Descriptor{Role: "input", Owner: workspaceOwner, Kind: workspaceKind, SpecificationSchema: workspaceSpecification, SemanticVersion: "2"}
+}
+
+// IdentitySchema declares the required digest field for the reference provider.
+func (r *workspaceFileResolver) IdentitySchema() runtimev2.ExtensionIdentitySchema {
+	return sqlrs.WorkspaceFileExtensionSchema()
 }
 func (r *workspaceFileResolver) Normalize(ctx context.Context, workspace Workspace, declaration runtimev2.ExtensionDeclaration) (NormalizedDeclaration, error) {
 	if err := ctx.Err(); err != nil {
@@ -125,7 +131,22 @@ func (r *workspaceFileResolver) Resolve(ctx context.Context, workspace Workspace
 	}
 	// Every constructor input below is a package constant except digest, which
 	// stableFileDigest emits in the constructor's required lowercase format.
-	identity, _ := runtimev2.NewResolvedExtensionIdentity(runtimev2.ResolvedExtensionIdentityInput{SchemaVersion: runtimev2.SchemaVersion, Owner: workspaceOwner, Kind: workspaceKind, IdentitySchema: workspaceIdentity, Fields: []runtimev2.ResolvedField{{Name: "content.digest", Value: digest}}})
+	field, err := runtimev2.NewTextIdentityField("content.digest", digest)
+	if err != nil {
+		return Resolution{}, err
+	}
+	builder, err := runtimev2.NewExtensionIdentityBuilder(r.IdentitySchema())
+	if err != nil {
+		return Resolution{}, err
+	}
+	if err := builder.AddIdentityField(field); err != nil {
+		return Resolution{}, err
+	}
+	composition, err := builder.Build()
+	if err != nil {
+		return Resolution{}, err
+	}
+	identity := composition.Identity()
 	strong := before == after && continuityStrong(after)
 	evidence, _ := json.Marshal(fileEvidence{SchemaVersion: "sqlrs.workspace-file.evidence.v1", Path: fields[0].Value, Size: confirmed.Size(), ModifiedNanos: confirmed.ModTime().UnixNano(), FilesystemClass: after.Class, EvidenceRevision: after.Revision, Strong: strong, VolumeID: after.VolumeID, FileID: after.FileID, ChangeToken: after.ChangeToken})
 	return Resolution{Identity: identity, Evidence: evidence}, nil
@@ -135,11 +156,11 @@ func continuityStrong(value continuityEvidence) bool {
 	return cheapRevalidationEnabled(value.Class, value.Revision) && value.VolumeID != "" && value.FileID != "" && value.ChangeToken != ""
 }
 func (r *workspaceFileResolver) ValidateResolution(value Resolution) error {
-	if value.Identity.Owner() != workspaceOwner || value.Identity.Kind() != workspaceKind || value.Identity.IdentitySchema() != workspaceIdentity {
+	if value.Identity.Provider() != workspaceOwner || value.Identity.Kind() != workspaceKind || value.Identity.IdentitySchema() != workspaceIdentity {
 		return ErrInvalidDeclaration
 	}
 	fields := value.Identity.Fields()
-	if len(fields) != 1 || fields[0].Name != "content.digest" || !validDigest(fields[0].Value) {
+	if len(fields) != 1 || fields[0].Field.Name() != "content.digest" || fields[0].Field.Kind() != runtimev2.IdentityFieldText || fields[0].Disclosure != runtimev2.DisclosurePublic || !validDigest(fields[0].Field.Text()) {
 		return ErrInvalidDeclaration
 	}
 	var evidence fileEvidence
@@ -243,7 +264,7 @@ func (r *workspaceFileResolver) Acquire(ctx context.Context, workspace Workspace
 		return nil, err
 	}
 	defer file.Close()
-	return r.artifacts.PublishVerified(ctx, file, value.Identity.Fields()[0].Value)
+	return r.artifacts.PublishVerified(ctx, file, value.Identity.Fields()[0].Field.Text())
 }
 func openSafeFile(rootPath, name string) (*os.File, os.FileInfo, error) {
 	return openSafeFileWithHooks(rootPath, name, nil, nil)

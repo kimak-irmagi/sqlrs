@@ -2,10 +2,12 @@
 
 Статус: согласовано @evilguest для issues #108, #123 и #124, 2026-09-24.
 
-Граница совместимости: это declaration/resolution flow legacy-v2 из v0.2.0.
-Его values и adapters `sqlrs.runtime.v2` остаются frozen. Canonical-v1 использует
-отдельные types и schema-bound builders из
-[потока canonical-v1](runtime-v2-canonical-contract-flow.RU.md).
+Граница применимости: здесь описан порядок работы версии 0.2.0. Значения
+уже выпущенной версии сохраняют свой смысл. В версии 0.5.0 существующий
+механизм разрешения возвращает канонический результат, но входное описание
+расширения остаётся типизированным, как здесь. См.
+[новый порядок разрешения](runtime-v2-canonical-resolver-flow.RU.md) и
+[каноническую идентичность](runtime-v2-canonical-contract-flow.RU.md).
 
 Issue #124 завершает unresolved boundary Runtime v2 без изменения identity,
 fingerprint, StateID и lineage algorithms из #107. Issue #108 использует эту

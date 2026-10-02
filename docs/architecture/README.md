@@ -47,6 +47,15 @@ Entry points for Taidon architecture and service design.
   resolution, revalidation, acquisition, and workspace-file flow.
 - [Runtime v2 legacy-v2 resolver structure](runtime-v2-resolver-structure.md) - approved
   resolver package, cache format, contracts, and data ownership.
+- [Runtime v2 canonical resolver flow](runtime-v2-canonical-resolver-flow.md) -
+  approved v0.5.0 transition of the existing resolver to one canonical result
+  and a new cache-record domain.
+- [Runtime v2 canonical resolver structure](runtime-v2-canonical-resolver-structure.md) -
+  approved v0.5.0 module, schema-bound codec, directory cache, reference
+  provider, and SQLite adapter boundaries.
+- [Runtime v2 canonical resolver tests](runtime-v2-canonical-resolver-tests.md) -
+  proposed v0.5.0 implementation, restart, corruption, consumer, and release
+  evidence for #146/#147.
 - [Runtime v2 persistence flow](runtime-v2-persistence-flow.md) - approved
   side-by-side local-engine persistence and restart behavior for #110.
 - [Runtime v2 persistence structure](runtime-v2-persistence-structure.md) -

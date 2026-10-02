@@ -48,6 +48,15 @@
   generic flow resolution, revalidation, acquisition и workspace-file.
 - [Структура resolver legacy-v2](runtime-v2-resolver-structure.RU.md) -
   согласованные resolver package, cache format, contracts и владение данными.
+- [Порядок канонического разрешения Runtime v2](runtime-v2-canonical-resolver-flow.RU.md) -
+  утверждённый переход существующего механизма в версии 0.5.0 на один
+  канонический результат и новый формат записи.
+- [Устройство канонического разрешения Runtime v2](runtime-v2-canonical-resolver-structure.RU.md) -
+  утверждённые границы модуля, кодека со схемой, хранилища, файлового
+  поставщика и адаптера SQLite для версии 0.5.0.
+- [Проверки канонического разрешения Runtime v2](runtime-v2-canonical-resolver-tests.RU.md) -
+  предлагаемый для задач #146/#147 перечень проверок реализации, чтения после
+  перезапуска, повреждений, внешнего потребителя и выпуска версии 0.5.0.
 - [Поток persistence Runtime v2](runtime-v2-persistence-flow.RU.md) -
   согласованный side-by-side persistence local engine и restart behavior для #110.
 - [Структура persistence Runtime v2](runtime-v2-persistence-structure.RU.md) -
