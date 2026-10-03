@@ -129,10 +129,17 @@ published from commit `6e60578c` after its same-commit RC/GA conformance and
 public-proxy gates passed. Published `v0.1.0` remains superseded and must not be
 selected for new dependencies.
 
-The planned v0.5.0 module release changes the current resolver result to
+Published v0.4.0 adds the fixed external canonical-v1 conformance facade.
+Published v0.5.0 changes the current resolver result to
 `CanonicalResolvedExtensionIdentity` and versions its cache record without
 converting old entries. This is a breaking Go API change; see the
 [canonical resolver design](docs/architecture/runtime-v2-canonical-resolver-flow.md).
+
+Alias YAML decoding, recursive expansion, and legacy compatibility belong to
+the CLI. For future Runtime v2 prepare integration, the engine receives an
+expanded declaration and required source inputs. The proposed public
+`aliasruntimev2` release was [closed without publication](https://github.com/kimak-irmagi/sqlrs/issues/140);
+see the [composition flow](docs/architecture/runtime-v2-composition-flow.md).
 
 Each service includes its own documentation and tooling.
 

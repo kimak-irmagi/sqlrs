@@ -486,6 +486,17 @@ silently change a path base.
 Issue #137 implements the independently mergeable CLI slice against the
 published public module:
 
+This slice remains inside `frontend/cli-go/internal`. Its package name
+`aliasruntimev2` does not denote a public Runtime Go package. The CLI owns
+source discovery, YAML parsing, recursive alias expansion, legacy translation,
+and provider-aware authoring/binding. The engine imports neither this internal
+package nor alias-document or catalog types. A future integration sends the
+engine a complete expanded `runtimev2.RecipeDeclaration` plus source inputs;
+the engine validates and resolves those inputs and owns planning, execution,
+and StateID computation. The wire contract and command cutover are outside
+#109/#137 and must be designed separately. See the
+[client-alias-boundary ADR](../adr/2026-10-03-runtime-v2-client-alias-boundary.md).
+
 ```text
 frontend/cli-go/internal/alias/runtimev2/
   yaml.go            strict bounded YAML-to-document adapter

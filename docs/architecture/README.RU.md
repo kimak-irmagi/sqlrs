@@ -37,10 +37,12 @@
   согласованные v0.2.0 declaration types, wire contracts и historical release gate.
 - [Поток композиции aliases Runtime v2](runtime-v2-composition-flow.RU.md) -
   согласованный детерминированный expansion transform/recipe aliases до
-  resolution для #109 с CLI boundary, реализованным в #137.
+  resolution для #109 с раскрытием алиасов на клиенте и границей CLI,
+  реализованной в #137.
 - [Структура композиции aliases Runtime v2](runtime-v2-composition-structure.RU.md) -
   согласованные public composition package, versioned document, catalog, trace
-  и legacy boundary для #109/#137.
+  и обработка старого формата на стороне CLI для #109/#137; сервер получает
+  раскрытые объявления и исходные данные, а не документы алиасов.
 - [Дизайн тестов композиции aliases Runtime v2](runtime-v2-composition-tests.RU.md) -
   реализованные conformance, expansion, trace, YAML, compatibility и release
   gates для #109/#137.

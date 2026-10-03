@@ -36,10 +36,11 @@ Entry points for Taidon architecture and service design.
   approved v0.2.0 declaration types, wire contracts, and historical release gate.
 - [Runtime v2 alias-composition flow](runtime-v2-composition-flow.md) - approved
   deterministic transform/recipe alias expansion before resolution for #109,
-  with the CLI boundary implemented by #137.
+  with client-side ownership and the CLI boundary implemented by #137.
 - [Runtime v2 alias-composition structure](runtime-v2-composition-structure.md) -
   approved public composition package, versioned document, catalog, trace, and
-  legacy boundary for #109/#137.
+  CLI-local legacy boundary for #109/#137; the engine accepts expanded
+  declarations and source inputs, not alias documents.
 - [Runtime v2 alias-composition test design](runtime-v2-composition-tests.md) -
   implemented conformance, expansion, trace, YAML, compatibility, and release
   gates for #109/#137.

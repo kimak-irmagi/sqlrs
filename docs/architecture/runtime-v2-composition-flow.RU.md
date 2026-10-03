@@ -14,34 +14,54 @@ default runtime. Текущие команды с `*.prep.s9s.yaml` и `*.run.s9
 на legacy path. Новая схема остаётся opt-in контрактом до отдельно согласованной
 интеграции с продуктовой точкой входа.
 
-## Поток от документа к declaration
+## Граница между клиентом и сервером
+
+В sqlrs клиентская программа владеет разбором YAML, каталогом алиасов,
+рекурсивным раскрытием составных алиасов, совместимостью со старыми алиасами
+и привязкой входных данных по правилам поставщика. Сервер не получает имена
+алиасов, их документы, каталог, след раскрытия или поручение раскрыть алиас.
+При будущей интеграции клиент передаёт серверу только полное раскрытое
+объявление `runtimev2.RecipeDeclaration` с версией формата и исходные данные,
+нужные для его разрешения. Сервер проверяет запрос, разрешает объявление и
+исходные данные через поставщиков, строит план и исполняет его с семантикой
+Runtime v2 и идентификаторами StateID. Передача запроса и переключение
+продуктовых команд требуют отдельного проектирования и реализации: выпущенная
+библиотека композиции и адаптер #137 сами по себе команды не переключают.
+
+Решение записано в
+[ADR о границе обработки алиасов](../adr/2026-10-03-runtime-v2-client-alias-boundary.md).
+
+## Поток от документа к объявлению
 
 ```mermaid
 sequenceDiagram
-    participant Caller as "Engine-neutral caller"
-    participant Adapter as "Опциональный строгий YAML adapter"
-    participant Document as "Decoder composition document"
-    participant Catalog as "Каталог aliases"
-    participant Expander as "Детерминированный expander"
-    participant Resolver as "Resolver Runtime v2 и provider adapters"
+    participant Client as "sqlrs CLI (будущая интеграция)"
+    participant Adapter as "Строгий разбор YAML"
+    participant Document as "Декодер документа композиции"
+    participant Catalog as "Каталог алиасов"
+    participant Expander as "Раскрытие алиасов"
+    participant Engine as "Приём объявлений в sqlrs-engine"
+    participant Resolver as "Разрешение Runtime v2 и поставщики"
     participant Core as "Семантическое ядро Runtime v2"
 
     opt "Пользовательский источник — YAML"
-        Caller->>Adapter: Декодировать один bounded YAML document
-        Adapter->>Adapter: Отклонить неподдерживаемые YAML features и unknown shape
-        Adapter-->>Caller: Проверенный composition document input
+        Client->>Adapter: Декодировать один документ YAML с ограничением размера
+        Adapter->>Adapter: Отклонить неподдерживаемый синтаксис и поля
+        Adapter-->>Client: Проверенные данные документа композиции
     end
-    Caller->>Document: Создать или строго декодировать versioned document
-    Document-->>Caller: Неизменяемый AliasDocument
-    Caller->>Catalog: NewCatalog(явные source documents)
-    Catalog->>Catalog: Проверить единый flat namespace без precedence
-    Caller->>Expander: ExpandRecipe(target) или ExpandTransform(target)
-    Expander->>Catalog: Разрешить typed references
-    Expander->>Expander: Найти cycles и проверить limits до возврата
-    Expander-->>Caller: RecipeDeclaration или TransformDeclarationDocument + trace
-    Caller->>Resolver: Разрешить expanded typed declarations
-    Resolver-->>Core: Resolved Recipe inputs
-    Core-->>Caller: Lineage и StateIDs
+    Client->>Document: Создать или строго декодировать документ с версией формата
+    Document-->>Client: Неизменяемый AliasDocument
+    Client->>Catalog: NewCatalog(явные исходные документы)
+    Catalog->>Catalog: Проверить единое пространство имён без приоритетов
+    Client->>Expander: ExpandRecipe(target)
+    Expander->>Catalog: Разрешить типизированные ссылки
+    Expander->>Expander: Найти циклы и проверить ограничения до возврата
+    Expander-->>Client: RecipeDeclaration и локальный след раскрытия
+    Client->>Engine: Только раскрытое RecipeDeclaration и исходные данные
+    Engine->>Engine: Проверить объявление и входные данные запроса
+    Engine->>Resolver: Разрешить объявление и исходные данные
+    Resolver-->>Core: Разрешённые входные данные рецепта
+    Core-->>Engine: Происхождение и StateID
 ```
 
 Core package принимает strict JSON и constructor inputs. CLI-side YAML adapter #137

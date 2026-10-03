@@ -2,9 +2,10 @@
 
 ## Status
 
-This document describes the approved design for issues #109 and #137. The composition
-schema and library are not implemented or connected to the current `sqlrs`
-commands yet.
+This document describes the implemented design for issues #109 and #137.
+Composition is published in runtime-go v0.3.0. YAML decoding and legacy
+compatibility are implemented inside the CLI. The separate public
+`aliasruntimev2` publication proposed in #140 was cancelled.
 
 Existing `*.prep.s9s.yaml` and `*.run.s9s.yaml` files continue to use the legacy
 alias behavior documented in [sqlrs aliases](sqlrs-aliases.md). In particular,
@@ -245,10 +246,11 @@ sentinel. Duplicate source IDs are `invalid_document`.
 ## Legacy aliases
 
 Legacy prepare aliases are not silently reinterpreted as Runtime v2 recipes.
-Issue #137 supplies the separate compatibility slice that consumes the
-published composition module. Its provider-aware adapter translates an alias only when it
-can produce a complete deterministic factory and transform declaration after
-the existing path and default rules have been applied.
+Issue #137 supplies the CLI compatibility slice that consumes the published
+composition module. The CLI owns filesystem binding and configuration
+precedence. Its provider-aware adapter translates an alias only when it can
+produce complete deterministic factory and transform declarations after the
+existing path and default rules have been applied.
 
 The first compatibility slice accepts legacy prepare aliases only. Legacy run
 presets continue on their existing execution path and are classified as
@@ -262,3 +264,9 @@ from running through the currently supported legacy executor.
 Runtime v2 composition, legacy execution, legacy cache records, and Runtime v2
 logical persistence remain separate until an explicit cutover is designed and
 approved.
+
+For future Runtime v2 prepare integration, the CLI will decode and recursively
+expand aliases before submission. The engine will receive the versioned
+expanded declaration and required source inputs, validate and resolve them,
+and calculate its own identities and StateIDs. Alias YAML, reference graphs,
+and client-side `legacy_only` results are not engine request inputs.

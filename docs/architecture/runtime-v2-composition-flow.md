@@ -14,34 +14,53 @@ default-runtime change. The current `*.prep.s9s.yaml` and `*.run.s9s.yaml`
 commands remain on the legacy path. The new schema is an opt-in contract until
 a separately approved integration switches or extends a product entry point.
 
+## Client-to-engine boundary
+
+In sqlrs, the CLI owns alias authoring, YAML decoding, catalog construction,
+recursive composition, legacy compatibility, and provider-aware input binding.
+The engine does not receive alias names, alias documents, a catalog, an expansion
+trace, or a request to expand aliases. The future client-to-engine request
+contains only the complete, expanded, versioned `runtimev2.RecipeDeclaration`
+and the source inputs required to resolve it. The engine validates that request,
+resolves the declaration and its inputs through providers, and plans/executes
+using the resulting Runtime v2 semantics and StateIDs. The transport and
+product cutover require separate design and implementation; the public
+composition library and #137 CLI adapter do not themselves switch commands.
+
+This allocation is recorded in
+[the client-alias-boundary ADR](../adr/2026-10-03-runtime-v2-client-alias-boundary.md).
+
 ## Document-to-declaration flow
 
 ```mermaid
 sequenceDiagram
-    participant Caller as "Engine-neutral caller"
+    participant Client as "sqlrs CLI (planned product integration)"
     participant Adapter as "Optional strict YAML adapter"
     participant Document as "Composition document decoder"
     participant Catalog as "Alias catalog"
     participant Expander as "Deterministic expander"
+    participant Engine as "sqlrs-engine declaration ingress"
     participant Resolver as "Runtime v2 resolver and provider adapters"
     participant Core as "Runtime v2 semantic core"
 
     opt "User source is YAML"
-        Caller->>Adapter: Decode one bounded YAML document
+        Client->>Adapter: Decode one bounded YAML document
         Adapter->>Adapter: Reject unsupported YAML features and unknown shape
-        Adapter-->>Caller: Validated composition document input
+        Adapter-->>Client: Validated composition document input
     end
-    Caller->>Document: Construct or strictly decode versioned document
-    Document-->>Caller: Immutable AliasDocument
-    Caller->>Catalog: NewCatalog(explicit source documents)
+    Client->>Document: Construct or strictly decode versioned document
+    Document-->>Client: Immutable AliasDocument
+    Client->>Catalog: NewCatalog(explicit source documents)
     Catalog->>Catalog: Validate one flat namespace without precedence
-    Caller->>Expander: ExpandRecipe(target) or ExpandTransform(target)
+    Client->>Expander: ExpandRecipe(target)
     Expander->>Catalog: Resolve typed references
     Expander->>Expander: Detect cycles and enforce bounds before returning
-    Expander-->>Caller: RecipeDeclaration or TransformDeclarationDocument + trace
-    Caller->>Resolver: Resolve expanded typed declarations
+    Expander-->>Client: RecipeDeclaration + local diagnostic trace
+    Client->>Engine: Expanded RecipeDeclaration + source inputs only
+    Engine->>Engine: Validate declaration and request inputs
+    Engine->>Resolver: Resolve expanded typed declarations and source inputs
     Resolver-->>Core: Resolved Recipe inputs
-    Core-->>Caller: Lineage and StateIDs
+    Core-->>Engine: Lineage and StateIDs
 ```
 
 The core package accepts strict JSON and constructor inputs. The #137 CLI-side
