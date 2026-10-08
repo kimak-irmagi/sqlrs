@@ -331,7 +331,7 @@ func (e *taskExecutor) executeStateTask(ctx context.Context, jobID string, prepa
 				return nil
 			}
 		}
-		if forceRebuild || kind == "btrfs" || stateBuildMarkerExists(paths.stateDir, kind) {
+		if forceRebuild || kind == "btrfs" || kind == "zfs" || stateBuildMarkerExists(paths.stateDir, kind) {
 			if err := resetStateDir(ctx, m.statefs, paths.stateDir); err != nil {
 				errResp = errorResponse("internal_error", "cannot reset state dir", err.Error())
 				return errStateBuildFailed
@@ -1319,7 +1319,9 @@ func snapshotKind(fs statefs.StateFS) string {
 
 func stateBuildMarkerPath(stateDir string, kind string) string {
 	kind = strings.TrimSpace(kind)
-	if kind == "btrfs" {
+	if kind == "btrfs" || kind == "zfs" {
+		// For btrfs and ZFS the stateDir does not exist until Snapshot creates it,
+		// so the marker must live outside: in the sibling .build directory.
 		base := filepath.Dir(stateDir)
 		stateID := filepath.Base(stateDir)
 		return filepath.Join(base, stateBuildLockDirName, stateID+".ok")
@@ -1328,7 +1330,7 @@ func stateBuildMarkerPath(stateDir string, kind string) string {
 }
 
 func stateBuildLockPath(stateDir string, kind string) string {
-	if kind == "btrfs" {
+	if kind == "btrfs" || kind == "zfs" {
 		base := filepath.Dir(stateDir)
 		stateID := filepath.Base(stateDir)
 		return filepath.Join(base, stateBuildLockDirName, stateID+".lock")
