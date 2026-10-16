@@ -9,7 +9,7 @@ import { runCommand } from "./runtime-go-release-cli.mjs";
 import { releaseBody, prepareRelease, validateRequest } from "./runtime-go-release.mjs";
 
 const sha = "b".repeat(40);
-const env = { INPUT_OPERATION:"publish", INPUT_VERSION:"v0.6.0-rc.1", INPUT_COMMIT:sha, INPUT_NOTES:"Notes",
+const env = { INPUT_OPERATION:"publish", INPUT_VERSION:"v0.6.0-rc.1", INPUT_COMMIT:sha, INPUT_NOTES:"Notes", INPUT_CANDIDATE_VERSION:"",
   GITHUB_REF:"refs/heads/main", GITHUB_EVENT_NAME:"workflow_dispatch", GITHUB_SHA:"c".repeat(40),
   GITHUB_REPOSITORY:"kimak-irmagi/sqlrs", GITHUB_RUN_ID:"17", GITHUB_RUN_ATTEMPT:"2", GH_TOKEN:"fake",
   SOURCE_ROOT:"/checkout/source", REPORT_FILE:"/reports/metadata.json", GITHUB_OUTPUT:"/outputs", DOWNLOAD_FILE:"/download.json" };
@@ -85,13 +85,17 @@ test("MP01/02 actual CLI entry uses H from a source directory lacking release to
     await mkdir(join(source,"scripts","maintenance"),{recursive:true});
     await writeFile(join(source,"scripts","maintenance","runtime-go-release-cli.mjs"),'throw Error("wrong source tooling executed");\n');
     const script=fileURLToPath(new URL("./runtime-go-release-cli.mjs",import.meta.url));
-    const childEnv={...process.env,...env,SOURCE_ROOT:source,REPORT_FILE:join(root,"report.json"),GITHUB_OUTPUT:output};
-    const valid=spawnSync(process.execPath,[script,"inputs"],{cwd:source,env:childEnv,encoding:"utf8"});
-    assert.equal(valid.status,0,valid.stderr);
-    assert.match(await readFile(output,"utf8"),/commit=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n/);
-    const invalid=spawnSync(process.execPath,[script,"inputs"],{cwd:source,env:{...childEnv,INPUT_COMMIT:"main"},encoding:"utf8"});
-    assert.notEqual(invalid.status,0);
-    assert.match(invalid.stderr,/exact source SHA required/);
-    assert.doesNotMatch(invalid.stderr,/Notes|fake|wrong source tooling/);
+    // MP01/02: fixtures own every release input, including an explicitly empty
+    // candidate for RC; a GA workflow's environment must not leak into them.
+    for (const inherited of [{}, { INPUT_OPERATION:"publish",INPUT_VERSION:"v0.6.0",INPUT_NOTES:"",INPUT_CANDIDATE_VERSION:"v0.6.0-rc.1" }]) {
+      const childEnv={...process.env,...inherited,...env,SOURCE_ROOT:source,REPORT_FILE:join(root,"report.json"),GITHUB_OUTPUT:output};
+      const valid=spawnSync(process.execPath,[script,"inputs"],{cwd:source,env:childEnv,encoding:"utf8"});
+      assert.equal(valid.status,0,valid.stderr);
+      assert.match(await readFile(output,"utf8"),/commit=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n/);
+      const invalid=spawnSync(process.execPath,[script,"inputs"],{cwd:source,env:{...childEnv,INPUT_COMMIT:"main"},encoding:"utf8"});
+      assert.notEqual(invalid.status,0);
+      assert.match(invalid.stderr,/exact source SHA required/);
+      assert.doesNotMatch(invalid.stderr,/Notes|fake|wrong source tooling/);
+    }
   } finally { await rm(root,{recursive:true,force:true}); }
 });

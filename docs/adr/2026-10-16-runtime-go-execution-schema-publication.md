@@ -182,3 +182,20 @@ and [feature publication checks](../architecture/runtime-v2-execution-schema-tes
 - Rationale: successful write responses must not be forgotten because a list
   lags. This is a genuine automation correction, not a release-readiness PR.
   No credentials, source code, immutable coordinate or release-body bytes change.
+
+## Decision 6: isolate CLI subprocess fixtures from final-release inputs
+
+- Conversation record timestamp: 2026-10-17T00:23:55+07:00.
+- GitHub user id: @evilguest (41718235); agent: Codex / GPT-5.
+- Question: how to fix the GA validation failure after the complete RC passed?
+- Alternatives: relax the RC candidate guard; clear actual workflow inputs;
+  or give subprocess fixtures every input explicitly and test inherited GA inputs.
+- Decision: the user approved the last alternative, a narrow reviewed fix PR,
+  administrative merge after green CI, and a GA retry from the same bf161c7
+  using the already qualified RC. No new RC or library/workflow change is needed.
+  Existing valid/invalid-input assertions remain, exercised under both ordinary
+  and inherited GA environments. The regression failed before the fixture fix.
+- Rationale: the real parser correctly rejects an RC with candidate_version.
+  The test accidentally inherited the parent's candidate. Fix test ownership,
+  not the guard or the published source; source coverage was missing only because
+  the earlier failed test prevented source tests from starting.
