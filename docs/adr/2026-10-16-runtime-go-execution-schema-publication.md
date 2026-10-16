@@ -157,3 +157,28 @@ and [feature publication checks](../architecture/runtime-v2-execution-schema-tes
 - Rationale: no version-specific readiness PR is needed, while real RC/final
   publication remains a separately verifiable #151 acceptance step. Approval
   does not imply that a tag, release or GitHub setting has been changed.
+
+## Decision 5: approved source adjustment and read-after-write recovery
+
+- Conversation record timestamp: 2026-10-16T23:55:25+07:00.
+- GitHub user id: @evilguest (41718235); agent: Codex / GPT-5.
+- Question: how to continue after a real ref-create permission denial and
+  subsequently duplicated drafts caused by delayed GitHub list visibility?
+- Alternatives: change credentials; explicitly use the reviewed automation
+  merge without changing Go code; or abandon publication. For consistency,
+  retry creation from lists, add durable receipts, or pin IDs and remember
+  attempted/observed progress within one invocation.
+- Decision: the user explicitly approved S=bf161c7cb6bf54b1ae6f8614e452963a5ddad36f.
+  Only module README differs from the originally requested #152 source;
+  Decisions 1/4's exact-source selection is superseded, not tag immutability.
+  The RC tag already points to this S. Fix automation through a real reviewed
+  PR, using pinned release IDs and bounded read-only convergence, with the
+  approved stale-list/asset/state and lost-response regression checks.
+  Do not repeat the same write on uncertainty. There is no durable exactly-once
+  draft guarantee across invocations; reconcile ambiguous creation first.
+  The user authorized deletion only of empty duplicate draft 415176820 after
+  fresh identity/draft/asset checks, retaining 415176803 and the existing tag.
+  Retry the RC and publish GA only after its complete successful qualification.
+- Rationale: successful write responses must not be forgotten because a list
+  lags. This is a genuine automation correction, not a release-readiness PR.
+  No credentials, source code, immutable coordinate or release-body bytes change.

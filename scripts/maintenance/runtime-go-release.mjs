@@ -97,10 +97,22 @@ export async function requireTagProtection(api) {
 }
 
 /** Read draft-visible state before writes. Get-by-tag alone cannot discover drafts. */
-async function readState(api, request, plan) {
+async function readState(api, request, plan, releaseId) {
   const matching = (await list(api, "/releases")).filter(release => release.tag_name === request.tag);
   requireValue(matching.length <= 1, "duplicate release coordinate");
-  const release = matching[0];
+  requireValue(!releaseId || matching.every(release => release.id === releaseId), "conflicting release identity");
+  let release = matching[0];
+  // Lists may omit a successful creation or retain an old draft snapshot.
+  // A known ID is never replaced by absence; read failures remain failures.
+  const id = releaseId ?? release?.id;
+  if (id !== undefined) {
+    requireValue(Number.isSafeInteger(id) && id > 0, "invalid release id");
+    release = await api.request("GET", `/releases/${id}`);
+    requireValue(release.id === id, "conflicting release identity");
+  } else {
+    try { release = await api.request("GET", `/releases/tags/${request.tag}`); }
+    catch (error) { if (error.status !== 404) throw error; }
+  }
   let reference;
   try { reference = await api.request("GET", `/git/ref/tags/${request.tag}`); }
   catch (error) { if (error.status !== 404) throw error; }
@@ -108,7 +120,7 @@ async function readState(api, request, plan) {
     reference.object.sha === request.sourceSHA, "conflicting tag source");
   const present = new Set();
   if (release) {
-    requireValue(Number.isSafeInteger(release.id) && release.id > 0 && typeof release.draft === "boolean" &&
+    requireValue(Number.isSafeInteger(release.id) && release.id > 0 && release.tag_name === request.tag && typeof release.draft === "boolean" &&
       release.prerelease === request.isRC && release.name === plan.payload.name && release.body === plan.body,
     "conflicting release metadata");
     if (!reference) requireValue(release.draft && release.target_commitish === request.sourceSHA, "untagged draft must explicitly target source SHA");
@@ -120,7 +132,6 @@ async function readState(api, request, plan) {
       requireValue(Buffer.isBuffer(bytes) && bytes.equals(expected.bytes), "release asset bytes differ");
       present.add(asset.name);
     }
-    requireValue(release.draft || present.size === plan.assets.length, "published release assets incomplete");
   }
   return { release, reference, present };
 }
@@ -128,9 +139,14 @@ async function readState(api, request, plan) {
 /** Published output is immutable: verify bytes/metadata without write authority. */
 export async function verifyRelease(api, request, plan) {
   await requireTagProtection(api);
-  const state = await readState(api, request, plan);
-  requireValue(state.reference && state.release && !state.release.draft, "complete published release required");
-  return { body: plan.body, body_digest: hash(plan.body) };
+  let releaseId;
+  for (let observation = 0; observation < 8; observation++) {
+    const state = await readState(api, request, plan, releaseId);
+    releaseId = state.release?.id;
+    if (state.reference && state.release && !state.release.draft && state.present.size === plan.assets.length)
+      return { body: plan.body, body_digest: hash(plan.body) };
+  }
+  throw new Error("complete published release required");
 }
 
 /** Read only a published release body; drafts cannot authorize promotion. */
@@ -153,22 +169,44 @@ export async function publishRelease(api, request, plan, candidateDigest) {
     const candidate = { ...request, version: request.candidateVersion, tag: `${tagPrefix}${request.candidateVersion}`, isRC: true, operation: "verify" };
     await verifyRelease(api, candidate, prepareRelease(candidate, plan.manifestDigest, plan.body));
   }
-  // A conflict can mean a concurrent matching write; reread the complete state.
-  for (let attempt = 0; attempt < 8; attempt++) {
-    const { reference, release, present } = await readState(api, request, plan);
-    if (release && !release.draft) return;
+  // Keep identity and progress across detached, eventually consistent snapshots.
+  // Each step is attempted at most once here, even after a conflict response.
+  const attempted = new Set(), observedAssets = new Set();
+  let releaseId, tagObserved = false, publishedObserved = false, lastConfirmed;
+  for (let observation = 0; observation < 32; observation++) {
+    const { reference, release, present } = await readState(api, request, plan, releaseId);
+    releaseId = release?.id ?? releaseId;
+    tagObserved ||= Boolean(reference);
+    publishedObserved ||= Boolean(release && !release.draft);
+    for (const name of present) observedAssets.add(name);
+    lastConfirmed = { tag_present:Boolean(reference), release_id:releaseId ?? null,
+      draft:release?.draft ?? null, asset_count:present.size };
+    if (reference && release && !release.draft && present.size === plan.assets.length)
+      return { body:plan.body, body_digest:hash(plan.body) };
+    // Missing observations cannot authorize a backwards transition or upload
+    // into output we already observed as published.
+    if (publishedObserved) continue;
     let stage;
     try {
       if (!reference) {
         stage = "create-tag";
+        if (tagObserved || attempted.has(stage)) continue;
+        attempted.add(stage);
         await api.request("POST", "/git/refs", { body: { ref: `refs/tags/${request.tag}`, sha: request.sourceSHA } });
       } else if (!release) {
         stage = "create-draft";
-        await api.request("POST", "/releases", { body: plan.payload });
+        if (attempted.has(stage)) continue;
+        attempted.add(stage);
+        const created = await api.request("POST", "/releases", { body: plan.payload });
+        requireValue(Number.isSafeInteger(created.id) && created.id > 0, "invalid created release id");
+        releaseId = created.id;
       }
       else {
         const missing = plan.assets.find(asset => !present.has(asset.name));
         stage = missing ? "upload-asset" : "publish-draft";
+        const key = missing ? `${stage}:${missing.name}` : stage;
+        if (attempted.has(key) || (missing && observedAssets.has(missing.name))) continue;
+        attempted.add(key);
         if (missing) await api.request("POST", `/releases/${release.id}/assets?name=${encodeURIComponent(missing.name)}`, { body: missing.bytes, upload: true });
         else await api.request("PATCH", `/releases/${release.id}`, { body: { draft: false, make_latest: "false" } });
       }
@@ -182,11 +220,13 @@ export async function publishRelease(api, request, plan, candidateDigest) {
         } };
         throw error;
       }
-      // Read validates conflicts; a repeat with no state progress is bounded.
-      await readState(api, request, plan);
+      // A subsequent observation may discover the committed concurrent write.
+      // Without progress, the attempted step is not eligible for another write.
     }
   }
-  throw new Error("publication did not converge; inspect partial state");
+  throw Object.assign(new Error("publication did not converge; inspect partial state"), {
+    publicationState:{ observation:"stalled", last_confirmed:lastConfirmed },
+  });
 }
 
 /** Exact public Go download metadata; a staged proxy is not publication proof. */
