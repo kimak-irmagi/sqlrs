@@ -3,6 +3,12 @@
 Status: component structure approved by @evilguest, 2026-10-01.
 Interaction flow: [canonical resolver flow](runtime-v2-canonical-resolver-flow.md).
 
+The approved #150 [execution-schema flow](runtime-v2-execution-schema-flow.md)
+reuses this contract. Its [semantic validation](runtime-v2-execution-schema-structure.md#9-budgets-errors-and-integration-obligations), approved on 2026-10-16,
+runs through provider `ValidateResolution` for new and cached values; generic
+codec checks do not replace provider-specific nested-content validation. No new
+resolver result or cache version is proposed.
+
 ## Module and ownership
 
 The public nested module remains

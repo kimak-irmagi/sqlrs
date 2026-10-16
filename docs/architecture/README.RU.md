@@ -19,6 +19,18 @@
 - [Структура canonical-v1 Runtime v2](runtime-v2-canonical-contract-structure.RU.md) -
   согласованные module boundary, public types, trust boundary, владение данными
   и versioned facade `schemas/conformancev1` для #138.
+- [Взаимодействия схемы среды выполнения Runtime v2](runtime-v2-execution-schema-flow.RU.md) -
+  утверждённая граница производственного конструктора #150 в существующем
+  модуле, без службы выполнения, второго результата или нового кодирования.
+- [Типы схемы среды выполнения Runtime v2](runtime-v2-execution-schema-structure.RU.md) -
+  утверждённые Build/Parse, схема, чтение дерева и проверки; тесты
+  отдельно согласованы, выпуск остаётся в #151.
+- [Ревью схемы среды выполнения](runtime-v2-execution-schema-review.RU.md) -
+  исправленные замечания, разобранные сценарии и оставшиеся обязанности реализации.
+- [Перечень тестов схемы выполнения](runtime-v2-execution-schema-tests.RU.md) -
+  утверждённые проверки API; согласование не является результатом запуска.
+- [Дополнительный проход по покрытию схемы](runtime-v2-execution-schema-coverage-plan.RU.md) -
+  первые измеренные пробелы и план дополнительных проверок; приёмка не завершена.
 - [Conformance bundle canonical-v1 Runtime v2](runtime-v2-conformance-bundle-schema.RU.md) -
   согласованные bundle schema, detached digest и verification contract.
 - [Тесты canonical-v1 Runtime v2](runtime-v2-canonical-contract-tests.RU.md) -

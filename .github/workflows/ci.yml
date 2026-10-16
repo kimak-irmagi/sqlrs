@@ -88,11 +88,31 @@ jobs:
         run: |
           set -euo pipefail
           profile=../../../coverage-runtime-v2-${{ matrix.runner }}.out
-          go test -count=1 -coverpkg=./... -covermode=count -coverprofile=coverage-runtime-all.out ./...
+          go test -count=1 -timeout=10m -coverpkg=./... -covermode=count -coverprofile=coverage-runtime-all.out ./...
           runtime=$(go tool cover -func=coverage-runtime-all.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
           echo "Runtime v2 aggregate coverage: ${runtime}%"
           awk -v value="$runtime" 'BEGIN { if (value + 0 < 95) exit 1 }'
           cp coverage-runtime-all.out "$profile"
+
+      - name: Enforce exact execution-schema coverage
+        if: always()
+        shell: bash
+        env:
+          BASELINE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          node --test scripts/maintenance/check-runtime-execution-coverage.test.mjs
+          node scripts/maintenance/check-runtime-execution-coverage.mjs backend/libs/runtime-go/coverage-runtime-all.out | tee coverage-runtime-execution.json
+
+      - name: Retain Runtime v2 coverage diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-v2-execution-coverage-${{ matrix.runner }}
+          path: |
+            backend/libs/runtime-go/coverage-runtime-all.out
+            coverage-runtime-execution.json
+          if-no-files-found: warn
 
       - name: Check Runtime v2 dependency boundary
         if: matrix.runner == 'ubuntu-24.04'
@@ -112,7 +132,7 @@ jobs:
       - name: Run Runtime v2 race detector
         if: matrix.runner == 'ubuntu-24.04'
         working-directory: backend/libs/runtime-go
-        run: go test -race -count=1 ./...
+        run: go test -race -count=1 -timeout=10m ./...
 
       - name: Fuzz canonical identity and cache decoders
         if: matrix.runner == 'ubuntu-24.04'
@@ -122,6 +142,12 @@ jobs:
           set -euo pipefail
           go test -run '^$' -fuzz '^FuzzDecodeCanonicalExtensionIdentityJSON$' -fuzztime=2s -timeout=30s .
           go test -run '^$' -fuzz '^FuzzDecodeCacheRecordJSON$' -fuzztime=2s -timeout=30s ./resolver
+          go test -list '^FuzzExecutionEnvironmentInput$' ./schemas/sqlrs | grep -Fx FuzzExecutionEnvironmentInput
+          go test -list '^FuzzExecutionEnvironmentIdentity$' ./schemas/sqlrs | grep -Fx FuzzExecutionEnvironmentIdentity
+          go test -list '^FuzzCanonicalValueInspect$' . | grep -Fx FuzzCanonicalValueInspect
+          go test -run '^$' -fuzz '^FuzzExecutionEnvironmentInput$' -fuzztime=2s -timeout=30s -parallel=2 ./schemas/sqlrs
+          go test -run '^$' -fuzz '^FuzzExecutionEnvironmentIdentity$' -fuzztime=2s -timeout=30s -parallel=2 ./schemas/sqlrs
+          go test -run '^$' -fuzz '^FuzzCanonicalValueInspect$' -fuzztime=2s -timeout=30s -parallel=2 .
 
       - name: Verify Runtime v2 golden vectors independently
         shell: bash
