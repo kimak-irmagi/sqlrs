@@ -177,7 +177,7 @@ immutable, но не содержит полной declaration boundary; опу�
 `backend/libs/runtime-go/v0.2.0`. Его exact commit сначала был опубликован как
 immutable tags `v0.2.0-rc.N`; GA использовал тот же commit после tests #108/#124
 и external-consumer gates.
-Отдельный workflow имеет два режима:
+Историческая публикация использовала следующие способы запуска, не нынешние правила:
 
 - `workflow_dispatch` preflight проверяет proposed version/commit, clean tree,
   module path, unit/conformance/golden/race/fuzz-smoke/coverage/dependency gates и
@@ -190,6 +190,10 @@ immutable tags `v0.2.0-rc.N`; GA использовал тот же commit по�
 - post-publication verification выполняет `go list -m` и `go mod download` через
   public proxy с bounded retry для propagation и проверяет release notes со
   schema `sqlrs.runtime.v2` и source commit.
+
+Новые выпуски используют согласованные ручные режимы validate/publish/verify
+из [правил публикации модуля](runtime-go-module-publication.RU.md), а не прежний
+запуск по событию тега. Старые теги и исходники их процессов не меняются.
 
 Acceptance выполняется по этапам без цикла: PR/preflight доказывает локальный
 clean consumer; immutable RC tag — public proxy и checksum database; GA создаётся

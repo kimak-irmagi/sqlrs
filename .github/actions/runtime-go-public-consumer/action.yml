@@ -1,0 +1,77 @@
+name: Verify published Runtime Go module
+description: Read-only public distribution check using tooling H and fixtures S
+inputs:
+  version:
+    required: true
+    description: Exact immutable module version
+  commit:
+    required: true
+    description: Exact source commit
+  candidate-version:
+    default: ""
+    description: Same-source RC for a final version
+  source-root:
+    required: true
+    description: Absolute checkout S
+  automation-root:
+    required: true
+    description: Absolute trusted checkout H
+outputs:
+  body-digest:
+    description: Digest of the metadata verified in this run
+    value: ${{ steps.metadata.outputs.body_digest }}
+runs:
+  using: composite
+  steps:
+    - name: Verify immutable release metadata
+      id: metadata
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        INPUT_OPERATION: verify
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_COMMIT: ${{ inputs.commit }}
+        INPUT_CANDIDATE_VERSION: ${{ inputs.candidate-version }}
+        INPUT_NOTES: ""
+        SOURCE_ROOT: ${{ inputs.source-root }}
+        AUTOMATION_ROOT: ${{ inputs.automation-root }}
+        REPORT_FILE: ${{ runner.temp }}/runtime-publication-metadata.json
+      run: node "$AUTOMATION_ROOT/scripts/maintenance/runtime-go-release-cli.mjs" metadata
+    - name: Public proxy, checksum database and clean consumer
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        INPUT_OPERATION: verify
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_COMMIT: ${{ inputs.commit }}
+        INPUT_CANDIDATE_VERSION: ${{ inputs.candidate-version }}
+        INPUT_NOTES: ""
+        SOURCE_ROOT: ${{ inputs.source-root }}
+        AUTOMATION_ROOT: ${{ inputs.automation-root }}
+        REPORT_FILE: ${{ runner.temp }}/runtime-publication-public.json
+        DOWNLOAD_FILE: ${{ runner.temp }}/runtime-module-download.json
+        GOWORK: "off"
+        GOPROXY: https://proxy.golang.org
+        GOSUMDB: sum.golang.org
+        GOPRIVATE: ""
+        GONOPROXY: ""
+        GONOSUMDB: ""
+      run: |
+        set -euo pipefail
+        module=github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go
+        temp=$(mktemp -d)
+        trap 'rm -rf "$temp"' EXIT
+        cp "$SOURCE_ROOT/test/runtime-v2-consumer/"*_test.go "$temp/"
+        cd "$temp"
+        go mod init example.invalid/runtime-v2-consumer
+        for attempt in {1..20}; do
+          if go mod download -json "$module@$INPUT_VERSION" >"$DOWNLOAD_FILE"; then break; fi
+          test "$attempt" -lt 20
+          sleep 15
+        done
+        go get "$module@$INPUT_VERSION"
+        go test -count=1 ./...
+        go list -m all | grep -Fx "$module $INPUT_VERSION"
+        go list -m -retracted -json "$module@v0.1.0" | jq -e '.Retracted | length > 0' >/dev/null
+        node "$AUTOMATION_ROOT/scripts/maintenance/runtime-go-release-cli.mjs" download
+        echo "Verified $INPUT_VERSION from $INPUT_COMMIT with GOWORK=off, public proxy.golang.org and sum.golang.org." >>"$GITHUB_STEP_SUMMARY"

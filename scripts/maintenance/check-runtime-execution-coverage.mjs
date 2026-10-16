@@ -67,9 +67,8 @@ export function evaluateExecutionCoverage(profile, newFiles) {
  * caller supplies the review base; release checks retain the mandatory facade
  * list even if that exact release commit contains only metadata changes.
  */
-function discoverNewFiles(base) {
-  const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
-  const git = args => execFileSync("git", args, { cwd: repositoryRoot, encoding: "utf8" }).trim().split(/\r?\n/).filter(Boolean);
+export function discoverNewFiles(base, repositoryRoot = fileURLToPath(new URL("../../", import.meta.url)), runGit = (args, options) => execFileSync("git", args, options)) {
+  const git = args => runGit(args, { cwd: repositoryRoot, encoding: "utf8" }).trim().split(/\r?\n/).filter(Boolean);
   const changed = base ? git(["diff", "--name-only", "--diff-filter=A", base, "--", moduleDirectory]) : [];
   const untracked = git(["ls-files", "--others", "--exclude-standard", "--", moduleDirectory]);
   return [...new Set([...requiredFiles, ...changed, ...untracked].map(normalize).filter(name => name.endsWith(".go") && !name.endsWith("_test.go")).map(name => name.startsWith(moduleDirectory) ? name.slice(moduleDirectory.length) : name))];
@@ -79,7 +78,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   try {
     const profile = await readFile(process.argv[2] ?? `${moduleDirectory}coverage-runtime-all.out`, "utf8");
     const base = process.env.BASELINE_SHA || undefined;
-    const report = evaluateExecutionCoverage(profile, discoverNewFiles(base));
+    const report = evaluateExecutionCoverage(profile, discoverNewFiles(base, process.argv[3]));
     console.log(JSON.stringify(report, null, 2));
     if (!report.ok) process.exitCode = 1;
   } catch (error) {

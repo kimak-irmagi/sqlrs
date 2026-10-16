@@ -281,3 +281,26 @@ executor and State-reuse evidence remains explicitly outside the pure module;
 those omissions are not claimed as tested. The inventory, narrow architecture
 exception and additive CI/test infrastructure changes were subsequently approved
 on 2026-10-16. Tests precede implementation; approval alone proves no execution.
+
+## Publication checks (#151, proposed)
+
+These reuse existing module checks without weakening ES01-ES28 or adding runtime
+production code. The new automation has a separate
+[test inventory](runtime-go-module-publication-tests.md). Both inventories were
+approved on 2026-10-16 for #151's
+[proposed release sequence](runtime-v2-execution-schema-structure.md#10-proposed-module-publication-151).
+The #150 implementation and its merged CI results are not themselves evidence
+that a tagged module can be consumed.
+
+The requested S below is retained. Actual token permissions are qualified by
+the first approved real RC run, not a read-only/mocked preflight. A denial
+reports partial state without changing S or falling back to another token.
+
+| ID | Required evidence |
+| --- | --- |
+| EP01 | Review the additive API difference from v0.5.0; v0.6.0 notes name the fixed schema and inspection methods, unchanged canonical/resolver/cache contracts, no I/O, and separate provider/reuse obligations. Existing release-contract markers remain documented with their historical/current meanings. No existing tag is reused. |
+| EP02 | S is the reviewed merge commit 892a5007adf4d499fbfbd7861569861ff11c43a8 in main, independent of newer automation H. Its post-merge CI and current source validation pass: full Go suite, exact >=95% coverage, race, fuzz, conformance, dependency boundary and staged consumer. No new release-note source file/commit is required. Automation checks use H. |
+| EP03 | New nested-module RC and final tags both resolve to S. Protected update/deletion rules remain active. Release attestations name the correct module, version/tag, S and unchanged conformance manifest; asset checksums validate and assets are not overwritten. |
+| EP04 | For each published version, an external consumer with GOWORK=off, public GOPROXY and GOSUMDB downloads that exact immutable version without replace, sibling sources or a pseudo-version. Module and go.mod checksums are present. The existing public-facade fixture builds/parses, inspects, serializes and composes the execution identity. A staged-proxy run alone is insufficient. |
+| EP05 | Both manual candidate and final runs finish successfully, with public-proxy and retraction/legacy checks; final promotion fully reverifies the published candidate in a mandatory read-only job of the current run, not from its tag or a past report alone. Distinct versioned zip sums do not imply different S. Source corrections need a new candidate; harness-only fixes use H and read-only verify, never retagging. |
+| EP06 | GitHub release/run evidence and the final issue report record v0.6.0, full S/H, release/CI links and clean public-consumer proof. Only then close #151. A version-specific roadmap/source PR is not a gate; application adoption remains separate. |

@@ -2,6 +2,11 @@
 
 Entry points for Taidon architecture and service design.
 
+- [Runtime Go module publication](runtime-go-module-publication.md) -
+  approved direct-source manual contract; implemented locally, release pending.
+- [Module publication checks](runtime-go-module-publication-tests.md) -
+  approved safety/recovery checks and local verification evidence for #151.
+
 - [`mvp-architecture.md`](mvp-architecture.md) — MVP service composition and goals.
 - [`diagrams.md`](diagrams.md) — high-level component and k8s topology diagrams.
 - [`local-deployment-architecture.md`](local-deployment-architecture.md) — local

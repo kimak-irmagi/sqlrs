@@ -78,7 +78,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Run Runtime v2 tests and enforce coverage
         working-directory: backend/libs/runtime-go
@@ -165,7 +165,21 @@ jobs:
 
       - name: Verify Runtime v2 release workflow contract
         if: matrix.runner == 'ubuntu-24.04'
-        run: node --test scripts/maintenance/runtime-go-release-workflow.test.mjs
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@10.26.2 --activate
+          pnpm install --frozen-lockfile --ignore-scripts
+          node --test --experimental-test-coverage --test-coverage-lines=95 --test-coverage-include='**/runtime-go-release.mjs' --test-coverage-include='**/runtime-go-release-cli.mjs' --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=runtime-go-release.lcov scripts/maintenance/runtime-go-release*.test.mjs scripts/maintenance/create-runtime-v2-attestation.test.mjs
+
+      - name: Retain publication-tooling coverage
+        if: always() && matrix.runner == 'ubuntu-24.04'
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-go-publication-coverage-${{ github.run_attempt }}
+          path: runtime-go-release.lcov
+          if-no-files-found: warn
 
       - name: Test standalone Runtime v2 consumer through staged proxy
         if: matrix.runner == 'ubuntu-24.04'

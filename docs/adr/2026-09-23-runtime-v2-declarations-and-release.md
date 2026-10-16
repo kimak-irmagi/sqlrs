@@ -93,6 +93,14 @@ deterministic, actionable upgrade path.
 
 ## Decision 6: nested-module release gate
 
+Invocation/file-location update, 2026-10-16: the accepted
+[direct-source publication direction](2026-10-16-runtime-go-execution-schema-publication.md#decision-2-publish-an-existing-merge-without-release-readiness-prs)
+replaces the manual-preflight/tag-push split with explicit manual modes and
+external release notes. The detailed replacement contract/tests were approved
+on 2026-10-16 and implemented locally; actual publication is still pending;
+the immutable/public-consumer gates below remain required. Published historical
+workflow source is not changed.
+
 Question: how should future Runtime v2 module tags be validated?
 
 Alternatives: reuse the product `v*` binary workflow; manual checks; a dedicated
@@ -195,6 +203,12 @@ automation end to end; and the GA-to-RC provenance rule remains strict without
 hard-coding a particular attempt number.
 
 ## Decision 11: re-verify an immutable GA after a harness-only failure
+
+Invocation update, 2026-10-16: the accepted
+[direct-source publication direction](2026-10-16-runtime-go-execution-schema-publication.md#decision-2-publish-an-existing-merge-without-release-readiness-prs)
+uses approved operation=verify in place of verify_published. The read-only
+recovery guarantee below remains required; local automation tests do not prove
+new immutable publication.
 
 Conversation timestamp: 2026-09-27 17:20 Asia/Novosibirsk
 (2026-09-27 10:20 UTC).
