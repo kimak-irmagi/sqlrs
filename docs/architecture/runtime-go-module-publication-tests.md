@@ -58,6 +58,12 @@ either converge with exact bytes or stop without duplicate/replacement writes.
 actual CLI publish path so its final report cannot accidentally start another
 unpinned lookup. Existing lost-response and conflict tests stay intact.
 
+Every subprocess fixture owns all five INPUT_* values, including an explicitly
+empty candidate_version for an RC. Run the actual CLI entry under both ordinary
+and inherited final-release inputs; valid RC inputs must still pass and invalid
+source inputs must still fail. A parent workflow's candidate must not contaminate
+the test. Do not weaken production validation or clear real workflow inputs.
+
 The policy, CLI, semantic workflow wiring and existing coverage/attestation/
 bundle suites ran together: 43 tests, 42 passed, 0 failed, 1 existing Windows
 symbolic-link test skipped because the host cannot create those links. Linux
@@ -78,3 +84,10 @@ existing Windows symlink skip. Detailed LCOV: policy 99.64%, CLI 100%, combined
 99.70% lines and 100% functions. The only uncovered line remains pagination
 exhaustion, not a new recovery requirement. No workflow, Go code or dependency
 was changed. #153's real CI passed; the partial RC run is not release acceptance.
+
+The corrected RC run [38938522422](https://github.com/kimak-irmagi/sqlrs/actions/runs/38938522422)
+passed all source/public-consumer gates with one release and exact assets.
+Final run 38939053614 stopped before writes: the subprocess fixture inherited
+the final candidate and correctly failed the RC input guard. The approved
+fixture-isolation regression reproduced that failure before its one-field fix;
+all existing assertions, source S and the published RC remain unchanged.

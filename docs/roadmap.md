@@ -89,6 +89,9 @@ gantt
   Explicitly approved source bf161c7cb6bf54b1ae6f8614e452963a5ddad36f has unchanged
   Go code and is already fixed by the RC tag. #151 records live publication
   evidence; it stays open until full RC/GA gates pass. No per-version roadmap PR.
+  [The RC run passed](https://github.com/kimak-irmagi/sqlrs/actions/runs/38938522422),
+  including public consumption. A GA-only inherited-input failure is corrected
+  in the CLI test fixture, without changing production validation, S or the RC.
 
 - **Merged in [PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152);
   [post-merge CI successful](https://github.com/kimak-irmagi/sqlrs/actions/runs/38886272700)
