@@ -18,6 +18,19 @@ Entry points for Taidon architecture and service design.
 - [Runtime v2 canonical-v1 structure](runtime-v2-canonical-contract-structure.md) -
   approved module boundary, public types, trust boundary, data ownership, and
   versioned `schemas/conformancev1` facade for #138.
+- [Runtime v2 execution-schema flow](runtime-v2-execution-schema-flow.md) -
+  approved #150 production-facade boundary in the existing Runtime Go module;
+  no execution service, new resolver result or canonical encoding.
+- [Runtime v2 execution-schema API](runtime-v2-execution-schema-structure.md) -
+  approved typed Build/Parse API, schema, read-only tree access and validation;
+  test inventory separately approved, publication remains #151.
+- [Execution-schema design review](runtime-v2-execution-schema-review.md) -
+  corrected findings, checked scenarios and remaining implementation obligations.
+- [Execution-schema test inventory](runtime-v2-execution-schema-tests.md) -
+  approved checks for the API; approval is not execution evidence.
+- [Execution-schema coverage follow-up](runtime-v2-execution-schema-coverage-plan.md) -
+  approved additional checks, invariant audit and measured results; final
+  acceptance is tracked in PR #152, publication separately in #151.
 - [Runtime v2 canonical-v1 conformance bundle](runtime-v2-conformance-bundle-schema.md) -
   approved bundle schema, detached digest, and verification contract.
 - [Runtime v2 canonical-v1 tests](runtime-v2-canonical-contract-tests.md) -

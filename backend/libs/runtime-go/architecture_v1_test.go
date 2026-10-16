@@ -140,11 +140,9 @@ func TestSchemaFacadesDoNotExposeGenericSchemaTypes(t *testing.T) {
 			switch value := declaration.(type) {
 			case *ast.FuncDecl:
 				if value.Name.IsExported() && forbidden(value.Type) {
-					// v0.5.0 exposes this one immutable, schema-specific
-					// capability so the registry and cache can validate the
-					// reference provider without importing schemaauthor.
-					// It accepts no caller-authored schema definition.
-					if filepath.ToSlash(path) == "schemas/sqlrs/schema.go" && value.Name.Name == "WorkspaceFileExtensionSchema" && value.Type.Params.NumFields() == 0 {
+					// The two approved fixed capabilities let the registry/cache
+					// validate their providers without schema-authoring access.
+					if fixedSchemaCapabilityExport(filepath.ToSlash(path), value, aliases) {
 						continue
 					}
 					t.Errorf("%s exports generic schema type from %s", path, value.Name.Name)
@@ -161,6 +159,53 @@ func TestSchemaFacadesDoNotExposeGenericSchemaTypes(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// fixedSchemaCapabilityExport limits ES25 to the two approved no-argument
+// accessors. Neither arbitrary authoring parameters nor other result types pass.
+func fixedSchemaCapabilityExport(path string, fn *ast.FuncDecl, imports map[string]string) bool {
+	approved := path == "schemas/sqlrs/schema.go" && fn.Name.Name == "WorkspaceFileExtensionSchema" ||
+		path == "schemas/sqlrs/execution.go" && fn.Name.Name == "ExecutionEnvironmentSchema"
+	if !approved || fn.Recv != nil || fn.Type.Params.NumFields() != 0 || fn.Type.Results.NumFields() != 1 {
+		return false
+	}
+	result, ok := fn.Type.Results.List[0].Type.(*ast.SelectorExpr)
+	if !ok || result.Sel.Name != "ExtensionIdentitySchema" {
+		return false
+	}
+	pkg, ok := result.X.(*ast.Ident)
+	return ok && imports[pkg.Name] == "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
+}
+
+func TestFixedSchemaCapabilityExceptionIsNarrow(t *testing.T) {
+	for _, tc := range []struct {
+		name, path, signature string
+		allowed               bool
+	}{
+		{"workspace", "schemas/sqlrs/schema.go", "WorkspaceFileExtensionSchema() runtimev2.ExtensionIdentitySchema", true},
+		{"execution", "schemas/sqlrs/execution.go", "ExecutionEnvironmentSchema() runtimev2.ExtensionIdentitySchema", true},
+		{"other file", "schemas/sqlrs/other.go", "ExecutionEnvironmentSchema() runtimev2.ExtensionIdentitySchema", false},
+		{"other name", "schemas/sqlrs/execution.go", "ArbitrarySchema() runtimev2.ExtensionIdentitySchema", false},
+		{"parameters", "schemas/sqlrs/execution.go", "ExecutionEnvironmentSchema(v string) runtimev2.ExtensionIdentitySchema", false},
+		{"definition", "schemas/sqlrs/execution.go", "ExecutionEnvironmentSchema(v schemaauthor.SchemaInput) runtimev2.ExtensionIdentitySchema", false},
+		{"other kind", "schemas/sqlrs/execution.go", "ExecutionEnvironmentSchema() runtimev2.FactoryIdentitySchema", false},
+		{"generic result", "schemas/sqlrs/execution.go", "ExecutionEnvironmentSchema() schemaauthor.SchemaInput", false},
+		{"pointer result", "schemas/sqlrs/execution.go", "ExecutionEnvironmentSchema() *runtimev2.ExtensionIdentitySchema", false},
+		{"multiple results", "schemas/sqlrs/execution.go", "ExecutionEnvironmentSchema() (runtimev2.ExtensionIdentitySchema, error)", false},
+		{"no result", "schemas/sqlrs/execution.go", "ExecutionEnvironmentSchema()", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			file, err := parser.ParseFile(token.NewFileSet(), "fixture.go", "package fixture\nfunc "+tc.signature+" {}", 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fn := file.Decls[0].(*ast.FuncDecl)
+			imports := map[string]string{"runtimev2": "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go", "schemaauthor": "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/schemaauthor"}
+			if got := fixedSchemaCapabilityExport(tc.path, fn, imports); got != tc.allowed {
+				t.Fatalf("allowed=%v, want %v", got, tc.allowed)
+			}
+		})
 	}
 }
 

@@ -4,6 +4,14 @@ Status: approved for issues #130 and #131 on 2026-09-27.
 
 External conformance-facade addendum: approved for issue #138 on 2026-09-29.
 
+The production execution-facade [interaction boundary](runtime-v2-execution-schema-flow.md)
+is approved for #150. Its [concrete API](runtime-v2-execution-schema-structure.md)
+was approved on 2026-10-16, including read-only canonical-tree access. It does not
+turn the #138 conformance schema into a production schema or change existing
+canonical encodings. Implementation and tests are in
+[PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152); immutable module
+publication remains separately tracked by #151.
+
 ## Module layout
 
 ```text

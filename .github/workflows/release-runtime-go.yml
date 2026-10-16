@@ -90,14 +90,36 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          go test -count=1 -coverpkg=./... -covermode=count -coverprofile=coverage-runtime-all.out ./...
+          go test -count=1 -timeout=10m -coverpkg=./... -covermode=count -coverprofile=coverage-runtime-all.out ./...
           runtime=$(go tool cover -func=coverage-runtime-all.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
           awk -v value="$runtime" 'BEGIN { if (value + 0 < 95) exit 1 }'
-          go test -race -count=1 ./...
+          go test -race -count=1 -timeout=10m ./...
           go test -run '^$' -fuzz '^FuzzResolvedTransformJSON$' -fuzztime=2s -timeout=30s .
           go test -run '^$' -fuzz '^FuzzDecodeCanonicalExtensionIdentityJSON$' -fuzztime=2s -timeout=30s .
           go test -run '^$' -fuzz '^FuzzWorkspacePathAndEvidence$' -fuzztime=2s -timeout=30s ./resolver
           go test -run '^$' -fuzz '^FuzzDecodeCacheRecordJSON$' -fuzztime=2s -timeout=30s ./resolver
+          go test -list '^FuzzExecutionEnvironmentInput$' ./schemas/sqlrs | grep -Fx FuzzExecutionEnvironmentInput
+          go test -list '^FuzzExecutionEnvironmentIdentity$' ./schemas/sqlrs | grep -Fx FuzzExecutionEnvironmentIdentity
+          go test -list '^FuzzCanonicalValueInspect$' . | grep -Fx FuzzCanonicalValueInspect
+          go test -run '^$' -fuzz '^FuzzExecutionEnvironmentInput$' -fuzztime=2s -timeout=30s -parallel=2 ./schemas/sqlrs
+          go test -run '^$' -fuzz '^FuzzExecutionEnvironmentIdentity$' -fuzztime=2s -timeout=30s -parallel=2 ./schemas/sqlrs
+          go test -run '^$' -fuzz '^FuzzCanonicalValueInspect$' -fuzztime=2s -timeout=30s -parallel=2 .
+      - name: Enforce exact execution-schema coverage
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/maintenance/check-runtime-execution-coverage.test.mjs
+          node scripts/maintenance/check-runtime-execution-coverage.mjs backend/libs/runtime-go/coverage-runtime-all.out | tee coverage-runtime-execution.json
+      - name: Retain execution-schema coverage diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-go-release-execution-coverage
+          path: |
+            backend/libs/runtime-go/coverage-runtime-all.out
+            coverage-runtime-execution.json
+          if-no-files-found: warn
       - name: Verify independent goldens and dependencies
         env:
           VERSION: ${{ steps.version.outputs.value }}

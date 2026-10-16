@@ -57,3 +57,17 @@ required source inputs. The proposed public alias package in
 [issue #140](https://github.com/kimak-irmagi/sqlrs/issues/140) was closed without
 publication; the Runtime Go module retains its standard-library-only dependency
 boundary.
+
+Issue [#150](https://github.com/kimak-irmagi/sqlrs/issues/150) adds the approved
+[production execution-schema interaction boundary](../../../docs/architecture/runtime-v2-execution-schema-flow.md)
+to the existing module, not an execution service or a second resolver result.
+The [concrete API and component structure](../../../docs/architecture/runtime-v2-execution-schema-structure.md)
+were approved on 2026-10-16. Implementation and tests are available in
+[PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152). Local verification meets
+coverage requirements; the PR records CI/review evidence for the checked commit.
+Final acceptance applies to its latest commit, and no release contains the facade yet.
+The [first coverage follow-up](../../../docs/architecture/runtime-v2-execution-schema-coverage-plan.md)
+records the measured results and remaining CI caveats. Module publication is separately tracked by
+[#151](https://github.com/kimak-irmagi/sqlrs/issues/151). No existing release is
+claimed to contain the approved API. The [test inventory](../../../docs/architecture/runtime-v2-execution-schema-tests.md)
+was separately approved on 2026-10-16; tests precede implementation.

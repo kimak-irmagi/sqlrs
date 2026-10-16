@@ -74,7 +74,22 @@ gantt
 
 ---
 
-## Status (as of 2026-10-02)
+## Status (as of 2026-10-16)
+
+- **Implemented in [PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152);
+  final review/CI acceptance remains open
+  ([#150](https://github.com/kimak-irmagi/sqlrs/issues/150), production execution
+  schema)**: the existing Runtime Go module now has the fixed execution schema,
+  typed atomic Build/Parse and immutable canonical-tree inspection. Local full
+  module, independent-vector, fuzz and clean file-proxy consumer checks passed.
+  Coverage is 648/652 new statements (99.39%) and 4948/5175 overall (95.61%);
+  each new implementation file exceeds 95%. The initial PR commit `fc808d0`
+  passed all 15 CI jobs, including Linux race and the three-OS Runtime matrix.
+  Review corrections strengthen identity-change and cache-refresh assertions;
+  acceptance applies to the latest PR commit. This does not add an executor,
+  source I/O or State-cache admission.
+  Immutable module publication remains a separate
+  [#151](https://github.com/kimak-irmagi/sqlrs/issues/151), not a completed release.
 
 - **Released in [Runtime Go v0.5.0](https://github.com/kimak-irmagi/sqlrs/releases/tag/backend/libs/runtime-go/v0.5.0)
   ([PR #148](https://github.com/kimak-irmagi/sqlrs/pull/148),

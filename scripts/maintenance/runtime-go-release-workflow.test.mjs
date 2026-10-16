@@ -91,3 +91,18 @@ test("engine coverage includes native managed access and enforces the project fl
   assert.match(ci, /if \(value \+ 0 < 95\) exit 1/);
   assert.doesNotMatch(ci, /peter-evans\/(?:find-comment@v3|create-or-update-comment@v4)/);
 });
+
+// ES27-ES28: no-match fuzz commands and rounded module totals are insufficient.
+test("execution-schema fuzz targets and exact coverage gates run in CI and release", () => {
+  for (const source of [ci, workflow]) {
+    for (const name of ["FuzzExecutionEnvironmentInput", "FuzzExecutionEnvironmentIdentity", "FuzzCanonicalValueInspect"]) {
+      assert.ok(source.includes(`-fuzz '^${name}$'`), `missing fuzz invocation ${name}`);
+      assert.ok(source.includes(`-list '^${name}$'`), `missing existence check ${name}`);
+    }
+    assert.match(source, /-fuzztime=2s -timeout=30s -parallel=2/);
+    assert.match(source, /check-runtime-execution-coverage\.mjs/);
+    assert.match(source, /check-runtime-execution-coverage\.test\.mjs/);
+    assert.match(source, /if:\s*\$?\{?\{?\s*always\(\)/);
+    assert.match(source, /coverage-runtime-all\.out/);
+  }
+});
