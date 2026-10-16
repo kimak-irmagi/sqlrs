@@ -95,6 +95,12 @@ func (c *executionRecordCache) Store(_ context.Context, key resolver.CacheKey, s
 
 func TestExecutionResolverCacheOutcomeMatrix(t *testing.T) {
 	valid := executionBuild(t, executionBase())
+	freshInput := executionBase()
+	freshInput.Argv = append(freshInput.Argv, executionLiteral("new-generation"))
+	fresh := executionBuild(t, freshInput)
+	if executionFingerprint(t, valid) == executionFingerprint(t, fresh) {
+		t.Fatal("cache replacement fixtures must have different identities")
+	}
 	mutant := executionMinimalFields()
 	mutant["runtime"].(map[string]any)["identity_kind"] = "host-executable"
 	invalid := executionGeneric(t, mutant)
@@ -113,8 +119,8 @@ func TestExecutionResolverCacheOutcomeMatrix(t *testing.T) {
 		{name: "invalid-invalid", cached: invalid, fresh: invalid, wantError: true, wantTrace: []string{"load", "validate", "resolve", "validate"}},
 		{name: "current", cached: valid, fresh: invalid, status: resolver.Current, wantTrace: []string{"load", "validate", "revalidate", "validate", "store"}, wantHit: true, prior: resolver.Current, reason: "probe"},
 		{name: "current-bad-evidence", cached: valid, status: resolver.Current, badEvidence: true, wantError: true, wantTrace: []string{"load", "validate", "revalidate", "validate"}},
-		{name: "stale", cached: valid, fresh: valid, status: resolver.Stale, wantTrace: []string{"load", "validate", "revalidate", "resolve", "validate", "store"}, wantHit: true, prior: resolver.Stale, reason: "probe"},
-		{name: "unknown", cached: valid, fresh: valid, status: resolver.Unknown, wantTrace: []string{"load", "validate", "revalidate", "resolve", "validate", "store"}, wantHit: true, prior: resolver.Unknown, reason: "probe"},
+		{name: "stale", cached: valid, fresh: fresh, status: resolver.Stale, wantTrace: []string{"load", "validate", "revalidate", "resolve", "validate", "store"}, wantHit: true, prior: resolver.Stale, reason: "probe"},
+		{name: "unknown", cached: valid, fresh: fresh, status: resolver.Unknown, wantTrace: []string{"load", "validate", "revalidate", "resolve", "validate", "store"}, wantHit: true, prior: resolver.Unknown, reason: "probe"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var trace []string
@@ -130,7 +136,7 @@ func TestExecutionResolverCacheOutcomeMatrix(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				record, err := resolver.NewCacheRecord(key, provider.IdentitySchema(), resolver.Resolution{Identity: tc.cached, Evidence: json.RawMessage(`{"generation":1}`)})
+				record, err := resolver.NewCacheRecord(key, provider.IdentitySchema(), resolver.Resolution{Identity: tc.cached, Evidence: json.RawMessage(`{"generation":10}`)})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -167,11 +173,20 @@ func TestExecutionResolverCacheOutcomeMatrix(t *testing.T) {
 			if err != nil || outcome.CacheHit != tc.wantHit || outcome.PriorStatus != tc.prior || outcome.Reason != tc.reason || len(cache.stores) != 1 {
 				t.Fatalf("outcome=%+v, stores=%d, err=%v", outcome, len(cache.stores), err)
 			}
-			if executionFingerprint(t, outcome.Resolution.Identity) != executionFingerprint(t, valid) || executionFingerprint(t, cache.stores[0].Identity) != executionFingerprint(t, valid) {
-				t.Fatal("returned or stored invalid/old identity")
+			// ES22: a refresh must replace both the identity and evidence. A
+			// CURRENT hit instead retains its identity with revalidated evidence.
+			wantIdentity, wantEvidence := tc.fresh, `{"generation":1}`
+			if tc.status == resolver.Current {
+				wantIdentity, wantEvidence = tc.cached, `{"generation":2}`
 			}
-			if tc.status == resolver.Current && string(outcome.Resolution.Evidence) != `{"generation":2}` {
-				t.Fatal("lost revalidated evidence")
+			record, err := resolver.DecodeCacheRecordJSON(cache.raw, provider.IdentitySchema())
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, result := range []resolver.Resolution{outcome.Resolution, cache.stores[0], record.Resolution()} {
+				if executionFingerprint(t, result.Identity) != executionFingerprint(t, wantIdentity) || string(result.Evidence) != wantEvidence {
+					t.Fatal("returned or persisted the wrong identity/evidence generation")
+				}
 			}
 		})
 	}

@@ -452,6 +452,104 @@ func TestExecutionSemanticDimensionChangesIdentity(t *testing.T) {
 	}
 }
 
+// ES04-ES05: paired valid inputs pin dimensions that round-trip/acceptance
+// tests alone cannot prove are committed. Preparations apply to both inputs;
+// only the named semantic change (and required backlinks) applies afterward.
+func TestExecutionAdditionalSemanticDimensionChangesIdentity(t *testing.T) {
+	host := func(v *sqlrs.ExecutionEnvironmentInput) {
+		v.Runtime.Kind, v.Runtime.IdentityKind = sqlrs.ExecutionRuntimeHost, sqlrs.ExecutionIdentityHostExecutable
+		v.User = "uid:1000"
+		v.Argv[0] = executionPathWord("tool", "")
+		for i := range v.Mounts {
+			v.Mounts[i].Target.Root = "workspace"
+		}
+	}
+	literalEnvironment := func(v *sqlrs.ExecutionEnvironmentInput) {
+		v.Environment = append(v.Environment, sqlrs.ExecutionEnvironmentVariable{Name: "MODE", Value: executionLiteral("one")})
+	}
+	secretReference := func(provider, identifier, version string) func(*sqlrs.ExecutionEnvironmentInput) {
+		ref, err := runtimev2.NewSecretReference(provider, identifier, version)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return func(v *sqlrs.ExecutionEnvironmentInput) {
+			v.Secrets[1].IdentityReference = &ref
+		}
+	}
+	for _, tc := range []struct {
+		name            string
+		prepare, change func(*sqlrs.ExecutionEnvironmentInput)
+	}{
+		{name: "runtime primitive", change: func(v *sqlrs.ExecutionEnvironmentInput) {
+			v.Runtime.Kind, v.Runtime.DatabaseService = sqlrs.ExecutionRuntimeDatabaseContainer, "database"
+		}},
+		{name: "runtime identity extent", prepare: host, change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Runtime.IdentityKind = sqlrs.ExecutionIdentityHostBundle }},
+		{name: "platform OS", change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Runtime.Platform.OS = "freebsd" }},
+		{name: "executable", change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Argv[0] = executionLiteral("other-tool") }},
+		{name: "argument order", change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Argv[1], v.Argv[2] = v.Argv[2], v.Argv[1] }},
+		{name: "text part order", change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Argv[1][0], v.Argv[1][1] = v.Argv[1][1], v.Argv[1][0] }},
+		{name: "path coordinate", change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Argv[1][1].Path.Relative = "other.sql" }},
+		{name: "path format", change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Argv[1][1].PathFormat = sqlrs.ExecutionPathForwardSlash }},
+		{name: "environment name", prepare: literalEnvironment, change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Environment[2].Name = "OTHER_MODE" }},
+		{name: "environment value", prepare: literalEnvironment, change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Environment[2].Value = executionLiteral("two") }},
+		{name: "workdir root", change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Workdir.Root = "image" }},
+		{name: "source profile", prepare: func(v *sqlrs.ExecutionEnvironmentInput) {
+			// The schema verifies qualified references, not a source owner's
+			// interpretation/admission of the referenced materialization.
+			v.Inputs[0].Source.Kind, v.Inputs[0].Source.IdentitySchema = "artifact", "files.artifact.v1"
+			v.Workdir = sqlrs.ExecutionPath{Root: "image", Relative: "work"}
+			v.Argv[1][1].Path.Relative = ""
+		}, change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Inputs[0].Profile = sqlrs.ExecutionInputRegularFile }},
+		{name: "mount kind", change: func(v *sqlrs.ExecutionEnvironmentInput) {
+			v.Mounts[1].Kind, v.Mounts[1].InputName = sqlrs.ExecutionMountInput, "project"
+		}},
+		{name: "mount name and references", change: func(v *sqlrs.ExecutionEnvironmentInput) {
+			v.Mounts[0].Name, v.Workdir.Root, v.Argv[1][1].Path.Root = "renamed", "mount:renamed", "mount:renamed"
+		}},
+		{name: "service transport", change: func(v *sqlrs.ExecutionEnvironmentInput) { v.Services[0].Transport = sqlrs.ExecutionServiceUnixSocket }},
+		{name: "service selection", change: func(v *sqlrs.ExecutionEnvironmentInput) {
+			v.Environment[0].Value[0].ServiceField = sqlrs.ExecutionServiceUser
+		}},
+		{name: "service role and references", change: func(v *sqlrs.ExecutionEnvironmentInput) {
+			v.Services[0].Role, v.Secrets[0].ServiceRole, v.Environment[0].Value[0].ServiceRole = "other", "other", "other"
+		}},
+		{name: "authentication slot and backlink", change: func(v *sqlrs.ExecutionEnvironmentInput) {
+			v.Secrets[0].Name, v.Services[0].AuthenticationSecret = "other-auth", "other-auth"
+		}},
+		{name: "semantic slot and references", change: func(v *sqlrs.ExecutionEnvironmentInput) {
+			v.Secrets[1].Name, v.Environment[1].Value[0].SecretSlot, v.Mounts[2].SecretSlot = "other-seed", "other-seed", "other-seed"
+		}},
+		{name: "secret provider", change: secretReference("other-vault", "seed-reference", "v1")},
+		{name: "secret identifier", change: secretReference("vault", "other-reference", "v1")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before, after := executionResources(t), executionResources(t)
+			if tc.prepare != nil {
+				tc.prepare(&before)
+				tc.prepare(&after)
+			}
+			tc.change(&after)
+			oldIdentity, newIdentity := executionBuild(t, before), executionBuild(t, after)
+			for _, identity := range []runtimev2.CanonicalResolvedExtensionIdentity{oldIdentity, newIdentity} {
+				if _, err := sqlrs.ParseExecutionEnvironmentIdentity(identity); err != nil {
+					t.Fatalf("paired valid input did not parse: %v", err)
+				}
+			}
+			oldBytes, err := runtimev2.CanonicalResolvedExtensionBytes(oldIdentity)
+			if err != nil {
+				t.Fatal(err)
+			}
+			newBytes, err := runtimev2.CanonicalResolvedExtensionBytes(newIdentity)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if bytes.Equal(oldBytes, newBytes) || executionFingerprint(t, oldIdentity) == executionFingerprint(t, newIdentity) {
+				t.Fatal("semantic dimension was not committed into identity")
+			}
+		})
+	}
+}
+
 func executionInvalid(t testing.TB, identity runtimev2.CanonicalResolvedExtensionIdentity, err error) {
 	t.Helper()
 	var validation *runtimev2.ValidationError

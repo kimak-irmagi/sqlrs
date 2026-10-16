@@ -73,7 +73,7 @@ Dead-code removal requires the invariant proof above; absence of coverage alone
 is not such proof. Existing canonical encodings/domains and publication #151 do
 not change. Do not mark the roadmap/feature complete before these gates pass.
 
-## Other verification evidence so far
+## Verification snapshot before PR publication
 
 - All nested-module tests and both Node test groups passed (six tests each).
 - Independent published conformance-bundle verification passed.
@@ -104,7 +104,7 @@ schema/independent-vector tests remain unchanged and enforce the fixed set.
 The root inspection unknown-tag fallthrough is retained as a defensive case;
 opaque public values cannot reach it, and its file already exceeds 95%.
 
-## Result of the approved pass
+## Result of the approved pass (before PR publication)
 
 The pass is complete; no second coverage iteration was performed. A fresh full
 module run passed, followed by the exact coverage gate:
@@ -132,4 +132,28 @@ The three fuzz targets passed again with all seed baselines and mutations
 synthetic version. Both Node groups and all three independent golden/bundle
 verifiers passed. The roadmap reflects local implementation, not a release or
 completed GitHub acceptance. Linux race and remote cross-platform CI remain
-unverified until PR publication; no PR/merge/module publication was performed.
+unverified at this measurement; no PR/merge/module publication had yet occurred.
+
+## PR review follow-up
+
+The implementation was subsequently published in
+[PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152). Its initial commit
+`fc808d0` passed [all 15 CI jobs](https://github.com/kimak-irmagi/sqlrs/actions/runs/38878043249),
+including Linux race detection, fuzzing, the clean consumer and all three OSes.
+This supersedes the local-only caveat above, not the separate publication #151.
+
+The subsequent code review found two evidence gaps: STALE/UNKNOWN used identical
+old/new identities, and ES05 did not explicitly pin all semantic dimensions.
+The correction uses distinct fingerprints and evidence generations and checks
+the returned resolution, Store argument and decoded stored record. Added paired
+valid inputs pin the missing runtime, invocation, source/mount, service and
+secret dimensions; both identities must parse and have different canonical
+bytes/fingerprints. No production API/encoding changes or weaker tests are used.
+Documentation now distinguishes implemented PR source from accepted/released code.
+Final acceptance and CI evidence always apply to the latest PR commit.
+
+The corrected tests passed the full local Go suite and go vet. All 12 Node
+checks and the three independent golden/bundle verifiers also passed. A fresh
+profile remains 648/652 (99.39%) for new production code and 4948/5175 (95.61%)
+for the module; every new production file still exceeds 95%. These are local
+results, not an assertion that the follow-up commit has already passed CI.

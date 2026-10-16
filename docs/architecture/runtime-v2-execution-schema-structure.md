@@ -3,7 +3,9 @@
 Status: **API and component structure approved** by @evilguest, 2026-10-16,
 #150, after corrections and repeat review. This includes the refined
 [interaction boundary](runtime-v2-execution-schema-flow.md). The test inventory
-was separately approved on 2026-10-16; implementation/publication are not complete.
+was separately approved on 2026-10-16. Implementation and tests are available in
+[PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152); final review/CI acceptance
+applies to its latest commit. Immutable module publication remains separate in #151.
 
 ## 1. Ownership and scope
 
@@ -435,7 +437,7 @@ No cache/transport permission is inferred from a canonical fingerprint.
 
 The facade performs none of that I/O. Existing result/cache/envelope formats,
 canonical domains and other published schemas/vectors stay unchanged.
-No completed implementation is claimed. Publication remains
-#151; [review corrections and repeat review](runtime-v2-execution-schema-review.md)
+The implementation and checks are in PR #152, not an immutable module release.
+Publication remains #151; [review corrections and repeat review](runtime-v2-execution-schema-review.md)
 record this design's limits. The [test inventory](runtime-v2-execution-schema-tests.md)
 was separately approved on 2026-10-16.

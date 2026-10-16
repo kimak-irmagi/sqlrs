@@ -30,7 +30,8 @@
 - [Перечень тестов схемы выполнения](runtime-v2-execution-schema-tests.RU.md) -
   утверждённые проверки API; согласование не является результатом запуска.
 - [Дополнительный проход по покрытию схемы](runtime-v2-execution-schema-coverage-plan.RU.md) -
-  первые измеренные пробелы и план дополнительных проверок; приёмка не завершена.
+  согласованные дополнительные проверки, разбор инвариантов и результаты
+  измерений; итоговая приёмка отслеживается в PR #152, выпуск отдельно в #151.
 - [Conformance bundle canonical-v1 Runtime v2](runtime-v2-conformance-bundle-schema.RU.md) -
   согласованные bundle schema, detached digest и verification contract.
 - [Тесты canonical-v1 Runtime v2](runtime-v2-canonical-contract-tests.RU.md) -

@@ -29,7 +29,8 @@ Entry points for Taidon architecture and service design.
 - [Execution-schema test inventory](runtime-v2-execution-schema-tests.md) -
   approved checks for the API; approval is not execution evidence.
 - [Execution-schema coverage follow-up](runtime-v2-execution-schema-coverage-plan.md) -
-  first measured gaps and proposed additional evidence; acceptance remains open.
+  approved additional checks, invariant audit and measured results; final
+  acceptance is tracked in PR #152, publication separately in #151.
 - [Runtime v2 canonical-v1 conformance bundle](runtime-v2-conformance-bundle-schema.md) -
   approved bundle schema, detached digest, and verification contract.
 - [Runtime v2 canonical-v1 tests](runtime-v2-canonical-contract-tests.md) -
