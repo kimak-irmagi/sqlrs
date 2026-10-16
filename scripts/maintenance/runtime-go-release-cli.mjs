@@ -31,8 +31,8 @@ export async function runCommand(command, env, dependencies = {}) {
     const body = request.isRC && request.operation !== "verify" ? undefined :
       await readReleaseBody(api, request.isRC ? request.tag : `backend/libs/runtime-go/${request.candidateVersion}`);
     const plan = prepareRelease(request,manifest,body);
-    if (command === "publish") await publishRelease(api,request,plan,env.CANDIDATE_DIGEST);
-    const result = await verifyRelease(api,request,plan);
+    const result = command === "publish" ? await publishRelease(api,request,plan,env.CANDIDATE_DIGEST) :
+      await verifyRelease(api,request,plan);
     let sums = {};
     if (command === "download") sums = validateDownload(JSON.parse(await io.readFile(env.DOWNLOAD_FILE,"utf8")),request);
     const gates = command === "download" ? {metadata:"success",public_consumer:"success"} : {metadata:"success"};

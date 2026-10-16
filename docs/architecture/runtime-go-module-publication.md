@@ -1,8 +1,9 @@
 # Runtime Go: publish an existing source commit
 
 Status: direction, detailed structure and MP01-MP12 checks approved by @evilguest
-on 2026-10-16 for #151. Implemented and verified locally; automation PR/CI and
-real publication remain pending. This replaces the unapproved release-readiness
+on 2026-10-16 for #151. Automation PR #153 and its post-merge CI passed;
+RC publication exposed a read-after-write defect, corrected below. Final
+publication remains pending. This replaces the unapproved release-readiness
 PR proposal, not the module's API or immutable-release policy.
 
 ## Operator contract
@@ -124,6 +125,26 @@ the complete comparison succeeds. A lost response may have committed a write.
 Faults after tag creation, draft creation, each upload, publication and public
 verification must all retry through this same state plan.
 
+GitHub responses are detached snapshots, not a consistent shared database view.
+Pin a discovered/created release ID and read that ID directly; disappearance
+from a later global list never permits another draft. Keep checking those lists
+for conflicting IDs. Remember each observed tag/asset and each attempted write
+within the invocation. Delayed lists or draft flags may require read-only
+observations, never another create/upload/publish of that same step. At most
+32 observations are allowed; lack of convergence fails without rollback.
+Successful writes must not rely on a subsequent list to remember their identity.
+An ambiguous failed write is not blindly retried, including 409/422: reread
+and require progress before any different step. Reports preserve partial state.
+Across invocations there is no durable idempotency key for draft creation: a
+lost create response plus an invisible draft requires operator reconciliation,
+not a claim of exactly-once creation from GitHub's eventually consistent lists.
+Read-only verification refreshes discovered releases directly and can discover
+published output by tag; absent/draft/incomplete output gets bounded read-only
+rechecks, while conflicting metadata/bytes fail immediately. Publication returns
+its fully verified result to the CLI rather than discarding it and starting a
+second unpinned lookup. These are in-memory recovery rules, not report-based
+authorization or a new public API.
+
 A draft is not a Go publication barrier: the public tag itself exposes a module
 coordinate. All source, candidate, body, payload and existing-state checks must
 precede the tag. Later failure cannot justify rollback or tag reuse.
@@ -161,10 +182,12 @@ GitHub tags/releases/assets and Actions artifacts are persistent records. No DB.
 ## Acceptance boundary
 
 The one-time automation change requires a reviewed PR and CI. It need not be in
-the library source S. For #151, the requested S is PR #152's merge commit
-892a5007adf4d499fbfbd7861569861ff11c43a8. The first real publication must also
-confirm platform permissions. Do not substitute the automation merge. Publish
-v0.6.0-rc.1 and v0.6.0 at that same S. Close #151 only after final public gates
+the library source S. After the old-source ref creation was denied, @evilguest
+explicitly approved S=bf161c7cb6bf54b1ae6f8614e452963a5ddad36f (PR #153's
+reviewed merge). Against PR #152's 892a5007adf4d499fbfbd7861569861ff11c43a8,
+the module differs only in README, not Go source/tests, dependencies or vectors.
+The RC tag already fixes S; automation corrections must keep it unchanged.
+Publish v0.6.0-rc.1 and v0.6.0 at that same S. Close #151 only after final public gates
 and its GitHub evidence report; merging automation does not close publication.
 No automatic consumer upgrade, executor or application adoption is included.
 

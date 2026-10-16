@@ -5,6 +5,7 @@ import {
   validateRequest, releaseBody, prepareRelease, publishRelease, verifyRelease,
   qualifySource, requireTagProtection, validateDownload, publicationReport, readReleaseBody, GitHubAPI,
 } from "./runtime-go-release.mjs";
+import { runCommand } from "./runtime-go-release-cli.mjs";
 
 // MP01-MP11: public requirements, not a real credential/publication test.
 const sha = "b".repeat(40);
@@ -14,6 +15,7 @@ const input = (extra = {}) => ({ operation: "publish", version: "v0.6.0-rc.1", c
   notes: "Add the execution-environment facade.", ref: "refs/heads/main", event: "workflow_dispatch", ...extra });
 const request = extra => validateRequest(input(extra));
 const fail = status => Object.assign(new Error("injected API failure"), { status });
+const snapshot = value => JSON.parse(JSON.stringify(value));
 
 /** In-memory GitHub with committed-write/lost-response injection and paginated reads. */
 function github() {
@@ -30,15 +32,20 @@ function github() {
       if (p === "/rulesets") return state.rules.map(r => ({ id: r.id }));
       if (p === "/rulesets/1") return state.rules[0];
       if (p.includes("/actions/")) return { workflow_runs: state.runs };
-      if (p.startsWith("/git/ref/")) { const ref = state.refs.get(`refs/${decodeURIComponent(p.slice(9))}`); if (!ref) throw fail(404); return ref; }
-      if (p === "/releases") return state.releases;
+      if (p.startsWith("/git/ref/")) { const ref = state.refs.get(`refs/${decodeURIComponent(p.slice(9))}`); if (!ref) throw fail(404); return snapshot(ref); }
+      if (p === "/releases") return snapshot(state.releases);
       if (p.startsWith("/releases/tags/")) {
         const release = state.releases.find(r => !r.draft && r.tag_name === p.slice(15));
         if (!release) throw fail(404);
-        return release;
+        return snapshot(release);
       }
-      if (/^\/releases\/\d+\/assets$/.test(p)) return state.releases.find(r => r.id === +p.split("/")[2]).assets;
-      if (/^\/releases\/assets\/\d+$/.test(p)) return state.releases.flatMap(r => r.assets).find(a => a.id === +p.split("/").at(-1)).bytes;
+      if (/^\/releases\/\d+$/.test(p)) {
+        const release = state.releases.find(r => r.id === +p.split("/")[2]);
+        if (!release) throw fail(404);
+        return snapshot(release);
+      }
+      if (/^\/releases\/\d+\/assets$/.test(p)) return snapshot(state.releases.find(r => r.id === +p.split("/")[2]).assets);
+      if (/^\/releases\/assets\/\d+$/.test(p)) return Buffer.from(state.releases.flatMap(r => r.assets).find(a => a.id === +p.split("/").at(-1)).bytes);
       throw Error(`unhandled GET ${p}`);
     }
     const body = options.body;
@@ -59,7 +66,7 @@ function github() {
     state.writes.push([method, route, body]);
     if (state.fault === state.writes.length) { state.fault = 0; throw fail(503); }
     if (state.conflict === state.writes.length) { state.conflict = 0; throw fail(409); }
-    return result;
+    return snapshot(result);
   } };
   return api;
 }
@@ -213,6 +220,118 @@ test("MP06 concurrent matching writes are reread, conflicts cannot become blind 
     await publishRelease(api, request(), prepareRelease(request(), manifest));
     assert.equal(api.state.writes.length, 5);
   }
+});
+
+test("MP06 successful writes survive independently delayed release, asset and publication snapshots", async () => {
+  for (const mode of ["release-list", "asset-list", "draft-flag", "all"]) {
+    const api = github(), original = api.request, req = request(), plan = prepareRelease(req, manifest);
+    let delayedAssets = 0, delayedDraft = 0;
+    api.request = async (m, p, o) => {
+      const result = await original(m,p,o);
+      if (m === "GET" && p.startsWith("/releases?") && api.state.releases.length && ["release-list","all"].includes(mode)) return [];
+      if (m === "GET" && /^\/releases\/\d+\/assets\?/.test(p) && result.length && ["asset-list","all"].includes(mode) && delayedAssets++ < 3) return [];
+      if (m === "GET" && /^\/releases\/\d+$/.test(p) && !result.draft && ["draft-flag","all"].includes(mode) && delayedDraft++ < 3) return { ...result, draft:true };
+      return result;
+    };
+    await publishRelease(api,req,plan);
+    assert.equal(api.state.releases.length,1,mode);
+    assert.equal(api.state.writes.length,5,mode);
+    assert.equal(api.state.releases[0].draft,false,mode);
+    assert.deepEqual(api.state.releases[0].assets.map(a=>a.bytes),plan.assets.map(a=>a.bytes));
+    assert.ok(api.state.calls.some(([m,p])=>m === "GET" && p === "/releases/1"),mode);
+  }
+});
+
+test("MP06 a resumed draft never reuploads an already observed asset that disappears from a list", async () => {
+  const api = github(), req = request(), plan = prepareRelease(req,manifest);
+  api.state.fault = 3;
+  await assert.rejects(publishRelease(api,req,plan));
+  const original = api.request;
+  let reads = 0;
+  api.request = async (m,p,o) => {
+    const value = await original(m,p,o);
+    if (m === "GET" && p.startsWith("/releases/1/assets?") && ++reads > 1 && reads < 5) return [];
+    return value;
+  };
+  await publishRelease(api,req,plan);
+  assert.equal(api.state.writes.length,5);
+  assert.equal(api.state.releases[0].assets.length,2);
+});
+
+test("MP05/06 permanent lag or unobserved 409/422 progress cannot repeat a write", async () => {
+  for (const scenario of ["asset", "published", "lost-create", "409", "422"]) {
+    const api = github(), req = request(), plan = prepareRelease(req,manifest), original = api.request;
+    let attempts = 0;
+    api.request = async (m,p,o) => {
+      if (scenario === "lost-create" && m === "POST" && p === "/releases") {
+        await original(m,p,o); attempts++; throw fail(503);
+      }
+      if (["409","422"].includes(scenario) && m === "POST" && p === "/releases") { attempts++; throw fail(+scenario); }
+      const value = await original(m,p,o);
+      if (m === "GET" && p.startsWith("/releases?") && scenario === "lost-create") return [];
+      if (m === "GET" && p.startsWith("/releases/1/assets?") && scenario === "asset") return [];
+      if (m === "GET" && p === "/releases/1" && scenario === "published") return {...value,draft:true};
+      return value;
+    };
+    await assert.rejects(publishRelease(api,req,plan),undefined,scenario);
+    assert.ok(api.state.writes.length <= 5,scenario);
+    if (["lost-create","409","422"].includes(scenario)) assert.equal(attempts,1,scenario);
+    assert.ok(api.state.releases.length <= 1,scenario);
+    assert.ok(api.state.releases.flatMap(r=>r.assets).length <= 2,scenario);
+  }
+});
+
+test("MP05 pinned IDs still reject late duplicates, changed metadata and malformed create success", async () => {
+  for (const scenario of ["duplicate", "metadata", "invalid-id", "pinned-404"]) {
+    const api = github(), original = api.request, req = request(), plan = prepareRelease(req,manifest);
+    api.request = async (m,p,o) => {
+      if (scenario === "pinned-404" && m === "GET" && p === "/releases/1") throw fail(404);
+      const value = await original(m,p,o);
+      if (m === "POST" && p === "/releases") {
+        if (scenario === "duplicate") api.state.releases.push({...snapshot(api.state.releases[0]),id:2});
+        if (scenario === "metadata") api.state.releases[0].body += "changed";
+        if (scenario === "invalid-id") return {...value,id:null};
+      }
+      return value;
+    };
+    await assert.rejects(publishRelease(api,req,plan));
+    assert.equal(api.state.writes.length,2,scenario);
+  }
+});
+
+test("MP09 read-only verification refreshes stale global lists without changing output", async () => {
+  for (const mode of ["absent", "draft", "asset", "published-lookup"]) {
+    const api = github(), req = request(), plan = prepareRelease(req,manifest);
+    await publishRelease(api,req,plan);
+    const original = api.request;
+    let assetReads = 0, publishedReads = 0;
+    api.request = async (m,p,o) => {
+      const value = await original(m,p,o);
+      if (p.startsWith("/releases?")) return ["absent","published-lookup"].includes(mode) ? [] : value.map(r=>({...r,draft:true}));
+      if (mode === "published-lookup" && p.startsWith("/releases/tags/") && publishedReads++ < 3) throw fail(404);
+      if (mode === "asset" && p.startsWith("/releases/1/assets?") && assetReads++ < 3) return [];
+      return value;
+    };
+    await verifyRelease(api,req,plan);
+    assert.equal(api.state.writes.length,5,mode);
+  }
+});
+
+test("MP06/11 CLI publish preserves pinned completion instead of restarting unpinned discovery", async () => {
+  const api = github(), original = api.request, req = request();
+  api.request = async (m,p,o) => {
+    if (m === "GET" && p.startsWith("/releases/tags/") && api.state.releases.some(r=>!r.draft))
+      throw Error("CLI must retain verified pinned completion");
+    const value = await original(m,p,o);
+    if (m === "GET" && p.startsWith("/releases?") && api.state.releases.length) return [];
+    return value;
+  };
+  const reports = [];
+  await runCommand("publish", { INPUT_OPERATION:"publish",INPUT_VERSION:req.version,INPUT_COMMIT:sha,INPUT_NOTES:req.notes,
+    GITHUB_REF:"refs/heads/main",GITHUB_EVENT_NAME:"workflow_dispatch",SOURCE_ROOT:"/source",REPORT_FILE:"/report.json" },
+  {api,readFile:async()=>manifest,writeFile:async(p,body)=>reports.push(JSON.parse(body))});
+  assert.equal(reports[0].gates.metadata,"success");
+  assert.equal(api.state.writes.length,5);
 });
 
 test("MP07/08 final body, same S and family, mandatory current candidate digest", async () => {

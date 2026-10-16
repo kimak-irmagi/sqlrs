@@ -28,7 +28,8 @@ follow-up remains subject to repository approval rules.
 
 After reviewed implementation/CI, live #151 acceptance still requires two real
 successful publication runs for v0.6.0-rc.1 and v0.6.0 at
-the approved S (currently requested: 892a5007adf4d499fbfbd7861569861ff11c43a8),
+the approved S (bf161c7cb6bf54b1ae6f8614e452963a5ddad36f; explicitly approved
+after the initial source's ref-create permission denial),
 using GITHUB_TOKEN, including public-proxy/sumdb and clean
 consumer proof. No test creates/deletes a throwaway public tag. Do not close #151
 when the automation PR merges.
@@ -44,6 +45,19 @@ is implemented; other quality requirements and historical notes are preserved.
 
 ## Local implementation evidence (2026-10-16)
 
+### Approved read-after-write regression checks
+
+Use detached API snapshots. Independently delay release-list visibility, asset
+lists, the draft-to-published transition and published lookup. Assert exactly
+one draft, one upload per asset and one publication; pin the returned release ID.
+Also cover a resumed draft, repeated disappearance of previously observed assets,
+conflicting metadata/IDs during lag, malformed successful creation responses,
+lost write responses with a stale list, and permanently stale state. Each must
+either converge with exact bytes or stop without duplicate/replacement writes.
+409/422 without observed progress must not retry the same write. Exercise the
+actual CLI publish path so its final report cannot accidentally start another
+unpinned lookup. Existing lost-response and conflict tests stay intact.
+
 The policy, CLI, semantic workflow wiring and existing coverage/attestation/
 bundle suites ran together: 43 tests, 42 passed, 0 failed, 1 existing Windows
 symbolic-link test skipped because the host cannot create those links. Linux
@@ -55,3 +69,12 @@ ordinary CI enforces >=95% and retains that detailed report.
 This proves local automation behavior, not a new module release or a successful
 GitHub write. No tag/release/setting was changed; no runtime Go code was changed.
 Real RC/GA source, Go/race/fuzz/staged/public-consumer gates remain required.
+
+### Read-after-write correction (2026-10-17)
+
+All six new regression groups failed against the prior implementation before
+the fix. The complete suite now has 49 tests: 48 passed, 0 failed, the same
+existing Windows symlink skip. Detailed LCOV: policy 99.64%, CLI 100%, combined
+99.70% lines and 100% functions. The only uncovered line remains pagination
+exhaustion, not a new recovery requirement. No workflow, Go code or dependency
+was changed. #153's real CI passed; the partial RC run is not release acceptance.

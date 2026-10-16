@@ -36,6 +36,7 @@ test("CLI metadata and public report use only the explicit S manifest and exact 
   const api={ async request(method,route) {
     assert.equal(method,"GET");
     if (route.startsWith("/releases/tags/")) return release;
+    if (route === "/releases/1") return release;
     if (route.startsWith("/releases?")) return [release];
     if (route.startsWith("/git/ref/")) return {ref:`refs/tags/${req.tag}`,object:{type:"commit",sha}};
     if (route.startsWith("/rulesets?")) return [{id:1}];

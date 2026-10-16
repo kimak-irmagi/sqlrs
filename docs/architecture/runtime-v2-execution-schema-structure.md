@@ -452,13 +452,12 @@ automation H and library source S, explicit manual modes, external notes and
 verified-candidate promotion. The detailed contract/list were approved on
 2026-10-16; local implementation does not yet prove module publication.
 
-After the one-time automation change is approved, reviewed and merged,
-#151 is intended to publish
-v0.6.0-rc.1 and v0.6.0 from PR #152's existing merge commit
-892a5007adf4d499fbfbd7861569861ff11c43a8. This target is not yet proven publishable
-with the existing token; its first real RC publication qualifies the documented
-tag-first route using GITHUB_TOKEN, with explicit denial/partial-state handling.
-The existing target is retained, not replaced with the automation merge.
+Automation PR #153 and post-merge CI passed. After the initial ref-create denial,
+the user explicitly approved S=bf161c7cb6bf54b1ae6f8614e452963a5ddad36f for
+v0.6.0-rc.1 and v0.6.0. Against #152's original merge, only module README
+differs; Go source/tests, dependencies and vectors are unchanged. The RC tag
+already fixes this source. A read-after-write automation correction must retain
+it and resume the matching draft; no successful RC/GA release is claimed yet.
 No RELEASE-v0.6.0.md, new library commit
 or application integration is required. The unused version does not revive #140.
 Keep #151 open until the final public-proxy, checksum and clean-consumer checks

@@ -76,15 +76,19 @@ gantt
 
 ## Status (as of 2026-10-16)
 
-- **Implemented locally; automation PR and real publication pending
-  ([#151](https://github.com/kimak-irmagi/sqlrs/issues/151))**: reviewed manual
+- **Automation [PR #153](https://github.com/kimak-irmagi/sqlrs/pull/153) merged;
+  [post-merge CI passed](https://github.com/kimak-irmagi/sqlrs/actions/runs/38931729538);
+  final publication pending ([#151](https://github.com/kimak-irmagi/sqlrs/issues/151))**: reviewed manual
   validate/publish/verify tooling separates automation H from library source S,
   creates protected tags without per-version source-note PRs, resumes matching
   drafts and freshly verifies the same-source RC before final publication.
-  Local checks: 42 passed, 0 failed, 1 existing Windows symlink skip; new tooling
-  line coverage 99.66%. CI retains detailed coverage diagnostics. The requested
-  source remains #152's merge 892a5007adf4d499fbfbd7861569861ff11c43a8.
-  No new module tag/release is claimed; #151 stays open until live RC/GA gates pass.
+  Live RC publication exposed delayed GitHub lists causing duplicate drafts.
+  The correction pins release IDs and prevents repeated writes on stale views.
+  Local regression checks: 48 passed, 0 failed, 1 existing Windows symlink skip;
+  tooling line coverage 99.70%. CI retains detailed coverage diagnostics.
+  Explicitly approved source bf161c7cb6bf54b1ae6f8614e452963a5ddad36f has unchanged
+  Go code and is already fixed by the RC tag. #151 records live publication
+  evidence; it stays open until full RC/GA gates pass. No per-version roadmap PR.
 
 - **Merged in [PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152);
   [post-merge CI successful](https://github.com/kimak-irmagi/sqlrs/actions/runs/38886272700)
