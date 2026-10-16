@@ -63,11 +63,19 @@ Issue [#150](https://github.com/kimak-irmagi/sqlrs/issues/150) adds the approved
 to the existing module, not an execution service or a second resolver result.
 The [concrete API and component structure](../../../docs/architecture/runtime-v2-execution-schema-structure.md)
 were approved on 2026-10-16. Implementation and tests are available in
-[PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152). Local verification meets
-coverage requirements; the PR records CI/review evidence for the checked commit.
-Final acceptance applies to its latest commit, and no release contains the facade yet.
+[PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152), merged as 892a5007 with
+[successful post-merge CI](https://github.com/kimak-irmagi/sqlrs/actions/runs/38886272700).
+Local verification meets coverage requirements; no release contains the facade yet.
 The [first coverage follow-up](../../../docs/architecture/runtime-v2-execution-schema-coverage-plan.md)
 records the measured results and remaining CI caveats. Module publication is separately tracked by
 [#151](https://github.com/kimak-irmagi/sqlrs/issues/151). No existing release is
 claimed to contain the approved API. The [test inventory](../../../docs/architecture/runtime-v2-execution-schema-tests.md)
 was separately approved on 2026-10-16; tests precede implementation.
+
+For #151, direct publication of an already reviewed source commit was approved
+on 2026-10-16. The approved reusable
+[manual publication contract](../../../docs/architecture/runtime-go-module-publication.md)
+separates release automation from the tagged library source and accepts release
+notes outside that source. Its detailed structure/tests were approved and
+implemented locally; automation PR/CI and real v0.6.0 publication remain pending.
+No version-specific readiness PR is required.

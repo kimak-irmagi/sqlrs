@@ -179,8 +179,8 @@ reason.
 The first recommended external version is the published
 `backend/libs/runtime-go/v0.2.0`. Its exact commit was first published as
 immutable `v0.2.0-rc.N` tags and GA used the same commit after the RC passed
-#108/#124 tests and external-consumer gates. The dedicated workflow has two
-modes:
+#108/#124 tests and external-consumer gates. That historical publication used
+the following workflow paths, not the current invocation contract:
 
 - `workflow_dispatch` preflight verifies the proposed version/commit, clean tree,
   module path, unit/conformance/golden/race/fuzz-smoke/coverage/dependency gates,
@@ -193,6 +193,10 @@ modes:
 - post-publication verification runs `go list -m` and `go mod download` through
   the public proxy with bounded retry for propagation, and checks release notes
   naming schema `sqlrs.runtime.v2` and the source commit.
+
+New releases use the approved manual validate/publish/verify modes in the
+[module publication contract](runtime-go-module-publication.md), not the
+historical tag-push invocation above. Historical tags/workflow source are unchanged.
 
 Acceptance is staged rather than circular: PR/preflight proves the local clean
 consumer; the immutable RC tag proves public-proxy and checksum-database

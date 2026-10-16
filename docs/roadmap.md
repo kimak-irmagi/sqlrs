@@ -76,8 +76,18 @@ gantt
 
 ## Status (as of 2026-10-16)
 
-- **Implemented in [PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152);
-  final review/CI acceptance remains open
+- **Implemented locally; automation PR and real publication pending
+  ([#151](https://github.com/kimak-irmagi/sqlrs/issues/151))**: reviewed manual
+  validate/publish/verify tooling separates automation H from library source S,
+  creates protected tags without per-version source-note PRs, resumes matching
+  drafts and freshly verifies the same-source RC before final publication.
+  Local checks: 42 passed, 0 failed, 1 existing Windows symlink skip; new tooling
+  line coverage 99.66%. CI retains detailed coverage diagnostics. The requested
+  source remains #152's merge 892a5007adf4d499fbfbd7861569861ff11c43a8.
+  No new module tag/release is claimed; #151 stays open until live RC/GA gates pass.
+
+- **Merged in [PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152);
+  [post-merge CI successful](https://github.com/kimak-irmagi/sqlrs/actions/runs/38886272700)
   ([#150](https://github.com/kimak-irmagi/sqlrs/issues/150), production execution
   schema)**: the existing Runtime Go module now has the fixed execution schema,
   typed atomic Build/Parse and immutable canonical-tree inspection. Local full
@@ -86,7 +96,7 @@ gantt
   each new implementation file exceeds 95%. The initial PR commit `fc808d0`
   passed all 15 CI jobs, including Linux race and the three-OS Runtime matrix.
   Review corrections strengthen identity-change and cache-refresh assertions;
-  acceptance applies to the latest PR commit. This does not add an executor,
+  the reviewed changes are merged as 892a5007. This does not add an executor,
   source I/O or State-cache admission.
   Immutable module publication remains a separate
   [#151](https://github.com/kimak-irmagi/sqlrs/issues/151), not a completed release.

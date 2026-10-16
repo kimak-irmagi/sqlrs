@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateExecutionCoverage } from "./check-runtime-execution-coverage.mjs";
+import { evaluateExecutionCoverage, discoverNewFiles } from "./check-runtime-execution-coverage.mjs";
 
 // ES28: exact statement-weighted gates, independently of displayed rounding.
 const modulePath = "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go/";
@@ -57,4 +57,18 @@ test("malformed, conflicting and unmeasurable data cannot become green", () => {
     assert.throws(() => evaluateExecutionCoverage(text, [added]));
   }
   assert.throws(() => evaluateExecutionCoverage(profile(block(added, 1, 20, 1)), []));
+});
+
+test("MP02 coverage discovery explicitly uses the published source root, not harness H", () => {
+  const calls = [];
+  const git = (args, options) => {
+    calls.push([args,options.cwd]);
+    return args[0] === "diff" ? "backend/libs/runtime-go/new.go\n" : "backend/libs/runtime-go/local.go\nbackend/libs/runtime-go/local_test.go\n";
+  };
+  assert.deepEqual(discoverNewFiles("review-base", "/explicit/source-S", git).sort(), [
+    "canonical_value_inspect_v1.go", "local.go", "new.go", "schemas/sqlrs/execution.go", "schemas/sqlrs/execution_validation.go", "schemas/sqlrs/execution_value.go",
+  ].sort());
+  assert.ok(calls.every(([,cwd]) => cwd === "/explicit/source-S"));
+  assert.ok(calls.some(([args]) => args.includes("review-base")));
+  assert.ok(!discoverNewFiles(undefined,"/explicit/source-S",git).includes("new.go"));
 });

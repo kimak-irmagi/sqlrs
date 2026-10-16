@@ -3,90 +3,95 @@ name: release-runtime-go
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: Validate only, publish, or verify an existing publication
+        type: choice
+        options: [validate, publish, verify]
+        default: validate
+        required: true
       version:
-        description: Nested module version (v0.MINOR.PATCH-rc.N or v0.MINOR.PATCH)
+        description: Exact nested module version (v0.MINOR.PATCH[-rc.N])
         required: true
       commit:
-        description: Exact source commit to validate
+        description: Exact reviewed main source SHA (not the automation revision)
         required: true
-      verify_published:
-        description: Re-verify an existing immutable tag after a harness-only failure
+      notes:
+        description: Candidate Markdown, required only for candidate validate/publish
         required: false
-        type: boolean
-        default: false
-  push:
-    tags:
-      - "backend/libs/runtime-go/v*"
+      candidate_version:
+        description: Same-source RC version, required for every final operation
+        required: false
 
 permissions:
   contents: read
 
+concurrency:
+  group: runtime-go-module-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  INPUT_OPERATION: ${{ inputs.operation }}
+  INPUT_VERSION: ${{ inputs.version }}
+  INPUT_COMMIT: ${{ inputs.commit }}
+  INPUT_NOTES: ${{ inputs.notes }}
+  INPUT_CANDIDATE_VERSION: ${{ inputs.candidate_version }}
+  GH_TOKEN: ${{ github.token }}
+  SOURCE_ROOT: source
+
 jobs:
   validate:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
     outputs:
-      version: ${{ steps.version.outputs.value }}
-      commit: ${{ steps.version.outputs.commit }}
-      notes_file: ${{ steps.version.outputs.notes_file }}
+      version: ${{ steps.inputs.outputs.version }}
+      commit: ${{ steps.inputs.outputs.commit }}
+      is_rc: ${{ steps.inputs.outputs.is_rc }}
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.commit || github.ref }}
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: backend/libs/runtime-go/go.mod
-          cache: false
+          ref: ${{ github.sha }}
+          path: automation
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
-      - id: version
-        shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          INPUT_VERSION: ${{ inputs.version }}
-          INPUT_COMMIT: ${{ inputs.commit }}
-          REF_NAME: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
-            version="$INPUT_VERSION"
-            commit="$INPUT_COMMIT"
-          else
-            [[ "$REF_NAME" == backend/libs/runtime-go/v* ]]
-            version="${REF_NAME#backend/libs/runtime-go/}"
-            commit="$SHA"
-          fi
-          [[ "$version" =~ ^v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]]
-          base_version="${version%%-rc.*}"
-          notes_file="backend/libs/runtime-go/RELEASE-${base_version}.md"
-          test -f "$notes_file"
-          test "$(git rev-parse "$commit^{commit}")" = "$(git rev-parse HEAD^{commit})"
-          git fetch --no-tags origin main:refs/remotes/origin/main
-          git merge-base --is-ancestor "$commit" origin/main
-          test "$(head -n 1 backend/libs/runtime-go/go.mod)" = "module github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
-          grep -Fq 'retract v0.1.0' backend/libs/runtime-go/go.mod
-          test -z "$(git status --porcelain)"
-          echo "value=$version" >> "$GITHUB_OUTPUT"
-          echo "commit=$commit" >> "$GITHUB_OUTPUT"
-          echo "notes_file=$notes_file" >> "$GITHUB_OUTPUT"
-      - name: Verify protected nested-tag policy before publication
-        env:
-          GH_TOKEN: ${{ github.token }}
+          node-version: "24"
+      - id: inputs
+        run: node automation/scripts/maintenance/runtime-go-release-cli.mjs inputs
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.commit }}
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: source/backend/libs/runtime-go/go.mod
+          cache: false
+      - name: Verify source ancestry and module contract
         shell: bash
         run: |
           set -euo pipefail
-          matched=false
-          for id in $(gh api "repos/${GITHUB_REPOSITORY}/rulesets" --jq '.[] | select(.enforcement == "active") | .id'); do
-            rule=$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/$id")
-            protects=$(jq -r '[.rules[].type] | (index("deletion") != null and index("update") != null)' <<<"$rule")
-            matches=$(jq -r '[.conditions.ref_name.include[]?] | any(. == "refs/tags/backend/libs/runtime-go/v*" or . == "~ALL")' <<<"$rule")
-            if [[ "$protects" == true && "$matches" == true ]]; then matched=true; fi
-          done
-          [[ "$matched" == true ]]
+          test "$(git -C source rev-parse HEAD)" = "$INPUT_COMMIT"
+          git -C source fetch --no-tags origin main:refs/remotes/origin/main
+          git -C source merge-base --is-ancestor "$INPUT_COMMIT" origin/main
+          test "$(head -n 1 source/backend/libs/runtime-go/go.mod)" = "module github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go"
+          grep -Fq 'retract v0.1.0' source/backend/libs/runtime-go/go.mod
+          test -z "$(git -C source status --porcelain)"
+      - name: Verify protected nested-tag policy before publication and source CI
+        run: node automation/scripts/maintenance/runtime-go-release-cli.mjs source
+      - name: Test trusted automation H
+        working-directory: automation
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@10.26.2 --activate
+          pnpm install --frozen-lockfile --ignore-scripts
+          node --test scripts/maintenance/runtime-go-release*.test.mjs
       - name: Unit, coverage, race, and fuzz smoke
-        working-directory: backend/libs/runtime-go
+        working-directory: source/backend/libs/runtime-go
         shell: bash
         run: |
           set -euo pipefail
@@ -109,32 +114,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test scripts/maintenance/check-runtime-execution-coverage.test.mjs
-          node scripts/maintenance/check-runtime-execution-coverage.mjs backend/libs/runtime-go/coverage-runtime-all.out | tee coverage-runtime-execution.json
-      - name: Retain execution-schema coverage diagnostics
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: runtime-go-release-execution-coverage
-          path: |
-            backend/libs/runtime-go/coverage-runtime-all.out
-            coverage-runtime-execution.json
-          if-no-files-found: warn
+          node --test automation/scripts/maintenance/check-runtime-execution-coverage.test.mjs
+          node automation/scripts/maintenance/check-runtime-execution-coverage.mjs source/backend/libs/runtime-go/coverage-runtime-all.out source | tee "$RUNNER_TEMP/coverage-runtime-execution.json"
       - name: Verify independent goldens and dependencies
-        env:
-          VERSION: ${{ steps.version.outputs.value }}
         shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          node scripts/maintenance/verify-runtime-v2-golden.mjs backend/libs/runtime-go/testdata/golden
-          node scripts/maintenance/verify-runtime-v2-extension-golden.mjs backend/libs/runtime-go/testdata/extension-golden.json
-          node scripts/maintenance/verify-runtime-v2-canonical-bundle.mjs
-          node --test scripts/maintenance/verify-runtime-v2-canonical-bundle.test.mjs scripts/maintenance/check-runtime-v2-bundle-policy.test.mjs scripts/maintenance/create-runtime-v2-attestation.test.mjs
-          baseline_tag=$(git tag --list 'backend/libs/runtime-go/v*' --sort=-v:refname | grep -Fxv "backend/libs/runtime-go/$VERSION" | head -n 1 || true)
+          node automation/scripts/maintenance/verify-runtime-v2-golden.mjs source/backend/libs/runtime-go/testdata/golden
+          node automation/scripts/maintenance/verify-runtime-v2-extension-golden.mjs source/backend/libs/runtime-go/testdata/extension-golden.json
+          node automation/scripts/maintenance/verify-runtime-v2-canonical-bundle.mjs source/backend/libs/runtime-go/conformance/canonical-v1
+          node --test automation/scripts/maintenance/verify-runtime-v2-canonical-bundle.test.mjs automation/scripts/maintenance/check-runtime-v2-bundle-policy.test.mjs automation/scripts/maintenance/create-runtime-v2-attestation.test.mjs
+          baseline_tag=$(git -C source tag --merged "$INPUT_COMMIT" --list 'backend/libs/runtime-go/v*' --sort=-v:refname | grep -Fxv "backend/libs/runtime-go/$VERSION" | head -n 1 || true)
           if [[ -n "$baseline_tag" ]]; then
-            node scripts/maintenance/check-runtime-v2-bundle-policy.mjs "$baseline_tag"
+            (cd source && node "$GITHUB_WORKSPACE/automation/scripts/maintenance/check-runtime-v2-bundle-policy.mjs" "$baseline_tag")
           fi
-          unexpected="$(cd backend/libs/runtime-go && go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./... | grep -v '^$' | grep -v '^github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go\($\|/\)' || true)"
+          unexpected="$(cd source/backend/libs/runtime-go && go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./... | grep -v '^$' | grep -v '^github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go\($\|/\)' || true)"
           test -z "$unexpected"
       - name: Source-tree clean consumer through staged proxy
         shell: bash
@@ -143,127 +139,138 @@ jobs:
           temp=$(mktemp -d)
           trap 'rm -rf "$temp"' EXIT
           staged_version=v0.0.0-pr.0
-          go run ./scripts/maintenance/stage-runtime-module.go backend/libs/runtime-go "$temp/proxy" "$staged_version"
+          go run ./automation/scripts/maintenance/stage-runtime-module.go source/backend/libs/runtime-go "$temp/proxy" "$staged_version"
           mkdir "$temp/consumer"
-          cp test/runtime-v2-consumer/*_test.go "$temp/consumer/"
+          cp source/test/runtime-v2-consumer/*_test.go "$temp/consumer/"
           cd "$temp/consumer"
           go mod init example.invalid/runtime-v2-consumer
           GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go get "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@$staged_version"
           GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go test -count=1 ./...
+      - name: Retain source diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-go-source-${{ github.run_attempt }}
+          path: |
+            source/backend/libs/runtime-go/coverage-runtime-all.out
+            ${{ runner.temp }}/coverage-runtime-execution.json
+            ${{ runner.temp }}/runtime-publication-*.json
+          if-no-files-found: warn
 
-  publish-and-verify:
-    if: github.event_name == 'push' || inputs.verify_published
+  verify-candidate:
     needs: validate
+    if: needs.validate.outputs.is_rc == 'false'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      body_digest: ${{ steps.consumer.outputs.body-digest }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.commit }}
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: source/backend/libs/runtime-go/go.mod
+          cache: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - uses: ./automation/.github/actions/runtime-go-public-consumer
+        id: consumer
+        with:
+          version: ${{ inputs.candidate_version }}
+          commit: ${{ inputs.commit }}
+          source-root: ${{ github.workspace }}/source
+          automation-root: ${{ github.workspace }}/automation
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-go-candidate-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/runtime-*.json
+          if-no-files-found: warn
+
+  publish:
+    needs: [validate, verify-candidate]
+    if: >-
+      ${{ always() && needs.validate.result == 'success' &&
+      inputs.operation == 'publish' &&
+      ((needs.validate.outputs.is_rc == 'true' && needs['verify-candidate'].result == 'skipped') ||
+      (needs.validate.outputs.is_rc == 'false' && needs['verify-candidate'].result == 'success')) }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-          ref: ${{ needs.validate.outputs.commit }}
+          ref: ${{ github.sha }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.commit }}
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Publish matching immutable coordinate
+        env:
+          CANDIDATE_DIGEST: ${{ needs['verify-candidate'].outputs.body_digest }}
+        run: node automation/scripts/maintenance/runtime-go-release-cli.mjs publish
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-go-publish-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/runtime-publication-*.json
+          if-no-files-found: warn
+
+  verify-target:
+    needs: [validate, verify-candidate, publish]
+    if: >-
+      ${{ always() && needs.validate.result == 'success' &&
+      ((needs.validate.outputs.is_rc == 'true' && needs['verify-candidate'].result == 'skipped') ||
+      (needs.validate.outputs.is_rc == 'false' && needs['verify-candidate'].result == 'success')) &&
+      ((inputs.operation == 'publish' && needs.publish.result == 'success') ||
+      (inputs.operation == 'verify' && needs.publish.result == 'skipped')) }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.commit }}
+          path: source
+          persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          go-version-file: backend/libs/runtime-go/go.mod
+          go-version-file: source/backend/libs/runtime-go/go.mod
           cache: false
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
-      - name: Verify protected nested-tag policy
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          matched=false
-          for id in $(gh api "repos/${GITHUB_REPOSITORY}/rulesets" --jq '.[] | select(.enforcement == "active") | .id'); do
-            rule=$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/$id")
-            protects=$(jq -r '[.rules[].type] | (index("deletion") != null and index("update") != null)' <<<"$rule")
-            matches=$(jq -r '[.conditions.ref_name.include[]?] | any(. == "refs/tags/backend/libs/runtime-go/v*" or . == "~ALL")' <<<"$rule")
-            if [[ "$protects" == true && "$matches" == true ]]; then matched=true; fi
-          done
-          [[ "$matched" == true ]]
-      - name: Create immutable release metadata
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.validate.outputs.version }}
-          COMMIT: ${{ needs.validate.outputs.commit }}
-          NOTES_FILE: ${{ needs.validate.outputs.notes_file }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          tag="backend/libs/runtime-go/$VERSION"
-          if [[ "$VERSION" != *-rc.* ]]; then
-            mapfile -t rc_tags < <(git tag --list "backend/libs/runtime-go/${VERSION}-rc.*")
-            test "${#rc_tags[@]}" -gt 0
-            matching_rc=false
-            for rc_tag in "${rc_tags[@]}"; do
-              if [[ "$(git rev-list -n 1 "$rc_tag")" == "$COMMIT" ]]; then
-                matching_rc=true
-                break
-              fi
-            done
-            [[ "$matching_rc" == true ]]
-          fi
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
-            gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null
-          else
-            gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "Runtime Go module $VERSION" --notes-file "$NOTES_FILE" $([[ "$VERSION" == *-rc.* ]] && echo --prerelease)
-          fi
-          attest_dir=$(mktemp -d)
-          asset=$(node scripts/maintenance/create-runtime-v2-attestation.mjs "$attest_dir" "$VERSION" "$COMMIT" backend/libs/runtime-go/conformance/canonical-v1/manifest.sha256)
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
-            download=$(mktemp -d)
-            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$download" --pattern "$asset" --pattern "$asset.sha256"
-            cmp "$attest_dir/$asset" "$download/$asset"
-            cmp "$attest_dir/$asset.sha256" "$download/$asset.sha256"
-          else
-            gh release upload "$tag" --repo "$GITHUB_REPOSITORY" "$attest_dir/$asset" "$attest_dir/$asset.sha256"
-          fi
-      - name: Verify public proxy and checksum database
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.validate.outputs.version }}
-          COMMIT: ${{ needs.validate.outputs.commit }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          module=github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go
-          temp=$(mktemp -d)
-          trap 'rm -rf "$temp"' EXIT
-          cd "$temp"
-          go mod init example.invalid/runtime-v2-consumer
-          for attempt in {1..20}; do
-            if GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go mod download -json "$module@$VERSION" >download.json; then break; fi
-            test "$attempt" -lt 20
-            sleep 15
-          done
-          jq -e --arg version "$VERSION" '
-            .Version == $version and
-            (.Sum | startswith("h1:")) and
-            (.GoModSum | startswith("h1:")) and
-            (.Zip | length > 0) and
-            (.GoMod | length > 0)
-          ' download.json >/dev/null
-          GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go get "$module@$VERSION"
-          cp "$GITHUB_WORKSPACE/test/runtime-v2-consumer/"*_test.go .
-          GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go test ./...
-          GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -m all | grep -Fq "$module $VERSION"
-          notes=$(gh release view "backend/libs/runtime-go/$VERSION" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
-          for marker in \
-            'published `sqlrs.runtime.v2` v0.2.0 contract' \
-            'sqlrs.runtime.v2.canonical.v1' \
-            'sqlrs.runtime.v2.aliases.v1' \
-            'sqlrs.runtime.v2.alias-expansion-trace.v1' \
-            'sqlrs.resolution-cache.v1' \
-            'sqlrs.runtime.conformance.bundle-schema.v1' \
-            'runtime-v2-canonical-v1.1' \
-            'v0.1.1-rc.6'; do
-            grep -Fq "$marker" <<<"$notes"
-          done
-          assets=$(gh release view "backend/libs/runtime-go/$VERSION" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name | select(test("^runtime-go-.*\\.attestation\\.json(\\.sha256)?$"))] | length')
-          test "$assets" -eq 2
-          if [[ "$VERSION" != *-rc.* ]]; then
-            GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -m -retracted -json "$module@v0.1.0" \
-              | jq -e '.Retracted | length > 0' >/dev/null
-          fi
+          node-version: "24"
+      - uses: ./automation/.github/actions/runtime-go-public-consumer
+        with:
+          version: ${{ inputs.version }}
+          commit: ${{ inputs.commit }}
+          candidate-version: ${{ inputs.candidate_version }}
+          source-root: ${{ github.workspace }}/source
+          automation-root: ${{ github.workspace }}/automation
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-go-public-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/runtime-*.json
+          if-no-files-found: warn

@@ -441,3 +441,28 @@ The implementation and checks are in PR #152, not an immutable module release.
 Publication remains #151; [review corrections and repeat review](runtime-v2-execution-schema-review.md)
 record this design's limits. The [test inventory](runtime-v2-execution-schema-tests.md)
 was separately approved on 2026-10-16.
+
+## 10. Proposed module publication (#151)
+
+The user approved direct publication of an already reviewed source commit on
+2026-10-16, without a version-specific preparation PR. The earlier metadata-only
+PR sequence is withdrawn. The reusable [publication contract](runtime-go-module-publication.md)
+and [automation checks](runtime-go-module-publication-tests.md) define separate
+automation H and library source S, explicit manual modes, external notes and
+verified-candidate promotion. The detailed contract/list were approved on
+2026-10-16; local implementation does not yet prove module publication.
+
+After the one-time automation change is approved, reviewed and merged,
+#151 is intended to publish
+v0.6.0-rc.1 and v0.6.0 from PR #152's existing merge commit
+892a5007adf4d499fbfbd7861569861ff11c43a8. This target is not yet proven publishable
+with the existing token; its first real RC publication qualifies the documented
+tag-first route using GITHUB_TOKEN, with explicit denial/partial-state handling.
+The existing target is retained, not replaced with the automation merge.
+No RELEASE-v0.6.0.md, new library commit
+or application integration is required. The unused version does not revive #140.
+Keep #151 open until the final public-proxy, checksum and clean-consumer checks
+pass; record the immutable version/source and run links in its GitHub report.
+No version-specific roadmap PR is a release gate. See the
+[ADR](../adr/2026-10-16-runtime-go-execution-schema-publication.md) and
+[feature publication checks](runtime-v2-execution-schema-tests.md#publication-checks-151-proposed).
