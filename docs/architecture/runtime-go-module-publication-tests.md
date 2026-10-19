@@ -3,7 +3,11 @@
 Status: this inventory and the detailed [contract](runtime-go-module-publication.md)
 were approved by @evilguest on 2026-10-16, including narrow replacement of the
 obsolete existing-test expectations below. Local execution is recorded below;
-live publication is pending. Existing Go tests/vectors and coverage gates stay intact.
+RC and final v0.6.0 publication subsequently completed; live evidence is in
+[#151](https://github.com/kimak-irmagi/sqlrs/issues/151). The original acceptance
+requirements below are retained as historical criteria, not pending work on
+that version. Future releases reuse the same gates. Existing Go tests/vectors
+and coverage gates stay intact.
 
 | ID | Evidence |
 | --- | --- |

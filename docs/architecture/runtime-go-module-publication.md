@@ -2,8 +2,12 @@
 
 Status: direction, detailed structure and MP01-MP12 checks approved by @evilguest
 on 2026-10-16 for #151. Automation PR #153 and its post-merge CI passed;
-RC publication exposed a read-after-write defect, corrected below. Final
-publication remains pending. This replaces the unapproved release-readiness
+RC publication exposed a read-after-write defect, corrected below. RC and final
+v0.6.0 publication completed; evidence is in [#151](https://github.com/kimak-irmagi/sqlrs/issues/151).
+The historical #151 acceptance section below records that version's source and
+gates; future versions, including #157, select their own reviewed source and
+reuse this workflow without a version-only PR or separate worktree.
+This replaces the unapproved release-readiness
 PR proposal, not the module's API or immutable-release policy.
 
 ## Operator contract

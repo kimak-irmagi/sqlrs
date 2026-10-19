@@ -2,8 +2,13 @@
 
 Entry points for Taidon architecture and service design.
 
+- [Tool-neutral execution transforms](runtime-v2-execution-transform.md) -
+  approved #156 API and component structure; implementation not yet available.
+- [Execution-transform checks](runtime-v2-execution-transform-tests.md) -
+  proposed test inventory; separate approval pending, publication is #157.
+
 - [Runtime Go module publication](runtime-go-module-publication.md) -
-  approved direct-source manual contract; implemented locally, release pending.
+  approved direct-source manual contract; v0.6.0 publication completed in #151.
 - [Module publication checks](runtime-go-module-publication-tests.md) -
   approved safety/recovery checks and local verification evidence for #151.
 
@@ -28,7 +33,7 @@ Entry points for Taidon architecture and service design.
   no execution service, new resolver result or canonical encoding.
 - [Runtime v2 execution-schema API](runtime-v2-execution-schema-structure.md) -
   approved typed Build/Parse API, schema, read-only tree access and validation;
-  test inventory separately approved, publication remains #151.
+  test inventory separately approved, published in v0.6.0 through #151.
 - [Execution-schema design review](runtime-v2-execution-schema-review.md) -
   corrected findings, checked scenarios and remaining implementation obligations.
 - [Execution-schema test inventory](runtime-v2-execution-schema-tests.md) -

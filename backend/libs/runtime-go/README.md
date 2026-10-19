@@ -65,11 +65,10 @@ The [concrete API and component structure](../../../docs/architecture/runtime-v2
 were approved on 2026-10-16. Implementation and tests are available in
 [PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152), merged as 892a5007 with
 [successful post-merge CI](https://github.com/kimak-irmagi/sqlrs/actions/runs/38886272700).
-Local verification meets coverage requirements; no release contains the facade yet.
+The facade is published in [v0.6.0](https://github.com/kimak-irmagi/sqlrs/releases/tag/backend/libs/runtime-go/v0.6.0),
+with completed publication evidence in [#151](https://github.com/kimak-irmagi/sqlrs/issues/151).
 The [first coverage follow-up](../../../docs/architecture/runtime-v2-execution-schema-coverage-plan.md)
-records the measured results and remaining CI caveats. Module publication is separately tracked by
-[#151](https://github.com/kimak-irmagi/sqlrs/issues/151). No existing release is
-claimed to contain the approved API. The [test inventory](../../../docs/architecture/runtime-v2-execution-schema-tests.md)
+records historical measured results and CI follow-up. The [test inventory](../../../docs/architecture/runtime-v2-execution-schema-tests.md)
 was separately approved on 2026-10-16; tests precede implementation.
 
 For #151, direct publication of an already reviewed source commit was approved
@@ -77,5 +76,17 @@ on 2026-10-16. The approved reusable
 [manual publication contract](../../../docs/architecture/runtime-go-module-publication.md)
 separates release automation from the tagged library source and accepts release
 notes outside that source. Its detailed structure/tests were approved and
-implemented locally; automation PR/CI and real v0.6.0 publication remain pending.
+implemented and verified by the completed v0.6.0 RC/final publication.
 No version-specific readiness PR is required.
+
+Issue [#156](https://github.com/kimak-irmagi/sqlrs/issues/156) adds the approved
+[tool-neutral execution-transform API](../../../docs/architecture/runtime-v2-execution-transform.md):
+one atomic `BuildExecutionTransform` using existing declaration, execution/input
+bindings and composition result types. It does not reinterpret the PSQL schema,
+add dummy SQL, or create another command/result representation. The approved
+[tests](../../../docs/architecture/runtime-v2-execution-transform-tests.md),
+implementation and standalone-consumer checks pass locally; source CI and merge
+remain separate gates.
+No released version contains this new function yet; its immutable publication
+is separate in [#157](https://github.com/kimak-irmagi/sqlrs/issues/157), through
+the existing release workflow without a version-only PR or separate worktree.
