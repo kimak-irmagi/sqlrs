@@ -12,7 +12,8 @@ canonical encodings. Implementation and tests are in
 [PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152); publication completed
 in v0.6.0 through #151. The approved #156
 [tool-neutral transform](runtime-v2-execution-transform.md) reuses these existing
-canonical composition/result contracts; it is not implemented or released yet.
+canonical composition/result contracts. Its implementation and tests pass
+locally; PR/CI acceptance and the separate #157 publication remain gates.
 
 ## Module layout
 
