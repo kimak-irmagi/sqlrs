@@ -5,7 +5,10 @@ Status: **API and component structure approved** by @evilguest, 2026-10-16,
 [interaction boundary](runtime-v2-execution-schema-flow.md). The test inventory
 was separately approved on 2026-10-16. Implementation and tests are available in
 [PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152); final review/CI acceptance
-applies to its latest commit. Immutable module publication remains separate in #151.
+applies to its latest commit. Immutable publication completed in v0.6.0 through
+[#151](https://github.com/kimak-irmagi/sqlrs/issues/151). The approved
+[tool-neutral transform facade](runtime-v2-execution-transform.md) in #156 binds
+this unchanged execution identity; its implementation/publication is separate.
 
 ## 1. Ownership and scope
 

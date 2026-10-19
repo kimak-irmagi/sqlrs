@@ -74,24 +74,26 @@ gantt
 
 ---
 
-## Status (as of 2026-10-16)
+## Status (as of 2026-10-19)
 
-- **Automation [PR #153](https://github.com/kimak-irmagi/sqlrs/pull/153) merged;
-  [post-merge CI passed](https://github.com/kimak-irmagi/sqlrs/actions/runs/38931729538);
-  final publication pending ([#151](https://github.com/kimak-irmagi/sqlrs/issues/151))**: reviewed manual
-  validate/publish/verify tooling separates automation H from library source S,
-  creates protected tags without per-version source-note PRs, resumes matching
-  drafts and freshly verifies the same-source RC before final publication.
-  Live RC publication exposed delayed GitHub lists causing duplicate drafts.
-  The correction pins release IDs and prevents repeated writes on stale views.
-  Local regression checks: 48 passed, 0 failed, 1 existing Windows symlink skip;
-  tooling line coverage 99.70%. CI retains detailed coverage diagnostics.
-  Explicitly approved source bf161c7cb6bf54b1ae6f8614e452963a5ddad36f has unchanged
-  Go code and is already fixed by the RC tag. #151 records live publication
-  evidence; it stays open until full RC/GA gates pass. No per-version roadmap PR.
-  [The RC run passed](https://github.com/kimak-irmagi/sqlrs/actions/runs/38938522422),
-  including public consumption. A GA-only inherited-input failure is corrected
-  in the CLI test fixture, without changing production validation, S or the RC.
+- **Implemented locally; CI/merge pending
+  ([#156](https://github.com/kimak-irmagi/sqlrs/issues/156), tool-neutral transform)**:
+  the atomic production `schemas/sqlrs.BuildExecutionTransform` binds the existing
+  execution identity and ordered inputs without dummy SQL or another command/result.
+  Full module, static analysis, independent vectors and the complete staged
+  consumer with mandatory file isolation pass locally. New-code coverage is
+  33/33 (100%); module coverage is 4991/5208 (95.83%). Existing Go code, vectors
+  and workflows are unchanged. See [tests and evidence](architecture/runtime-v2-execution-transform-tests.md).
+  Immutable RC/GA publication remains separate in
+  [#157](https://github.com/kimak-irmagi/sqlrs/issues/157), using the existing
+  workflow without a version-only PR or separate publication worktree.
+
+- **Published [Runtime Go v0.6.0](https://github.com/kimak-irmagi/sqlrs/releases/tag/backend/libs/runtime-go/v0.6.0)
+  ([#151](https://github.com/kimak-irmagi/sqlrs/issues/151))**: RC/GA use reviewed
+  source `bf161c7cb6bf54b1ae6f8614e452963a5ddad36f`. The existing manual workflow
+  separates automation H from library source S and verifies public consumption.
+  [Final publication passed](https://github.com/kimak-irmagi/sqlrs/actions/runs/38940269083);
+  the release was published on 2026-10-16. This does not publish #156.
 
 - **Merged in [PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152);
   [post-merge CI successful](https://github.com/kimak-irmagi/sqlrs/actions/runs/38886272700)
@@ -105,8 +107,8 @@ gantt
   Review corrections strengthen identity-change and cache-refresh assertions;
   the reviewed changes are merged as 892a5007. This does not add an executor,
   source I/O or State-cache admission.
-  Immutable module publication remains a separate
-  [#151](https://github.com/kimak-irmagi/sqlrs/issues/151), not a completed release.
+  Its separate immutable publication
+  [#151](https://github.com/kimak-irmagi/sqlrs/issues/151) completed in v0.6.0.
 
 - **Released in [Runtime Go v0.5.0](https://github.com/kimak-irmagi/sqlrs/releases/tag/backend/libs/runtime-go/v0.5.0)
   ([PR #148](https://github.com/kimak-irmagi/sqlrs/pull/148),

@@ -9,8 +9,10 @@ is approved for #150. Its [concrete API](runtime-v2-execution-schema-structure.m
 was approved on 2026-10-16, including read-only canonical-tree access. It does not
 turn the #138 conformance schema into a production schema or change existing
 canonical encodings. Implementation and tests are in
-[PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152); immutable module
-publication remains separately tracked by #151.
+[PR #152](https://github.com/kimak-irmagi/sqlrs/pull/152); publication completed
+in v0.6.0 through #151. The approved #156
+[tool-neutral transform](runtime-v2-execution-transform.md) reuses these existing
+canonical composition/result contracts; it is not implemented or released yet.
 
 ## Module layout
 
