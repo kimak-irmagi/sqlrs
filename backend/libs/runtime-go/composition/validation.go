@@ -66,7 +66,7 @@ func decodeStrictJSON(data []byte, target any, maximum int, sourceID, pointer st
 	if err := decoder.Decode(target); err != nil {
 		var validation *runtimev2.ValidationError
 		if errors.As(err, &validation) {
-			return invalid(CodeInvalidDocument, sourceID, pointer, err)
+			return declarationError(err, sourceID, pointer)
 		}
 		return invalid(CodeInvalidDocument, sourceID, pointer, nil)
 	}
@@ -74,6 +74,18 @@ func decodeStrictJSON(data []byte, target any, maximum int, sourceID, pointer st
 		return invalid(CodeInvalidDocument, sourceID, pointer, nil)
 	}
 	return nil
+}
+
+// declarationError preserves leaf/shape errors while recognizing the new
+// whole-declaration budget. Any oversized child makes its containing source
+// oversized too; its logical location is the source root, not a field pointer.
+// Requirements: runtime-go-declaration-limits.md.
+func declarationError(err error, sourceID, pointer string) error {
+	var validation *runtimev2.ValidationError
+	if errors.As(err, &validation) && validation.Code == runtimev2.CodeTooLarge && validation.Path == "$" {
+		return invalid(CodeExpansionTooLarge, sourceID, "", err)
+	}
+	return invalid(CodeInvalidDocument, sourceID, pointer, err)
 }
 
 func rejectDuplicateMembers(data []byte) error {

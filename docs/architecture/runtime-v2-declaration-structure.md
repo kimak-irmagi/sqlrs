@@ -83,6 +83,14 @@ implicit conversion between roles. Provider meaning is selected by the tuple
 rules; field values use existing value/count limits and are sorted uniquely by
 name.
 
+Approved #159 amendment (2026-10-20), implemented locally but not yet published:
+[independent declaration-value limits](runtime-go-declaration-limits.md) give
+these three unresolved roles 256 KiB per value while retaining 256 fields and
+4 MiB whole JSON. Diagnostic/resolved/canonical bounds do not change. The linked
+structure covers complete nested documents; historical v0.2.0 bounds above
+describe that release, not this local increase. Verification is recorded in the
+linked test inventory; publication is separate #160.
+
 Resolved providers return:
 
 ```go

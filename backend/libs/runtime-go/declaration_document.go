@@ -12,7 +12,11 @@ type TransformDeclarationDocument struct{ declaration *TransformDeclaration }
 
 // NewFactoryDeclarationDocument validates and snapshots a declaration.
 func NewFactoryDeclarationDocument(value FactoryDeclaration) (FactoryDeclarationDocument, error) {
-	if err := validateFactoryDeclaration(&value); err != nil {
+	if err := validateFactoryDeclarationInput(&value); err != nil {
+		return FactoryDeclarationDocument{}, err
+	}
+	budget := declarationJSONBudget{limit: MaxJSONBytes}
+	if err := budget.document(factoryDeclarationWire(&value)); err != nil {
 		return FactoryDeclarationDocument{}, err
 	}
 	return FactoryDeclarationDocument{declaration: copyFactoryDeclaration(&value)}, nil
@@ -20,7 +24,11 @@ func NewFactoryDeclarationDocument(value FactoryDeclaration) (FactoryDeclaration
 
 // NewTransformDeclarationDocument validates and snapshots a declaration.
 func NewTransformDeclarationDocument(value TransformDeclaration) (TransformDeclarationDocument, error) {
-	if err := validateTransformDeclaration(&value); err != nil {
+	if err := validateTransformDeclarationInput(&value); err != nil {
+		return TransformDeclarationDocument{}, err
+	}
+	budget := declarationJSONBudget{limit: MaxJSONBytes}
+	if err := budget.document(transformDeclarationWire(&value)); err != nil {
 		return TransformDeclarationDocument{}, err
 	}
 	return TransformDeclarationDocument{declaration: copyTransformDeclaration(&value)}, nil
@@ -56,7 +64,11 @@ func (d FactoryDeclarationDocument) MarshalJSON() ([]byte, error) {
 		return nil, invalid(CodeInvalidShape, "$")
 	}
 	version := SchemaVersion
-	return json.Marshal(factoryDeclarationDocumentWire{&version, copyFactoryDeclaration(d.declaration)})
+	budget := declarationJSONBudget{limit: MaxJSONBytes}
+	if err := budget.document(factoryDeclarationWire(d.declaration)); err != nil {
+		return nil, err
+	}
+	return json.Marshal(factoryDeclarationDocumentWire{&version, d.declaration})
 }
 func (d *FactoryDeclarationDocument) UnmarshalJSON(raw []byte) error {
 	if d == nil {
@@ -87,7 +99,11 @@ func (d TransformDeclarationDocument) MarshalJSON() ([]byte, error) {
 		return nil, invalid(CodeInvalidShape, "$")
 	}
 	version := SchemaVersion
-	return json.Marshal(transformDeclarationDocumentWire{&version, copyTransformDeclaration(d.declaration)})
+	budget := declarationJSONBudget{limit: MaxJSONBytes}
+	if err := budget.document(transformDeclarationWire(d.declaration)); err != nil {
+		return nil, err
+	}
+	return json.Marshal(transformDeclarationDocumentWire{&version, d.declaration})
 }
 func (d *TransformDeclarationDocument) UnmarshalJSON(raw []byte) error {
 	if d == nil {

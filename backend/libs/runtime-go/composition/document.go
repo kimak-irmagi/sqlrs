@@ -105,7 +105,7 @@ func buildDefinition(named NamedAliasInput) (aliasDefinition, error) {
 	case named.Transform != nil && named.Recipe == nil:
 		document, err := runtimev2.NewTransformDeclarationDocument(*named.Transform)
 		if err != nil {
-			return aliasDefinition{}, invalid(CodeInvalidDocument, "", pointer+"/declaration", err)
+			return aliasDefinition{}, declarationError(err, "", pointer+"/declaration")
 		}
 		return aliasDefinition{kind: AliasKindTransform, transform: document.Declaration()}, nil
 	case named.Transform == nil && named.Recipe != nil:
@@ -126,7 +126,7 @@ func buildRecipeAlias(name string, input RecipeAliasInput) (recipeAlias, error) 
 	case input.Base.Factory != nil && input.Base.Recipe == "":
 		document, err := runtimev2.NewFactoryDeclarationDocument(*input.Base.Factory)
 		if err != nil {
-			return recipeAlias{}, invalid(CodeInvalidDocument, "", basePointer+"/factory", err)
+			return recipeAlias{}, declarationError(err, "", basePointer+"/factory")
 		}
 		factory := document.Declaration()
 		result.factory = &factory
@@ -147,7 +147,7 @@ func buildRecipeAlias(name string, input RecipeAliasInput) (recipeAlias, error) 
 		case step.Transform != nil && step.Use == "":
 			document, err := runtimev2.NewTransformDeclarationDocument(*step.Transform)
 			if err != nil {
-				return recipeAlias{}, invalid(CodeInvalidDocument, "", stepPointer(name, index, "transform"), err)
+				return recipeAlias{}, declarationError(err, "", stepPointer(name, index, "transform"))
 			}
 			transform := document.Declaration()
 			result.steps[index].transform = &transform
@@ -329,11 +329,15 @@ func rawCanonical(document AliasDocument) []byte {
 }
 
 func copyFactory(value runtimev2.FactoryDeclaration) runtimev2.FactoryDeclaration {
+	// Private callers supply snapshots admitted by the SAME standalone document
+	// constructor in buildRecipeAlias; immutable copies keep its exact wire size.
 	document, _ := runtimev2.NewFactoryDeclarationDocument(value)
 	return document.Declaration()
 }
 
 func copyTransform(value runtimev2.TransformDeclaration) runtimev2.TransformDeclaration {
+	// buildDefinition/buildRecipeAlias already admitted this standalone wrapper,
+	// not merely its bare DTO. Copying cannot add previously unchecked overhead.
 	document, _ := runtimev2.NewTransformDeclarationDocument(value)
 	return document.Declaration()
 }

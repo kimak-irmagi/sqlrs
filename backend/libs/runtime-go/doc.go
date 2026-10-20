@@ -14,6 +14,9 @@ const (
 	MaxIdentifierBytes = 128
 	// MaxResolvedValueBytes bounds one resolved or diagnostic string value.
 	MaxResolvedValueBytes = 4096
+	// MaxDeclarationValueBytes bounds one unresolved specification field value
+	// in decoded UTF-8 bytes, independently of diagnostic/canonical values.
+	MaxDeclarationValueBytes = 256 << 10
 	// MaxResolvedFields bounds one resolved identity field set.
 	MaxResolvedFields = 256
 	// MaxTransforms bounds one recipe or relative lineage suffix.

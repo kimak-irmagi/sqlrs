@@ -51,7 +51,7 @@ func newDiagnosticObservation(input DiagnosticObservationInput) (*diagnosticObse
 	if err := validateIdentifier(input.ObservationSchema, "observation_schema"); err != nil {
 		return nil, err
 	}
-	fields, err := canonicalDeclarationFields(input.Fields, "fields")
+	fields, err := canonicalDeclarationFields(input.Fields, "fields", MaxResolvedValueBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -136,12 +136,21 @@ type diagnosticObservationWire struct {
 	Fields            *[]DeclarationField `json:"fields"`
 }
 
+// diagnosticWire borrows validated immutable data for encoding and parent
+// sizing. Standalone diagnostics deliberately retain their old admission rules.
+func diagnosticWire(data *diagnosticObservationData) diagnosticObservationWire {
+	fields := data.fields
+	if fields == nil {
+		fields = []DeclarationField{}
+	}
+	return diagnosticObservationWire{&data.schemaVersion, &data.owner, &data.kind, &data.observationSchema, &fields}
+}
+
 func marshalDiagnostic(data *diagnosticObservationData) ([]byte, error) {
 	if data == nil {
 		return nil, invalid(CodeInvalidShape, "$")
 	}
-	fields := copyDeclarationFields(data.fields)
-	return json.Marshal(diagnosticObservationWire{&data.schemaVersion, &data.owner, &data.kind, &data.observationSchema, &fields})
+	return json.Marshal(diagnosticWire(data))
 }
 func unmarshalDiagnostic(raw []byte) (*diagnosticObservationData, error) {
 	var wire diagnosticObservationWire
