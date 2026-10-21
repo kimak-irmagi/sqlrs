@@ -84,14 +84,20 @@ func newExtensionSpecification(input ExtensionSpecificationInput) (*extensionSpe
 	if err := validateIdentifier(input.SpecificationSchema, "specification_schema"); err != nil {
 		return nil, err
 	}
-	fields, err := canonicalDeclarationFields(input.Fields, "fields")
+	fields, err := canonicalDeclarationFields(input.Fields, "fields", MaxDeclarationValueBytes)
 	if err != nil {
 		return nil, err
 	}
-	return &extensionSpecificationData{input.SchemaVersion, input.Owner, input.Kind, input.SpecificationSchema, fields}, nil
+	data := &extensionSpecificationData{input.SchemaVersion, input.Owner, input.Kind, input.SpecificationSchema, fields}
+	wire, _ := specificationWire(data)
+	budget := declarationJSONBudget{limit: MaxJSONBytes}
+	if err := budget.specification(wire); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
-func canonicalDeclarationFields(source []DeclarationField, path string) ([]DeclarationField, error) {
+func canonicalDeclarationFields(source []DeclarationField, path string, maximumValueBytes int) ([]DeclarationField, error) {
 	if len(source) > MaxResolvedFields {
 		return nil, invalid(CodeTooLarge, path)
 	}
@@ -102,7 +108,7 @@ func canonicalDeclarationFields(source []DeclarationField, path string) ([]Decla
 		if err := validateIdentifier(field.Name, fieldPath+".name"); err != nil {
 			return nil, err
 		}
-		if err := validateUTF8(field.Value, fieldPath+".value", false, MaxResolvedValueBytes); err != nil {
+		if err := validateUTF8(field.Value, fieldPath+".value", false, maximumValueBytes); err != nil {
 			return nil, err
 		}
 		if index > 0 && fields[index-1].Name == field.Name {
@@ -194,7 +200,12 @@ func specificationWire(data *extensionSpecificationData) (extensionSpecification
 	if data == nil {
 		return extensionSpecificationWire{}, invalid(CodeInvalidShape, "$")
 	}
-	fields := copyDeclarationFields(data.fields)
+	// This projection is borrowed only for synchronous sizing/encoding. Public
+	// accessors retain defensive copies; normalize nil exactly as the old codec.
+	fields := data.fields
+	if fields == nil {
+		fields = []DeclarationField{}
+	}
 	return extensionSpecificationWire{&data.schemaVersion, &data.owner, &data.kind, &data.specificationSchema, &fields}, nil
 }
 
@@ -220,6 +231,10 @@ func specificationFromWire(w extensionSpecificationWire) (*extensionSpecificatio
 func marshalSpecification(data *extensionSpecificationData) ([]byte, error) {
 	wire, err := specificationWire(data)
 	if err != nil {
+		return nil, err
+	}
+	budget := declarationJSONBudget{limit: MaxJSONBytes}
+	if err := budget.specification(wire); err != nil {
 		return nil, err
 	}
 	return json.Marshal(wire)

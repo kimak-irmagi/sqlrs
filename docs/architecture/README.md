@@ -2,10 +2,15 @@
 
 Entry points for Taidon architecture and service design.
 
+- [Independent declaration limits](runtime-go-declaration-limits.md) - approved
+  #159 contract and bounded implementation; separate publication is #160.
+- [Declaration-limit checks](runtime-go-declaration-limits-tests.md) - approved
+  DL01–DL08 and local verification evidence.
+
 - [Tool-neutral execution transforms](runtime-v2-execution-transform.md) -
-  approved #156 API and component structure; implementation not yet available.
+  approved #156 API and component structure, published in v0.7.0 through #157.
 - [Execution-transform checks](runtime-v2-execution-transform-tests.md) -
-  proposed test inventory; separate approval pending, publication is #157.
+  approved test inventory and implementation evidence; publication #157 is complete.
 
 - [Runtime Go module publication](runtime-go-module-publication.md) -
   approved direct-source manual contract; v0.6.0 publication completed in #151.

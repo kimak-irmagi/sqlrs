@@ -74,9 +74,22 @@ gantt
 
 ---
 
-## Status (as of 2026-10-19)
+## Status (as of 2026-10-21)
 
-- **Implemented locally; CI/merge pending
+- **Implemented locally; source CI/merge pending
+  ([#159](https://github.com/kimak-irmagi/sqlrs/issues/159), declaration limits)**:
+  unresolved fields have an independent 256 KiB allowance, under a normalized
+  4 MiB whole-document preflight. Diagnostic/canonical bounds and wire shapes
+  remain unchanged; composition charges steps before copying and preserves size
+  error categories. Full module, static, clean-consumer and independent-vector
+  checks pass. Coverage is 5121/5338 (95.93%) overall, 868/898 (96.66%) in touched
+  implementation files and 72/72 (100%) in the new budget helper. The Windows
+  race run has a reproduced pre-existing NTFS/USN failure on the clean base;
+  it is not reported green. See [evidence](architecture/runtime-go-declaration-limits-tests.md).
+  Immutable publication/public consumption is separately tracked in
+  [#160](https://github.com/kimak-irmagi/sqlrs/issues/160).
+
+- **Published in [Runtime Go v0.7.0](https://github.com/kimak-irmagi/sqlrs/releases/tag/backend/libs/runtime-go/v0.7.0)
   ([#156](https://github.com/kimak-irmagi/sqlrs/issues/156), tool-neutral transform)**:
   the atomic production `schemas/sqlrs.BuildExecutionTransform` binds the existing
   execution identity and ordered inputs without dummy SQL or another command/result.
@@ -84,8 +97,8 @@ gantt
   consumer with mandatory file isolation pass locally. New-code coverage is
   33/33 (100%); module coverage is 4991/5208 (95.83%). Existing Go code, vectors
   and workflows are unchanged. See [tests and evidence](architecture/runtime-v2-execution-transform-tests.md).
-  Immutable RC/GA publication remains separate in
-  [#157](https://github.com/kimak-irmagi/sqlrs/issues/157), using the existing
+  The separately tracked RC/GA publication
+  [#157](https://github.com/kimak-irmagi/sqlrs/issues/157) is complete, using the existing
   workflow without a version-only PR or separate publication worktree.
 
 - **Published [Runtime Go v0.6.0](https://github.com/kimak-irmagi/sqlrs/releases/tag/backend/libs/runtime-go/v0.6.0)

@@ -31,6 +31,16 @@ type TransformDeclaration struct {
 }
 
 func validateFactoryDeclaration(value *FactoryDeclaration) error {
+	if err := validateFactoryDeclarationInput(value); err != nil {
+		return err
+	}
+	budget := declarationJSONBudget{limit: MaxJSONBytes}
+	return budget.declaration(factoryDeclarationWire(value))
+}
+
+// Input validation is separate so enclosing documents share one budget and
+// reject before aggregate snapshots; see runtime-go-declaration-limits.md.
+func validateFactoryDeclarationInput(value *FactoryDeclaration) error {
 	if value == nil {
 		return invalid(CodeInvalidShape, "$")
 	}
@@ -47,6 +57,14 @@ func validateFactoryDeclaration(value *FactoryDeclaration) error {
 }
 
 func validateTransformDeclaration(value *TransformDeclaration) error {
+	if err := validateTransformDeclarationInput(value); err != nil {
+		return err
+	}
+	budget := declarationJSONBudget{limit: MaxJSONBytes}
+	return budget.declaration(transformDeclarationWire(value))
+}
+
+func validateTransformDeclarationInput(value *TransformDeclaration) error {
 	if value == nil {
 		return invalid(CodeInvalidShape, "$")
 	}
@@ -233,6 +251,26 @@ type declarationWire struct {
 	Portability          []PortabilityObservation         `json:"portability,omitempty"`
 }
 
+// declarationProjection borrows DTO data for synchronous preflight/encoding,
+// normalizing mandatory nil collections without cloning the aggregate.
+func declarationProjection(kind, reference *string, arguments []string, attributes map[string]string, inputs []InputDeclaration, environment *ExecutionEnvironmentDeclaration, deployment *DeploymentDeclaration, capabilities []CapabilityObservation, portability []PortabilityObservation) declarationWire {
+	if arguments == nil {
+		arguments = []string{}
+	}
+	if attributes == nil {
+		attributes = map[string]string{}
+	}
+	return declarationWire{kind, reference, &arguments, &attributes, inputs, environment, deployment, capabilities, portability}
+}
+
+func factoryDeclarationWire(d *FactoryDeclaration) declarationWire {
+	return declarationProjection(&d.Kind, &d.Reference, d.Arguments, d.Attributes, d.Inputs, d.ExecutionEnvironment, d.Deployment, d.Capabilities, d.Portability)
+}
+
+func transformDeclarationWire(d *TransformDeclaration) declarationWire {
+	return declarationProjection(&d.Kind, &d.Reference, d.Arguments, d.Attributes, d.Inputs, d.ExecutionEnvironment, nil, d.Capabilities, d.Portability)
+}
+
 func declarationFromWire(w declarationWire) (string, string, []string, map[string]string, error) {
 	if w.Kind == nil {
 		return "", "", nil, nil, invalid(CodeInvalidShape, "kind")
@@ -249,15 +287,16 @@ func declarationFromWire(w declarationWire) (string, string, []string, map[strin
 	if err := validateDeclaration(*w.Kind, *w.Reference, *w.Arguments, *w.Attributes); err != nil {
 		return "", "", nil, nil, err
 	}
-	return *w.Kind, *w.Reference, copyStrings(*w.Arguments), copyAttributes(*w.Attributes), nil
+	// The decoder owns these collections. Borrow them until the whole DTO has
+	// passed preflight; the successful UnmarshalJSON commit makes the snapshot.
+	return *w.Kind, *w.Reference, *w.Arguments, *w.Attributes, nil
 }
 
 func (d FactoryDeclaration) MarshalJSON() ([]byte, error) {
 	if err := validateFactoryDeclaration(&d); err != nil {
 		return nil, err
 	}
-	args, attrs := copyStrings(d.Arguments), copyAttributes(d.Attributes)
-	return json.Marshal(declarationWire{Kind: &d.Kind, Reference: &d.Reference, Arguments: &args, Attributes: &attrs, Inputs: copyInputDeclarations(d.Inputs), ExecutionEnvironment: copyExecutionEnvironment(d.ExecutionEnvironment), Deployment: copyDeployment(d.Deployment), Capabilities: copyCapabilities(d.Capabilities), Portability: copyPortability(d.Portability)})
+	return json.Marshal(factoryDeclarationWire(&d))
 }
 func (d *FactoryDeclaration) UnmarshalJSON(data []byte) error {
 	if d == nil {
@@ -282,8 +321,7 @@ func (d TransformDeclaration) MarshalJSON() ([]byte, error) {
 	if err := validateTransformDeclaration(&d); err != nil {
 		return nil, err
 	}
-	args, attrs := copyStrings(d.Arguments), copyAttributes(d.Attributes)
-	return json.Marshal(declarationWire{Kind: &d.Kind, Reference: &d.Reference, Arguments: &args, Attributes: &attrs, Inputs: copyInputDeclarations(d.Inputs), ExecutionEnvironment: copyExecutionEnvironment(d.ExecutionEnvironment), Capabilities: copyCapabilities(d.Capabilities), Portability: copyPortability(d.Portability)})
+	return json.Marshal(transformDeclarationWire(&d))
 }
 func (d *TransformDeclaration) UnmarshalJSON(data []byte) error {
 	if d == nil {

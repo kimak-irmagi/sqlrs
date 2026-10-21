@@ -85,8 +85,26 @@ one atomic `BuildExecutionTransform` using existing declaration, execution/input
 bindings and composition result types. It does not reinterpret the PSQL schema,
 add dummy SQL, or create another command/result representation. The approved
 [tests](../../../docs/architecture/runtime-v2-execution-transform-tests.md),
-implementation and standalone-consumer checks pass locally; source CI and merge
-remain separate gates.
-No released version contains this new function yet; its immutable publication
-is separate in [#157](https://github.com/kimak-irmagi/sqlrs/issues/157), through
-the existing release workflow without a version-only PR or separate worktree.
+implementation and standalone-consumer checks are available. The function is
+published in [v0.7.0](https://github.com/kimak-irmagi/sqlrs/releases/tag/backend/libs/runtime-go/v0.7.0);
+its separate immutable publication [#157](https://github.com/kimak-irmagi/sqlrs/issues/157)
+is complete, through the existing workflow without a version-only PR or separate
+worktree. This release does not contain the later #159 limit change below.
+
+## Larger unresolved declarations (#159)
+
+The approved [declaration-value limit contract](../../../docs/architecture/runtime-go-declaration-limits.md)
+keeps the existing field model and gives source declarations an independent
+256 KiB value allowance under the unchanged 256-field/4 MiB JSON bounds.
+Diagnostic, resolved and canonical limits remain unchanged. The detailed
+[test inventory](../../../docs/architecture/runtime-go-declaration-limits-tests.md)
+was approved after correction/review on 2026-10-20. The implementation is present
+locally; the inventory records verification, not a merge or release. Immutable publication and
+external-consumer verification are separately tracked in
+[#160](https://github.com/kimak-irmagi/sqlrs/issues/160).
+
+The revised design distinguishes decoded value bytes, received raw JSON and
+normalized encoded JSON. It intentionally tightens oversized aggregate admission,
+preserves the existing decoder's case matching, and includes propagation of
+newly possible size failures in the optional composition package. A successful
+local size rejection must not become an empty successful expansion.

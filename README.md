@@ -135,6 +135,12 @@ Published v0.5.0 changes the current resolver result to
 converting old entries. This is a breaking Go API change; see the
 [canonical resolver design](docs/architecture/runtime-v2-canonical-resolver-flow.md).
 
+Published [v0.7.0](https://github.com/kimak-irmagi/sqlrs/releases/tag/backend/libs/runtime-go/v0.7.0)
+adds `schemas/sqlrs.BuildExecutionTransform`. The later [#159 declaration-limit
+change](docs/architecture/runtime-go-declaration-limits.md) is implemented locally:
+256 KiB per unresolved value, with a 4 MiB normalized whole-document bound.
+Diagnostic/canonical limits are unchanged; publication is separately tracked by #160.
+
 Alias YAML decoding, recursive expansion, and legacy compatibility belong to
 the CLI. For future Runtime v2 prepare integration, the engine receives an
 expanded declaration and required source inputs. The proposed public

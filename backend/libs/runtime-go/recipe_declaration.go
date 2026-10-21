@@ -13,17 +13,11 @@ type RecipeDeclaration struct{ data *recipeDeclarationData }
 
 // NewRecipeDeclaration validates and snapshots an unresolved recipe.
 func NewRecipeDeclaration(factory FactoryDeclaration, transforms []TransformDeclaration) (RecipeDeclaration, error) {
-	if err := validateFactoryDeclaration(&factory); err != nil {
-		return RecipeDeclaration{}, prefixError(err, "factory")
-	}
-	if len(transforms) > MaxTransforms {
-		return RecipeDeclaration{}, invalid(CodeTooLarge, "transforms")
+	if err := validateRecipeDeclaration(&factory, transforms); err != nil {
+		return RecipeDeclaration{}, err
 	}
 	copied := make([]TransformDeclaration, len(transforms))
 	for index := range transforms {
-		if err := validateTransformDeclaration(&transforms[index]); err != nil {
-			return RecipeDeclaration{}, prefixError(err, "transforms["+itoa(index)+"]")
-		}
 		copied[index] = *copyTransformDeclaration(&transforms[index])
 	}
 	return RecipeDeclaration{data: &recipeDeclarationData{factory: *copyFactoryDeclaration(&factory), transforms: copied}}, nil
@@ -59,8 +53,11 @@ func (r RecipeDeclaration) MarshalJSON() ([]byte, error) {
 	if r.data == nil {
 		return nil, invalid(CodeInvalidShape, "$")
 	}
-	version, factory, transforms := SchemaVersion, r.Factory(), r.Transforms()
-	return json.Marshal(recipeDeclarationWire{&version, &factory, &transforms})
+	if err := validateRecipeDeclaration(&r.data.factory, r.data.transforms); err != nil {
+		return nil, err
+	}
+	version := SchemaVersion
+	return json.Marshal(recipeDeclarationWire{&version, &r.data.factory, &r.data.transforms})
 }
 
 func (r *RecipeDeclaration) UnmarshalJSON(raw []byte) error {

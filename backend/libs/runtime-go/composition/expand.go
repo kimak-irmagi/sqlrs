@@ -27,10 +27,9 @@ func (e ExpandedRecipe) Declaration() runtimev2.RecipeDeclaration {
 	if e.data == nil {
 		return runtimev2.RecipeDeclaration{}
 	}
-	raw, _ := json.Marshal(e.data.declaration)
-	var result runtimev2.RecipeDeclaration
-	_ = runtimev2.DecodeJSON(raw, &result)
-	return result
+	// RecipeDeclaration itself is immutable; its accessors copy all mutable DTOs.
+	// Returning it directly avoids a redundant, potentially fallible JSON clone.
+	return e.data.declaration
 }
 
 // Trace returns a defensive diagnostic trace value.
@@ -73,7 +72,8 @@ func (c Catalog) ExpandTransform(name string) (ExpandedTransform, error) {
 	if entry.definition.kind != AliasKindTransform {
 		return ExpandedTransform{}, invalid(CodeWrongReferenceKind, entry.sourceID, definitionPointer(name), nil)
 	}
-	// Catalog entries are snapshots produced by the runtime-v2 constructor.
+	// Catalog entries passed this exact standalone constructor on admission.
+	// The immutable snapshot therefore already includes its wrapper's budget.
 	declaration, _ := runtimev2.NewTransformDeclarationDocument(entry.definition.transform)
 	node := traceNodeData{id: 0, kind: AliasKindTransform, alias: name, sourceID: entry.sourceID, pointer: definitionPointer(name)}
 	trace, err := newTrace(traceData{
@@ -145,11 +145,41 @@ func (c Catalog) ExpandRecipe(name string) (ExpandedRecipe, error) {
 	factoryOrigin := originData{nodeID: len(chain) - 1, pointer: definitionPointer(chain[len(chain)-1].name) + "/base/factory"}
 	transforms := make([]runtimev2.TransformDeclaration, 0)
 	origins := make([]originData, 0)
+	// Charge the exact recipe envelope/factory and each bounded public child
+	// BEFORE copying the next step or appending its output trace. Do not encode
+	// a prospective oversized recipe. Requirements: declaration-limits.md.
+	empty, err := runtimev2.NewRecipeDeclaration(factory, nil)
+	if err != nil {
+		return ExpandedRecipe{}, invalid(CodeExpansionTooLarge, target.sourceID, definitionPointer(target.name), nil)
+	}
+	baseRaw, err := json.Marshal(empty)
+	if err != nil {
+		return ExpandedRecipe{}, invalid(CodeExpansionTooLarge, target.sourceID, definitionPointer(target.name), nil)
+	}
+	used := len(baseRaw)
+	charge := func(value runtimev2.TransformDeclaration) bool {
+		raw, err := json.Marshal(value)
+		if err != nil {
+			return false
+		}
+		n := len(raw)
+		if len(transforms) > 0 {
+			n++
+		}
+		next, ok := checkedAdd(used, n, runtimev2.MaxJSONBytes)
+		if ok {
+			used = next
+		}
+		return ok
+	}
 	for recipeIndex := len(chain) - 1; recipeIndex >= 0; recipeIndex-- {
 		entry := chain[recipeIndex]
 		for stepIndex, step := range entry.definition.recipe.steps {
 			if step.transform != nil {
 				if len(transforms) >= runtimev2.MaxTransforms {
+					return ExpandedRecipe{}, invalid(CodeExpansionTooLarge, target.sourceID, definitionPointer(target.name), nil)
+				}
+				if !charge(*step.transform) {
 					return ExpandedRecipe{}, invalid(CodeExpansionTooLarge, target.sourceID, definitionPointer(target.name), nil)
 				}
 				transforms = append(transforms, copyTransform(*step.transform))
@@ -167,6 +197,9 @@ func (c Catalog) ExpandRecipe(name string) (ExpandedRecipe, error) {
 			if len(transforms) >= runtimev2.MaxTransforms || len(nodes) >= MaxTraceNodes {
 				return ExpandedRecipe{}, invalid(CodeExpansionTooLarge, target.sourceID, definitionPointer(target.name), nil)
 			}
+			if !charge(child.definition.transform) {
+				return ExpandedRecipe{}, invalid(CodeExpansionTooLarge, target.sourceID, definitionPointer(target.name), nil)
+			}
 			transforms = append(transforms, copyTransform(child.definition.transform))
 			nodeID := len(nodes)
 			nodes = append(nodes, traceNodeData{
@@ -177,11 +210,9 @@ func (c Catalog) ExpandRecipe(name string) (ExpandedRecipe, error) {
 		}
 	}
 
-	// The factory and transforms are validated immutable catalog snapshots, and
-	// the count limit above matches the runtime-v2 constructor's bound.
-	declaration, _ := runtimev2.NewRecipeDeclaration(factory, transforms)
-	declarationRaw, _ := json.Marshal(declaration)
-	if len(declarationRaw) > runtimev2.MaxJSONBytes {
+	// Keep the public constructor authoritative, even after incremental charging.
+	declaration, err := runtimev2.NewRecipeDeclaration(factory, transforms)
+	if err != nil {
 		return ExpandedRecipe{}, invalid(CodeExpansionTooLarge, target.sourceID, definitionPointer(target.name), nil)
 	}
 	trace, err := newTrace(traceData{nodes: nodes, factory: &factoryOrigin, transforms: origins})

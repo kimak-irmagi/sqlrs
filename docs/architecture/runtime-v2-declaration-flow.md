@@ -100,3 +100,14 @@ adapter cannot silently drop a resolved input before State identity construction
 Capabilities, portability results, and resolver observations use separate
 diagnostic types/envelopes. They may be persisted for explainability but are
 excluded from canonical identity bytes.
+
+## Approved source-limit amendment (#159)
+
+The [independent declaration-limit flow](runtime-go-declaration-limits.md)
+retains these boundaries and adds explicit declaration-specific value and whole
+normalized-JSON accounting before accepted snapshots/aggregate encoding.
+Diagnostics and resolved identities keep their original bounds. Nested documents
+cannot bypass the aggregate budget through individually valid children.
+The corrected tests are approved and the implementation is present locally;
+verification is recorded in the linked test inventory. Merge and separate #160
+publication remain pending. No CLI, HTTP or storage contract is added.
