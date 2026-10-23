@@ -18,7 +18,8 @@ stored auth session.
 ## Command syntax
 
 ```text
-sqlrs auth login google [--login-hint <email>] [--no-browser]
+sqlrs auth providers
+sqlrs auth login <provider> [--login-hint <email>] [--no-browser]
 sqlrs auth status
 sqlrs auth logout [--no-revoke]
 ```
@@ -27,6 +28,8 @@ Global flags continue to work:
 
 ```text
 sqlrs --profile remote-dev auth login google
+sqlrs --profile remote-dev auth providers
+sqlrs --profile remote-dev --output json auth providers
 sqlrs --profile remote-dev auth status
 sqlrs --profile remote-dev --output json auth status
 sqlrs --profile remote-dev auth logout
@@ -35,6 +38,14 @@ sqlrs --profile remote-dev auth logout
 `auth` is a remote-profile command group. Local profiles do not need remote
 login because local engine requests use the local daemon token from
 `engine.json`.
+
+`sqlrs auth providers` fetches the current public provider list from the
+selected profile endpoint. It works even if the output from `init remote` was
+lost, does not require a stored login, and does not change workspace config.
+Use global `--profile` to select another profile or `--endpoint` to query a
+different endpoint for this invocation only. The result is a list of login
+choices, not proof of organization membership. If no providers are enabled,
+the command reports that condition instead of suggesting a provider.
 
 ## Remote profile and provider discovery
 

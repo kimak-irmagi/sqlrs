@@ -8,7 +8,7 @@ configures how the CLI connects to an engine.
 There are two init modes:
 
 - `local` — configure local engine + snapshot store (default).
-- `remote` — configure a remote engine endpoint and either a Google OIDC
+- `remote` — configure a remote engine endpoint and either a provider-advertised OIDC
   session profile or a compatibility bearer-token profile.
 
 Running `sqlrs init` with no subcommand is equivalent to `sqlrs init local`.
@@ -276,6 +276,12 @@ Provider IDs and configuration remain service-owned. Before
 `sqlrs auth login <provider>`, the CLI reads the selected provider's current
 configuration from the service. Remote init never writes a provider client ID,
 client secret, bearer token, authorization code, ID token, or refresh token.
+After a successful token-free init or update commits the workspace config, the
+CLI prints the discovered provider IDs, display names, and login commands.
+If that output is lost or the catalogue changes later, run `sqlrs auth providers`
+in the workspace to fetch the current list. Neither command stores the list or
+selects a provider automatically. Dry-run and deprecated `--token` init do not
+present a provider list as ready for login.
 
 The discovered `endpoints.current` becomes profile `endpoint`, while
 `endpoints.control` becomes `installationEndpoint`. A path-prefixed current
@@ -499,7 +505,8 @@ sqlrs init local --update --snapshot auto
 
 ```bash
 sqlrs init remote https://api.taidon.dev
-sqlrs auth login google
+sqlrs auth providers  # optional: fetch the latest available choices
+sqlrs auth login <provider-id>
 ```
 
 ### Initialize directly from an organization endpoint

@@ -365,6 +365,11 @@ func runInit(w io.Writer, cwd, globalWorkspace string, args []string, verbose bo
 	} else {
 		fmt.Fprintf(w, "Initialized workspace at %s\n", target)
 	}
+	if opts.Connection != nil {
+		if err := writeAuthProviders(w, client.AuthProviderList{Providers: opts.Connection.AuthProviders}, "human"); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
