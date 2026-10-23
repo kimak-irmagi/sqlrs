@@ -232,6 +232,7 @@ jobs:
         with:
           go-version-file: backend/local-engine-go/go.mod
           cache-dependency-path: backend/local-engine-go/go.sum
+          cache: ${{ matrix.runner != 'macos-latest' }}
 
       - name: Run engine coverage (${{ matrix.group }})
         working-directory: backend/local-engine-go
