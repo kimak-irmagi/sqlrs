@@ -23,7 +23,7 @@ func writeAuthProviders(w io.Writer, list client.AuthProviderList, output string
 	}
 	for _, provider := range providers {
 		name := strings.Map(func(r rune) rune {
-			if unicode.IsControl(r) {
+			if unicode.Is(unicode.C, r) || unicode.Is(unicode.Zl, r) || unicode.Is(unicode.Zp, r) {
 				return ' '
 			}
 			return r

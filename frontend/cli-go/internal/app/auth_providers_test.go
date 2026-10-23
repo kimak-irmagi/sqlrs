@@ -172,6 +172,19 @@ func TestAuthProvidersSanitizesHumanName(t *testing.T) {
 	}
 }
 
+func TestAuthProvidersSanitizesUnicodeLayoutControls(t *testing.T) {
+	list := client.AuthProviderList{Providers: []client.AuthProviderSummary{{
+		ID: "google", DisplayName: "Go\u202eogle\u2028Injected", Adapter: "oidc",
+	}}}
+	var out bytes.Buffer
+	if err := writeAuthProviders(&out, list, "human"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.ContainsAny(out.String(), "\u202e\u2028") || !strings.Contains(out.String(), "Go ogle Injected") {
+		t.Fatalf("unsafe human output = %q", out.String())
+	}
+}
+
 func TestAuthProvidersParserAndHelp(t *testing.T) {
 	for _, tc := range []struct {
 		args     []string

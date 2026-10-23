@@ -18,9 +18,9 @@ Covers the approved
 - The public provider-list response, including HTTP error bodies, is capped at
   1 MiB before JSON decoding or error parsing.
   This is a proposed client-side safety bound, not an OpenAPI/server limit.
-- Human rendering neutralizes CR, LF, and terminal escape/control characters in
-  server-supplied display names; JSON retains the original value with normal
-  JSON escaping.
+- Human rendering neutralizes CR, LF, terminal escape/control characters,
+  Unicode format controls, and line/paragraph separators in server-supplied
+  display names; JSON retains the original value with normal JSON escaping.
 - Error outcomes are distinguished by cause: `no enabled login providers`,
   `invalid provider catalogue`, and `cannot fetch provider catalogue`.
   Tests assert these categories rather than incidental full sentences.
