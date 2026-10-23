@@ -357,6 +357,7 @@ gantt
   distributed. Legacy `--url`/`--token` and `oidcSession` reads remain available
   for migration. Server-side bootstrap behavior is tracked in
   [izess#122](https://github.com/kimak-irmagi/izess/issues/122).
+- **Done (CLI login-provider discovery, [#162](https://github.com/kimak-irmagi/sqlrs/issues/162))**: successful token-free `sqlrs init remote` now shows the server-advertised provider IDs and login commands after config commit. `sqlrs auth providers` retrieves the current public catalogue from the selected profile or invocation-local endpoint override, including organization prefixes; human and JSON output are deterministic. The list is never cached or persisted, and discovery does not touch credentials. New provider-list, rendering, and shared public-response functions reach 100% coverage in their relevant test suites.
 - **Done (remote source input sync client/API slice)**: the OpenAPI contract and
   CLI now support remote source-input synchronization for remote `prepare`,
   `plan`, and `cache explain prepare` flows. The client attaches a bounded

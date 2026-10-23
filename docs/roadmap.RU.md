@@ -369,6 +369,7 @@ gantt
   Legacy `--url`/`--token` и чтение `oidcSession` сохранены для миграции.
   Серверная реализация bootstrap отслеживается в
   [izess#122](https://github.com/kimak-irmagi/izess/issues/122).
+- **Сделано (обнаружение провайдеров входа в CLI, [#162](https://github.com/kimak-irmagi/sqlrs/issues/162))**: после успешного сохранения конфигурации `sqlrs init remote` без токена показывает опубликованные сервером ID провайдеров и команды входа. `sqlrs auth providers` получает актуальный публичный список для выбранного профиля или разового переопределения endpoint, в том числе с префиксом организации; человекочитаемый и JSON-вывод детерминированы. Список не кэшируется и не сохраняется, запрос не затрагивает учётные данные. Новые функции получения списка и вывода, а также общий обработчик публичного ответа имеют 100% покрытие в соответствующих наборах тестов.
 - **Сделано (remote source input sync client/API slice)**: OpenAPI contract и
   CLI теперь поддерживают remote source-input synchronization для remote
   `prepare`, `plan` и `cache explain prepare` flow. Клиент добавляет bounded

@@ -1,8 +1,10 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,6 +30,36 @@ type AuthProviderSummary struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"display_name"`
 	Adapter     string `json:"adapter"`
+}
+
+// AuthProviderList is the public, current provider catalogue of an installation.
+type AuthProviderList struct {
+	Providers []AuthProviderSummary `json:"providers"`
+}
+
+// ErrInvalidPublicResponse distinguishes malformed discovery data from a
+// transport or service failure without exposing the response body.
+var ErrInvalidPublicResponse = errors.New("invalid public response")
+
+const maxAuthProviderListBytes = 1 << 20
+
+// GetAuthProviders fetches the current catalogue without client credentials.
+// It implements docs/architecture/cli-auth-provider-discovery-structure.md:
+// the wire response is bounded and validated before being returned.
+func (c *Client) GetAuthProviders(ctx context.Context) (AuthProviderList, error) {
+	var wire struct {
+		Providers *[]AuthProviderSummary `json:"providers"`
+	}
+	if err := c.getPublicJSONWithLimit(ctx, "/v1/auth/providers", &wire, maxAuthProviderListBytes); err != nil {
+		return AuthProviderList{}, err
+	}
+	if wire.Providers == nil {
+		return AuthProviderList{}, fmt.Errorf("%w: providers array is required", ErrInvalidPublicResponse)
+	}
+	if err := validateAuthProviderSummaries(*wire.Providers); err != nil {
+		return AuthProviderList{}, fmt.Errorf("%w: %v", ErrInvalidPublicResponse, err)
+	}
+	return AuthProviderList{Providers: *wire.Providers}, nil
 }
 
 // AuthProviderConfiguration is version 1 of the service-advertised generic
@@ -82,6 +114,12 @@ func (c *Client) GetAuthProvider(ctx context.Context, provider string) (AuthProv
 }
 
 func (c *Client) getPublicJSON(ctx context.Context, path string, out any) error {
+	return c.getPublicJSONWithLimit(ctx, path, out, 0)
+}
+
+// getPublicJSONWithLimit preserves the public discovery redirect policy and
+// optionally rejects a body larger than limit bytes before JSON decoding.
+func (c *Client) getPublicJSONWithLimit(ctx context.Context, path string, out any, limit int64) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return err
@@ -104,20 +142,32 @@ func (c *Client) getPublicJSON(ctx context.Context, path string, out any) error 
 		return err
 	}
 	defer resp.Body.Close()
+	var body io.Reader = resp.Body
+	if limit > 0 {
+		data, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
+		if err != nil {
+			return err
+		}
+		if int64(len(data)) > limit {
+			return fmt.Errorf("%w: response exceeds %d bytes", ErrInvalidPublicResponse, limit)
+		}
+		body = bytes.NewReader(data)
+		resp.Body = io.NopCloser(bytes.NewReader(data))
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return parseErrorResponse(resp)
 	}
 	if mediaType := strings.ToLower(strings.TrimSpace(strings.Split(resp.Header.Get("Content-Type"), ";")[0])); mediaType != "application/json" {
-		return fmt.Errorf("unexpected content type %q", resp.Header.Get("Content-Type"))
+		return fmt.Errorf("%w: unexpected content type %q", ErrInvalidPublicResponse, resp.Header.Get("Content-Type"))
 	}
-	decoder := json.NewDecoder(resp.Body)
+	decoder := json.NewDecoder(body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(out); err != nil {
-		return fmt.Errorf("decode bootstrap response: %w", err)
+		return fmt.Errorf("%w: decode bootstrap response: %v", ErrInvalidPublicResponse, err)
 	}
 	var trailing any
 	if err := decoder.Decode(&trailing); err != io.EOF {
-		return fmt.Errorf("decode bootstrap response: trailing JSON content")
+		return fmt.Errorf("%w: decode bootstrap response: trailing JSON content", ErrInvalidPublicResponse)
 	}
 	return nil
 }
@@ -151,8 +201,12 @@ func ValidateConnectionInfo(info ConnectionInfo) error {
 	if !strings.EqualFold(control.Scheme, current.Scheme) || !strings.EqualFold(control.Host, current.Host) {
 		return fmt.Errorf("control and current endpoints must share an origin")
 	}
+	return validateAuthProviderSummaries(info.AuthProviders)
+}
+
+func validateAuthProviderSummaries(providers []AuthProviderSummary) error {
 	seenProviders := map[string]struct{}{}
-	for _, provider := range info.AuthProviders {
+	for _, provider := range providers {
 		if !providerIDPattern.MatchString(provider.ID) || strings.TrimSpace(provider.DisplayName) == "" || strings.TrimSpace(provider.Adapter) == "" {
 			return fmt.Errorf("invalid auth provider summary %q", provider.ID)
 		}

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -63,6 +64,15 @@ func parseAuthArgs(args []string) (authInvocation, bool, error) {
 		return invocation, true, nil
 	}
 	switch action {
+	case "providers":
+		if hasHelpArg(args[1:]) {
+			return invocation, true, nil
+		}
+		if len(args) > 1 {
+			return invocation, false, ExitErrorf(2, "auth providers does not accept arguments")
+		}
+		invocation.action = "providers"
+		return invocation, false, nil
 	case "login":
 		return parseAuthLoginArgs(args[1:])
 	case "status":
@@ -84,7 +94,7 @@ func parseAuthArgs(args []string) (authInvocation, bool, error) {
 func parseAuthLoginArgs(args []string) (authInvocation, bool, error) {
 	invocation := authInvocation{action: "login"}
 	if len(args) == 0 {
-		return invocation, false, ExitErrorf(2, "auth login provider is required")
+		return invocation, false, ExitErrorf(2, "auth login provider is required; see `sqlrs auth providers`")
 	}
 	provider := strings.TrimSpace(args[0])
 	if provider == "--help" || provider == "-h" {
@@ -152,6 +162,23 @@ func runAuth(stdout, stderr io.Writer, cwd string, opts cli.GlobalOptions, args 
 	}
 	if strings.TrimSpace(cmdCtx.profile.Endpoint) == "" || strings.TrimSpace(cmdCtx.profile.Endpoint) == "auto" {
 		return fmt.Errorf("auth commands require an explicit remote endpoint")
+	}
+	if invocation.action == "providers" {
+		endpoint, err := client.NormalizeServiceEndpoint(cmdCtx.profile.Endpoint)
+		if err != nil {
+			return fmt.Errorf("invalid remote endpoint: %w", err)
+		}
+		list, err := client.New(endpoint, client.Options{Timeout: cmdCtx.timeout}).GetAuthProviders(context.Background())
+		if err != nil {
+			if errors.Is(err, client.ErrInvalidPublicResponse) {
+				return fmt.Errorf("invalid provider catalogue: %w", err)
+			}
+			return fmt.Errorf("cannot fetch provider catalogue: %w", err)
+		}
+		if len(list.Providers) == 0 {
+			return fmt.Errorf("no enabled login providers at %s", endpoint)
+		}
+		return writeAuthProviders(stdout, list, cmdCtx.output)
 	}
 	if strings.EqualFold(strings.TrimSpace(cmdCtx.profile.Auth.Mode), "oidcSession") {
 		fmt.Fprintln(stderr, "warning: auth.mode oidcSession is deprecated; run `sqlrs init remote <endpoint> --update`")
@@ -451,7 +478,8 @@ const timeFormatRFC3339 = "2006-01-02T15:04:05Z07:00"
 
 func printAuthUsage(w io.Writer) {
 	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintln(w, "  sqlrs auth login google [--login-hint <email>] [--no-browser]")
+	fmt.Fprintln(w, "  sqlrs auth providers")
+	fmt.Fprintln(w, "  sqlrs auth login <provider> [--login-hint <email>] [--no-browser]")
 	fmt.Fprintln(w, "  sqlrs auth status")
 	fmt.Fprintln(w, "  sqlrs auth logout [--no-revoke]")
 }
