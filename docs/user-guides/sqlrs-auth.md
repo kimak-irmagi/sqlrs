@@ -27,9 +27,9 @@ sqlrs auth logout [--no-revoke]
 Global flags continue to work:
 
 ```text
-sqlrs --profile remote-dev auth login google
 sqlrs --profile remote-dev auth providers
 sqlrs --profile remote-dev --output json auth providers
+sqlrs --profile remote-dev auth login <provider-id>
 sqlrs --profile remote-dev auth status
 sqlrs --profile remote-dev --output json auth status
 sqlrs --profile remote-dev auth logout
@@ -81,7 +81,7 @@ Rules:
   organization prefix, including a nonexistent slug. Bootstrap success does
   not confirm organization existence.
 - `auth.tokenEnv` defaults to `SQLRS_TOKEN`; when that environment variable is
-  set, it overrides the stored Google session.
+  set, it overrides the stored session for the active provider.
 - Existing `auth.mode: bearer` profiles keep their current behavior and read a
   caller-supplied bearer token from `tokenEnv` or `token`.
 
