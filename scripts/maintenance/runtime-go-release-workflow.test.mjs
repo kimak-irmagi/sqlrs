@@ -24,6 +24,7 @@ test("product RC validates Runtime v2 with the CI-tested command and staged cons
   const runtime = steps.find(step => step.name === "Run Runtime v2 tests");
   const consumer = steps.find(step => step.name === "Test standalone Runtime v2 consumer through staged proxy");
   assert.ok(runtime);
+  assert.equal(runtime.shell, "bash");
   assert.equal(runtime.env.SQLRS_REQUIRE_NATIVE_CONTINUITY, "1");
   assert.match(runtime.run, /go test -count=1 -timeout=10m -coverpkg=\.\/\.\.\. -covermode=count -coverprofile=coverage-runtime-all\.out \.\/\.\./);
   assert.ok(consumer);
