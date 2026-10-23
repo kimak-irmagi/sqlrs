@@ -33,6 +33,13 @@ test("product RC validates Runtime v2 with the CI-tested command and staged cons
   assert.match(consumer.run, /GOPROXY="file:\/\/\$temp\/proxy".*go test -count=1 \.\/\.\./);
 });
 
+test("macOS engine coverage does not restore the Go cache", () => {
+  const steps = parse(ci).jobs["coverage-engine"].steps;
+  const setup = steps.find(step => step.name === "Set up Go (engine)");
+  assert.ok(setup);
+  assert.equal(setup.with.cache, "${{ matrix.runner != 'macos-latest' }}");
+});
+
 test("nested release uses reusable clean public consumption gates", () => {
   for (const required of ["GOWORK=off", "proxy.golang.org", "sum.golang.org", "go mod download", "retract v0.1.0", "sqlrs.runtime.v2", "sqlrs.runtime.v2.canonical.v1", "sqlrs.runtime.v2.aliases.v1", "sqlrs.runtime.v2.alias-expansion-trace.v1", "sqlrs.resolution-cache.v1", "sqlrs.runtime.conformance.bundle-schema.v1", "runtime-v2-canonical-v1.1", "v0.1.1-rc.6", "create-runtime-v2-attestation.mjs", "manifest.sha256"]) {
     assert.ok(releaseSources.includes(required), `missing ${required}`);
