@@ -19,6 +19,20 @@ test("manual nested and product tag triggers are isolated", () => {
   assert.doesNotMatch(product, /backend\/libs\/runtime-go\/v\*/);
 });
 
+test("product RC validates Runtime v2 with the CI-tested command and staged consumer", () => {
+  const steps = parse(product).jobs["test-runtime-v2"].steps;
+  const runtime = steps.find(step => step.name === "Run Runtime v2 tests");
+  const consumer = steps.find(step => step.name === "Test standalone Runtime v2 consumer through staged proxy");
+  assert.ok(runtime);
+  assert.equal(runtime.env.SQLRS_REQUIRE_NATIVE_CONTINUITY, "1");
+  assert.match(runtime.run, /go test -count=1 -timeout=10m -coverpkg=\.\/\.\.\. -covermode=count -coverprofile=coverage-runtime-all\.out \.\/\.\./);
+  assert.ok(consumer);
+  assert.equal(consumer.if, "matrix.runner == 'ubuntu-24.04'");
+  assert.match(consumer.run, /stage-runtime-module\.go/);
+  assert.match(consumer.run, /go mod init example\.invalid\/runtime-v2-consumer/);
+  assert.match(consumer.run, /GOPROXY="file:\/\/\$temp\/proxy".*go test -count=1 \.\/\.\./);
+});
+
 test("nested release uses reusable clean public consumption gates", () => {
   for (const required of ["GOWORK=off", "proxy.golang.org", "sum.golang.org", "go mod download", "retract v0.1.0", "sqlrs.runtime.v2", "sqlrs.runtime.v2.canonical.v1", "sqlrs.runtime.v2.aliases.v1", "sqlrs.runtime.v2.alias-expansion-trace.v1", "sqlrs.resolution-cache.v1", "sqlrs.runtime.conformance.bundle-schema.v1", "runtime-v2-canonical-v1.1", "v0.1.1-rc.6", "create-runtime-v2-attestation.mjs", "manifest.sha256"]) {
     assert.ok(releaseSources.includes(required), `missing ${required}`);

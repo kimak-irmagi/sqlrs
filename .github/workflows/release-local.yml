@@ -97,6 +97,7 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version-file: backend/libs/runtime-go/go.mod
+          cache: false
 
       - name: Set up Node
         uses: actions/setup-node@v7
@@ -105,7 +106,9 @@ jobs:
 
       - name: Run Runtime v2 tests
         working-directory: backend/libs/runtime-go
-        run: go test -count=1 ./...
+        env:
+          SQLRS_REQUIRE_NATIVE_CONTINUITY: "1"
+        run: go test -count=1 -timeout=10m -coverpkg=./... -covermode=count -coverprofile=coverage-runtime-all.out ./...
 
       - name: Run Runtime v2 race detector
         if: matrix.runner == 'ubuntu-24.04'
@@ -131,10 +134,21 @@ jobs:
       - name: Verify Runtime v2 golden vectors independently
         run: node scripts/maintenance/verify-runtime-v2-golden.mjs backend/libs/runtime-go/testdata/golden
 
-      - name: Test standalone Runtime v2 consumer
-        working-directory: test/runtime-v2-consumer
+      - name: Test standalone Runtime v2 consumer through staged proxy
+        if: matrix.runner == 'ubuntu-24.04'
         shell: bash
-        run: GOWORK=off go test ./...
+        run: |
+          set -euo pipefail
+          temp=$(mktemp -d)
+          trap 'rm -rf "$temp"' EXIT
+          staged_version=v0.0.0-pr.0
+          go run ./scripts/maintenance/stage-runtime-module.go backend/libs/runtime-go "$temp/proxy" "$staged_version"
+          mkdir "$temp/consumer"
+          cp test/runtime-v2-consumer/*_test.go "$temp/consumer/"
+          cd "$temp/consumer"
+          go mod init example.invalid/runtime-v2-consumer
+          GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go get "github.com/kimak-irmagi/sqlrs/backend/libs/runtime-go@$staged_version"
+          GOWORK=off GOPROXY="file://$temp/proxy" GOSUMDB=off go test -count=1 ./...
 
   build-rc:
     if: contains(github.event.inputs.version || github.ref_name, '-rc.')
