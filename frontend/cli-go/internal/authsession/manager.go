@@ -564,6 +564,9 @@ func (m *Manager) ResolveBearerToken(ctx context.Context, opts ResolveOptions) (
 	if err != nil {
 		return ResolvedBearerToken{}, fmt.Errorf("validate refreshed ID token (local session retained): %w", err)
 	}
+	// Network and discovery latency may exhaust a valid short-lived result.
+	// Validate freshness at receipt, not at the earlier refresh-selection time.
+	now = m.clock.Now().UTC()
 	if err := ValidateIDTokenClaims(claims, issuer, clientID, "", now); err != nil {
 		return ResolvedBearerToken{}, fmt.Errorf("validate refreshed ID token (local session retained): %w", err)
 	}

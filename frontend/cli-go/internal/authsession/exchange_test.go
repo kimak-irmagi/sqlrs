@@ -18,6 +18,36 @@ func TestMissingInstallationExchangerFailsBeforeBrowser(t *testing.T) {
 	}
 }
 
+// R02/R04: freshness is checked after network latency, before replacing credentials.
+// See docs/architecture/cli-auth-flow.md for strict token-result expiration.
+func TestRefreshRejectsTokenExpiredDuringRequest(t *testing.T) {
+	now := time.Now().UTC()
+	original := Session{Provider: "university", Issuer: "https://issuer.example", ClientID: "client", Subject: "subject", LoginNonce: "nonce", RefreshToken: "old", IDTokenExpiry: now.Add(-time.Hour)}
+	store := &synchronizedStore{session: original}
+	clock := &refreshResponseClock{now: now}
+	manager := NewManager(ManagerOptions{Store: store, Clock: clock, Exchanger: &fakeOAuthClient{refreshResponse: TokenResponse{IDToken: testIDToken(t, map[string]any{"iss": original.Issuer, "aud": "client", "sub": "subject", "nonce": "nonce", "iat": now.Unix(), "exp": now.Add(time.Minute).Unix()}), RefreshToken: "replacement"}}})
+	_, err := manager.ResolveBearerToken(context.Background(), ResolveOptions{AuthMode: "remoteSession", ProviderResolver: func(context.Context, string) (ProviderConfiguration, error) {
+		return ProviderConfiguration{ID: original.Provider, Issuer: original.Issuer, ClientID: original.ClientID, RefreshEndpoint: "https://api.example/refresh"}, nil
+	}})
+	if err == nil || store.puts != 0 || store.deletes != 0 || !reflect.DeepEqual(store.session, original) {
+		t.Fatal("token expired during request was accepted or altered credentials")
+	}
+}
+
+// The first clock read models refresh selection; subsequent reads follow its response.
+type refreshResponseClock struct {
+	now   time.Time
+	reads int
+}
+
+func (c *refreshResponseClock) Now() time.Time {
+	c.reads++
+	if c.reads == 1 {
+		return c.now
+	}
+	return c.now.Add(2 * time.Minute)
+}
+
 // R04/R05: failed refresh never writes a record read before a competing success.
 func TestRefreshFailureCannotUndoConcurrentSuccess(t *testing.T) {
 	for _, failureFirst := range []bool{false, true} {
