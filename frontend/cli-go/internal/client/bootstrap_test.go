@@ -44,7 +44,7 @@ func TestGetAuthProviderUsesAdvertisedGenericOIDCConfiguration(t *testing.T) {
 			t.Fatalf("public provider request sent Authorization = %q", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"google","display_name":"Google","adapter":"oidc","configuration_version":1,"flow":"authorizationCodePKCE","issuer":"https://accounts.example.test","client_id":"public-client","authorization_endpoint":"https://accounts.example.test/auth","token_endpoint":"https://accounts.example.test/token","token_endpoint_auth_method":"none","authorization_response_iss_parameter_supported":true,"scopes":["openid","email"],"authorization_parameters":{"prompt":"consent"}}`))
+		_, _ = w.Write([]byte(`{"id":"google","display_name":"Google","adapter":"oidc","configuration_version":2,"flow":"authorizationCodePKCE","issuer":"https://accounts.example.test","client_id":"public-client","authorization_endpoint":"https://accounts.example.test/auth","exchange_endpoint":"https://accounts.example.test/exchange","refresh_endpoint":"https://accounts.example.test/refresh","authorization_response_iss_parameter_supported":true,"scopes":["openid","email"],"authorization_parameters":{"prompt":"consent"}}`))
 	}))
 	defer server.Close()
 
@@ -59,7 +59,7 @@ func TestGetAuthProviderUsesAdvertisedGenericOIDCConfiguration(t *testing.T) {
 
 func TestValidateOIDCProviderRejectsReservedAuthorizationParameters(t *testing.T) {
 	provider := validTestOIDCProvider()
-	for _, key := range []string{"client_id", "redirect_uri", "scope", "state", "nonce", "code_challenge", "code_challenge_method", "login_hint", "response_mode", "request", "request_uri"} {
+	for _, key := range []string{"client_id", "response_type", "redirect_uri", "scope", "state", "nonce", "code_challenge", "code_challenge_method", "login_hint", "response_mode", "request", "request_uri"} {
 		provider.AuthorizationParameters = map[string]string{key: "collision"}
 		if err := ValidateOIDCProvider("google", provider); err == nil || !strings.Contains(err.Error(), key) {
 			t.Fatalf("reserved parameter %q: err = %v", key, err)
@@ -69,10 +69,10 @@ func TestValidateOIDCProviderRejectsReservedAuthorizationParameters(t *testing.T
 
 func validTestOIDCProvider() AuthProviderConfiguration {
 	return AuthProviderConfiguration{
-		ID: "google", DisplayName: "Google", Adapter: "oidc", ConfigurationVersion: 1,
+		ID: "google", DisplayName: "Google", Adapter: "oidc", ConfigurationVersion: 2,
 		Flow: "authorizationCodePKCE", Issuer: "https://accounts.example.test", ClientID: "public-client",
-		AuthorizationEndpoint: "https://accounts.example.test/auth", TokenEndpoint: "https://accounts.example.test/token",
-		TokenEndpointAuthMethod: "none", AuthorizationResponseISSParameterSupported: true, Scopes: []string{"openid", "email"},
+		AuthorizationEndpoint: "https://accounts.example.test/auth", ExchangeEndpoint: "https://accounts.example.test/exchange", RefreshEndpoint: "https://accounts.example.test/refresh",
+		AuthorizationResponseISSParameterSupported: true, Scopes: []string{"openid", "email"},
 	}
 }
 
@@ -149,16 +149,16 @@ func TestValidateOIDCProviderRejectsUnsupportedConfigurations(t *testing.T) {
 	}{
 		{name: "id mismatch", edit: func(v *AuthProviderConfiguration) { v.ID = "other" }},
 		{name: "adapter", edit: func(v *AuthProviderConfiguration) { v.Adapter = "googleOidc" }},
-		{name: "version", edit: func(v *AuthProviderConfiguration) { v.ConfigurationVersion = 2 }},
+		{name: "version", edit: func(v *AuthProviderConfiguration) { v.ConfigurationVersion = 1 }},
 		{name: "flow", edit: func(v *AuthProviderConfiguration) { v.Flow = "deviceCode" }},
-		{name: "client auth", edit: func(v *AuthProviderConfiguration) { v.TokenEndpointAuthMethod = "client_secret_post" }},
+		{name: "missing exchange", edit: func(v *AuthProviderConfiguration) { v.ExchangeEndpoint = "" }},
 		{name: "no response issuer", edit: func(v *AuthProviderConfiguration) { v.AuthorizationResponseISSParameterSupported = false }},
 		{name: "missing client", edit: func(v *AuthProviderConfiguration) { v.ClientID = "" }},
 		{name: "bad issuer", edit: func(v *AuthProviderConfiguration) { v.Issuer = "http://issuer.example.test" }},
 		{name: "issuer query", edit: func(v *AuthProviderConfiguration) { v.Issuer += "?x=1" }},
 		{name: "bad authorize", edit: func(v *AuthProviderConfiguration) { v.AuthorizationEndpoint = "/authorize" }},
 		{name: "authorize reserved query", edit: func(v *AuthProviderConfiguration) { v.AuthorizationEndpoint += "?state=fixed" }},
-		{name: "bad token", edit: func(v *AuthProviderConfiguration) { v.TokenEndpoint = "http://issuer.example.test/token" }},
+		{name: "bad token", edit: func(v *AuthProviderConfiguration) { v.ExchangeEndpoint = "http://issuer.example.test/token" }},
 		{name: "bad revoke", edit: func(v *AuthProviderConfiguration) { v.RevocationEndpoint = "http://issuer.example.test/revoke" }},
 		{name: "empty scope", edit: func(v *AuthProviderConfiguration) { v.Scopes = []string{"openid", " "} }},
 		{name: "duplicate scope", edit: func(v *AuthProviderConfiguration) { v.Scopes = []string{"openid", "openid"} }},
@@ -312,5 +312,18 @@ func TestBootstrapErrorAndCanonicalizationBranches(t *testing.T) {
 	parsed, _ := url.Parse("https://host:8443")
 	if serviceURLPort(parsed) != "8443" || !sameURLOrigin(parsed, parsed) {
 		t.Fatal("explicit service port/origin mismatch")
+	}
+}
+
+// Public discovery uses the same bounded-response rule as installation exchange.
+func TestPublicDiscoveryRejectsOversizedResponse(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"value":"` + strings.Repeat("x", 1<<20) + `"}`))
+	}))
+	defer s.Close()
+	var result map[string]string
+	if err := New(s.URL, Options{}).getPublicJSON(context.Background(), "/discovery", &result); err == nil {
+		t.Fatal("oversized discovery accepted")
 	}
 }

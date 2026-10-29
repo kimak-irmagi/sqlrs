@@ -1,24 +1,16 @@
 # sqlrs auth
 
-## Overview
-
-`sqlrs auth` manages local CLI authentication sessions for shared or cloud
-deployments. A remote installation advertises its enabled login providers; the
-first configured provider is Google, using the generic OIDC adapter.
-
-The server and gateway continue to accept only short-lived Google ID tokens as
-`Authorization: Bearer <id-token>`. Refresh tokens are client-only secrets. The
-CLI stores them in the operating-system credential store, refreshes ID tokens
-locally, and never sends refresh tokens to any sqlrs API.
-
-Manual bearer-token use through `SQLRS_TOKEN` remains a debug and smoke-test
-override. If `SQLRS_TOKEN` is set, protected API commands use it before any
-stored auth session.
+The CLI owns the browser, local callback and OS credential store. The selected
+installation owns application client credentials and exchanges user codes and
+refresh tokens with the provider. The CLI never receives client_secret.
+The fixed discovery schema revision 2 replaces the old `/v1` authentication
+contract; matching server/CLI versions are required, without compatibility fallback.
 
 ## Command syntax
 
 ```text
 sqlrs auth providers
+
 sqlrs auth login <provider> [--login-hint <email>] [--no-browser]
 sqlrs auth status
 sqlrs auth logout [--no-revoke]
@@ -39,6 +31,9 @@ sqlrs --profile remote-dev auth logout
 login because local engine requests use the local daemon token from
 `engine.json`.
 
+For example, `sqlrs --profile remote-dev auth login google`. Provider IDs select
+configured instances, not protocols; the first adapter is `oidc`.
+
 `sqlrs auth providers` fetches the current public provider list from the
 selected profile endpoint. It works even if the output from `init remote` was
 lost, does not require a stored login, and does not change workspace config.
@@ -49,8 +44,10 @@ the command reports that condition instead of suggesting a provider.
 
 ## Remote profile and provider discovery
 
-A normal remote profile stores stable installation and routing metadata, not
-provider-specific login configuration:
+Initialize a remote profile with `sqlrs init remote <endpoint>`. The remoteSession
+profile retains stable installation ID, trusted control endpoint and current
+organization endpoint. It contains no provider secret or user tokens.
+`SQLRS_TOKEN`, when set, remains the explicit highest-priority bearer override.
 
 ```yaml
 profiles:
@@ -102,126 +99,46 @@ must not duplicate parameters owned by the CLI. URL joining is structural, and
 bootstrap redirects may not cross origin or downgrade. The CLI rejects invalid
 configuration before opening a browser or sending a token request.
 
+Public `/v1/connection-info` and `/v1/auth/providers/{provider}` work at the root
+and valid candidate organization prefixes without disclosing organization
+existence. Explicit login does not require a successful provider-list request.
+Detail must match the requested ID and the supported revision-2 OIDC capabilities.
+It exposes authorization metadata and installation exchange/refresh URLs, without
+an upstream token endpoint, client-authentication method or secret. Operation URLs
+must remain under the trusted installation control origin/base. Unsafe parameters
+or incompatible metadata fail before a browser opens.
+
 ## Google OAuth client
 
-The shared-deployment operator creates and configures the Google OAuth client:
+The installation operator configures an independent Google **Desktop** client ID
+and secret on the server. It must permit PKCE S256, a random IPv4 loopback callback,
+response issuer identification, RS256 ID tokens and refresh returning a fresh ID
+token. Configure `openid email profile` and Google's `access_type=offline` and
+`prompt=consent` explicitly on that provider instance. No Google defaults are
+inherited by other instances. Verify the actual provider/client capabilities;
+sharing a brand or issuer alone does not establish compatibility.
 
-1. In Google Cloud Console, create an OAuth client with application type
-   `Desktop app`.
-2. Publish the non-secret client ID and provider endpoints through the
-   installation's Google provider configuration route.
-3. Configure the sqlrs gateway to accept Google ID tokens with:
-   - issuer: `https://accounts.google.com`;
-   - audience: the same Google client ID.
-
-The CLI uses a loopback redirect URI at runtime:
-
-```text
-http://127.0.0.1:<random-port>
-```
-
-The random port is selected for each login. Do not configure a fixed redirect
-port in sqlrs config. A provider that requires a confidential client secret is
-not compatible with this direct native-CLI flow; no such secret may be returned
-by the public provider API.
+The secret remains in protected server configuration. Users do not enter it in
+CLI options, profiles or authorization URLs. A provider needing a different
+protocol/client-authentication method needs a corresponding server adapter.
 
 ## `sqlrs auth login google`
 
-Logs the selected remote profile into Google and stores a refresh-capable local
-session.
-
-```text
-sqlrs auth login google [--login-hint <email>] [--no-browser]
-```
-
-Flow:
-
-1. Validate that the selected profile is `mode: remote` and
-   `auth.mode: remoteSession`.
-2. Request the current Google OIDC configuration from
-   `<profile endpoint>/v1/auth/providers/google`. The same installation-owned
-   configuration is available below root, existing-organization, and
-   nonexistent candidate prefixes without disclosing organization existence.
-3. Require the provider response to contain the public client ID, issuer,
-   authorization endpoint (the login-form base URL), token endpoint, scopes,
-   token endpoint authentication method `none`, RFC 9207 authorization-response
-   issuer support, an `openid` scope, flow identifier, and configuration version
-   expected by the OIDC adapter. The returned provider ID must match the
-   requested provider path. The provider collection is not a prerequisite for
-   login; an unknown or disabled provider returns `404`.
-4. Generate:
-   - a high-entropy PKCE verifier;
-   - a SHA-256 PKCE challenge using method `S256`;
-   - a high-entropy `state`;
-   - a high-entropy OIDC `nonce`.
-5. Start an HTTP listener on `127.0.0.1:<random-port>`.
-6. Build the Google authorization URL from the advertised
-   `authorizationEndpoint`; the CLI does not hard-code the Google login URL.
-   Add:
-   - `response_type=code`;
-   - `client_id=<provider client ID>`;
-   - `redirect_uri=http://127.0.0.1:<random-port>`;
-   - `scope=<provider-advertised scopes>`;
-   - `code_challenge=<challenge>`;
-   - `code_challenge_method=S256`;
-   - `state=<state>`;
-   - `nonce=<nonce>`;
-   - provider-advertised static authorization parameters. For Google these are
-     `access_type=offline` and `prompt=consent`.
-7. Open the system browser unless `--no-browser` is set. With explicit
-   `--no-browser`, immediately print the authorization URL to stderr for the
-   user to open manually. Browser mode does not print the URL.
-8. Accept exactly one callback on the loopback listener.
-9. Reject the callback if:
-   - `state` does not match;
-   - RFC 9207 `iss` is missing or does not exactly match the issuer bound to
-     this login attempt;
-   - Google returns `error`;
-   - `code` is missing.
-10. Exchange the authorization code at the advertised token endpoint using the
-    PKCE verifier.
-11. Require an ID token and refresh token in the token response.
-12. Decode the ID token claims for local validation and metadata:
-    - `iss` must match the configured issuer;
-    - `sub` must be present and non-empty;
-    - configuration version 1 requires the client ID to be the sole `aud`;
-    - `azp`, when present, must match the advertised client ID;
-    - `exp` and `iat` must both be present;
-    - `exp` must be in the future;
-    - `iat` must not be more than five minutes in the future;
-    - `nonce` must match the login nonce;
-    - `email` is captured for status output when present.
-13. Store the refresh token and optional cached ID token in the OS credential
-    store.
-14. Store only safe metadata for status and diagnostics and make `google` the
-    active provider for this profile.
-15. Using the new ID token from this login, ask the profile's current request
-    API for the authenticated current user. `SQLRS_TOKEN` does not override this
-    post-login reconciliation request.
-    This either validates and binds a candidate-prefixed endpoint or reconciles
-    an installation-root profile to its one unambiguous organization endpoint.
-
-The manual authorization URL is the sole output exception for login-attempt
-values: it necessarily contains `state`, `nonce`, and the PKCE challenge. It
-must never contain the PKCE verifier and must not be repeated in final human or
-JSON output, errors, verbose diagnostics, or logs. Authorization codes, PKCE
-verifiers, refresh tokens, and ID tokens are never printed. Stdout remains
-reserved for the final command result; in JSON mode it contains exactly one
-valid JSON document.
-
-Human success output:
-
-```text
-logged in
-provider: google
-email: alice@example.com
-issuer: https://accounts.google.com
-audience: 1234567890-abcdef.apps.googleusercontent.com
-profile: remote-dev
-endpoint: https://sqlrs.example.org
-```
-
-The final result never includes the manual authorization URL.
+1. Fetch and validate the selected provider detail and trusted operation URLs.
+2. Generate state, nonce and PKCE S256 material; start a temporary listener at
+   `http://127.0.0.1:<random-port>/` and construct the configured authorization URL.
+3. Open the browser. With `--no-browser`, print the URL immediately to stderr for
+   manual opening. The URL includes public client ID and attempt parameters only.
+4. Receive the authorization code locally; reject callback errors or mismatched
+   state/issuer. Send code, exact redirect URI, verifier, nonce and expected
+   installation/issuer/client binding to the installation exchange endpoint.
+5. The server uses its client secret for provider exchange and verifies the signed
+   result before returning it synchronously, without storing a user session.
+6. The CLI checks exact issuer, sole audience, optional matching azp, subject,
+   nonce and exp strictly in the future. Login requires both ID and refresh tokens.
+   Access tokens cannot replace ID tokens. Only then atomically replace the local
+   OS credential. Failed login preserves the previous session.
+7. Run the existing organization endpoint reconciliation described below.
 
 ### Organization endpoint reconciliation
 
@@ -274,56 +191,33 @@ atomic update failed.
 
 ## Token selection for protected API commands
 
-Protected remote API commands resolve a bearer token in this order:
+The CLI uses an explicit SQLRS_TOKEN override first. Otherwise it uses a complete
+installation-scoped local session. An eligible cached ID token is reused; a token
+missing or due for refresh triggers anonymous current provider discovery and a
+request to the installation refresh endpoint. The request includes the stored
+subject/nonce and expected installation/issuer/client binding. Changed trust
+requires login before submitting the refresh credential. No browser opens.
 
-1. If `SQLRS_TOKEN` is set, use it exactly as the bearer token source.
-2. If the selected profile uses `auth.mode: remoteSession`, load its active
-   provider session from the OS credential store.
-3. If the selected profile uses the legacy `auth.mode: bearer`, keep the current
-   `tokenEnv` or `token` behavior.
-4. If no token source is available, fail before making the protected API
-   request.
+A valid result is independently checked before storing a rotated refresh token.
+Omission retains the submitted token; an explicit empty replacement is invalid.
+Tokens expiring in less than five minutes remain acceptable: five minutes is the
+refresh-ahead threshold, not a minimum token lifetime.
 
-For Google sessions, the CLI decodes the cached ID token locally and checks
-`exp` before each protected API request. If the token is missing, expired, or
-will expire within five minutes, the CLI reads the current Google provider
-configuration, refreshes through its advertised token endpoint, and then sends
-only the fresh ID token as:
+Every failed refresh, including invalid_grant, cancellation, lost response and
+invalid claims, leaves the current credential untouched. It performs no deletion,
+write or restoration of a previously read value, because another process may
+have saved a successful refresh. There is no cross-process refresh lock. The
+command reports a safe error and the user chooses whether to retry or log in.
+Explicit logout remains the operation that deletes local credentials.
 
-```text
-Authorization: Bearer <id-token>
-```
-
-Before sending the refresh token, the CLI requires the current provider detail
-to retain the session's provider ID, adapter, issuer, and client ID; otherwise
-it requires a new login. Token and revocation POST requests never follow HTTP
-redirects.
-
-The refreshed ID token must have a non-empty subject, the exact issuer, sole
-client-ID audience, valid `azp`, required `iat` and `exp`, `iat` no more than
-five minutes in the future, a future expiry, and the same subject as the stored
-session. Nonce is not required on refresh, but a returned nonce must match the
-login nonce retained in the credential. If the token response
-rotates the refresh token, the CLI atomically stores the replacement together
-with the new ID token; the provider remains responsible for enforcing rotation
-or sender-constraining policy for this public client.
-
-Transient network failures, `429`, and `5xx` retain the session for retry and
-report that the provider is temporarily unavailable. In configuration version
-1, only the OAuth error `invalid_grant` deletes the session and asks for login;
-all other `4xx` responses retain it and report a request/provider configuration
-error. Provider-specific definitive-rejection codes require a future
-configuration version. Invalid returned claims retain the refresh credential
-for a later retry but are never sent to a sqlrs API. If refresh fails or the credential store cannot be read, the CLI
-must not send the stale ID token. A definitive session failure prints:
-
-```text
-Google auth session is expired or unavailable; run `sqlrs auth login google`.
-```
+Exchange/refresh POSTs do not redirect or retry automatically. They never attach
+an unrelated cached bearer. Responses are limited to 1 MiB and the command timeout
+applies (default 30 seconds). Incomplete legacy sessions require a fresh login;
+old discovery or missing operations never enable direct-provider exchange.
 
 ## `sqlrs auth status`
 
-Shows whether the selected profile has a stored Google auth session. It does
+Shows whether the selected profile has a stored provider session. It does
 not contact the provider or prove that a refresh token has not been revoked.
 
 ```text
@@ -372,7 +266,7 @@ tokens:
 
 ## `sqlrs auth logout`
 
-Deletes the selected profile's local Google auth session.
+Deletes the selected profile's local provider session.
 
 ```text
 sqlrs auth logout [--no-revoke]
@@ -388,7 +282,7 @@ Default behavior:
    follow redirects.
 4. Leave `SQLRS_TOKEN` untouched.
 
-`--no-revoke` skips the Google revocation request and only deletes local
+`--no-revoke` skips the provider revocation request and only deletes local
 credentials.
 
 Human output:
@@ -440,67 +334,18 @@ plain text. `SQLRS_TOKEN` remains available for smoke/debug runs.
 
 ## Troubleshooting
 
-### Token expired
+- For invalid_grant or changed provider trust, run `sqlrs auth login <provider>`.
+  A failed refresh retains the existing record; do not assume it was deleted.
+- A missing refresh token usually requires checking the configured client type,
+  scopes and consent parameters. Provider-specific parameters are server settings.
+- An invalid audience means the returned ID token targets a different client ID.
+  Every installation must use its own registration and trust configuration.
+- On Linux, install/configure Secret Service/libsecret (for example through the
+  desktop keyring). An unavailable store produces a setup error without plaintext
+  fallback. `SQLRS_TOKEN` remains an explicit debugging mechanism.
+- If the browser callback cannot reach the local listener, check local networking
+  and try `--no-browser`. Device code flow is not implemented as a fallback.
 
-Protected commands refresh cached ID tokens automatically. If a command still
-reports an expired or unavailable session, run:
-
-```text
-sqlrs auth login google
-```
-
-### Refresh token not returned
-
-The login URL includes `access_type=offline` and `prompt=consent` so Google can
-return a refresh token. If the token response still lacks `refresh_token`, check
-that the OAuth client is a Desktop app client, the scopes are exactly
-`openid email profile`, and the user completed consent for the selected Google
-account.
-
-### Provider requires a confidential client secret
-
-The public provider API and native CLI must not distribute a confidential
-client secret. Configure a public/native-client flow that supports PKCE or use a
-separately designed server-side auth broker; do not put the secret in workspace
-config.
-
-### Invalid audience
-
-The ID token `aud` claim is the Google OAuth client ID used by the CLI.
-Configure the gateway to trust the exact issuer/client-ID pair before the
-service advertises the provider. Configuration version 1 requires it to be the
-sole audience; `azp`, when present, must equal the client ID. Inconsistent
-provider and gateway trust configuration
-makes bootstrap/provider discovery unavailable with `503`.
-
-### Credential store unavailable
-
-On Linux, start or install a Secret Service provider such as GNOME Keyring or
-KWallet with libsecret support. The CLI must not store refresh tokens in
-`.sqlrs/config.yaml` as a fallback.
-
-### Browser callback does not complete
-
-Retry login. If the browser cannot be opened automatically, use:
-
-```text
-sqlrs auth login google --no-browser
-```
-
-Open the printed URL manually in a browser on the same machine where the CLI is
-listening.
-
-## Device code fallback
-
-The first design target is the loopback redirect flow because sqlrs CLI runs on
-developer workstations with a browser. Device code flow remains a fallback only
-if loopback login proves impractical. Before switching, verify that the selected
-Google OAuth client type and scopes return refresh tokens for device flow and
-that the resulting ID token audience is accepted by the gateway.
-
-## External references
-
-- Google OAuth 2.0 for mobile and desktop apps:
-  <https://developers.google.com/identity/protocols/oauth2/native-app>
-- Google OAuth 2.0 for limited-input devices:
-  <https://developers.google.com/identity/protocols/oauth2/limited-input-device>
+See the [interaction flow](../architecture/cli-auth-flow.md),
+[component structure](../architecture/cli-auth-component-structure.md), and
+[OpenAPI](../api-guides/sqlrs-engine.openapi.yaml).

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -145,6 +146,7 @@ func TestResolveEffectiveAuthTokenBranches(t *testing.T) {
 }
 
 func TestRunAuthSecondPassErrorBranches(t *testing.T) {
+	installAuthProviderFixture(t, "https://example.org")
 	var help bytes.Buffer
 	if err := runAuth(&help, io.Discard, t.TempDir(), cli.GlobalOptions{}, []string{"--help"}); err != nil || !strings.Contains(help.String(), "Usage:") {
 		t.Fatalf("help = %q, %v", help.String(), err)
@@ -161,7 +163,7 @@ func TestRunAuthSecondPassErrorBranches(t *testing.T) {
 		{name: "local mode", config: authTestConfig("local", "", "none"), args: []string{"status"}, want: "require remote mode"},
 		{name: "automatic endpoint", config: authTestConfig("remote", "auto", "oidcSession"), args: []string{"status"}, want: "explicit remote endpoint"},
 		{name: "login auth mode", config: authTestConfig("remote", "https://example.org", "bearer"), args: []string{"login", "google"}, want: "requires profile auth.mode"},
-		{name: "login manager error", config: authTestConfig("remote", "https://example.org", "oidcSession"), args: []string{"login", "google"}, manager: fakeAuthManager{loginErr: errors.New("login failed")}, want: "login failed"},
+		{name: "login manager error", config: authTestConfig("remote", "https://example.org", "remoteSession"), args: []string{"login", "google"}, manager: fakeAuthManager{loginErr: errors.New("login failed")}, want: "login failed"},
 		{name: "status manager error", config: authTestConfig("remote", "https://example.org", "oidcSession"), args: []string{"status"}, manager: fakeAuthManager{statusErr: errors.New("status failed")}, want: "status failed"},
 		{name: "logout manager error", config: authTestConfig("remote", "https://example.org", "oidcSession"), args: []string{"logout"}, manager: fakeAuthManager{logoutErr: errors.New("logout failed")}, want: "logout failed"},
 	}
@@ -199,11 +201,15 @@ func TestRunAuthWarnsForDeprecatedOIDCSessionProfile(t *testing.T) {
 }
 
 func authTestConfig(mode, endpoint, authMode string) string {
+	binding := ""
+	if authMode == "remoteSession" {
+		binding = "    installationID: installation-1\n    installationEndpoint: " + endpoint + "\n"
+	}
 	return "defaultProfile: remote\n" +
 		"profiles:\n" +
 		"  remote:\n" +
 		"    mode: " + mode + "\n" +
-		"    endpoint: " + endpoint + "\n" +
+		"    endpoint: " + endpoint + "\n" + binding +
 		"    auth:\n" +
 		"      mode: " + authMode + "\n" +
 		"      clientID: client-id\n"
@@ -274,8 +280,8 @@ func TestResolveEffectiveAuthTokenUsesStoredSessionBeforeOIDCStaticToken(t *test
 	if resolved.authToken != "fresh-id-token" {
 		t.Fatalf("auth token = %q, want refreshed session token", resolved.authToken)
 	}
-	if gotOptions.ClientSecret != "client-secret" {
-		t.Fatalf("client secret = %q, want client-secret", gotOptions.ClientSecret)
+	if _, present := reflect.TypeOf(gotOptions).FieldByName("ClientSecret"); present {
+		t.Fatal("session options expose provider secret")
 	}
 }
 

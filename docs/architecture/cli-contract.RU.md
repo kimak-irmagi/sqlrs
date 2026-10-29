@@ -1,5 +1,9 @@
 # Контракт CLI sqlrs (черновик)
 
+Текущий обмен токенов описан в [аутентификации CLI](cli-auth-flow.RU.md):
+схема discovery версии 2, серверный обмен и обновление, без возврата к старому
+протоколу. При любом отказе обновления запись хранилища не меняется.
+
 Этот документ определяет **предварительный пользовательский контракт CLI** для `sqlrs`.
 Он намеренно неполный и эволюционный, по духу близок к ранним версиям CLI `git`
 или `docker`.
@@ -479,7 +483,7 @@ runtime `names`.
   деплойментов.
 - `auth login <provider>` получает versioned adapter configuration от выбранной
   installation. OIDC adapter использует объявленные сервисом
-  authorization/token endpoints, Authorization Code Flow with PKCE, loopback
+  адрес входа и серверные адреса обмена/обновления, PKCE, локальный
   redirect listener и OS credential storage для refresh token.
 - Connection-info и provider discovery routes доступны без login на
   installation root и под любым candidate organization prefix, включая
@@ -508,13 +512,13 @@ runtime `names`.
 - Endpoint reconciliation сохраняет switch только для token source
   `StoredRemoteSession`; `EnvironmentOverride` и `LegacyBearer` печатают recovery
   и не меняют profile.
-- Refresh configuration version 1 удаляет session только при OAuth
-  `invalid_grant`; любой другой `4xx` сохраняет её и сообщает configuration или
-  request error.
+- Любой отказ обновления, включая `invalid_grant`, оставляет текущую запись
+  нетронутой: без удаления, записи и восстановления ранее прочитанного значения.
 - Provider component external identity — advertised service provider ID вроде
   `google`, но никогда не adapter name `oidc`.
-- Gateway по-прежнему получает только short-lived Google ID token как
-  `Authorization: Bearer <id-token>`.
+- Защищённые методы принимают проверенный ID-токен настроенного провайдера.
+  Серверные методы обмена и обновления принимают пользовательские данные запроса,
+  используют секрет приложения и не сохраняют пользовательские токены.
 
 ---
 

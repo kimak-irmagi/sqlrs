@@ -629,6 +629,10 @@ configuration makes bootstrap routes return `503`.
 |---|---|---|---|---|
 |200|Cache-Control|string||Require revalidation of rotatable provider metadata.|
 |200|ETag|string||Entity tag used to revalidate provider metadata.|
+|304|Cache-Control|string||none|
+|304|ETag|string||none|
+|405|Cache-Control|string||none|
+|503|Cache-Control|string||none|
 
 <aside class="success">
 This operation does not require authentication
@@ -784,19 +788,13 @@ func main() {
 
 `GET /v1/auth/providers/{provider}`
 
-*Get versioned login configuration for one provider*
+*Get the required login configuration for one provider*
 
-Shared/team/cloud deployments only. No authentication is required.
-Provider configuration is installation-owned and equivalent through
-installation-root and syntactically valid candidate
-organization-prefixed API bases. Availability does not confirm that the
-candidate organization exists.
+Remote installations only. No authentication is required. The same installation-owned configuration is served at the root and syntactically valid candidate organization bases without confirming organization existence.
 
-Public configuration may contain client identifiers and provider
-endpoints, but never confidential client secrets or user tokens.
-The response `id` must equal the requested path parameter. The
-collection is intended for discovery and UI; clients may fetch this
-fixed detail path directly for login.
+This is the sole current authentication contract, replacing the former direct public-client contract in place under /v1. There is no version-selection header, legacy representation, or direct-exchange compatibility mode. configuration_version=2 identifies the required schema revision only; clients cannot request another revision. Provider IDs, issuer/client ID, authorization metadata, and installation exchange/refresh endpoints are public; client secrets and user tokens are never published.
+
+The response id equals the requested provider. Clients can fetch this detail directly without fetching the catalogue. ETags revalidate the single current representation; there is no version-dependent cache variation. A new CLI requires this exact schema and the advertised exchange/refresh operations. If an old or incompatible server does not provide them, the CLI fails with an actionable authentication compatibility error without fallback. Supporting old CLI clients is not required.
 
 <h3 id="getauthprovider-parameters">Parameters</h3>
 
@@ -814,13 +812,11 @@ fixed detail path directly for login.
   "id": "google",
   "display_name": "Google",
   "adapter": "oidc",
-  "configuration_version": 1,
+  "configuration_version": 2,
   "flow": "authorizationCodePKCE",
   "issuer": "https://accounts.google.com",
   "client_id": "1234567890-abcdef.apps.googleusercontent.com",
   "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
-  "token_endpoint": "https://oauth2.googleapis.com/token",
-  "token_endpoint_auth_method": "none",
   "authorization_response_iss_parameter_supported": true,
   "revocation_endpoint": "https://oauth2.googleapis.com/revoke",
   "scopes": [
@@ -831,7 +827,9 @@ fixed detail path directly for login.
   "authorization_parameters": {
     "access_type": "offline",
     "prompt": "consent"
-  }
+  },
+  "exchange_endpoint": "https://api.example.com/v1/auth/providers/google/exchange",
+  "refresh_endpoint": "https://api.example.com/v1/auth/providers/google/refresh"
 }
 ```
 
@@ -851,6 +849,483 @@ fixed detail path directly for login.
 |---|---|---|---|---|
 |200|Cache-Control|string||Require revalidation of rotatable provider configuration.|
 |200|ETag|string||Entity tag used to revalidate provider configuration.|
+|304|Cache-Control|string||none|
+|304|ETag|string||none|
+|404|Cache-Control|string||none|
+|405|Cache-Control|string||none|
+|503|Cache-Control|string||none|
+
+<aside class="success">
+This operation does not require authentication
+</aside>
+
+## exchangeAuthProviderCode
+
+<a id="opIdexchangeAuthProviderCode"></a>
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://127.0.0.1:{port}/v1/auth/providers/{provider}/exchange \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+```http
+POST http://127.0.0.1:{port}/v1/auth/providers/{provider}/exchange HTTP/1.1
+Host: 127.0.0.1
+Content-Type: application/json
+Accept: application/json
+
+```
+
+```javascript
+const inputBody = '{
+  "expected_installation_id": "string",
+  "expected_issuer": "http://example.com",
+  "expected_client_id": "string",
+  "code": "string",
+  "redirect_uri": "http://example.com",
+  "code_verifier": "stringstringstringstringstringstringstrings",
+  "expected_nonce": "string"
+}';
+const headers = {
+  'Content-Type':'application/json',
+  'Accept':'application/json'
+};
+
+fetch('http://127.0.0.1:{port}/v1/auth/providers/{provider}/exchange',
+{
+  method: 'POST',
+  body: inputBody,
+  headers: headers
+})
+.then(function(res) {
+    return res.json();
+}).then(function(body) {
+    console.log(body);
+});
+
+```
+
+```ruby
+require 'rest-client'
+require 'json'
+
+headers = {
+  'Content-Type' => 'application/json',
+  'Accept' => 'application/json'
+}
+
+result = RestClient.post 'http://127.0.0.1:{port}/v1/auth/providers/{provider}/exchange',
+  params: {
+  }, headers: headers
+
+p JSON.parse(result)
+
+```
+
+```python
+import requests
+headers = {
+  'Content-Type': 'application/json',
+  'Accept': 'application/json'
+}
+
+r = requests.post('http://127.0.0.1:{port}/v1/auth/providers/{provider}/exchange', headers = headers)
+
+print(r.json())
+
+```
+
+```php
+<?php
+
+require 'vendor/autoload.php';
+
+$headers = array(
+    'Content-Type' => 'application/json',
+    'Accept' => 'application/json',
+);
+
+$client = new \GuzzleHttp\Client();
+
+// Define array of request body.
+$request_body = array();
+
+try {
+    $response = $client->request('POST','http://127.0.0.1:{port}/v1/auth/providers/{provider}/exchange', array(
+        'headers' => $headers,
+        'json' => $request_body,
+       )
+    );
+    print_r($response->getBody()->getContents());
+ }
+ catch (\GuzzleHttp\Exception\BadResponseException $e) {
+    // handle exception or api errors.
+    print_r($e->getMessage());
+ }
+
+ // ...
+
+```
+
+```java
+URL obj = new URL("http://127.0.0.1:{port}/v1/auth/providers/{provider}/exchange");
+HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+con.setRequestMethod("POST");
+int responseCode = con.getResponseCode();
+BufferedReader in = new BufferedReader(
+    new InputStreamReader(con.getInputStream()));
+String inputLine;
+StringBuffer response = new StringBuffer();
+while ((inputLine = in.readLine()) != null) {
+    response.append(inputLine);
+}
+in.close();
+System.out.println(response.toString());
+
+```
+
+```go
+package main
+
+import (
+       "bytes"
+       "net/http"
+)
+
+func main() {
+
+    headers := map[string][]string{
+        "Content-Type": []string{"application/json"},
+        "Accept": []string{"application/json"},
+    }
+
+    data := bytes.NewBuffer([]byte{jsonReq})
+    req, err := http.NewRequest("POST", "http://127.0.0.1:{port}/v1/auth/providers/{provider}/exchange", data)
+    req.Header = headers
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    // ...
+}
+
+```
+
+`POST /v1/auth/providers/{provider}/exchange`
+
+*Exchange a provider authorization code on the installation*
+
+Remote installations only. Exposed at the installation control base, not at candidate organization prefixes. Public before login: no bearer token, local profile, organization membership, or extra token-pickup session is required. The CLI does not attach an unrelated cached bearer. OAuth artifacts are validated upstream using this installation's credentials; exchange does not grant local organization admission.
+
+The gateway selects the configured enabled provider by path and checks expected installation, issuer, and client ID before sending credentials upstream. Expected values are guards, never configuration overrides. The request cannot select an upstream URL, client secret, or token request authentication method. Credential JSON bodies are limited to 16 KiB. Operation request/response bodies and sensitive headers are excluded from application/proxy logs. Do not echo upstream response bodies in errors. All responses, including routing/media/body errors, have Cache-Control: no-store.
+
+Production transport requires HTTPS. HTTP is permitted only for loopback development installations. Advertised exchange/refresh URLs must share the trusted control origin and remain beneath its base. Credential-bearing requests follow no redirects and are not automatically retried after ambiguous outcomes. The server also follows no upstream token-endpoint redirects. No user tokens are persisted on the server, and no database mutation or adopted-profile lookup is required.
+
+Exchange the authorization code with its exact loopback redirect URI and PKCE S256 verifier. The CLI checks state and callback issuer locally; the gateway verifies the returned ID-token signature, configured issuer, sole audience, optional azp, subject, time claims, and requested nonce before returning tokens. A refresh token and ID token are required for successful login. The CLI retains independent attempt/claim checks and stores credentials only after validation. An unavailable result may require another login.
+
+> Body parameter
+
+```json
+{
+  "expected_installation_id": "string",
+  "expected_issuer": "http://example.com",
+  "expected_client_id": "string",
+  "code": "string",
+  "redirect_uri": "http://example.com",
+  "code_verifier": "stringstringstringstringstringstringstrings",
+  "expected_nonce": "string"
+}
+```
+
+<h3 id="exchangeauthprovidercode-parameters">Parameters</h3>
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|provider|path|[AuthProviderID](#schemaauthproviderid)|true|none|
+|body|body|[OIDCCodeExchangeRequest](#schemaoidccodeexchangerequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id_token": "string",
+  "refresh_token": "string",
+  "access_token": "string"
+}
+```
+
+<h3 id="exchangeauthprovidercode-responses">Responses</h3>
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Validated provider token result; credentials remain client-owned.|[OIDCCodeExchangeResponse](#schemaoidccodeexchangeresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Malformed request or provider-rejected code/verifier/refresh token. Codes: auth_invalid_request, auth_invalid_grant. Refresh refusal does not authorize deletion or overwrite of local credentials.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Unknown, disabled, or non-server-exchange provider. Code: auth_provider_not_found.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|405|[Method Not Allowed](https://tools.ietf.org/html/rfc7231#section-6.5.5)|Method not allowed. Allow: POST. Applies before any credential processing.|None|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|Expected installation/issuer/client-ID does not match current configuration; no upstream request is made. Code: auth_configuration_changed.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|413|[Payload Too Large](https://tools.ietf.org/html/rfc7231#section-6.5.11)|JSON request exceeds the 16 KiB operation limit. Code: auth_invalid_request.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|415|[Unsupported Media Type](https://tools.ietf.org/html/rfc7231#section-6.5.13)|Content-Type must be application/json. Code: auth_invalid_request.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|502|[Bad Gateway](https://tools.ietf.org/html/rfc7231#section-6.6.3)|Upstream token response is malformed, missing required tokens, or fails cryptographic/claim validation. Code: auth_provider_response_invalid.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|503|[Service Unavailable](https://tools.ietf.org/html/rfc7231#section-6.6.4)|Required installation configuration is unavailable or upstream service/client authentication is unavailable. Codes: auth_configuration_unavailable, auth_provider_unavailable. No credentials or upstream error body are returned.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|504|[Gateway Time-out](https://tools.ietf.org/html/rfc7231#section-6.6.5)|Upstream exchange timed out; its outcome may be unknown. Code: auth_provider_timeout. Do not automatically replay the request.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+
+### Response Headers
+
+|Status|Header|Type|Format|Description|
+|---|---|---|---|---|
+|200|Cache-Control|string||Applies to success and all operation error responses.|
+|400|Cache-Control|string||Applies to success and all operation error responses.|
+|404|Cache-Control|string||Applies to success and all operation error responses.|
+|405|Cache-Control|string||Applies to success and all operation error responses.|
+|405|Allow|string||none|
+|409|Cache-Control|string||Applies to success and all operation error responses.|
+|413|Cache-Control|string||Applies to success and all operation error responses.|
+|415|Cache-Control|string||Applies to success and all operation error responses.|
+|502|Cache-Control|string||Applies to success and all operation error responses.|
+|503|Cache-Control|string||Applies to success and all operation error responses.|
+|504|Cache-Control|string||Applies to success and all operation error responses.|
+
+<aside class="success">
+This operation does not require authentication
+</aside>
+
+## refreshAuthProviderTokens
+
+<a id="opIdrefreshAuthProviderTokens"></a>
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://127.0.0.1:{port}/v1/auth/providers/{provider}/refresh \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+```http
+POST http://127.0.0.1:{port}/v1/auth/providers/{provider}/refresh HTTP/1.1
+Host: 127.0.0.1
+Content-Type: application/json
+Accept: application/json
+
+```
+
+```javascript
+const inputBody = '{
+  "expected_installation_id": "string",
+  "expected_issuer": "http://example.com",
+  "expected_client_id": "string",
+  "refresh_token": "string",
+  "expected_subject": "string",
+  "expected_nonce": "string"
+}';
+const headers = {
+  'Content-Type':'application/json',
+  'Accept':'application/json'
+};
+
+fetch('http://127.0.0.1:{port}/v1/auth/providers/{provider}/refresh',
+{
+  method: 'POST',
+  body: inputBody,
+  headers: headers
+})
+.then(function(res) {
+    return res.json();
+}).then(function(body) {
+    console.log(body);
+});
+
+```
+
+```ruby
+require 'rest-client'
+require 'json'
+
+headers = {
+  'Content-Type' => 'application/json',
+  'Accept' => 'application/json'
+}
+
+result = RestClient.post 'http://127.0.0.1:{port}/v1/auth/providers/{provider}/refresh',
+  params: {
+  }, headers: headers
+
+p JSON.parse(result)
+
+```
+
+```python
+import requests
+headers = {
+  'Content-Type': 'application/json',
+  'Accept': 'application/json'
+}
+
+r = requests.post('http://127.0.0.1:{port}/v1/auth/providers/{provider}/refresh', headers = headers)
+
+print(r.json())
+
+```
+
+```php
+<?php
+
+require 'vendor/autoload.php';
+
+$headers = array(
+    'Content-Type' => 'application/json',
+    'Accept' => 'application/json',
+);
+
+$client = new \GuzzleHttp\Client();
+
+// Define array of request body.
+$request_body = array();
+
+try {
+    $response = $client->request('POST','http://127.0.0.1:{port}/v1/auth/providers/{provider}/refresh', array(
+        'headers' => $headers,
+        'json' => $request_body,
+       )
+    );
+    print_r($response->getBody()->getContents());
+ }
+ catch (\GuzzleHttp\Exception\BadResponseException $e) {
+    // handle exception or api errors.
+    print_r($e->getMessage());
+ }
+
+ // ...
+
+```
+
+```java
+URL obj = new URL("http://127.0.0.1:{port}/v1/auth/providers/{provider}/refresh");
+HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+con.setRequestMethod("POST");
+int responseCode = con.getResponseCode();
+BufferedReader in = new BufferedReader(
+    new InputStreamReader(con.getInputStream()));
+String inputLine;
+StringBuffer response = new StringBuffer();
+while ((inputLine = in.readLine()) != null) {
+    response.append(inputLine);
+}
+in.close();
+System.out.println(response.toString());
+
+```
+
+```go
+package main
+
+import (
+       "bytes"
+       "net/http"
+)
+
+func main() {
+
+    headers := map[string][]string{
+        "Content-Type": []string{"application/json"},
+        "Accept": []string{"application/json"},
+    }
+
+    data := bytes.NewBuffer([]byte{jsonReq})
+    req, err := http.NewRequest("POST", "http://127.0.0.1:{port}/v1/auth/providers/{provider}/refresh", data)
+    req.Header = headers
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    // ...
+}
+
+```
+
+`POST /v1/auth/providers/{provider}/refresh`
+
+*Refresh provider tokens on the installation*
+
+Remote installations only. Exposed at the installation control base, not at candidate organization prefixes. Public before login: no bearer token, local profile, organization membership, or extra token-pickup session is required. The CLI does not attach an unrelated cached bearer. OAuth artifacts are validated upstream using this installation's credentials; exchange does not grant local organization admission.
+
+The gateway selects the configured enabled provider by path and checks expected installation, issuer, and client ID before sending credentials upstream. Expected values are guards, never configuration overrides. The request cannot select an upstream URL, client secret, or token request authentication method. Credential JSON bodies are limited to 16 KiB. Operation request/response bodies and sensitive headers are excluded from application/proxy logs. Do not echo upstream response bodies in errors. All responses, including routing/media/body errors, have Cache-Control: no-store.
+
+Production transport requires HTTPS. HTTP is permitted only for loopback development installations. Advertised exchange/refresh URLs must share the trusted control origin and remain beneath its base. Credential-bearing requests follow no redirects and are not automatically retried after ambiguous outcomes. The server also follows no upstream token-endpoint redirects. No user tokens are persisted on the server, and no database mutation or adopted-profile lookup is required.
+
+Refresh must work after the cached ID token expires. Verify the fresh ID-token signature, issuer, audience, optional azp, time claims, expected subject, and nonce if the provider returns one. A fresh ID token is required; an access token alone is insufficient. When refresh_token is absent in a successful response, the CLI retains the submitted refresh token. A rotated token replaces it only after validation.
+
+Concurrent requests are allowed; upstream reuse policy determines success. No cross-process locking, server refresh coordination, or exactly-once result is required. Failure must not delete, overwrite, or restore a previously read local credential record. The CLI may report failure, reread storage, or ask for another login.
+
+> Body parameter
+
+```json
+{
+  "expected_installation_id": "string",
+  "expected_issuer": "http://example.com",
+  "expected_client_id": "string",
+  "refresh_token": "string",
+  "expected_subject": "string",
+  "expected_nonce": "string"
+}
+```
+
+<h3 id="refreshauthprovidertokens-parameters">Parameters</h3>
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|provider|path|[AuthProviderID](#schemaauthproviderid)|true|none|
+|body|body|[OIDCRefreshRequest](#schemaoidcrefreshrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id_token": "string",
+  "refresh_token": "string",
+  "access_token": "string"
+}
+```
+
+<h3 id="refreshauthprovidertokens-responses">Responses</h3>
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Validated provider token result; credentials remain client-owned.|[OIDCRefreshResponse](#schemaoidcrefreshresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Malformed request or provider-rejected code/verifier/refresh token. Codes: auth_invalid_request, auth_invalid_grant. Refresh refusal does not authorize deletion or overwrite of local credentials.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Unknown, disabled, or non-server-exchange provider. Code: auth_provider_not_found.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|405|[Method Not Allowed](https://tools.ietf.org/html/rfc7231#section-6.5.5)|Method not allowed. Allow: POST. Applies before any credential processing.|None|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|Expected installation/issuer/client-ID does not match current configuration; no upstream request is made. Code: auth_configuration_changed.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|413|[Payload Too Large](https://tools.ietf.org/html/rfc7231#section-6.5.11)|JSON request exceeds the 16 KiB operation limit. Code: auth_invalid_request.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|415|[Unsupported Media Type](https://tools.ietf.org/html/rfc7231#section-6.5.13)|Content-Type must be application/json. Code: auth_invalid_request.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|502|[Bad Gateway](https://tools.ietf.org/html/rfc7231#section-6.6.3)|Upstream token response is malformed, missing required tokens, or fails cryptographic/claim validation. Code: auth_provider_response_invalid.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|503|[Service Unavailable](https://tools.ietf.org/html/rfc7231#section-6.6.4)|Required installation configuration is unavailable or upstream service/client authentication is unavailable. Codes: auth_configuration_unavailable, auth_provider_unavailable. No credentials or upstream error body are returned.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+|504|[Gateway Time-out](https://tools.ietf.org/html/rfc7231#section-6.6.5)|Upstream exchange timed out; its outcome may be unknown. Code: auth_provider_timeout. Do not automatically replay the request.|[AuthExchangeErrorResponse](#schemaauthexchangeerrorresponse)|
+
+### Response Headers
+
+|Status|Header|Type|Format|Description|
+|---|---|---|---|---|
+|200|Cache-Control|string||Applies to success and all operation error responses.|
+|400|Cache-Control|string||Applies to success and all operation error responses.|
+|404|Cache-Control|string||Applies to success and all operation error responses.|
+|405|Cache-Control|string||Applies to success and all operation error responses.|
+|405|Allow|string||none|
+|409|Cache-Control|string||Applies to success and all operation error responses.|
+|413|Cache-Control|string||Applies to success and all operation error responses.|
+|415|Cache-Control|string||Applies to success and all operation error responses.|
+|502|Cache-Control|string||Applies to success and all operation error responses.|
+|503|Cache-Control|string||Applies to success and all operation error responses.|
+|504|Cache-Control|string||Applies to success and all operation error responses.|
 
 <aside class="success">
 This operation does not require authentication
@@ -7548,7 +8023,7 @@ invariants before persisting either URL.
 |---|---|---|---|---|
 |id|[AuthProviderID](#schemaauthproviderid)|true|none|Stable installation-owned login-provider ID, such as `google`. This is<br>also the `provider` component of an external identity key. It is not<br>the protocol adapter name such as `oidc`.|
 |display_name|string|true|none|none|
-|adapter|string|true|none|Version-independent CLI adapter family identifier.|
+|adapter|string|true|none|CLI adapter family identifier.|
 
 <h2 id="tocS_AuthProviderConfiguration">AuthProviderConfiguration</h2>
 <!-- backwards compatibility -->
@@ -7562,13 +8037,11 @@ invariants before persisting either URL.
   "id": "google",
   "display_name": "Google",
   "adapter": "oidc",
-  "configuration_version": 1,
+  "configuration_version": 2,
   "flow": "authorizationCodePKCE",
   "issuer": "https://accounts.google.com",
   "client_id": "1234567890-abcdef.apps.googleusercontent.com",
   "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
-  "token_endpoint": "https://oauth2.googleapis.com/token",
-  "token_endpoint_auth_method": "none",
   "authorization_response_iss_parameter_supported": true,
   "revocation_endpoint": "https://oauth2.googleapis.com/revoke",
   "scopes": [
@@ -7579,10 +8052,14 @@ invariants before persisting either URL.
   "authorization_parameters": {
     "access_type": "offline",
     "prompt": "consent"
-  }
+  },
+  "exchange_endpoint": "https://api.example.com/v1/auth/providers/google/exchange",
+  "refresh_endpoint": "https://api.example.com/v1/auth/providers/google/refresh"
 }
 
 ```
+
+Single supported provider configuration. The CLI requires the declared adapter and exact schema; unsupported or missing fields are a compatibility error, never a request to try an older flow.
 
 ### Properties
 
@@ -7600,13 +8077,11 @@ invariants before persisting either URL.
   "id": "google",
   "display_name": "Google",
   "adapter": "oidc",
-  "configuration_version": 1,
+  "configuration_version": 2,
   "flow": "authorizationCodePKCE",
   "issuer": "https://accounts.google.com",
   "client_id": "1234567890-abcdef.apps.googleusercontent.com",
   "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
-  "token_endpoint": "https://oauth2.googleapis.com/token",
-  "token_endpoint_auth_method": "none",
   "authorization_response_iss_parameter_supported": true,
   "revocation_endpoint": "https://oauth2.googleapis.com/revoke",
   "scopes": [
@@ -7617,10 +8092,14 @@ invariants before persisting either URL.
   "authorization_parameters": {
     "access_type": "offline",
     "prompt": "consent"
-  }
+  },
+  "exchange_endpoint": "https://api.example.com/v1/auth/providers/google/exchange",
+  "refresh_endpoint": "https://api.example.com/v1/auth/providers/google/refresh"
 }
 
 ```
+
+Single required server-exchange contract, replacing the former direct-client schema. configuration_version=2 is a schema marker, not a negotiable mode. Local callback and token storage remain in the CLI; upstream client_secret_post runs on the installation server.
 
 ### Properties
 
@@ -7629,18 +8108,174 @@ invariants before persisting either URL.
 |id|[AuthProviderID](#schemaauthproviderid)|true|none|Stable installation-owned login-provider ID, such as `google`. This is<br>also the `provider` component of an external identity key. It is not<br>the protocol adapter name such as `oidc`.|
 |display_name|string|true|none|none|
 |adapter|string|true|none|none|
-|configuration_version|integer|true|none|none|
+|configuration_version|integer|true|none|Required schema revision. This server exposes only revision 2; there is no negotiation or legacy fallback.|
 |flow|string|true|none|none|
 |issuer|[OIDCIssuerURL](#schemaoidcissuerurl)|true|none|HTTPS OIDC issuer identifier with no query or fragment.|
-|client_id|string|true|none|Public OAuth client identifier. Configuration version 1 requires it<br>to be the sole ID-token audience; `azp`, when present, also equals<br>this value.|
+|client_id|string|true|none|Public OAuth client identifier. The ID token must have this sole audience; azp, when present, must equal this value.|
 |authorization_endpoint|[OIDCEndpointURL](#schemaoidcendpointurl)|true|none|HTTPS login-form URL used by the CLI to build authorization requests.|
-|token_endpoint|[OIDCEndpointURL](#schemaoidcendpointurl)|true|none|Absolute HTTPS URL with no userinfo or fragment. Existing query<br>parameters are allowed only when they do not duplicate or override a<br>CLI-owned request parameter.|
-|token_endpoint_auth_method|string|true|none|The direct native-client flow is limited to public clients and<br>never distributes a confidential client secret.|
 |authorization_response_iss_parameter_supported|boolean|true|none|The authorization server returns RFC 9207 `iss` in every<br>authorization response. The CLI binds the expected issuer to the<br>login attempt and rejects a missing or mismatched callback `iss`.|
-|revocation_endpoint|[OIDCEndpointURL](#schemaoidcendpointurl)|false|none|Absolute HTTPS URL with no userinfo or fragment. Existing query<br>parameters are allowed only when they do not duplicate or override a<br>CLI-owned request parameter.|
+|revocation_endpoint|[OIDCEndpointURL](#schemaoidcendpointurl)|false|none|Optional upstream secret-free revocation endpoint, not an exchange/refresh URL. Google revocation remains a direct CLI POST with no redirects. No client secret may be required; future secret-dependent revocation needs a separately approved server capability.|
 |scopes|[string]|true|none|none|
 |authorization_parameters|object|false|none|Provider-owned static authorization parameters. The CLI rejects<br>security-sensitive attempt parameters in this map and always owns<br>client_id, response_type, redirect_uri, scope, state, nonce,<br>code_challenge, code_challenge_method, login_hint, response_mode,<br>request, and request_uri.|
 |» **additionalProperties**|string|false|none|none|
+|exchange_endpoint|string(uri)|true|none|Absolute installation API URL. Same trusted control origin and beneath its base; HTTPS except loopback development. Never an upstream provider token endpoint. Do not follow redirects.|
+|refresh_endpoint|string(uri)|true|none|Absolute installation API URL. Same trusted control origin and beneath its base; HTTPS except loopback development. Never an upstream provider token endpoint. Do not follow redirects.|
+
+<h2 id="tocS_OIDCCodeExchangeRequest">OIDCCodeExchangeRequest</h2>
+<!-- backwards compatibility -->
+<a id="schemaoidccodeexchangerequest"></a>
+<a id="schema_OIDCCodeExchangeRequest"></a>
+<a id="tocSoidccodeexchangerequest"></a>
+<a id="tocsoidccodeexchangerequest"></a>
+
+```json
+{
+  "expected_installation_id": "string",
+  "expected_issuer": "http://example.com",
+  "expected_client_id": "string",
+  "code": "string",
+  "redirect_uri": "http://example.com",
+  "code_verifier": "stringstringstringstringstringstringstrings",
+  "expected_nonce": "string"
+}
+
+```
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|expected_installation_id|string|true|none|Trusted installation ID from the selected profile/discovery; compare before upstream calls.|
+|expected_issuer|[OIDCIssuerURL](#schemaoidcissuerurl)|true|none|Exact expected configured issuer; a guard, not an override.|
+|expected_client_id|string|true|none|Expected configured client ID; a guard, not an override.|
+|code|string|true|none|none|
+|redirect_uri|string(uri)|true|none|Exact authorization redirect URI, literal IPv4 loopback, port 1..65535, root path only, no query/fragment/userinfo. Port range is additionally checked semantically. The server passes it to the provider, never makes a request to it.|
+|code_verifier|string|true|none|none|
+|expected_nonce|string|true|none|none|
+
+<h2 id="tocS_OIDCRefreshRequest">OIDCRefreshRequest</h2>
+<!-- backwards compatibility -->
+<a id="schemaoidcrefreshrequest"></a>
+<a id="schema_OIDCRefreshRequest"></a>
+<a id="tocSoidcrefreshrequest"></a>
+<a id="tocsoidcrefreshrequest"></a>
+
+```json
+{
+  "expected_installation_id": "string",
+  "expected_issuer": "http://example.com",
+  "expected_client_id": "string",
+  "refresh_token": "string",
+  "expected_subject": "string",
+  "expected_nonce": "string"
+}
+
+```
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|expected_installation_id|string|true|none|Trusted installation ID from the selected profile/discovery; compare before upstream calls.|
+|expected_issuer|[OIDCIssuerURL](#schemaoidcissuerurl)|true|none|Exact expected configured issuer; a guard, not an override.|
+|expected_client_id|string|true|none|Expected configured client ID; a guard, not an override.|
+|refresh_token|string|true|none|none|
+|expected_subject|string|true|none|none|
+|expected_nonce|string|true|none|Original login nonce retained by the CLI; compare if the refreshed ID token contains nonce.|
+
+<h2 id="tocS_OIDCCodeExchangeResponse">OIDCCodeExchangeResponse</h2>
+<!-- backwards compatibility -->
+<a id="schemaoidccodeexchangeresponse"></a>
+<a id="schema_OIDCCodeExchangeResponse"></a>
+<a id="tocSoidccodeexchangeresponse"></a>
+<a id="tocsoidccodeexchangeresponse"></a>
+
+```json
+{
+  "id_token": "string",
+  "refresh_token": "string",
+  "access_token": "string"
+}
+
+```
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|id_token|string|true|none|Validated upstream OIDC ID token used as the gateway bearer credential. Not a Taidon-issued token.|
+|refresh_token|string|true|none|Upstream refresh token; persist only in the local credential store.|
+|access_token|string|false|none|Optional upstream API access token. Not a substitute for the gateway ID-token credential.|
+
+<h2 id="tocS_AuthExchangeErrorResponse">AuthExchangeErrorResponse</h2>
+<!-- backwards compatibility -->
+<a id="schemaauthexchangeerrorresponse"></a>
+<a id="schema_AuthExchangeErrorResponse"></a>
+<a id="tocSauthexchangeerrorresponse"></a>
+<a id="tocsauthexchangeerrorresponse"></a>
+
+```json
+{
+  "code": "auth_invalid_request",
+  "message": "string",
+  "details": "string"
+}
+
+```
+
+Sanitized service-owned error. Message provides safe corrective guidance; details, if present, contain no credentials, upstream bodies, or secrets.
+
+### Properties
+
+allOf
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[ErrorResponse](#schemaerrorresponse)|false|none|none|
+
+and
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|object|false|none|none|
+|» code|string|false|none|none|
+
+#### Enumerated Values
+
+|Property|Value|
+|---|---|
+|code|auth_invalid_request|
+|code|auth_invalid_grant|
+|code|auth_provider_not_found|
+|code|auth_configuration_changed|
+|code|auth_configuration_unavailable|
+|code|auth_provider_unavailable|
+|code|auth_provider_response_invalid|
+|code|auth_provider_timeout|
+
+<h2 id="tocS_OIDCRefreshResponse">OIDCRefreshResponse</h2>
+<!-- backwards compatibility -->
+<a id="schemaoidcrefreshresponse"></a>
+<a id="schema_OIDCRefreshResponse"></a>
+<a id="tocSoidcrefreshresponse"></a>
+<a id="tocsoidcrefreshresponse"></a>
+
+```json
+{
+  "id_token": "string",
+  "refresh_token": "string",
+  "access_token": "string"
+}
+
+```
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|id_token|string|true|none|Validated upstream OIDC ID token used as the gateway bearer credential. Not a Taidon-issued token.|
+|refresh_token|string|false|none|Replacement refresh token if rotated. If absent, retain the submitted token. Never clear stored credentials solely because a refresh request failed.|
+|access_token|string|false|none|Optional upstream API access token. Not a substitute for the gateway ID-token credential.|
 
 <h2 id="tocS_HealthResponse">HealthResponse</h2>
 <!-- backwards compatibility -->

@@ -134,10 +134,28 @@ paths:
                 $ref: "#/components/schemas/AuthProviderList"
         "304":
           description: Provider catalogue has not changed
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-cache
+            ETag:
+              schema:
+                type: string
         "405":
           description: Method not allowed
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-cache
         "503":
           description: Bootstrap metadata is temporarily unavailable or invalid
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-cache
           content:
             application/json:
               schema:
@@ -145,22 +163,17 @@ paths:
   /v1/auth/providers/{provider}:
     get:
       operationId: getAuthProvider
-      summary: Get versioned login configuration for one provider
-      description: |
-        Shared/team/cloud deployments only. No authentication is required.
-        Provider configuration is installation-owned and equivalent through
-        installation-root and syntactically valid candidate
-        organization-prefixed API bases. Availability does not confirm that the
-        candidate organization exists.
+      summary: Get the required login configuration for one provider
+      description: |-
+        Remote installations only. No authentication is required. The same installation-owned configuration is served at the root and syntactically valid candidate organization bases without confirming organization existence.
 
-        Public configuration may contain client identifiers and provider
-        endpoints, but never confidential client secrets or user tokens.
-        The response `id` must equal the requested path parameter. The
-        collection is intended for discovery and UI; clients may fetch this
-        fixed detail path directly for login.
+        This is the sole current authentication contract, replacing the former direct public-client contract in place under /v1. There is no version-selection header, legacy representation, or direct-exchange compatibility mode. configuration_version=2 identifies the required schema revision only; clients cannot request another revision. Provider IDs, issuer/client ID, authorization metadata, and installation exchange/refresh endpoints are public; client secrets and user tokens are never published.
+
+        The response id equals the requested provider. Clients can fetch this detail directly without fetching the catalogue. ETags revalidate the single current representation; there is no version-dependent cache variation. A new CLI requires this exact schema and the advertised exchange/refresh operations. If an old or incompatible server does not provide them, the CLI fails with an actionable authentication compatibility error without fallback. Supporting old CLI clients is not required.
       tags:
         - auth
       security: []
+      x-auth-contract-status: approved-2026-10-28
       parameters:
         - in: path
           name: provider
@@ -175,7 +188,7 @@ paths:
             type: string
           description: Revalidate a previously received provider-config ETag.
       responses:
-        "200":
+        '200':
           description: Versioned provider adapter configuration
           headers:
             Cache-Control:
@@ -191,22 +204,357 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthProviderConfiguration"
-        "304":
+        '304':
           description: Provider configuration has not changed
-        "404":
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-cache
+            ETag:
+              schema:
+                type: string
+        '404':
           description: Provider is not enabled by this installation
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-cache
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-        "405":
+        '405':
           description: Method not allowed
-        "503":
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-cache
+        '503':
           description: Bootstrap metadata or gateway provider trust is temporarily unavailable or invalid
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-cache
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /v1/auth/providers/{provider}/exchange:
+    post:
+      operationId: exchangeAuthProviderCode
+      summary: Exchange a provider authorization code on the installation
+      description: |-
+        Remote installations only. Exposed at the installation control base, not at candidate organization prefixes. Public before login: no bearer token, local profile, organization membership, or extra token-pickup session is required. The CLI does not attach an unrelated cached bearer. OAuth artifacts are validated upstream using this installation's credentials; exchange does not grant local organization admission.
+
+        The gateway selects the configured enabled provider by path and checks expected installation, issuer, and client ID before sending credentials upstream. Expected values are guards, never configuration overrides. The request cannot select an upstream URL, client secret, or token request authentication method. Credential JSON bodies are limited to 16 KiB. Operation request/response bodies and sensitive headers are excluded from application/proxy logs. Do not echo upstream response bodies in errors. All responses, including routing/media/body errors, have Cache-Control: no-store.
+
+        Production transport requires HTTPS. HTTP is permitted only for loopback development installations. Advertised exchange/refresh URLs must share the trusted control origin and remain beneath its base. Credential-bearing requests follow no redirects and are not automatically retried after ambiguous outcomes. The server also follows no upstream token-endpoint redirects. No user tokens are persisted on the server, and no database mutation or adopted-profile lookup is required.
+
+        Exchange the authorization code with its exact loopback redirect URI and PKCE S256 verifier. The CLI checks state and callback issuer locally; the gateway verifies the returned ID-token signature, configured issuer, sole audience, optional azp, subject, time claims, and requested nonce before returning tokens. A refresh token and ID token are required for successful login. The CLI retains independent attempt/claim checks and stores credentials only after validation. An unavailable result may require another login.
+      tags:
+        - auth
+      security: []
+      x-auth-contract-status: approved-2026-10-28
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            $ref: "#/components/schemas/AuthProviderID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OIDCCodeExchangeRequest"
+      responses:
+        '200':
+          description: Validated provider token result; credentials remain client-owned.
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OIDCCodeExchangeResponse"
+        '400':
+          description: 'Malformed request or provider-rejected code/verifier/refresh token. Codes: auth_invalid_request,
+            auth_invalid_grant. Refresh refusal does not authorize deletion or overwrite of local credentials.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '404':
+          description: 'Unknown, disabled, or non-server-exchange provider. Code: auth_provider_not_found.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '409':
+          description: 'Expected installation/issuer/client-ID does not match current configuration; no
+            upstream request is made. Code: auth_configuration_changed.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '413':
+          description: 'JSON request exceeds the 16 KiB operation limit. Code: auth_invalid_request.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '415':
+          description: 'Content-Type must be application/json. Code: auth_invalid_request.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '502':
+          description: 'Upstream token response is malformed, missing required tokens, or fails cryptographic/claim
+            validation. Code: auth_provider_response_invalid.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '503':
+          description: 'Required installation configuration is unavailable or upstream service/client authentication
+            is unavailable. Codes: auth_configuration_unavailable, auth_provider_unavailable. No credentials
+            or upstream error body are returned.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '504':
+          description: 'Upstream exchange timed out; its outcome may be unknown. Code: auth_provider_timeout.
+            Do not automatically replay the request.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '405':
+          description: 'Method not allowed. Allow: POST. Applies before any credential processing.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+            Allow:
+              schema:
+                type: string
+                const: POST
+  /v1/auth/providers/{provider}/refresh:
+    post:
+      operationId: refreshAuthProviderTokens
+      summary: Refresh provider tokens on the installation
+      description: |-
+        Remote installations only. Exposed at the installation control base, not at candidate organization prefixes. Public before login: no bearer token, local profile, organization membership, or extra token-pickup session is required. The CLI does not attach an unrelated cached bearer. OAuth artifacts are validated upstream using this installation's credentials; exchange does not grant local organization admission.
+
+        The gateway selects the configured enabled provider by path and checks expected installation, issuer, and client ID before sending credentials upstream. Expected values are guards, never configuration overrides. The request cannot select an upstream URL, client secret, or token request authentication method. Credential JSON bodies are limited to 16 KiB. Operation request/response bodies and sensitive headers are excluded from application/proxy logs. Do not echo upstream response bodies in errors. All responses, including routing/media/body errors, have Cache-Control: no-store.
+
+        Production transport requires HTTPS. HTTP is permitted only for loopback development installations. Advertised exchange/refresh URLs must share the trusted control origin and remain beneath its base. Credential-bearing requests follow no redirects and are not automatically retried after ambiguous outcomes. The server also follows no upstream token-endpoint redirects. No user tokens are persisted on the server, and no database mutation or adopted-profile lookup is required.
+
+        Refresh must work after the cached ID token expires. Verify the fresh ID-token signature, issuer, audience, optional azp, time claims, expected subject, and nonce if the provider returns one. A fresh ID token is required; an access token alone is insufficient. When refresh_token is absent in a successful response, the CLI retains the submitted refresh token. A rotated token replaces it only after validation.
+
+        Concurrent requests are allowed; upstream reuse policy determines success. No cross-process locking, server refresh coordination, or exactly-once result is required. Failure must not delete, overwrite, or restore a previously read local credential record. The CLI may report failure, reread storage, or ask for another login.
+      tags:
+        - auth
+      security: []
+      x-auth-contract-status: approved-2026-10-28
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            $ref: "#/components/schemas/AuthProviderID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OIDCRefreshRequest"
+      responses:
+        '200':
+          description: Validated provider token result; credentials remain client-owned.
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OIDCRefreshResponse"
+        '400':
+          description: 'Malformed request or provider-rejected code/verifier/refresh token. Codes: auth_invalid_request,
+            auth_invalid_grant. Refresh refusal does not authorize deletion or overwrite of local credentials.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '404':
+          description: 'Unknown, disabled, or non-server-exchange provider. Code: auth_provider_not_found.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '409':
+          description: 'Expected installation/issuer/client-ID does not match current configuration; no
+            upstream request is made. Code: auth_configuration_changed.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '413':
+          description: 'JSON request exceeds the 16 KiB operation limit. Code: auth_invalid_request.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '415':
+          description: 'Content-Type must be application/json. Code: auth_invalid_request.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '502':
+          description: 'Upstream token response is malformed, missing required tokens, or fails cryptographic/claim
+            validation. Code: auth_provider_response_invalid.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '503':
+          description: 'Required installation configuration is unavailable or upstream service/client authentication
+            is unavailable. Codes: auth_configuration_unavailable, auth_provider_unavailable. No credentials
+            or upstream error body are returned.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '504':
+          description: 'Upstream exchange timed out; its outcome may be unknown. Code: auth_provider_timeout.
+            Do not automatically replay the request.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthExchangeErrorResponse"
+        '405':
+          description: 'Method not allowed. Allow: POST. Applies before any credential processing.'
+          headers:
+            Cache-Control:
+              description: Applies to success and all operation error responses.
+              schema:
+                type: string
+                const: no-store
+            Allow:
+              schema:
+                type: string
+                const: POST
   /v1/cache/status:
     get:
       operationId: getCacheStatus
@@ -1682,8 +2030,10 @@ components:
         adapter:
           type: string
           minLength: 1
-          description: Version-independent CLI adapter family identifier.
+          description: CLI adapter family identifier.
     AuthProviderConfiguration:
+      description: Single supported provider configuration. The CLI requires the declared adapter and exact
+        schema; unsupported or missing fields are a compatibility error, never a request to try an older flow.
       oneOf:
         - $ref: "#/components/schemas/OIDCProviderConfiguration"
       discriminator:
@@ -1702,10 +2052,10 @@ components:
         - issuer
         - client_id
         - authorization_endpoint
-        - token_endpoint
-        - token_endpoint_auth_method
         - authorization_response_iss_parameter_supported
         - scopes
+        - exchange_endpoint
+        - refresh_endpoint
       properties:
         id:
           $ref: "#/components/schemas/AuthProviderID"
@@ -1717,7 +2067,9 @@ components:
           const: oidc
         configuration_version:
           type: integer
-          const: 1
+          const: 2
+          description: Required schema revision. This server exposes only revision 2; there is no negotiation
+            or legacy fallback.
         flow:
           type: string
           const: authorizationCodePKCE
@@ -1727,21 +2079,11 @@ components:
         client_id:
           type: string
           minLength: 1
-          description: |
-            Public OAuth client identifier. Configuration version 1 requires it
-            to be the sole ID-token audience; `azp`, when present, also equals
-            this value.
+          description: Public OAuth client identifier. The ID token must have this sole audience; azp, when
+            present, must equal this value.
         authorization_endpoint:
           $ref: "#/components/schemas/OIDCEndpointURL"
           description: HTTPS login-form URL used by the CLI to build authorization requests.
-        token_endpoint:
-          $ref: "#/components/schemas/OIDCEndpointURL"
-        token_endpoint_auth_method:
-          type: string
-          const: none
-          description: |
-            The direct native-client flow is limited to public clients and
-            never distributes a confidential client secret.
         authorization_response_iss_parameter_supported:
           type: boolean
           const: true
@@ -1751,6 +2093,9 @@ components:
             login attempt and rejects a missing or mismatched callback `iss`.
         revocation_endpoint:
           $ref: "#/components/schemas/OIDCEndpointURL"
+          description: Optional upstream secret-free revocation endpoint, not an exchange/refresh URL. Google
+            revocation remains a direct CLI POST with no redirects. No client secret may be required; future
+            secret-dependent revocation needs a separately approved server capability.
         scopes:
           type: array
           minItems: 1
@@ -1785,17 +2130,25 @@ components:
                 - response_mode
           additionalProperties:
             type: string
+        exchange_endpoint:
+          type: string
+          format: uri
+          description: Absolute installation API URL. Same trusted control origin and beneath its base; HTTPS
+            except loopback development. Never an upstream provider token endpoint. Do not follow redirects.
+        refresh_endpoint:
+          type: string
+          format: uri
+          description: Absolute installation API URL. Same trusted control origin and beneath its base; HTTPS
+            except loopback development. Never an upstream provider token endpoint. Do not follow redirects.
       examples:
         - id: google
           display_name: Google
           adapter: oidc
-          configuration_version: 1
+          configuration_version: 2
           flow: authorizationCodePKCE
           issuer: https://accounts.google.com
           client_id: 1234567890-abcdef.apps.googleusercontent.com
           authorization_endpoint: https://accounts.google.com/o/oauth2/v2/auth
-          token_endpoint: https://oauth2.googleapis.com/token
-          token_endpoint_auth_method: none
           authorization_response_iss_parameter_supported: true
           revocation_endpoint: https://oauth2.googleapis.com/revoke
           scopes:
@@ -1805,6 +2158,154 @@ components:
           authorization_parameters:
             access_type: offline
             prompt: consent
+          exchange_endpoint: https://api.example.com/v1/auth/providers/google/exchange
+          refresh_endpoint: https://api.example.com/v1/auth/providers/google/refresh
+      description: Single required server-exchange contract, replacing the former direct-client schema. configuration_version=2
+        is a schema marker, not a negotiable mode. Local callback and token storage remain in the CLI; upstream
+        client_secret_post runs on the installation server.
+    OIDCCodeExchangeRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - expected_installation_id
+        - expected_issuer
+        - expected_client_id
+        - code
+        - redirect_uri
+        - code_verifier
+        - expected_nonce
+      properties:
+        expected_installation_id:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Trusted installation ID from the selected profile/discovery; compare before upstream
+            calls.
+        expected_issuer:
+          $ref: "#/components/schemas/OIDCIssuerURL"
+          description: Exact expected configured issuer; a guard, not an override.
+        expected_client_id:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: Expected configured client ID; a guard, not an override.
+        code:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        redirect_uri:
+          type: string
+          format: uri
+          pattern: ^http://127\.0\.0\.1:[1-9][0-9]{0,4}/?$
+          description: Exact authorization redirect URI, literal IPv4 loopback, port 1..65535, root path only,
+            no query/fragment/userinfo. Port range is additionally checked semantically. The server passes
+            it to the provider, never makes a request to it.
+        code_verifier:
+          type: string
+          minLength: 43
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._~-]+$
+        expected_nonce:
+          type: string
+          minLength: 1
+          maxLength: 1024
+    OIDCRefreshRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - expected_installation_id
+        - expected_issuer
+        - expected_client_id
+        - refresh_token
+        - expected_subject
+        - expected_nonce
+      properties:
+        expected_installation_id:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Trusted installation ID from the selected profile/discovery; compare before upstream
+            calls.
+        expected_issuer:
+          $ref: "#/components/schemas/OIDCIssuerURL"
+          description: Exact expected configured issuer; a guard, not an override.
+        expected_client_id:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: Expected configured client ID; a guard, not an override.
+        refresh_token:
+          type: string
+          minLength: 1
+          maxLength: 8192
+        expected_subject:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        expected_nonce:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: Original login nonce retained by the CLI; compare if the refreshed ID token contains
+            nonce.
+    OIDCCodeExchangeResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id_token
+        - refresh_token
+      properties:
+        id_token:
+          type: string
+          minLength: 1
+          description: Validated upstream OIDC ID token used as the gateway bearer credential. Not a Taidon-issued
+            token.
+        refresh_token:
+          type: string
+          minLength: 1
+          description: Upstream refresh token; persist only in the local credential store.
+        access_token:
+          type: string
+          minLength: 1
+          description: Optional upstream API access token. Not a substitute for the gateway ID-token credential.
+    AuthExchangeErrorResponse:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          properties:
+            code:
+              type: string
+              enum:
+                - auth_invalid_request
+                - auth_invalid_grant
+                - auth_provider_not_found
+                - auth_configuration_changed
+                - auth_configuration_unavailable
+                - auth_provider_unavailable
+                - auth_provider_response_invalid
+                - auth_provider_timeout
+      description: Sanitized service-owned error. Message provides safe corrective guidance; details, if present,
+        contain no credentials, upstream bodies, or secrets.
+    OIDCRefreshResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id_token
+      properties:
+        id_token:
+          type: string
+          minLength: 1
+          description: Validated upstream OIDC ID token used as the gateway bearer credential. Not a Taidon-issued
+            token.
+        refresh_token:
+          type: string
+          minLength: 1
+          description: Replacement refresh token if rotated. If absent, retain the submitted token. Never
+            clear stored credentials solely because a refresh request failed.
+        access_token:
+          type: string
+          minLength: 1
+          description: Optional upstream API access token. Not a substitute for the gateway ID-token credential.
     HealthResponse:
       type: object
       additionalProperties: false

@@ -105,15 +105,6 @@ func ValidateIDTokenClaims(claims IDTokenClaims, issuer string, clientID string,
 	return nil
 }
 
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if strings.TrimSpace(value) == want {
-			return true
-		}
-	}
-	return false
-}
-
 // ShouldRefresh reports whether a cached ID token is missing, expired, or close
 // enough to expiry that the CLI should refresh it before a protected API call.
 func ShouldRefresh(expiry, now time.Time, window time.Duration) bool {

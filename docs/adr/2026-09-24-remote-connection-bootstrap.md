@@ -1,5 +1,9 @@
 # 2026-09-24 Remote Connection Bootstrap
 
+Authentication exchange, discovery revision and refresh-refusal handling are
+superseded by the [installation-exchange decision](2026-10-28-installation-token-exchange.md).
+Other decisions remain applicable.
+
 - Conversation timestamp: 2026-09-24T00:22:00.7856181+07:00
 - GitHub user id: @evilguest
 - Agent name/version: Codex / GPT-5

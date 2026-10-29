@@ -211,3 +211,26 @@ func restoreWindowsCredentialFns(t *testing.T) {
 		windowsCredFree = oldFree
 	})
 }
+
+// Q01: an invalid display account fails before any native credential mutation.
+func TestWindowsCredentialInvalidProfileAccount(t *testing.T) {
+	restoreWindowsCredentialFns(t)
+	windowsCredWrite = func(*winCredential) error { t.Fatal("invalid account reached native write"); return nil }
+	key := testCredentialKey()
+	key.ProfileName = "bad\x00profile"
+	if err := (SystemCredentialStore{}).Put(context.Background(), key, Session{}); err == nil {
+		t.Fatal("invalid display account accepted")
+	}
+}
+
+// Q01: native missing-credential reads remain a safe absence, not a setup failure.
+func TestWindowsNativeReadMissingOwnedTarget(t *testing.T) {
+	target, err := windows.UTF16PtrFromString(fmt.Sprintf("sqlrs-cli-auth:missing-test:%d:%d", os.Getpid(), time.Now().UnixNano()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var credential *winCredential
+	if err := windowsCredRead(target, credTypeGeneric, 0, &credential); !errors.Is(err, windows.ERROR_NOT_FOUND) {
+		t.Fatalf("missing credential: %v", err)
+	}
+}

@@ -483,8 +483,10 @@ Current design direction:
   deployments.
 - `auth login <provider>` fetches versioned adapter configuration from the
   selected installation. The OIDC adapter uses the service-advertised
-  authorization/token endpoints, Authorization Code Flow with PKCE, a loopback
-  redirect listener, and OS credential storage for the refresh token.
+  authorization endpoint and installation-owned exchange/refresh endpoints,
+  Authorization Code Flow with PKCE, a local loopback listener, and OS credential
+  storage. The fixed discovery schema revision 2 replaces revision 1 without
+  fallback. Failed refresh never mutates stored credentials.
 - Connection-info and provider discovery routes are available without login at
   the installation root and every candidate organization prefix, including a
   nonexistent slug. Bootstrap responses never confirm organization existence;
@@ -510,13 +512,13 @@ Current design direction:
 - Endpoint reconciliation persists only for a `StoredRemoteSession` token
   source. `EnvironmentOverride` and `LegacyBearer` print recovery and leave the
   profile unchanged.
-- Refresh configuration version 1 deletes a session only on OAuth
-  `invalid_grant`; every other `4xx` retains it and reports a configuration or
-  request error.
+- Every failed refresh, including `invalid_grant`, leaves the current credential
+  untouched: no deletion, write or restoration. It reports a safe login/retry error.
 - The provider component of an external identity is the advertised service
   provider ID such as `google`, never adapter name `oidc`.
-- The gateway still receives only a short-lived Google ID token as
-  `Authorization: Bearer <id-token>`.
+- Protected APIs accept verified configured-provider ID tokens as bearer. The
+  installation exchange/refresh API also accepts request-local user credentials,
+  exchanges them with server-held application secrets and persists no user tokens.
 
 ---
 

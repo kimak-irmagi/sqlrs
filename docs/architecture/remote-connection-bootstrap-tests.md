@@ -1,5 +1,10 @@
 # Remote connection bootstrap and OIDC: test matrix
 
+Historical test design: direct provider-token exchange and invalid_grant deletion
+are superseded by [the current auth flow](cli-auth-flow.md) and the
+[replacement decision](../adr/2026-10-28-installation-token-exchange.md).
+Unchanged routing/store checks remain applicable.
+
 Status: fully approved on 2026-09-25 by @evilguest after critical and final
 review. The review policy resolutions and the explicit `--no-browser` output
 boundary are recorded in the bootstrap ADR.

@@ -19,7 +19,7 @@ func TestResolveBearerTokenUsesEnvOverrideBeforeStoredSession(t *testing.T) {
 	}
 	t.Setenv("SQLRS_TOKEN", "env-token")
 
-	manager := NewManager(ManagerOptions{Store: store, OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}})
+	manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}})
 	got, err := manager.ResolveBearerToken(context.Background(), ResolveOptions{
 		ProfileName: key.ProfileName,
 		Endpoint:    key.Endpoint,
@@ -54,7 +54,7 @@ func TestResolveBearerTokenUsesFreshCachedIDToken(t *testing.T) {
 		t.Fatalf("put session: %v", err)
 	}
 
-	manager := NewManager(ManagerOptions{Store: store, OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: now}})
+	manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: &fakeOAuthClient{}, Clock: fixedClock{now: now}})
 	got, err := manager.ResolveBearerToken(context.Background(), testResolveOptions())
 	if err != nil {
 		t.Fatalf("ResolveBearerToken: %v", err)
@@ -89,7 +89,7 @@ func TestResolveBearerTokenRefreshesExpiringSessionAndStoresIDToken(t *testing.T
 	})
 	oauth := &fakeOAuthClient{refreshResponse: TokenResponse{IDToken: newIDToken}}
 
-	manager := NewManager(ManagerOptions{Store: store, OAuth: oauth, Clock: fixedClock{now: now}})
+	manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: oauth, Clock: fixedClock{now: now}})
 	got, err := manager.ResolveBearerToken(context.Background(), testResolveOptions())
 	if err != nil {
 		t.Fatalf("ResolveBearerToken: %v", err)
@@ -100,8 +100,8 @@ func TestResolveBearerTokenRefreshesExpiringSessionAndStoresIDToken(t *testing.T
 	if oauth.refreshToken != "refresh-old" {
 		t.Fatalf("refresh token = %q, want refresh-old", oauth.refreshToken)
 	}
-	if oauth.refreshClientSecret != "client-secret" {
-		t.Fatalf("refresh client secret = %q, want client-secret", oauth.refreshClientSecret)
+	if oauth.refreshClientSecret != "" {
+		t.Fatalf("refresh client secret = %q, want no secret", oauth.refreshClientSecret)
 	}
 	stored, ok, err := store.Get(context.Background(), key)
 	if err != nil || !ok {
@@ -112,7 +112,7 @@ func TestResolveBearerTokenRefreshesExpiringSessionAndStoresIDToken(t *testing.T
 	}
 }
 
-func TestResolveBearerTokenDeletesSessionOnRefreshFailure(t *testing.T) {
+func TestResolveBearerTokenRetainsSessionOnRefreshFailure(t *testing.T) {
 	t.Setenv("SQLRS_TOKEN", "")
 	now := time.Date(2026, 7, 2, 12, 0, 0, 0, time.UTC)
 	store := newMemoryCredentialStore()
@@ -126,22 +126,22 @@ func TestResolveBearerTokenDeletesSessionOnRefreshFailure(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("put session: %v", err)
 	}
-	manager := NewManager(ManagerOptions{
-		Store: store,
-		OAuth: &fakeOAuthClient{refreshErr: &OAuthError{Code: "invalid_grant", Status: 400}},
-		Clock: fixedClock{now: now},
+	manager := newFixtureManager(ManagerOptions{
+		Store:     store,
+		Exchanger: &fakeOAuthClient{refreshErr: &OAuthError{Code: "invalid_grant", Status: 400}},
+		Clock:     fixedClock{now: now},
 	})
 
 	_, err := manager.ResolveBearerToken(context.Background(), testResolveOptions())
 	if err == nil || !strings.Contains(err.Error(), "auth login google") {
 		t.Fatalf("expected login guidance, got %v", err)
 	}
-	if _, ok, err := store.Get(context.Background(), key); err != nil || ok {
-		t.Fatalf("session should be deleted after refresh failure: ok=%v err=%v", ok, err)
+	if _, ok, err := store.Get(context.Background(), key); err != nil || !ok {
+		t.Fatalf("session should be retained after refresh failure: ok=%v err=%v", ok, err)
 	}
 }
 
-func TestLoginGoogleStoresRefreshTokenAndSafeMetadata(t *testing.T) {
+func TestLoginOIDCStoresRefreshTokenAndSafeMetadata(t *testing.T) {
 	now := time.Date(2026, 7, 2, 12, 0, 0, 0, time.UTC)
 	entropy := make([]byte, pkceEntropyBytes*3)
 	for i := range entropy {
@@ -170,29 +170,28 @@ func TestLoginGoogleStoresRefreshTokenAndSafeMetadata(t *testing.T) {
 			t.Fatalf("authorization URL was not reported before waiting for callback")
 		}
 	}
-	manager := NewManager(ManagerOptions{
-		Store:    store,
-		OAuth:    oauth,
-		Clock:    fixedClock{now: now},
-		Rand:     bytes.NewReader(entropy),
-		Loopback: loopback,
+	manager := newFixtureManager(ManagerOptions{
+		Store:     store,
+		Exchanger: oauth,
+		Clock:     fixedClock{now: now},
+		Rand:      bytes.NewReader(entropy),
+		Loopback:  loopback,
 	})
 
-	result, err := manager.LoginGoogle(context.Background(), LoginOptions{
-		ProfileName:  key.ProfileName,
-		Endpoint:     key.Endpoint,
-		ClientID:     key.ClientID,
-		ClientSecret: "client-secret",
-		Issuer:       key.Issuer,
-		Scopes:       []string{"openid", "email"},
-		NoBrowser:    true,
+	result, err := manager.loginFixture(context.Background(), LoginOptions{
+		ProfileName: key.ProfileName,
+		Endpoint:    key.Endpoint,
+		ClientID:    key.ClientID,
+		Issuer:      key.Issuer,
+		Scopes:      []string{"openid", "email"},
+		NoBrowser:   true,
 		AuthorizationURLReady: func(authURL string) error {
 			readyURL = authURL
 			return nil
 		},
 	})
 	if err != nil {
-		t.Fatalf("LoginGoogle: %v", err)
+		t.Fatalf("LoginOIDC: %v", err)
 	}
 	if result.Email != "alice@example.com" || result.Provider != "google" {
 		t.Fatalf("result = %+v, want safe metadata", result)
@@ -203,8 +202,8 @@ func TestLoginGoogleStoresRefreshTokenAndSafeMetadata(t *testing.T) {
 	if oauth.exchangeCode != "code-1" {
 		t.Fatalf("exchange code = %q, want code-1", oauth.exchangeCode)
 	}
-	if oauth.exchangeClientSecret != "client-secret" {
-		t.Fatalf("exchange client secret = %q, want client-secret", oauth.exchangeClientSecret)
+	if oauth.exchangeClientSecret != "" {
+		t.Fatalf("exchange client secret = %q, want no secret", oauth.exchangeClientSecret)
 	}
 	stored, ok, err := store.Get(context.Background(), key)
 	if err != nil || !ok {
@@ -218,7 +217,7 @@ func TestLoginGoogleStoresRefreshTokenAndSafeMetadata(t *testing.T) {
 	}
 }
 
-func TestLoginGoogleRequiresRefreshToken(t *testing.T) {
+func TestLoginOIDCRequiresRefreshToken(t *testing.T) {
 	now := time.Date(2026, 7, 2, 12, 0, 0, 0, time.UTC)
 	entropy := make([]byte, pkceEntropyBytes*3)
 	state := base64URL(entropy[pkceEntropyBytes : pkceEntropyBytes*2])
@@ -231,18 +230,18 @@ func TestLoginGoogleRequiresRefreshToken(t *testing.T) {
 		"exp":   now.Add(time.Hour).Unix(),
 		"nonce": nonce,
 	})
-	manager := NewManager(ManagerOptions{
-		Store: newMemoryCredentialStore(),
-		OAuth: &fakeOAuthClient{exchangeResponse: TokenResponse{IDToken: idToken}},
-		Clock: fixedClock{now: now},
-		Rand:  bytes.NewReader(entropy),
+	manager := newFixtureManager(ManagerOptions{
+		Store:     newMemoryCredentialStore(),
+		Exchanger: &fakeOAuthClient{exchangeResponse: TokenResponse{IDToken: idToken}},
+		Clock:     fixedClock{now: now},
+		Rand:      bytes.NewReader(entropy),
 		Loopback: fakeLoopbackProvider{session: &fakeLoopbackSession{
 			redirectURI: "http://127.0.0.1:49152",
 			callback:    url.Values{"state": {state}, "code": {"code-1"}},
 		}},
 	})
 
-	_, err := manager.LoginGoogle(context.Background(), LoginOptions{
+	_, err := manager.loginFixture(context.Background(), LoginOptions{
 		ProfileName: key.ProfileName,
 		Endpoint:    key.Endpoint,
 		ClientID:    key.ClientID,
@@ -259,19 +258,19 @@ func TestResolveRemoteSessionDiscoversProviderAndUsesStableTrustKey(t *testing.T
 	now := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
 	key := CredentialKey{ProfileName: "remote", Endpoint: "https://api.example.test/nsu", InstallationID: "installation-1", ControlEndpoint: "https://api.example.test"}
 	store := newMemoryCredentialStore()
-	if err := store.Put(context.Background(), key, Session{Provider: "google", Issuer: "https://issuer.example.test", ClientID: "public-client", Subject: "subject-1", RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)}); err != nil {
+	if err := store.Put(context.Background(), key, Session{Provider: "google", Issuer: "https://issuer.example.test", ClientID: "public-client", Subject: "subject-1", LoginNonce: "original-login", RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)}); err != nil {
 		t.Fatal(err)
 	}
 	idToken := testIDToken(t, map[string]any{"iss": "https://issuer.example.test", "aud": "public-client", "sub": "subject-1", "iat": now.Unix(), "exp": now.Add(time.Hour).Unix()})
 	oauth := &fakeOAuthClient{refreshResponse: TokenResponse{IDToken: idToken}}
-	manager := NewManager(ManagerOptions{Store: store, OAuth: oauth, Clock: fixedClock{now: now}})
+	manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: oauth, Clock: fixedClock{now: now}})
 	resolved, err := manager.ResolveBearerToken(context.Background(), ResolveOptions{
 		ProfileName: "remote", Endpoint: "https://api.example.test/nsu", InstallationID: "installation-1", ControlEndpoint: "https://api.example.test", AuthMode: "remoteSession",
 		ProviderResolver: func(_ context.Context, provider string) (ProviderConfiguration, error) {
 			if provider != "google" {
 				t.Fatalf("provider = %q", provider)
 			}
-			return ProviderConfiguration{ID: "google", Issuer: "https://issuer.example.test", ClientID: "public-client", TokenEndpoint: "https://issuer.example.test/token"}, nil
+			return ProviderConfiguration{ID: "google", Issuer: "https://issuer.example.test", ClientID: "public-client", RefreshEndpoint: "https://issuer.example.test/token"}, nil
 		},
 	})
 	if err != nil || resolved.Token != idToken || resolved.Source != TokenSourceStoredRemoteSession {
@@ -294,7 +293,7 @@ func TestMigrateLegacyCredentialWritesVerifiesCommitsAndDeletes(t *testing.T) {
 	if err := store.Put(ctx, legacyKey, session); err != nil {
 		t.Fatal(err)
 	}
-	manager := NewManager(ManagerOptions{Store: store})
+	manager := newFixtureManager(ManagerOptions{Store: store})
 	committed := false
 	result, err := manager.MigrateLegacyCredential(ctx, LegacyMigrationOptions{
 		ProfileName: "remote", LegacyEndpoint: legacyKey.Endpoint, LegacyProvider: "google", LegacyIssuer: legacyKey.Issuer, LegacyClientID: legacyKey.ClientID,
@@ -325,7 +324,7 @@ func TestMigrateLegacyCredentialDoesNotOverwriteDestination(t *testing.T) {
 	destination := CredentialKey{ProfileName: "remote", InstallationID: "installation-1", ControlEndpoint: "https://api.example.test"}
 	_ = store.Put(ctx, legacyKey, Session{Subject: "legacy", RefreshToken: "legacy-refresh"})
 	_ = store.Put(ctx, destination, Session{Subject: "current", RefreshToken: "current-refresh"})
-	manager := NewManager(ManagerOptions{Store: store})
+	manager := newFixtureManager(ManagerOptions{Store: store})
 	result, err := manager.MigrateLegacyCredential(ctx, LegacyMigrationOptions{
 		ProfileName: "remote", LegacyEndpoint: legacyKey.Endpoint, LegacyProvider: "google", LegacyIssuer: legacyKey.Issuer, LegacyClientID: legacyKey.ClientID,
 		InstallationID: destination.InstallationID, ControlEndpoint: destination.ControlEndpoint,
@@ -343,7 +342,7 @@ func TestMigrateLegacyCredentialDoesNotOverwriteDestination(t *testing.T) {
 }
 
 func TestMigrateLegacyCredentialRequiresLoginWhenNotDerivable(t *testing.T) {
-	manager := NewManager(ManagerOptions{Store: newMemoryCredentialStore()})
+	manager := newFixtureManager(ManagerOptions{Store: newMemoryCredentialStore()})
 	committed := false
 	result, err := manager.MigrateLegacyCredential(context.Background(), LegacyMigrationOptions{
 		ProfileName: "remote", LegacyEndpoint: "https://other.example.test", InstallationID: "installation-1", ControlEndpoint: "https://api.example.test",
@@ -384,7 +383,7 @@ func TestMigrateLegacyCredentialFailureOrdering(t *testing.T) {
 				tc.configure(store)
 			}
 			committed := false
-			result, err := NewManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error {
+			result, err := newFixtureManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error {
 				committed = true
 				return tc.commitErr
 			})
@@ -413,13 +412,13 @@ func TestMigrateLegacyCredentialReadAndCommitFailures(t *testing.T) {
 		ProfileName: "remote", LegacyEndpoint: legacyKey.Endpoint, LegacyProvider: "google", LegacyIssuer: legacyKey.Issuer, LegacyClientID: legacyKey.ClientID,
 		InstallationID: destination.InstallationID, ControlEndpoint: destination.ControlEndpoint,
 	}
-	if _, err := NewManager(ManagerOptions{Store: newMemoryCredentialStore()}).MigrateLegacyCredential(ctx, options, nil); err == nil || !strings.Contains(err.Error(), "commit") {
+	if _, err := newFixtureManager(ManagerOptions{Store: newMemoryCredentialStore()}).MigrateLegacyCredential(ctx, options, nil); err == nil || !strings.Contains(err.Error(), "commit") {
 		t.Fatalf("nil commit error = %v", err)
 	}
 
 	t.Run("destination read", func(t *testing.T) {
 		store := &migrationCredentialStore{memoryCredentialStore: newMemoryCredentialStore(), getErrors: map[int]error{1: errors.New("destination read failed")}}
-		if _, err := NewManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { t.Fatal("commit called"); return nil }); err == nil || !strings.Contains(err.Error(), "read destination") {
+		if _, err := newFixtureManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { t.Fatal("commit called"); return nil }); err == nil || !strings.Contains(err.Error(), "read destination") {
 			t.Fatalf("error = %v", err)
 		}
 	})
@@ -427,7 +426,7 @@ func TestMigrateLegacyCredentialReadAndCommitFailures(t *testing.T) {
 		store := newMemoryCredentialStore()
 		_ = store.Put(ctx, destination, Session{RefreshToken: "current"})
 		wantErr := errors.New("commit failed")
-		if _, err := NewManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { return wantErr }); !errors.Is(err, wantErr) {
+		if _, err := newFixtureManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { return wantErr }); !errors.Is(err, wantErr) {
 			t.Fatalf("error = %v", err)
 		}
 	})
@@ -435,26 +434,26 @@ func TestMigrateLegacyCredentialReadAndCommitFailures(t *testing.T) {
 		wantErr := errors.New("commit failed")
 		incomplete := options
 		incomplete.LegacyIssuer = ""
-		if _, err := NewManager(ManagerOptions{Store: newMemoryCredentialStore()}).MigrateLegacyCredential(ctx, incomplete, func() error { return wantErr }); !errors.Is(err, wantErr) {
+		if _, err := newFixtureManager(ManagerOptions{Store: newMemoryCredentialStore()}).MigrateLegacyCredential(ctx, incomplete, func() error { return wantErr }); !errors.Is(err, wantErr) {
 			t.Fatalf("error = %v", err)
 		}
 	})
 	t.Run("legacy read", func(t *testing.T) {
 		store := &migrationCredentialStore{memoryCredentialStore: newMemoryCredentialStore(), getErrors: map[int]error{2: errors.New("legacy read failed")}}
-		if _, err := NewManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { t.Fatal("commit called"); return nil }); err == nil || !strings.Contains(err.Error(), "read legacy") {
+		if _, err := newFixtureManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { t.Fatal("commit called"); return nil }); err == nil || !strings.Contains(err.Error(), "read legacy") {
 			t.Fatalf("error = %v", err)
 		}
 	})
 	t.Run("missing legacy commit", func(t *testing.T) {
 		wantErr := errors.New("commit failed")
-		if _, err := NewManager(ManagerOptions{Store: newMemoryCredentialStore()}).MigrateLegacyCredential(ctx, options, func() error { return wantErr }); !errors.Is(err, wantErr) {
+		if _, err := newFixtureManager(ManagerOptions{Store: newMemoryCredentialStore()}).MigrateLegacyCredential(ctx, options, func() error { return wantErr }); !errors.Is(err, wantErr) {
 			t.Fatalf("error = %v", err)
 		}
 	})
 	t.Run("destination verification read", func(t *testing.T) {
 		store := &migrationCredentialStore{memoryCredentialStore: newMemoryCredentialStore(), getErrors: map[int]error{3: errors.New("verify read failed")}}
 		_ = store.memoryCredentialStore.Put(ctx, legacyKey, Session{Subject: "subject-1", RefreshToken: "refresh"})
-		if _, err := NewManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { t.Fatal("commit called"); return nil }); err == nil || !strings.Contains(err.Error(), "verify destination") {
+		if _, err := newFixtureManager(ManagerOptions{Store: store}).MigrateLegacyCredential(ctx, options, func() error { t.Fatal("commit called"); return nil }); err == nil || !strings.Contains(err.Error(), "verify destination") {
 			t.Fatalf("error = %v", err)
 		}
 	})
@@ -524,7 +523,7 @@ func TestResolveRemoteSessionRefreshKeepsIdentityAndNonceBound(t *testing.T) {
 		Subject: "subject-1", RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute), LoginNonce: "login-nonce",
 	}
 	provider := func(context.Context, string) (ProviderConfiguration, error) {
-		return ProviderConfiguration{ID: "google", Issuer: base.Issuer, ClientID: base.ClientID, TokenEndpoint: "https://issuer.example.test/token"}, nil
+		return ProviderConfiguration{ID: "google", Issuer: base.Issuer, ClientID: base.ClientID, RefreshEndpoint: "https://issuer.example.test/token"}, nil
 	}
 	cases := []struct {
 		name    string
@@ -548,7 +547,7 @@ func TestResolveRemoteSessionRefreshKeepsIdentityAndNonceBound(t *testing.T) {
 				payload["nonce"] = tc.nonce
 			}
 			idToken := testIDToken(t, payload)
-			manager := NewManager(ManagerOptions{Store: store, OAuth: &fakeOAuthClient{refreshResponse: TokenResponse{IDToken: idToken}}, Clock: fixedClock{now: now}})
+			manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: &fakeOAuthClient{refreshResponse: TokenResponse{IDToken: idToken}}, Clock: fixedClock{now: now}})
 			_, err := manager.ResolveBearerToken(context.Background(), ResolveOptions{
 				ProfileName: key.ProfileName, Endpoint: key.Endpoint, InstallationID: key.InstallationID, ControlEndpoint: key.ControlEndpoint,
 				AuthMode: "remoteSession", ProviderResolver: provider,
@@ -578,14 +577,14 @@ func TestResolveRemoteSessionRefreshRejectsNonceWithoutStoredBinding(t *testing.
 	store := newMemoryCredentialStore()
 	_ = store.Put(context.Background(), key, session)
 	idToken := testIDToken(t, map[string]any{"iss": session.Issuer, "aud": session.ClientID, "sub": session.Subject, "iat": now.Unix(), "exp": now.Add(time.Hour).Unix(), "nonce": "unbound"})
-	manager := NewManager(ManagerOptions{Store: store, OAuth: &fakeOAuthClient{refreshResponse: TokenResponse{IDToken: idToken}}, Clock: fixedClock{now: now}})
+	manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: &fakeOAuthClient{refreshResponse: TokenResponse{IDToken: idToken}}, Clock: fixedClock{now: now}})
 	_, err := manager.ResolveBearerToken(context.Background(), ResolveOptions{
 		ProfileName: key.ProfileName, Endpoint: key.Endpoint, InstallationID: key.InstallationID, ControlEndpoint: key.ControlEndpoint, AuthMode: "remoteSession",
 		ProviderResolver: func(context.Context, string) (ProviderConfiguration, error) {
-			return ProviderConfiguration{ID: "google", Issuer: session.Issuer, ClientID: session.ClientID, TokenEndpoint: "https://issuer.example.test/token"}, nil
+			return ProviderConfiguration{ID: "google", Issuer: session.Issuer, ClientID: session.ClientID, RefreshEndpoint: "https://issuer.example.test/token"}, nil
 		},
 	})
-	if err == nil || !strings.Contains(err.Error(), "nonce cannot be verified") {
+	if err == nil || !strings.Contains(err.Error(), "lacks login binding") {
 		t.Fatalf("error = %v", err)
 	}
 }
@@ -595,8 +594,8 @@ func TestRemoteSessionProviderMismatchRetainsCredential(t *testing.T) {
 	now := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
 	key := CredentialKey{ProfileName: "remote", Endpoint: "https://api.example.test", InstallationID: "installation-1", ControlEndpoint: "https://api.example.test"}
 	store := newMemoryCredentialStore()
-	_ = store.Put(context.Background(), key, Session{Provider: "google", Issuer: "https://issuer.example.test", ClientID: "public-client", RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)})
-	manager := NewManager(ManagerOptions{Store: store, OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: now}})
+	_ = store.Put(context.Background(), key, Session{Provider: "google", Issuer: "https://issuer.example.test", ClientID: "public-client", Subject: "subject-1", LoginNonce: "nonce", RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)})
+	manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: &fakeOAuthClient{}, Clock: fixedClock{now: now}})
 	_, err := manager.ResolveBearerToken(context.Background(), ResolveOptions{ProfileName: "remote", Endpoint: key.Endpoint, InstallationID: key.InstallationID, ControlEndpoint: key.ControlEndpoint, AuthMode: "remoteSession", ProviderResolver: func(context.Context, string) (ProviderConfiguration, error) {
 		return ProviderConfiguration{ID: "google", Issuer: "https://changed.example.test", ClientID: "public-client"}, nil
 	}})
@@ -624,7 +623,7 @@ func TestStatusReportsStoredSessionAndEnvOverride(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("put session: %v", err)
 	}
-	manager := NewManager(ManagerOptions{Store: store, OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: now}})
+	manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: &fakeOAuthClient{}, Clock: fixedClock{now: now}})
 
 	status, err := manager.Status(context.Background(), StatusOptions{
 		ProfileName: key.ProfileName,
@@ -665,7 +664,7 @@ func TestLogoutRevokesThenDeletesStoredSession(t *testing.T) {
 		t.Fatalf("put session: %v", err)
 	}
 	oauth := &fakeOAuthClient{}
-	manager := NewManager(ManagerOptions{Store: store, OAuth: oauth, Clock: fixedClock{now: time.Now()}})
+	manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: oauth, Clock: fixedClock{now: time.Now()}})
 
 	result, err := manager.Logout(context.Background(), LogoutOptions{
 		ProfileName: key.ProfileName,
@@ -690,13 +689,12 @@ func TestLogoutRevokesThenDeletesStoredSession(t *testing.T) {
 func testResolveOptions() ResolveOptions {
 	key := testCredentialKey()
 	return ResolveOptions{
-		ProfileName:  key.ProfileName,
-		Endpoint:     key.Endpoint,
-		AuthMode:     "oidcSession",
-		ClientID:     key.ClientID,
-		ClientSecret: "client-secret",
-		Issuer:       key.Issuer,
-		TokenEnv:     "SQLRS_TOKEN",
+		ProfileName: key.ProfileName,
+		Endpoint:    key.Endpoint,
+		AuthMode:    "oidcSession",
+		ClientID:    key.ClientID,
+		Issuer:      key.Issuer,
+		TokenEnv:    "SQLRS_TOKEN",
 	}
 }
 
@@ -726,26 +724,26 @@ type fakeOAuthClient struct {
 	revokedToken string
 }
 
-func (f *fakeOAuthClient) ExchangeCode(_ context.Context, req CodeExchangeRequest) (TokenResponse, error) {
+func (f *fakeOAuthClient) ExchangeCode(_ context.Context, _ LoginProvider, req CodeExchangeRequest) (TokenResponse, error) {
 	f.exchangeCode = req.Code
-	f.exchangeClientSecret = req.ClientSecret
+	f.exchangeClientSecret = ""
 	if f.exchangeErr != nil {
 		return TokenResponse{}, f.exchangeErr
 	}
 	return f.exchangeResponse, nil
 }
 
-func (f *fakeOAuthClient) Refresh(_ context.Context, req RefreshRequest) (TokenResponse, error) {
+func (f *fakeOAuthClient) Refresh(_ context.Context, provider LoginProvider, req RefreshRequest) (TokenResponse, error) {
 	f.refreshToken = req.RefreshToken
-	f.refreshClientSecret = req.ClientSecret
-	f.refreshEndpoint = req.TokenEndpoint
+	f.refreshClientSecret = ""
+	f.refreshEndpoint = provider.RefreshEndpoint
 	if f.refreshErr != nil {
 		return TokenResponse{}, f.refreshErr
 	}
 	return f.refreshResponse, nil
 }
 
-func (f *fakeOAuthClient) Revoke(_ context.Context, token string) error {
+func (f *fakeOAuthClient) Revoke(_ context.Context, _ string, token string) error {
 	f.revokedToken = token
 	return f.revokeErr
 }
