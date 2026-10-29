@@ -6,6 +6,11 @@ refresh tokens with the provider. The CLI never receives client_secret.
 The fixed discovery schema revision 2 replaces the old `/v1` authentication
 contract; matching server/CLI versions are required, without compatibility fallback.
 
+The planned CLI release for this contract is **v0.2.0-rc.1**, a minor-version
+boundary after v0.1.1-rc.10. Publication is tracked separately in
+[#168](https://github.com/kimak-irmagi/sqlrs/issues/168); see the
+[release-version decision](../adr/2026-10-29-auth-api-cli-minor-release.md).
+
 ## Command syntax
 
 ```text
