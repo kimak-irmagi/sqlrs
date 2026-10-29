@@ -61,8 +61,8 @@ func TestGeneratePKCEPairAndOpaqueTokenUseCryptoRandByDefault(t *testing.T) {
 	}
 }
 
-func TestBuildGoogleAuthURLIncludesOIDCOfflinePKCEParameters(t *testing.T) {
-	raw, err := BuildGoogleAuthURL(AuthURLOptions{
+func TestBuildOIDCAuthURLIncludesOIDCOfflinePKCEParameters(t *testing.T) {
+	raw, err := buildFixtureAuthURL(AuthURLOptions{
 		ClientID:      "client.apps.googleusercontent.com",
 		RedirectURI:   "http://127.0.0.1:49152",
 		State:         "state-1",
@@ -71,7 +71,7 @@ func TestBuildGoogleAuthURLIncludesOIDCOfflinePKCEParameters(t *testing.T) {
 		LoginHint:     "alice@example.com",
 	})
 	if err != nil {
-		t.Fatalf("BuildGoogleAuthURL: %v", err)
+		t.Fatalf("buildFixtureAuthURL: %v", err)
 	}
 
 	parsed, err := url.Parse(raw)
@@ -95,15 +95,15 @@ func TestBuildGoogleAuthURLIncludesOIDCOfflinePKCEParameters(t *testing.T) {
 	assertQueryValue(t, query, "login_hint", "alice@example.com")
 }
 
-func TestBuildGoogleAuthURLUsesAdvertisedEndpointAndParameters(t *testing.T) {
-	raw, err := BuildGoogleAuthURL(AuthURLOptions{
+func TestBuildOIDCAuthURLUsesAdvertisedEndpointAndParameters(t *testing.T) {
+	raw, err := buildFixtureAuthURL(AuthURLOptions{
 		ClientID: "public-client", RedirectURI: "http://127.0.0.1:49152",
 		State: "state-canary", Nonce: "nonce-canary", CodeChallenge: "challenge-canary",
 		AuthorizationEndpoint: "https://issuer.example.test/authorize?tenant=shared",
 		Scopes:                []string{"openid", "email"}, AuthorizationParameters: map[string]string{"prompt": "consent"},
 	})
 	if err != nil {
-		t.Fatalf("BuildGoogleAuthURL: %v", err)
+		t.Fatalf("buildFixtureAuthURL: %v", err)
 	}
 	parsed, _ := url.Parse(raw)
 	if parsed.Host != "issuer.example.test" || parsed.Query().Get("tenant") != "shared" || parsed.Query().Get("prompt") != "consent" {
@@ -113,12 +113,12 @@ func TestBuildGoogleAuthURLUsesAdvertisedEndpointAndParameters(t *testing.T) {
 		t.Fatalf("authorization URL leaked PKCE verifier: %q", raw)
 	}
 	bad := AuthURLOptions{ClientID: "c", RedirectURI: "http://127.0.0.1:1", State: "s", Nonce: "n", CodeChallenge: "ch", AuthorizationEndpoint: "https://issuer.example.test/auth", Scopes: []string{"openid"}, AuthorizationParameters: map[string]string{"nonce": "collision"}}
-	if _, err := BuildGoogleAuthURL(bad); err == nil {
+	if _, err := buildFixtureAuthURL(bad); err == nil {
 		t.Fatalf("expected reserved parameter collision")
 	}
 }
 
-func TestBuildGoogleAuthURLValidationErrors(t *testing.T) {
+func TestBuildOIDCAuthURLValidationErrors(t *testing.T) {
 	valid := AuthURLOptions{
 		ClientID:      "client-id",
 		RedirectURI:   "http://127.0.0.1:1",
@@ -135,7 +135,7 @@ func TestBuildGoogleAuthURLValidationErrors(t *testing.T) {
 		withAuthURLEndpoint(valid, "http://%zz"),
 	}
 	for _, opts := range cases {
-		if _, err := BuildGoogleAuthURL(opts); err == nil {
+		if _, err := buildFixtureAuthURL(opts); err == nil {
 			t.Fatalf("expected validation error for %+v", opts)
 		}
 	}

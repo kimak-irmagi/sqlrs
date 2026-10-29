@@ -15,7 +15,7 @@ import (
 
 const defaultRefreshWindow = 5 * time.Minute
 
-var ErrLoginRequired = errors.New("Google auth session is expired or unavailable; run `sqlrs auth login google`")
+var ErrLoginRequired = errors.New("auth session is expired or unavailable; run `sqlrs auth login <provider>`")
 
 // Clock is injected so refresh decisions can be tested deterministically.
 type Clock interface {
@@ -46,7 +46,8 @@ type LoopbackSession interface {
 // ManagerOptions wires the auth session manager dependencies.
 type ManagerOptions struct {
 	Store       CredentialStore
-	OAuth       OAuthClient
+	Exchanger   TokenExchanger
+	Revoker     TokenRevoker
 	Clock       Clock
 	Rand        io.Reader
 	Loopback    LoopbackProvider
@@ -57,7 +58,8 @@ type ManagerOptions struct {
 // for CLI profiles, per docs/architecture/cli-auth-component-structure.md.
 type Manager struct {
 	store       CredentialStore
-	oauth       OAuthClient
+	exchanger   TokenExchanger
+	revoker     TokenRevoker
 	clock       Clock
 	rand        io.Reader
 	loopback    LoopbackProvider
@@ -90,9 +92,9 @@ func NewManager(opts ManagerOptions) *Manager {
 	if store == nil {
 		store = NewSystemCredentialStore()
 	}
-	oauth := opts.OAuth
-	if oauth == nil {
-		oauth = GoogleOAuthClient{}
+	revoker := opts.Revoker
+	if revoker == nil {
+		revoker = ProviderRevoker{}
 	}
 	clock := opts.Clock
 	if clock == nil {
@@ -110,7 +112,7 @@ func NewManager(opts ManagerOptions) *Manager {
 	if openBrowser == nil {
 		openBrowser = OpenBrowser
 	}
-	return &Manager{store: store, oauth: oauth, clock: clock, rand: random, loopback: loopback, openBrowser: openBrowser}
+	return &Manager{store: store, exchanger: opts.Exchanger, revoker: revoker, clock: clock, rand: random, loopback: loopback, openBrowser: openBrowser}
 }
 
 // MigrateLegacyCredential performs the write/verify/commit/delete sequence for
@@ -189,19 +191,20 @@ func effectivePort(value *url.URL) string {
 }
 
 type LoginOptions struct {
+	Timeout                 time.Duration
 	ProfileName             string
 	Endpoint                string
 	InstallationID          string
 	ControlEndpoint         string
 	Provider                string
 	ClientID                string
-	ClientSecret            string
 	Issuer                  string
 	LoginHint               string
 	NoBrowser               bool
 	AuthorizationURLReady   func(string) error
 	AuthorizationEndpoint   string
-	TokenEndpoint           string
+	ExchangeEndpoint        string
+	RefreshEndpoint         string
 	Scopes                  []string
 	AuthorizationParameters map[string]string
 	RequireCallbackIssuer   bool
@@ -221,12 +224,19 @@ type LoginResult struct {
 	BearerToken      string    `json:"-"`
 }
 
-func (m *Manager) LoginGoogle(ctx context.Context, opts LoginOptions) (LoginResult, error) {
+func (m *Manager) LoginOIDC(ctx context.Context, opts LoginOptions) (LoginResult, error) {
 	clientID := strings.TrimSpace(opts.ClientID)
 	if clientID == "" {
 		return LoginResult{}, fmt.Errorf("OIDC public client ID is required for auth login")
 	}
-	issuer := defaultIssuer(opts.Issuer)
+	issuer := strings.TrimSpace(opts.Issuer)
+	if m.exchanger == nil {
+		return LoginResult{}, fmt.Errorf("installation token exchanger is required")
+	}
+	if issuer == "" || opts.AuthorizationEndpoint == "" || opts.ExchangeEndpoint == "" || opts.RefreshEndpoint == "" {
+		return LoginResult{}, fmt.Errorf("current provider configuration is required")
+	}
+	provider := LoginProvider{Timeout: opts.Timeout, Binding: InstallationBinding{InstallationID: opts.InstallationID, ControlEndpoint: opts.ControlEndpoint, ProviderID: opts.Provider, Issuer: issuer, ClientID: clientID}, ExchangeEndpoint: opts.ExchangeEndpoint, RefreshEndpoint: opts.RefreshEndpoint}
 	pair, err := GeneratePKCEPair(m.rand)
 	if err != nil {
 		return LoginResult{}, err
@@ -245,7 +255,7 @@ func (m *Manager) LoginGoogle(ctx context.Context, opts LoginOptions) (LoginResu
 	}
 	defer listener.Close()
 
-	authURL, err := BuildGoogleAuthURL(AuthURLOptions{
+	authURL, err := BuildOIDCAuthURL(AuthURLOptions{
 		ClientID:                clientID,
 		RedirectURI:             listener.RedirectURI(),
 		State:                   state,
@@ -278,14 +288,7 @@ func (m *Manager) LoginGoogle(ctx context.Context, opts LoginOptions) (LoginResu
 	if err != nil {
 		return LoginResult{}, err
 	}
-	resp, err := m.oauth.ExchangeCode(ctx, CodeExchangeRequest{
-		ClientID:      clientID,
-		ClientSecret:  opts.ClientSecret,
-		Code:          callback.Code,
-		CodeVerifier:  pair.Verifier,
-		RedirectURI:   listener.RedirectURI(),
-		TokenEndpoint: opts.TokenEndpoint,
-	})
+	resp, err := m.exchanger.ExchangeCode(ctx, provider, CodeExchangeRequest{Code: callback.Code, CodeVerifier: pair.Verifier, RedirectURI: listener.RedirectURI(), ExpectedNonce: nonce})
 	if err != nil {
 		return LoginResult{}, err
 	}
@@ -329,7 +332,7 @@ func (m *Manager) LoginGoogle(ctx context.Context, opts LoginOptions) (LoginResu
 
 func loginScopes(scopes []string) []string {
 	if len(scopes) == 0 {
-		scopes = googleOIDCScopes
+		return nil
 	}
 	return append([]string(nil), scopes...)
 }
@@ -432,17 +435,11 @@ func (m *Manager) Logout(ctx context.Context, opts LogoutOptions) (LogoutResult,
 				revokeErr = fmt.Errorf("stored auth session no longer matches provider configuration")
 			} else if provider.RevocationEndpoint != "" {
 				revokeAttempted = true
-				if revoker, ok := m.oauth.(interface {
-					RevokeAt(context.Context, string, string) error
-				}); ok {
-					revokeErr = revoker.RevokeAt(ctx, provider.RevocationEndpoint, session.RefreshToken)
-				} else {
-					revokeErr = m.oauth.Revoke(ctx, session.RefreshToken)
-				}
+				revokeErr = m.revoker.Revoke(ctx, provider.RevocationEndpoint, session.RefreshToken)
 			}
 		} else {
 			revokeAttempted = true
-			revokeErr = m.oauth.Revoke(ctx, session.RefreshToken)
+			revokeErr = m.revoker.Revoke(ctx, googleRevocationEndpoint, session.RefreshToken)
 		}
 		if revokeErr != nil {
 			result.RevocationFailed = revokeErr.Error()
@@ -458,11 +455,11 @@ func (m *Manager) Logout(ctx context.Context, opts LogoutOptions) (LogoutResult,
 }
 
 type ResolveOptions struct {
+	Timeout          time.Duration
 	ProfileName      string
 	Endpoint         string
 	AuthMode         string
 	ClientID         string
-	ClientSecret     string
 	Issuer           string
 	TokenEnv         string
 	StaticToken      string
@@ -478,7 +475,7 @@ type ProviderConfiguration struct {
 	ID                 string
 	Issuer             string
 	ClientID           string
-	TokenEndpoint      string
+	RefreshEndpoint    string
 	RevocationEndpoint string
 }
 
@@ -520,6 +517,10 @@ func (m *Manager) ResolveBearerToken(ctx context.Context, opts ResolveOptions) (
 	if !ok || strings.TrimSpace(session.RefreshToken) == "" {
 		return ResolvedBearerToken{}, ErrLoginRequired
 	}
+	if strings.EqualFold(strings.TrimSpace(opts.AuthMode), "remoteSession") &&
+		(strings.TrimSpace(session.Provider) == "" || strings.TrimSpace(session.Issuer) == "" || strings.TrimSpace(session.ClientID) == "" || strings.TrimSpace(session.Subject) == "" || strings.TrimSpace(session.LoginNonce) == "") {
+		return ResolvedBearerToken{}, fmt.Errorf("stored session lacks login binding: %w", ErrLoginRequired)
+	}
 	window := opts.RefreshWindow
 	if window == 0 {
 		window = defaultRefreshWindow
@@ -529,7 +530,7 @@ func (m *Manager) ResolveBearerToken(ctx context.Context, opts ResolveOptions) (
 		return ResolvedBearerToken{Token: session.CachedIDToken, Source: TokenSourceStoredRemoteSession}, nil
 	}
 	issuer := defaultIssuer(opts.Issuer)
-	tokenEndpoint := ""
+	refreshEndpoint := ""
 	provider := defaultProvider(session.Provider)
 	if strings.EqualFold(strings.TrimSpace(opts.AuthMode), "remoteSession") {
 		if opts.ProviderResolver == nil {
@@ -542,15 +543,20 @@ func (m *Manager) ResolveBearerToken(ctx context.Context, opts ResolveOptions) (
 		if current.ID != provider || current.Issuer != session.Issuer || current.ClientID != session.ClientID {
 			return ResolvedBearerToken{}, fmt.Errorf("stored auth session no longer matches provider configuration; run `sqlrs auth login %s`", provider)
 		}
-		clientID, issuer, tokenEndpoint = current.ClientID, current.Issuer, current.TokenEndpoint
+		clientID, issuer, refreshEndpoint = current.ClientID, current.Issuer, current.RefreshEndpoint
 	}
-	resp, err := m.oauth.Refresh(ctx, RefreshRequest{ClientID: clientID, ClientSecret: opts.ClientSecret, RefreshToken: session.RefreshToken, TokenEndpoint: tokenEndpoint})
+	if m.exchanger == nil {
+		return ResolvedBearerToken{}, fmt.Errorf("installation token exchanger is required")
+	}
+	currentProvider := LoginProvider{Timeout: opts.Timeout, Binding: InstallationBinding{InstallationID: opts.InstallationID, ControlEndpoint: opts.ControlEndpoint, ProviderID: provider, Issuer: issuer, ClientID: clientID}, RefreshEndpoint: refreshEndpoint}
+	resp, err := m.exchanger.Refresh(ctx, currentProvider, RefreshRequest{RefreshToken: session.RefreshToken, ExpectedSubject: session.Subject, ExpectedNonce: session.LoginNonce})
 	if err != nil {
 		if isInvalidGrant(err) {
-			return ResolvedBearerToken{}, m.deleteInvalidSession(ctx, key, err)
+			return ResolvedBearerToken{}, fmt.Errorf("%w; run `sqlrs auth login %s` (local session retained): %v", ErrLoginRequired, provider, err)
 		}
-		return ResolvedBearerToken{}, fmt.Errorf("refresh remote auth session: %w", err)
+		return ResolvedBearerToken{}, fmt.Errorf("refresh remote auth session (local session retained): %w", err)
 	}
+
 	if strings.TrimSpace(resp.IDToken) == "" {
 		return ResolvedBearerToken{}, errors.New("OIDC token response missing id_token; local session retained")
 	}
@@ -558,6 +564,9 @@ func (m *Manager) ResolveBearerToken(ctx context.Context, opts ResolveOptions) (
 	if err != nil {
 		return ResolvedBearerToken{}, fmt.Errorf("validate refreshed ID token (local session retained): %w", err)
 	}
+	// Network and discovery latency may exhaust a valid short-lived result.
+	// Validate freshness at receipt, not at the earlier refresh-selection time.
+	now = m.clock.Now().UTC()
 	if err := ValidateIDTokenClaims(claims, issuer, clientID, "", now); err != nil {
 		return ResolvedBearerToken{}, fmt.Errorf("validate refreshed ID token (local session retained): %w", err)
 	}
@@ -598,13 +607,6 @@ func isInvalidGrant(err error) bool {
 		return oauthErr.Code == "invalid_grant"
 	}
 	return false
-}
-
-func (m *Manager) deleteInvalidSession(ctx context.Context, key CredentialKey, cause error) error {
-	if err := m.store.Delete(ctx, key); err != nil {
-		return fmt.Errorf("%w: %v; failed to delete local auth session: %v", ErrLoginRequired, cause, err)
-	}
-	return fmt.Errorf("%w: %v", ErrLoginRequired, cause)
 }
 
 func credentialKey(profileName, endpoint, issuer, clientID string) CredentialKey {

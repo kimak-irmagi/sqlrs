@@ -67,6 +67,25 @@ func TestSessionEncodingAndCredentialKeyHelpers(t *testing.T) {
 	}
 }
 
+// Installation profiles have one active session, selected before its provider
+// can be read from the OS record. Account names must match stableName semantics.
+func TestInstallationCredentialAccountDoesNotDependOnSelectedProvider(t *testing.T) {
+	lookup := CredentialKey{ProfileName: "remote", InstallationID: "installation", ControlEndpoint: "https://api.example"}
+	login := lookup
+	login.Provider = "university"
+	login.Issuer = "https://issuer.example"
+	login.ClientID = "university-client"
+	if lookup.stableName() != login.stableName() || lookup.displayAccount() != login.displayAccount() {
+		t.Fatal("login and provider-independent lookup address different OS records")
+	}
+	legacyA := CredentialKey{ProfileName: "legacy", Endpoint: "https://api.example", Provider: "google", Issuer: "https://issuer.example", ClientID: "client"}
+	legacyB := legacyA
+	legacyB.Provider = "university"
+	if legacyA.displayAccount() == legacyB.displayAccount() {
+		t.Fatal("legacy credential accounts unexpectedly merged")
+	}
+}
+
 func TestCredentialKeyUsesInstallationTrustAnchorNotMutableRequestEndpoint(t *testing.T) {
 	root := CredentialKey{ProfileName: "remote", Endpoint: "https://api.example.test", InstallationID: "installation-1", ControlEndpoint: "https://api.example.test", Provider: "google", Issuer: "https://issuer.example.test", ClientID: "public-client"}
 	org := root

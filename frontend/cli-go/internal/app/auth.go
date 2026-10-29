@@ -27,14 +27,14 @@ type authResolveOptions = authsession.ResolveOptions
 type authResolvedBearerToken = authsession.ResolvedBearerToken
 
 type authManager interface {
-	LoginGoogle(context.Context, authLoginOptions) (authLoginResult, error)
+	LoginOIDC(context.Context, authLoginOptions) (authLoginResult, error)
 	Status(context.Context, authStatusOptions) (authStatusResult, error)
 	Logout(context.Context, authLogoutOptions) (authLogoutResult, error)
 	ResolveBearerToken(context.Context, authResolveOptions) (authResolvedBearerToken, error)
 }
 
 var authManagerFactory = func() authManager {
-	return authsession.NewManager(authsession.ManagerOptions{})
+	return authsession.NewManager(authsession.ManagerOptions{Exchanger: installationTokenExchanger{}, Revoker: authsession.ProviderRevoker{}})
 }
 
 var authProviderLoader = func(ctx context.Context, endpoint, provider string) (client.AuthProviderConfiguration, error) {
@@ -191,16 +191,22 @@ func runAuth(stdout, stderr io.Writer, cwd string, opts cli.GlobalOptions, args 
 		if !strings.EqualFold(authMode, "oidcSession") && !strings.EqualFold(authMode, "remoteSession") {
 			return fmt.Errorf("auth login requires profile auth.mode: remoteSession")
 		}
-		providerConfig := client.AuthProviderConfiguration{
-			ID: "google", Adapter: "oidc", ConfigurationVersion: 1,
-			Issuer: cmdCtx.profile.Auth.Issuer, ClientID: cmdCtx.profile.Auth.ClientID,
+		if !strings.EqualFold(authMode, "remoteSession") {
+			return fmt.Errorf("auth login requires profile auth.mode: remoteSession; initialize the remote installation again")
 		}
-		if strings.EqualFold(authMode, "remoteSession") {
-			providerConfig, err = authProviderLoader(context.Background(), cmdCtx.profile.Endpoint, invocation.provider)
-			if err != nil {
-				return fmt.Errorf("discover auth provider %q: %w", invocation.provider, err)
+		providerConfig, err := authProviderLoader(context.Background(), cmdCtx.profile.Endpoint, invocation.provider)
+		if err != nil {
+			return fmt.Errorf("discover auth provider %q: %w", invocation.provider, err)
+		}
+		if providerConfig.ID != invocation.provider {
+			return fmt.Errorf("discovered provider identity mismatch")
+		}
+		for _, endpoint := range []string{providerConfig.ExchangeEndpoint, providerConfig.RefreshEndpoint} {
+			if err := client.ValidateOperationEndpoint(cmdCtx.profile.InstallationEndpoint, endpoint); err != nil {
+				return err
 			}
 		}
+
 		var authorizationURLReady func(string) error
 		if invocation.noBrowser {
 			authorizationURLReady = func(authURL string) error {
@@ -208,7 +214,8 @@ func runAuth(stdout, stderr io.Writer, cwd string, opts cli.GlobalOptions, args 
 				return err
 			}
 		}
-		result, err := manager.LoginGoogle(context.Background(), authLoginOptions{
+		result, err := manager.LoginOIDC(context.Background(), authLoginOptions{
+			Timeout:                 cmdCtx.timeout,
 			ProfileName:             cmdCtx.profileName,
 			Endpoint:                cmdCtx.profile.Endpoint,
 			InstallationID:          cmdCtx.profile.InstallationID,
@@ -220,7 +227,8 @@ func runAuth(stdout, stderr io.Writer, cwd string, opts cli.GlobalOptions, args 
 			NoBrowser:               invocation.noBrowser,
 			AuthorizationURLReady:   authorizationURLReady,
 			AuthorizationEndpoint:   providerConfig.AuthorizationEndpoint,
-			TokenEndpoint:           providerConfig.TokenEndpoint,
+			ExchangeEndpoint:        providerConfig.ExchangeEndpoint,
+			RefreshEndpoint:         providerConfig.RefreshEndpoint,
 			Scopes:                  providerConfig.Scopes,
 			AuthorizationParameters: providerConfig.AuthorizationParameters,
 			RequireCallbackIssuer:   strings.EqualFold(authMode, "remoteSession"),
@@ -262,7 +270,7 @@ func runAuth(stdout, stderr io.Writer, cwd string, opts cli.GlobalOptions, args 
 				if err != nil {
 					return authsession.ProviderConfiguration{}, err
 				}
-				return authsession.ProviderConfiguration{ID: detail.ID, Issuer: detail.Issuer, ClientID: detail.ClientID, TokenEndpoint: detail.TokenEndpoint, RevocationEndpoint: detail.RevocationEndpoint}, nil
+				return authsession.ProviderConfiguration{ID: detail.ID, Issuer: detail.Issuer, ClientID: detail.ClientID, RefreshEndpoint: detail.RefreshEndpoint, RevocationEndpoint: detail.RevocationEndpoint}, nil
 			}
 		}
 		result, err := manager.Logout(context.Background(), authLogoutOptions{
@@ -368,11 +376,11 @@ func resolveEffectiveAuthToken(ctx context.Context, cmdCtx commandContext) (comm
 		return cmdCtx, nil
 	}
 	resolved, err := authManagerFactory().ResolveBearerToken(ctx, authResolveOptions{
+		Timeout:         cmdCtx.timeout,
 		ProfileName:     cmdCtx.profileName,
 		Endpoint:        cmdCtx.profile.Endpoint,
 		AuthMode:        cmdCtx.profile.Auth.Mode,
 		ClientID:        cmdCtx.profile.Auth.ClientID,
-		ClientSecret:    cmdCtx.profile.Auth.ClientSecret,
 		Issuer:          cmdCtx.profile.Auth.Issuer,
 		TokenEnv:        cmdCtx.profile.Auth.TokenEnv,
 		StaticToken:     cmdCtx.profile.Auth.Token,
@@ -383,7 +391,7 @@ func resolveEffectiveAuthToken(ctx context.Context, cmdCtx commandContext) (comm
 			if err != nil {
 				return authsession.ProviderConfiguration{}, err
 			}
-			return authsession.ProviderConfiguration{ID: detail.ID, Issuer: detail.Issuer, ClientID: detail.ClientID, TokenEndpoint: detail.TokenEndpoint}, nil
+			return authsession.ProviderConfiguration{ID: detail.ID, Issuer: detail.Issuer, ClientID: detail.ClientID, RefreshEndpoint: detail.RefreshEndpoint}, nil
 		},
 	})
 	if err != nil {

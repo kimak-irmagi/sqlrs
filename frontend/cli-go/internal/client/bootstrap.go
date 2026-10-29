@@ -62,8 +62,8 @@ func (c *Client) GetAuthProviders(ctx context.Context) (AuthProviderList, error)
 	return AuthProviderList{Providers: *wire.Providers}, nil
 }
 
-// AuthProviderConfiguration is version 1 of the service-advertised generic
-// OIDC public-client configuration. It deliberately contains no client secret.
+// AuthProviderConfiguration is the sole installation-exchange OIDC contract.
+// ConfigurationVersion is a schema marker, not a negotiated compatibility mode.
 type AuthProviderConfiguration struct {
 	ID                                         string            `json:"id"`
 	DisplayName                                string            `json:"display_name"`
@@ -73,8 +73,8 @@ type AuthProviderConfiguration struct {
 	Issuer                                     string            `json:"issuer"`
 	ClientID                                   string            `json:"client_id"`
 	AuthorizationEndpoint                      string            `json:"authorization_endpoint"`
-	TokenEndpoint                              string            `json:"token_endpoint"`
-	TokenEndpointAuthMethod                    string            `json:"token_endpoint_auth_method"`
+	ExchangeEndpoint                           string            `json:"exchange_endpoint"`
+	RefreshEndpoint                            string            `json:"refresh_endpoint"`
 	AuthorizationResponseISSParameterSupported bool              `json:"authorization_response_iss_parameter_supported"`
 	RevocationEndpoint                         string            `json:"revocation_endpoint,omitempty"`
 	Scopes                                     []string          `json:"scopes"`
@@ -114,7 +114,7 @@ func (c *Client) GetAuthProvider(ctx context.Context, provider string) (AuthProv
 }
 
 func (c *Client) getPublicJSON(ctx context.Context, path string, out any) error {
-	return c.getPublicJSONWithLimit(ctx, path, out, 0)
+	return c.getPublicJSONWithLimit(ctx, path, out, 1<<20)
 }
 
 // getPublicJSONWithLimit preserves the public discovery redirect policy and
@@ -263,10 +263,10 @@ func ValidateOIDCProvider(requested string, provider AuthProviderConfiguration) 
 	if provider.ID != requested {
 		return fmt.Errorf("response id %q does not match requested provider", provider.ID)
 	}
-	if provider.Adapter != "oidc" || provider.ConfigurationVersion != 1 || provider.Flow != "authorizationCodePKCE" {
+	if provider.Adapter != "oidc" || provider.ConfigurationVersion != 2 || provider.Flow != "authorizationCodePKCE" {
 		return fmt.Errorf("unsupported adapter configuration")
 	}
-	if provider.TokenEndpointAuthMethod != "none" || !provider.AuthorizationResponseISSParameterSupported {
+	if !provider.AuthorizationResponseISSParameterSupported {
 		return fmt.Errorf("provider is not a supported public OIDC client")
 	}
 	if strings.TrimSpace(provider.ClientID) == "" || strings.TrimSpace(provider.DisplayName) == "" {
@@ -284,8 +284,10 @@ func ValidateOIDCProvider(requested string, provider AuthProviderConfiguration) 
 			return fmt.Errorf("authorization endpoint query parameter %q is reserved", key)
 		}
 	}
-	if err := validateHTTPSURL(provider.TokenEndpoint, true); err != nil {
-		return fmt.Errorf("token endpoint: %w", err)
+	for _, raw := range []string{provider.ExchangeEndpoint, provider.RefreshEndpoint} {
+		if _, err := validateServiceBaseURL(raw); err != nil {
+			return fmt.Errorf("invalid installation exchange endpoint")
+		}
 	}
 	if provider.RevocationEndpoint != "" {
 		if err := validateHTTPSURL(provider.RevocationEndpoint, true); err != nil {

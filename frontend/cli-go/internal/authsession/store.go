@@ -116,6 +116,9 @@ func (k CredentialKey) stableName() string {
 func (k CredentialKey) displayAccount() string {
 	n := k.normalized()
 	sum := n.stableName()
+	if n.InstallationID != "" || n.ControlEndpoint != "" {
+		return fmt.Sprintf("%s:remote:%s", n.ProfileName, sum[:16])
+	}
 	return fmt.Sprintf("%s:%s:%s", n.ProfileName, n.Provider, sum[:16])
 }
 

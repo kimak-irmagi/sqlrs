@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -183,16 +184,8 @@ func TestRunnerDoesNotResolveEffectiveTokenForConfigCommand(t *testing.T) {
 func TestRunAuthLoginNoBrowserPrintsAuthorizationURLBeforeFinalOutput(t *testing.T) {
 	cwd := t.TempDir()
 	setTestDirs(t, cwd)
-	writeProjectConfig(t, cwd,
-		"defaultProfile: remote\n"+
-			"profiles:\n"+
-			"  remote:\n"+
-			"    mode: remote\n"+
-			"    endpoint: https://sqlrs.example.org\n"+
-			"    auth:\n"+
-			"      mode: oidcSession\n"+
-			"      clientID: client-id\n"+
-			"      clientSecret: client-secret\n")
+	writeProjectConfig(t, cwd, authTestConfig("remote", "https://sqlrs.example.org", "remoteSession"))
+	installAuthProviderFixture(t, "https://sqlrs.example.org")
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -225,8 +218,8 @@ func TestRunAuthLoginNoBrowserPrintsAuthorizationURLBeforeFinalOutput(t *testing
 	if strings.Count(errOut, "authorizationURL: https://accounts.google.com/o/oauth2/v2/auth") != 1 {
 		t.Fatalf("stderr should print authorization URL once, got %q", errOut)
 	}
-	if gotOptions.ClientSecret != "" {
-		t.Fatalf("client secret = %q, want no confidential secret", gotOptions.ClientSecret)
+	if _, present := reflect.TypeOf(gotOptions).FieldByName("ClientSecret"); present {
+		t.Fatal("session options expose provider secret")
 	}
 }
 
@@ -246,10 +239,10 @@ func TestRunAuthLoginRemoteSessionUsesDiscoveredProvider(t *testing.T) {
 			t.Fatalf("discovery = endpoint %q provider %q", endpoint, provider)
 		}
 		return client.AuthProviderConfiguration{
-			ID: "google", Adapter: "oidc", ConfigurationVersion: 1,
+			ID: "google", Adapter: "oidc", ConfigurationVersion: 2,
 			Issuer: "https://issuer.example.test", ClientID: "public-client",
 			AuthorizationEndpoint: "https://issuer.example.test/authorize",
-			TokenEndpoint:         "https://issuer.example.test/token", Scopes: []string{"openid", "email"},
+			ExchangeEndpoint:      "https://api.example.test/v1/auth/providers/google/exchange", RefreshEndpoint: "https://api.example.test/v1/auth/providers/google/refresh", Scopes: []string{"openid", "email"},
 			AuthorizationParameters: map[string]string{"prompt": "consent"},
 		}, nil
 	}
@@ -262,7 +255,7 @@ func TestRunAuthLoginRemoteSessionUsesDiscoveredProvider(t *testing.T) {
 	if err := runAuth(io.Discard, io.Discard, cwd, cli.GlobalOptions{Workspace: cwd}, []string{"login", "google"}); err != nil {
 		t.Fatalf("runAuth: %v", err)
 	}
-	if got.ClientID != "public-client" || got.AuthorizationEndpoint != "https://issuer.example.test/authorize" || got.ClientSecret != "" {
+	if got.ClientID != "public-client" || got.AuthorizationEndpoint != "https://issuer.example.test/authorize" {
 		t.Fatalf("login options = %+v", got)
 	}
 	if got.InstallationID != "installation-1" || got.ControlEndpoint != "https://api.example.test" || !got.RequireCallbackIssuer {
@@ -287,7 +280,7 @@ func TestRunAuthLoginAutoSwitchesRootProfileToSingleOrganization(t *testing.T) {
 	oldLoader := authProviderLoader
 	oldFactory := authManagerFactory
 	authProviderLoader = func(context.Context, string, string) (client.AuthProviderConfiguration, error) {
-		return client.AuthProviderConfiguration{ID: "google", Adapter: "oidc", ConfigurationVersion: 1, Issuer: "https://issuer.test", ClientID: "public", AuthorizationEndpoint: "https://issuer.test/auth", TokenEndpoint: "https://issuer.test/token", Scopes: []string{"openid"}}, nil
+		return client.AuthProviderConfiguration{ID: "google", Adapter: "oidc", ConfigurationVersion: 2, Issuer: "https://issuer.test", ClientID: "public", AuthorizationEndpoint: "https://issuer.test/auth", ExchangeEndpoint: server.URL + "/v1/auth/providers/google/exchange", RefreshEndpoint: server.URL + "/v1/auth/providers/google/refresh", Scopes: []string{"openid"}}, nil
 	}
 	authManagerFactory = func() authManager {
 		return fakeAuthManager{login: authLoginResult{LoggedIn: true, BearerToken: "login-id-token"}}
@@ -488,7 +481,7 @@ type fakeAuthManager struct {
 	onResolve  func(authResolveOptions)
 }
 
-func (m fakeAuthManager) LoginGoogle(_ context.Context, opts authLoginOptions) (authLoginResult, error) {
+func (m fakeAuthManager) LoginOIDC(_ context.Context, opts authLoginOptions) (authLoginResult, error) {
 	if m.loginErr != nil {
 		return authLoginResult{}, m.loginErr
 	}

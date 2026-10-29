@@ -76,10 +76,8 @@ func NewSystemCredentialStore() CredentialStore {
 }
 
 func (SystemCredentialStore) Get(_ context.Context, key CredentialKey) (Session, bool, error) {
-	target, err := windows.UTF16PtrFromString(credentialService + ":" + key.stableName())
-	if err != nil {
-		return Session{}, false, err
-	}
+	// The target is a constant prefix plus a hex SHA-256 digest; it cannot contain NUL.
+	target, _ := windows.UTF16PtrFromString(credentialService + ":" + key.stableName())
 	var cred *winCredential
 	if err := windowsCredRead(target, credTypeGeneric, 0, &cred); err != nil {
 		if errors.Is(err, windows.ERROR_NOT_FOUND) {
@@ -100,10 +98,8 @@ func (SystemCredentialStore) Get(_ context.Context, key CredentialKey) (Session,
 }
 
 func (SystemCredentialStore) Put(_ context.Context, key CredentialKey, session Session) error {
-	target, err := windows.UTF16PtrFromString(credentialService + ":" + key.stableName())
-	if err != nil {
-		return err
-	}
+	// stableName contains hex digits only, so UTF-16 conversion cannot fail.
+	target, _ := windows.UTF16PtrFromString(credentialService + ":" + key.stableName())
 	account, err := windows.UTF16PtrFromString(key.displayAccount())
 	if err != nil {
 		return err
@@ -124,10 +120,8 @@ func (SystemCredentialStore) Put(_ context.Context, key CredentialKey, session S
 }
 
 func (SystemCredentialStore) Delete(_ context.Context, key CredentialKey) error {
-	target, err := windows.UTF16PtrFromString(credentialService + ":" + key.stableName())
-	if err != nil {
-		return err
-	}
+	// stableName contains hex digits only, so UTF-16 conversion cannot fail.
+	target, _ := windows.UTF16PtrFromString(credentialService + ":" + key.stableName())
 	if err := windowsCredDelete(target, credTypeGeneric, 0); err != nil && !errors.Is(err, windows.ERROR_NOT_FOUND) {
 		return err
 	}

@@ -10,48 +10,48 @@ import (
 	"time"
 )
 
-func TestLoginGoogleValidatesRequiredClientID(t *testing.T) {
-	manager := NewManager(ManagerOptions{Store: newMemoryCredentialStore(), OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}})
-	if _, err := manager.LoginGoogle(context.Background(), LoginOptions{}); err == nil || !strings.Contains(err.Error(), "client ID") {
+func TestLoginOIDCValidatesRequiredClientID(t *testing.T) {
+	manager := newFixtureManager(ManagerOptions{Store: newMemoryCredentialStore(), Exchanger: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}})
+	if _, err := manager.loginFixture(context.Background(), LoginOptions{}); err == nil || !strings.Contains(err.Error(), "client ID") {
 		t.Fatalf("expected clientID error, got %v", err)
 	}
 }
 
-func TestLoginGoogleReportsEntropyErrors(t *testing.T) {
+func TestLoginOIDCReportsEntropyErrors(t *testing.T) {
 	key := testCredentialKey()
-	manager := NewManager(ManagerOptions{Store: newMemoryCredentialStore(), OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}, Rand: errorReader{}})
-	if _, err := manager.LoginGoogle(context.Background(), LoginOptions{ClientID: key.ClientID}); err == nil || !strings.Contains(err.Error(), "PKCE") {
+	manager := newFixtureManager(ManagerOptions{Store: newMemoryCredentialStore(), Exchanger: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}, Rand: errorReader{}})
+	if _, err := manager.loginFixture(context.Background(), LoginOptions{ClientID: key.ClientID}); err == nil || !strings.Contains(err.Error(), "PKCE") {
 		t.Fatalf("expected PKCE entropy error, got %v", err)
 	}
 
-	manager = NewManager(ManagerOptions{Store: newMemoryCredentialStore(), OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}, Rand: bytes.NewReader(make([]byte, pkceEntropyBytes))})
-	if _, err := manager.LoginGoogle(context.Background(), LoginOptions{ClientID: key.ClientID}); err == nil || !strings.Contains(err.Error(), "state") {
+	manager = newFixtureManager(ManagerOptions{Store: newMemoryCredentialStore(), Exchanger: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}, Rand: bytes.NewReader(make([]byte, pkceEntropyBytes))})
+	if _, err := manager.loginFixture(context.Background(), LoginOptions{ClientID: key.ClientID}); err == nil || !strings.Contains(err.Error(), "state") {
 		t.Fatalf("expected state entropy error, got %v", err)
 	}
 
-	manager = NewManager(ManagerOptions{Store: newMemoryCredentialStore(), OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}, Rand: bytes.NewReader(make([]byte, pkceEntropyBytes*2))})
-	if _, err := manager.LoginGoogle(context.Background(), LoginOptions{ClientID: key.ClientID}); err == nil || !strings.Contains(err.Error(), "nonce") {
+	manager = newFixtureManager(ManagerOptions{Store: newMemoryCredentialStore(), Exchanger: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}, Rand: bytes.NewReader(make([]byte, pkceEntropyBytes*2))})
+	if _, err := manager.loginFixture(context.Background(), LoginOptions{ClientID: key.ClientID}); err == nil || !strings.Contains(err.Error(), "nonce") {
 		t.Fatalf("expected nonce entropy error, got %v", err)
 	}
 }
 
-func TestLoginGooglePropagatesBrowserAndCallbackErrors(t *testing.T) {
+func TestLoginOIDCPropagatesBrowserAndCallbackErrors(t *testing.T) {
 	now := time.Date(2026, 7, 2, 12, 0, 0, 0, time.UTC)
 	entropy := bytes.Repeat([]byte{0x11}, pkceEntropyBytes*3)
 	key := testCredentialKey()
 
 	t.Run("browser", func(t *testing.T) {
-		manager := NewManager(ManagerOptions{
-			Store: newMemoryCredentialStore(),
-			OAuth: &fakeOAuthClient{},
-			Clock: fixedClock{now: now},
-			Rand:  bytes.NewReader(entropy),
+		manager := newFixtureManager(ManagerOptions{
+			Store:     newMemoryCredentialStore(),
+			Exchanger: &fakeOAuthClient{},
+			Clock:     fixedClock{now: now},
+			Rand:      bytes.NewReader(entropy),
 			Loopback: fakeLoopbackProvider{session: &fakeLoopbackSession{
 				redirectURI: "http://127.0.0.1:49152",
 			}},
 			OpenBrowser: func(context.Context, string) error { return errors.New("browser failed") },
 		})
-		_, err := manager.LoginGoogle(context.Background(), LoginOptions{
+		_, err := manager.loginFixture(context.Background(), LoginOptions{
 			ProfileName: key.ProfileName,
 			Endpoint:    key.Endpoint,
 			ClientID:    key.ClientID,
@@ -63,17 +63,17 @@ func TestLoginGooglePropagatesBrowserAndCallbackErrors(t *testing.T) {
 	})
 
 	t.Run("callback", func(t *testing.T) {
-		manager := NewManager(ManagerOptions{
-			Store: newMemoryCredentialStore(),
-			OAuth: &fakeOAuthClient{},
-			Clock: fixedClock{now: now},
-			Rand:  bytes.NewReader(entropy),
+		manager := newFixtureManager(ManagerOptions{
+			Store:     newMemoryCredentialStore(),
+			Exchanger: &fakeOAuthClient{},
+			Clock:     fixedClock{now: now},
+			Rand:      bytes.NewReader(entropy),
 			Loopback: fakeLoopbackProvider{session: &fakeLoopbackSession{
 				redirectURI: "http://127.0.0.1:49152",
 				callback:    url.Values{"state": {"wrong"}, "code": {"code"}},
 			}},
 		})
-		_, err := manager.LoginGoogle(context.Background(), LoginOptions{
+		_, err := manager.loginFixture(context.Background(), LoginOptions{
 			ProfileName: key.ProfileName,
 			Endpoint:    key.Endpoint,
 			ClientID:    key.ClientID,
@@ -87,8 +87,8 @@ func TestLoginGooglePropagatesBrowserAndCallbackErrors(t *testing.T) {
 }
 
 func TestNewManagerDefaultsAreUsable(t *testing.T) {
-	manager := NewManager(ManagerOptions{})
-	if manager.store == nil || manager.oauth == nil || manager.clock == nil || manager.rand == nil || manager.loopback == nil || manager.openBrowser == nil {
+	manager := newFixtureManager(ManagerOptions{})
+	if manager.store == nil || manager.clock == nil || manager.rand == nil || manager.loopback == nil || manager.openBrowser == nil {
 		t.Fatalf("default manager has nil dependency: %+v", manager)
 	}
 	if (realClock{}).Now().IsZero() {
@@ -96,19 +96,19 @@ func TestNewManagerDefaultsAreUsable(t *testing.T) {
 	}
 }
 
-func TestLoginGooglePropagatesOAuthClaimAndStoreErrors(t *testing.T) {
+func TestLoginOIDCPropagatesOAuthClaimAndStoreErrors(t *testing.T) {
 	now := time.Date(2026, 7, 2, 12, 0, 0, 0, time.UTC)
 	key := testCredentialKey()
 
 	t.Run("loopback", func(t *testing.T) {
-		manager := NewManager(ManagerOptions{
-			Store:    newMemoryCredentialStore(),
-			OAuth:    &fakeOAuthClient{},
-			Clock:    fixedClock{now: now},
-			Rand:     bytes.NewReader(bytes.Repeat([]byte{0x22}, pkceEntropyBytes*3)),
-			Loopback: fakeLoopbackProvider{err: errors.New("listen failed")},
+		manager := newFixtureManager(ManagerOptions{
+			Store:     newMemoryCredentialStore(),
+			Exchanger: &fakeOAuthClient{},
+			Clock:     fixedClock{now: now},
+			Rand:      bytes.NewReader(bytes.Repeat([]byte{0x22}, pkceEntropyBytes*3)),
+			Loopback:  fakeLoopbackProvider{err: errors.New("listen failed")},
 		})
-		_, err := manager.LoginGoogle(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer})
+		_, err := manager.loginFixture(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer})
 		if err == nil || !strings.Contains(err.Error(), "listen failed") {
 			t.Fatalf("expected loopback error, got %v", err)
 		}
@@ -116,17 +116,17 @@ func TestLoginGooglePropagatesOAuthClaimAndStoreErrors(t *testing.T) {
 
 	t.Run("oauth exchange", func(t *testing.T) {
 		state, _ := generateOpaqueToken(bytes.NewReader(bytes.Repeat([]byte{0x33}, pkceEntropyBytes)))
-		manager := NewManager(ManagerOptions{
-			Store: newMemoryCredentialStore(),
-			OAuth: &fakeOAuthClient{exchangeErr: errors.New("exchange failed")},
-			Clock: fixedClock{now: now},
-			Rand:  bytes.NewReader(bytes.Repeat([]byte{0x33}, pkceEntropyBytes*3)),
+		manager := newFixtureManager(ManagerOptions{
+			Store:     newMemoryCredentialStore(),
+			Exchanger: &fakeOAuthClient{exchangeErr: errors.New("exchange failed")},
+			Clock:     fixedClock{now: now},
+			Rand:      bytes.NewReader(bytes.Repeat([]byte{0x33}, pkceEntropyBytes*3)),
 			Loopback: fakeLoopbackProvider{session: &fakeLoopbackSession{
 				redirectURI: "http://127.0.0.1:49152",
 				callback:    url.Values{"state": {state}, "code": {"code"}},
 			}},
 		})
-		_, err := manager.LoginGoogle(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer, NoBrowser: true})
+		_, err := manager.loginFixture(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer, NoBrowser: true})
 		if err == nil || !strings.Contains(err.Error(), "exchange failed") {
 			t.Fatalf("expected exchange error, got %v", err)
 		}
@@ -134,17 +134,17 @@ func TestLoginGooglePropagatesOAuthClaimAndStoreErrors(t *testing.T) {
 
 	t.Run("missing id token", func(t *testing.T) {
 		state, _ := generateOpaqueToken(bytes.NewReader(bytes.Repeat([]byte{0x44}, pkceEntropyBytes)))
-		manager := NewManager(ManagerOptions{
-			Store: newMemoryCredentialStore(),
-			OAuth: &fakeOAuthClient{exchangeResponse: TokenResponse{RefreshToken: "refresh"}},
-			Clock: fixedClock{now: now},
-			Rand:  bytes.NewReader(bytes.Repeat([]byte{0x44}, pkceEntropyBytes*3)),
+		manager := newFixtureManager(ManagerOptions{
+			Store:     newMemoryCredentialStore(),
+			Exchanger: &fakeOAuthClient{exchangeResponse: TokenResponse{RefreshToken: "refresh"}},
+			Clock:     fixedClock{now: now},
+			Rand:      bytes.NewReader(bytes.Repeat([]byte{0x44}, pkceEntropyBytes*3)),
 			Loopback: fakeLoopbackProvider{session: &fakeLoopbackSession{
 				redirectURI: "http://127.0.0.1:49152",
 				callback:    url.Values{"state": {state}, "code": {"code"}},
 			}},
 		})
-		_, err := manager.LoginGoogle(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer, NoBrowser: true})
+		_, err := manager.loginFixture(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer, NoBrowser: true})
 		if err == nil || !strings.Contains(err.Error(), "id_token") {
 			t.Fatalf("expected id_token error, got %v", err)
 		}
@@ -161,17 +161,17 @@ func TestLoginGooglePropagatesOAuthClaimAndStoreErrors(t *testing.T) {
 			"exp":   now.Add(time.Hour).Unix(),
 			"nonce": nonce,
 		})
-		manager := NewManager(ManagerOptions{
-			Store: newMemoryCredentialStore(),
-			OAuth: &fakeOAuthClient{exchangeResponse: TokenResponse{IDToken: idToken, RefreshToken: "refresh"}},
-			Clock: fixedClock{now: now},
-			Rand:  bytes.NewReader(entropy),
+		manager := newFixtureManager(ManagerOptions{
+			Store:     newMemoryCredentialStore(),
+			Exchanger: &fakeOAuthClient{exchangeResponse: TokenResponse{IDToken: idToken, RefreshToken: "refresh"}},
+			Clock:     fixedClock{now: now},
+			Rand:      bytes.NewReader(entropy),
 			Loopback: fakeLoopbackProvider{session: &fakeLoopbackSession{
 				redirectURI: "http://127.0.0.1:49152",
 				callback:    url.Values{"state": {state}, "code": {"code"}},
 			}},
 		})
-		_, err := manager.LoginGoogle(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer, NoBrowser: true})
+		_, err := manager.loginFixture(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer, NoBrowser: true})
 		if err == nil || !strings.Contains(err.Error(), "audience") {
 			t.Fatalf("expected audience error, got %v", err)
 		}
@@ -188,17 +188,17 @@ func TestLoginGooglePropagatesOAuthClaimAndStoreErrors(t *testing.T) {
 			"exp":   now.Add(time.Hour).Unix(),
 			"nonce": nonce,
 		})
-		manager := NewManager(ManagerOptions{
-			Store: failingCredentialStore{putErr: errors.New("store failed")},
-			OAuth: &fakeOAuthClient{exchangeResponse: TokenResponse{IDToken: idToken, RefreshToken: "refresh"}},
-			Clock: fixedClock{now: now},
-			Rand:  bytes.NewReader(entropy),
+		manager := newFixtureManager(ManagerOptions{
+			Store:     failingCredentialStore{putErr: errors.New("store failed")},
+			Exchanger: &fakeOAuthClient{exchangeResponse: TokenResponse{IDToken: idToken, RefreshToken: "refresh"}},
+			Clock:     fixedClock{now: now},
+			Rand:      bytes.NewReader(entropy),
 			Loopback: fakeLoopbackProvider{session: &fakeLoopbackSession{
 				redirectURI: "http://127.0.0.1:49152",
 				callback:    url.Values{"state": {state}, "code": {"code"}},
 			}},
 		})
-		_, err := manager.LoginGoogle(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer, NoBrowser: true})
+		_, err := manager.loginFixture(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer, NoBrowser: true})
 		if err == nil || !strings.Contains(err.Error(), "store failed") {
 			t.Fatalf("expected store error, got %v", err)
 		}
@@ -216,11 +216,11 @@ func TestLoginGooglePropagatesOAuthClaimAndStoreErrors(t *testing.T) {
 			"nonce": nonce,
 		})
 		var opened string
-		manager := NewManager(ManagerOptions{
-			Store: newMemoryCredentialStore(),
-			OAuth: &fakeOAuthClient{exchangeResponse: TokenResponse{IDToken: idToken, RefreshToken: "refresh"}},
-			Clock: fixedClock{now: now},
-			Rand:  bytes.NewReader(entropy),
+		manager := newFixtureManager(ManagerOptions{
+			Store:     newMemoryCredentialStore(),
+			Exchanger: &fakeOAuthClient{exchangeResponse: TokenResponse{IDToken: idToken, RefreshToken: "refresh"}},
+			Clock:     fixedClock{now: now},
+			Rand:      bytes.NewReader(entropy),
 			Loopback: fakeLoopbackProvider{session: &fakeLoopbackSession{
 				redirectURI: "http://127.0.0.1:49152",
 				callback:    url.Values{"state": {state}, "code": {"code"}},
@@ -230,9 +230,9 @@ func TestLoginGooglePropagatesOAuthClaimAndStoreErrors(t *testing.T) {
 				return nil
 			},
 		})
-		result, err := manager.LoginGoogle(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer})
+		result, err := manager.loginFixture(context.Background(), LoginOptions{ClientID: key.ClientID, Issuer: key.Issuer})
 		if err != nil {
-			t.Fatalf("LoginGoogle: %v", err)
+			t.Fatalf("LoginOIDC: %v", err)
 		}
 		if opened == "" {
 			t.Fatalf("browser opener was not called")
@@ -245,7 +245,7 @@ func TestLoginGooglePropagatesOAuthClaimAndStoreErrors(t *testing.T) {
 
 func TestResolveBearerTokenStaticAndConfigurationBranches(t *testing.T) {
 	t.Setenv("SQLRS_TOKEN", "")
-	manager := NewManager(ManagerOptions{Store: newMemoryCredentialStore(), OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}})
+	manager := newFixtureManager(ManagerOptions{Store: newMemoryCredentialStore(), Exchanger: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}})
 
 	got, err := manager.ResolveBearerToken(context.Background(), ResolveOptions{AuthMode: "bearer", StaticToken: " static-token "})
 	if err != nil {
@@ -278,7 +278,7 @@ func TestResolveBearerTokenStaticAndConfigurationBranches(t *testing.T) {
 	if err := store.Put(context.Background(), key, Session{CachedIDToken: "id-token", IDTokenExpiry: time.Now().Add(time.Hour)}); err != nil {
 		t.Fatalf("Put: %v", err)
 	}
-	manager = NewManager(ManagerOptions{Store: store, OAuth: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}})
+	manager = newFixtureManager(ManagerOptions{Store: store, Exchanger: &fakeOAuthClient{}, Clock: fixedClock{now: time.Now()}})
 	_, err = manager.ResolveBearerToken(context.Background(), testResolveOptions())
 	if !errors.Is(err, ErrLoginRequired) {
 		t.Fatalf("expected login required for missing refresh token, got %v", err)
@@ -305,10 +305,10 @@ func TestResolveBearerTokenRefreshRejectsMissingOrInvalidIDToken(t *testing.T) {
 			if err := store.Put(context.Background(), key, Session{RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)}); err != nil {
 				t.Fatalf("Put: %v", err)
 			}
-			manager := NewManager(ManagerOptions{
-				Store: store,
-				OAuth: &fakeOAuthClient{refreshResponse: tc.resp},
-				Clock: fixedClock{now: now},
+			manager := newFixtureManager(ManagerOptions{
+				Store:     store,
+				Exchanger: &fakeOAuthClient{refreshResponse: tc.resp},
+				Clock:     fixedClock{now: now},
 			})
 			_, err := manager.ResolveBearerToken(context.Background(), testResolveOptions())
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
@@ -326,10 +326,10 @@ func TestResolveBearerTokenStoreErrors(t *testing.T) {
 	key := testCredentialKey()
 	now := time.Date(2026, 7, 2, 12, 0, 0, 0, time.UTC)
 
-	manager := NewManager(ManagerOptions{
-		Store: failingCredentialStore{getErr: errors.New("get failed")},
-		OAuth: &fakeOAuthClient{},
-		Clock: fixedClock{now: now},
+	manager := newFixtureManager(ManagerOptions{
+		Store:     failingCredentialStore{getErr: errors.New("get failed")},
+		Exchanger: &fakeOAuthClient{},
+		Clock:     fixedClock{now: now},
 	})
 	_, err := manager.ResolveBearerToken(context.Background(), testResolveOptions())
 	if err == nil || !strings.Contains(err.Error(), "get failed") {
@@ -342,32 +342,32 @@ func TestResolveBearerTokenStoreErrors(t *testing.T) {
 		"sub": "subject-1",
 		"exp": now.Add(time.Hour).Unix(),
 	})
-	manager = NewManager(ManagerOptions{
+	manager = newFixtureManager(ManagerOptions{
 		Store: failingCredentialStore{
 			session: Session{Subject: "subject-1", RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)},
 			found:   true,
 			putErr:  errors.New("put failed"),
 		},
-		OAuth: &fakeOAuthClient{refreshResponse: TokenResponse{IDToken: idToken}},
-		Clock: fixedClock{now: now},
+		Exchanger: &fakeOAuthClient{refreshResponse: TokenResponse{IDToken: idToken}},
+		Clock:     fixedClock{now: now},
 	})
 	_, err = manager.ResolveBearerToken(context.Background(), testResolveOptions())
 	if err == nil || !strings.Contains(err.Error(), "put failed") {
 		t.Fatalf("expected put error, got %v", err)
 	}
 
-	manager = NewManager(ManagerOptions{
+	manager = newFixtureManager(ManagerOptions{
 		Store: failingCredentialStore{
 			session:   Session{RefreshToken: "refresh", IDTokenExpiry: now.Add(-time.Minute)},
 			found:     true,
 			deleteErr: errors.New("delete failed"),
 		},
-		OAuth: &fakeOAuthClient{refreshErr: &OAuthError{Code: "invalid_grant", Status: 400}},
-		Clock: fixedClock{now: now},
+		Exchanger: &fakeOAuthClient{refreshErr: &OAuthError{Code: "invalid_grant", Status: 400}},
+		Clock:     fixedClock{now: now},
 	})
 	_, err = manager.ResolveBearerToken(context.Background(), testResolveOptions())
-	if !errors.Is(err, ErrLoginRequired) || !strings.Contains(err.Error(), "failed to delete local auth session") {
-		t.Fatalf("expected login required delete error, got %v", err)
+	if err == nil || strings.Contains(err.Error(), "failed to delete local auth session") {
+		t.Fatalf("expected refresh refusal without deletion, got %v", err)
 	}
 }
 
@@ -378,7 +378,7 @@ func TestResolveBearerTokenDoesNotDeleteForUntypedInvalidGrantText(t *testing.T)
 	if err := store.Put(context.Background(), key, Session{Subject: "subject-1", RefreshToken: "refresh", IDTokenExpiry: time.Now().Add(-time.Minute)}); err != nil {
 		t.Fatal(err)
 	}
-	manager := NewManager(ManagerOptions{Store: store, OAuth: &fakeOAuthClient{refreshErr: errors.New("dial invalid_grant.example: temporary failure")}, Clock: fixedClock{now: time.Now()}})
+	manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: &fakeOAuthClient{refreshErr: errors.New("dial invalid_grant.example: temporary failure")}, Clock: fixedClock{now: time.Now()}})
 	if _, err := manager.ResolveBearerToken(context.Background(), testResolveOptions()); err == nil || errors.Is(err, ErrLoginRequired) {
 		t.Fatalf("untyped transport error was classified as invalid_grant: %v", err)
 	}
@@ -390,10 +390,10 @@ func TestResolveBearerTokenDoesNotDeleteForUntypedInvalidGrantText(t *testing.T)
 func TestStatusStoreErrorAndLegacyMode(t *testing.T) {
 	t.Setenv("SQLRS_TOKEN", "")
 	key := testCredentialKey()
-	manager := NewManager(ManagerOptions{
-		Store: failingCredentialStore{getErr: errors.New("get failed")},
-		OAuth: &fakeOAuthClient{},
-		Clock: fixedClock{now: time.Now()},
+	manager := newFixtureManager(ManagerOptions{
+		Store:     failingCredentialStore{getErr: errors.New("get failed")},
+		Exchanger: &fakeOAuthClient{},
+		Clock:     fixedClock{now: time.Now()},
 	})
 	_, err := manager.Status(context.Background(), StatusOptions{
 		ProfileName: key.ProfileName,
@@ -414,10 +414,10 @@ func TestStatusStoreErrorAndLegacyMode(t *testing.T) {
 		t.Fatalf("legacy status should not be logged in: %+v", status)
 	}
 
-	status, err = NewManager(ManagerOptions{
-		Store: newMemoryCredentialStore(),
-		OAuth: &fakeOAuthClient{},
-		Clock: fixedClock{now: time.Now()},
+	status, err = newFixtureManager(ManagerOptions{
+		Store:     newMemoryCredentialStore(),
+		Exchanger: &fakeOAuthClient{},
+		Clock:     fixedClock{now: time.Now()},
 	}).Status(context.Background(), StatusOptions{
 		ProfileName: key.ProfileName,
 		Endpoint:    key.Endpoint,
@@ -437,7 +437,7 @@ func TestLogoutNoSessionAndRevocationFailure(t *testing.T) {
 	key := testCredentialKey()
 	store := newMemoryCredentialStore()
 	oauth := &fakeOAuthClient{revokeErr: errors.New("revocation failed")}
-	manager := NewManager(ManagerOptions{Store: store, OAuth: oauth, Clock: fixedClock{now: time.Now()}})
+	manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: oauth, Clock: fixedClock{now: time.Now()}})
 
 	result, err := manager.Logout(context.Background(), LogoutOptions{
 		ProfileName: key.ProfileName,
@@ -471,10 +471,10 @@ func TestLogoutNoSessionAndRevocationFailure(t *testing.T) {
 
 func TestLogoutStoreErrors(t *testing.T) {
 	key := testCredentialKey()
-	manager := NewManager(ManagerOptions{
-		Store: failingCredentialStore{getErr: errors.New("get failed")},
-		OAuth: &fakeOAuthClient{},
-		Clock: fixedClock{now: time.Now()},
+	manager := newFixtureManager(ManagerOptions{
+		Store:     failingCredentialStore{getErr: errors.New("get failed")},
+		Exchanger: &fakeOAuthClient{},
+		Clock:     fixedClock{now: time.Now()},
 	})
 	_, err := manager.Logout(context.Background(), LogoutOptions{
 		ProfileName: key.ProfileName,
@@ -486,10 +486,10 @@ func TestLogoutStoreErrors(t *testing.T) {
 		t.Fatalf("expected logout get error, got %v", err)
 	}
 
-	manager = NewManager(ManagerOptions{
-		Store: failingCredentialStore{found: true, session: Session{RefreshToken: "refresh"}, deleteErr: errors.New("delete failed")},
-		OAuth: &fakeOAuthClient{},
-		Clock: fixedClock{now: time.Now()},
+	manager = newFixtureManager(ManagerOptions{
+		Store:     failingCredentialStore{found: true, session: Session{RefreshToken: "refresh"}, deleteErr: errors.New("delete failed")},
+		Exchanger: &fakeOAuthClient{},
+		Clock:     fixedClock{now: time.Now()},
 	})
 	_, err = manager.Logout(context.Background(), LogoutOptions{
 		ProfileName: key.ProfileName,
@@ -508,13 +508,13 @@ func TestLogoutProviderDiscoveryPolicies(t *testing.T) {
 	session := Session{Provider: "google", Issuer: key.Issuer, ClientID: key.ClientID, RefreshToken: "refresh"}
 	matching := ProviderConfiguration{ID: "google", Issuer: key.Issuer, ClientID: key.ClientID}
 
-	run := func(t *testing.T, oauth OAuthClient, resolver func(context.Context, string) (ProviderConfiguration, error)) LogoutResult {
+	run := func(t *testing.T, oauth TokenExchanger, resolver func(context.Context, string) (ProviderConfiguration, error)) LogoutResult {
 		t.Helper()
 		store := newMemoryCredentialStore()
 		if err := store.Put(context.Background(), key, session); err != nil {
 			t.Fatalf("Put: %v", err)
 		}
-		manager := NewManager(ManagerOptions{Store: store, OAuth: oauth, Clock: fixedClock{now: time.Now()}})
+		manager := newFixtureManager(ManagerOptions{Store: store, Exchanger: oauth, Clock: fixedClock{now: time.Now()}})
 		result, err := manager.Logout(context.Background(), LogoutOptions{
 			ProfileName: key.ProfileName, Endpoint: key.Endpoint, ClientID: key.ClientID, Issuer: key.Issuer,
 			ProviderResolver: resolver,
@@ -587,7 +587,7 @@ type endpointRevokingOAuth struct {
 	token    string
 }
 
-func (o *endpointRevokingOAuth) RevokeAt(_ context.Context, endpoint string, token string) error {
+func (o *endpointRevokingOAuth) Revoke(_ context.Context, endpoint string, token string) error {
 	o.endpoint = endpoint
 	o.token = token
 	return nil
