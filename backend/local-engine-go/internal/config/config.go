@@ -178,7 +178,7 @@ func DefaultSchema() map[string]any {
 				"properties": map[string]any{
 					"backend": map[string]any{
 						"type": []any{"string", "null"},
-						"enum": []any{"auto", "overlay", "btrfs", "copy", nil},
+						"enum": []any{"auto", "overlay", "btrfs", "zfs", "copy", nil},
 					},
 				},
 				"additionalProperties": true,
@@ -372,7 +372,7 @@ func validateValue(path string, value any) error {
 			return ErrInvalidValue
 		}
 		switch str {
-		case "auto", "overlay", "btrfs", "copy":
+		case "auto", "overlay", "btrfs", "zfs", "copy":
 			return nil
 		default:
 			return ErrInvalidValue

@@ -1,0 +1,219 @@
+name: fs-benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, feature/zfs-snapshotting]
+    paths:
+      - backend/local-engine-go/internal/snapshot/**
+      - backend/local-engine-go/internal/prepare/**
+      - .github/workflows/fs-benchmark.yml
+  pull_request:
+    paths:
+      - backend/local-engine-go/internal/snapshot/**
+      - backend/local-engine-go/internal/prepare/**
+      - .github/workflows/fs-benchmark.yml
+
+jobs:
+  snapshot-benchmark:
+    name: Snapshot FS Benchmark (ZFS vs BTRFS)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/local-engine-go/go.mod
+
+      - name: Install ZFS and BTRFS tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y zfsutils-linux btrfs-progs
+
+      - name: Set up loop devices
+        run: |
+          fallocate -l 4G /tmp/zfs.img
+          ZFS_LOOP=$(sudo losetup -f /tmp/zfs.img --show)
+          echo "ZFS_LOOP=$ZFS_LOOP" >> "$GITHUB_ENV"
+
+          fallocate -l 4G /tmp/btrfs.img
+          BTRFS_LOOP=$(sudo losetup -f /tmp/btrfs.img --show)
+          echo "BTRFS_LOOP=$BTRFS_LOOP" >> "$GITHUB_ENV"
+
+      - name: Create ZFS pool and dataset
+        run: |
+          sudo modprobe zfs || true
+          sudo zpool create taidon-bench "$ZFS_LOOP"
+          sudo zfs create -o mountpoint=/mnt/zfs-bench taidon-bench/work
+          sudo chmod 777 /mnt/zfs-bench
+          echo "BENCH_ZFS_ROOT=/mnt/zfs-bench" >> "$GITHUB_ENV"
+
+      - name: Create BTRFS filesystem
+        run: |
+          sudo mkfs.btrfs "$BTRFS_LOOP"
+          sudo mkdir -p /mnt/btrfs-bench
+          sudo mount "$BTRFS_LOOP" /mnt/btrfs-bench
+          sudo chmod 777 /mnt/btrfs-bench
+          echo "BENCH_BTRFS_ROOT=/mnt/btrfs-bench" >> "$GITHUB_ENV"
+
+      - name: Build benchmark binary
+        working-directory: backend/local-engine-go
+        run: go test -c -o /tmp/snapshot-bench ./internal/snapshot/
+
+      - name: Run benchmarks
+        run: |
+          sudo -E /tmp/snapshot-bench \
+            -test.run='^$' \
+            -test.bench='Benchmark(Zfs|Btrfs)(Cold|Warm)Start' \
+            -test.benchtime=5x \
+            -test.benchmem \
+            -test.v \
+            2>&1 | tee /tmp/bench-raw.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+
+      - name: Upload raw benchmark output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-raw-output
+          path: /tmp/bench-raw.txt
+          if-no-files-found: ignore
+
+      - name: Write Step Summary
+        if: always()
+        run: |
+          python3 - << 'EOF'
+          import re, os, sys
+
+          raw_file = "/tmp/bench-raw.txt"
+          if not os.path.exists(raw_file):
+              print("No benchmark output found.", file=sys.stderr)
+              sys.exit(0)
+
+          with open(raw_file) as f:
+              raw = f.read()
+
+          results = {}
+          for line in raw.splitlines():
+              m = re.match(r'Benchmark(\w+)-\d+\s+(\d+)\s+([\d.]+)\s+ns/op', line)
+              if m:
+                  results[m.group(1)] = {"n": int(m.group(2)), "ns": float(m.group(3))}
+
+          skipped = {}
+          for line in raw.splitlines():
+              m = re.match(r'---\s+SKIP:\s+Benchmark(\w+)', line)
+              if m:
+                  skipped[m.group(1)] = True
+
+          def fmt_time(ns):
+              if ns >= 1e9:
+                  return f"{ns/1e9:.2f} s"
+              if ns >= 1e6:
+                  return f"{ns/1e6:.1f} ms"
+              if ns >= 1e3:
+                  return f"{ns/1e3:.1f} µs"
+              return f"{ns:.0f} ns"
+
+          def speedup(cold_ns, warm_ns):
+              if warm_ns and warm_ns > 0:
+                  return f"{cold_ns/warm_ns:.1f}×"
+              return "—"
+
+          lines = []
+          lines.append("## Benchmark: ZFS vs BTRFS — Snapshot Operations\n")
+          lines.append(
+              "**Scenarios**: cold start (create dataset + write 100 MB + snapshot) "
+              "and warm start (clone existing dataset).  "
+          )
+          lines.append("**Data**: 100 files × 1 MB = 100 MB\n")
+
+          benchmarks = [
+              ("ZfsColdStart",   "ZFS",   "Cold"),
+              ("ZfsWarmStart",   "ZFS",   "Warm"),
+              ("BtrfsColdStart", "BTRFS", "Cold"),
+              ("BtrfsWarmStart", "BTRFS", "Warm"),
+          ]
+
+          lines.append("| Filesystem | Scenario | Iterations | Time/op |")
+          lines.append("|------------|----------|------------|---------|")
+          for key, fs, scenario in benchmarks:
+              if key in results:
+                  r = results[key]
+                  lines.append(f"| {fs} | {scenario} start | {r['n']} | {fmt_time(r['ns'])} |")
+              elif key in skipped:
+                  lines.append(f"| {fs} | {scenario} start | — | skipped |")
+              else:
+                  lines.append(f"| {fs} | {scenario} start | — | no data |")
+
+          lines.append("")
+          lines.append("### Warm start speedup over cold start\n")
+          lines.append("| Filesystem | Cold start | Warm start | Speedup |")
+          lines.append("|------------|------------|------------|---------|")
+          for fs_key, fs_name in [("Zfs", "ZFS"), ("Btrfs", "BTRFS")]:
+              cold = results.get(f"{fs_key}ColdStart")
+              warm = results.get(f"{fs_key}WarmStart")
+              cold_s = fmt_time(cold["ns"]) if cold else "—"
+              warm_s = fmt_time(warm["ns"]) if warm else "—"
+              sp = speedup(cold["ns"], warm["ns"]) if cold and warm else "—"
+              lines.append(f"| {fs_name} | {cold_s} | {warm_s} | {sp} |")
+
+          lines.append("")
+          lines.append("<details>")
+          lines.append("<summary>Full <code>go test -bench</code> output</summary>\n")
+          lines.append("```")
+          lines.append(raw.strip())
+          lines.append("```")
+          lines.append("</details>")
+
+          summary = "\n".join(lines) + "\n"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write(summary)
+          with open("/tmp/bench-comment.md", "w") as f:
+              f.write(summary)
+          print(summary)
+          EOF
+
+      - name: Find existing benchmark comment
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: peter-evans/find-comment@v3
+        id: bench-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "Benchmark: ZFS vs BTRFS"
+
+      - name: Post benchmark comment on PR
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.bench-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          body-file: /tmp/bench-comment.md
+
+      - name: Post benchmark comment on main
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            if (!fs.existsSync('/tmp/bench-comment.md')) { return }
+            const body = fs.readFileSync('/tmp/bench-comment.md', 'utf8')
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body,
+            })
+
+      - name: Cleanup
+        if: always()
+        run: |
+          sudo umount /mnt/btrfs-bench 2>/dev/null || true
+          sudo zpool destroy taidon-bench 2>/dev/null || true
+          sudo losetup -d "$ZFS_LOOP" 2>/dev/null || true
+          sudo losetup -d "$BTRFS_LOOP" 2>/dev/null || true

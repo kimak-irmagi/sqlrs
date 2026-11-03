@@ -52,6 +52,32 @@ func (f *fakeBackend) IsSubvolume(ctx context.Context, path string) (bool, error
 	return f.isSubvolume, f.isSubvolumeErr
 }
 
+type fakeZfsBackend struct {
+	ensureCalls  []string
+	destroyCalls []string
+	destroyErr   error
+	isDataset    bool
+	isDatasetErr error
+}
+
+func (f *fakeZfsBackend) Kind() string                    { return "zfs" }
+func (f *fakeZfsBackend) Capabilities() snapshot.Capabilities { return snapshot.Capabilities{} }
+func (f *fakeZfsBackend) Clone(_ context.Context, _, _ string) (snapshot.CloneResult, error) {
+	return snapshot.CloneResult{}, nil
+}
+func (f *fakeZfsBackend) Snapshot(_ context.Context, _, _ string) error { return nil }
+func (f *fakeZfsBackend) Destroy(_ context.Context, dir string) error {
+	f.destroyCalls = append(f.destroyCalls, dir)
+	return f.destroyErr
+}
+func (f *fakeZfsBackend) EnsureDataset(_ context.Context, path string) error {
+	f.ensureCalls = append(f.ensureCalls, path)
+	return nil
+}
+func (f *fakeZfsBackend) IsDataset(_ context.Context, _ string) (bool, error) {
+	return f.isDataset, f.isDatasetErr
+}
+
 type fakeBackendNoEnsure struct {
 	kind string
 }
@@ -347,6 +373,91 @@ func TestRemovePathDestroyErrorOnFallback(t *testing.T) {
 	t.Cleanup(func() { removeAll = prevRemove })
 
 	if err := mgr.RemovePath(context.Background(), "dir"); err == nil {
+		t.Fatalf("expected destroy error")
+	}
+}
+
+func TestEnsureBaseDirUsesDatasetEnsurer(t *testing.T) {
+	root := t.TempDir()
+	baseDir := filepath.Join(root, "base")
+	backend := &fakeZfsBackend{}
+	mgr := &Manager{backend: backend}
+
+	if err := mgr.EnsureBaseDir(context.Background(), baseDir); err != nil {
+		t.Fatalf("EnsureBaseDir: %v", err)
+	}
+	if len(backend.ensureCalls) != 1 || backend.ensureCalls[0] != baseDir {
+		t.Fatalf("expected EnsureDataset(%s), got %+v", baseDir, backend.ensureCalls)
+	}
+}
+
+func TestEnsureStateDirZfsCreatesMkdirNotDataset(t *testing.T) {
+	root := t.TempDir()
+	stateDir := filepath.Join(root, "states", "state-1")
+	backend := &fakeZfsBackend{}
+	mgr := &Manager{backend: backend}
+
+	if err := mgr.EnsureStateDir(context.Background(), stateDir); err != nil {
+		t.Fatalf("EnsureStateDir: %v", err)
+	}
+	// ZFS states are created by "zfs clone", not EnsureDataset.
+	// EnsureStateDir must only create the parent as a plain directory.
+	if len(backend.ensureCalls) != 0 {
+		t.Fatalf("expected no EnsureDataset calls for ZFS state dir, got %+v", backend.ensureCalls)
+	}
+	wantParent := filepath.Dir(stateDir)
+	if _, err := os.Stat(wantParent); err != nil {
+		t.Fatalf("expected parent dir %s to be created: %v", wantParent, err)
+	}
+}
+
+func TestRemovePathZfsDataset(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "state-1")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	backend := &fakeZfsBackend{isDataset: true}
+	mgr := &Manager{backend: backend}
+
+	if err := mgr.RemovePath(context.Background(), dir); err != nil {
+		t.Fatalf("RemovePath: %v", err)
+	}
+	if len(backend.destroyCalls) != 1 || backend.destroyCalls[0] != dir {
+		t.Fatalf("expected Destroy(%s), got %+v", dir, backend.destroyCalls)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatalf("expected path removed after destroy")
+	}
+}
+
+func TestRemovePathZfsNonDatasetFallsBackToRemoveAll(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "plain-dir")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	backend := &fakeZfsBackend{isDataset: false}
+	mgr := &Manager{backend: backend}
+
+	if err := mgr.RemovePath(context.Background(), dir); err != nil {
+		t.Fatalf("RemovePath: %v", err)
+	}
+	if len(backend.destroyCalls) != 0 {
+		t.Fatalf("expected no Destroy calls, got %+v", backend.destroyCalls)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatalf("expected plain dir removed by removeAll")
+	}
+}
+
+func TestRemovePathZfsDestroyError(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "state-1")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	backend := &fakeZfsBackend{isDataset: true, destroyErr: os.ErrInvalid}
+	mgr := &Manager{backend: backend}
+
+	if err := mgr.RemovePath(context.Background(), dir); err == nil {
 		t.Fatalf("expected destroy error")
 	}
 }

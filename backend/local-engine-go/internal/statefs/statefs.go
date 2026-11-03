@@ -96,6 +96,9 @@ func (m *Manager) EnsureBaseDir(ctx context.Context, baseDir string) error {
 	if ensurer, ok := m.backend.(subvolumeEnsurer); ok {
 		return ensurer.EnsureSubvolume(ctx, baseDir)
 	}
+	if ensurer, ok := m.backend.(datasetEnsurer); ok {
+		return ensurer.EnsureDataset(ctx, baseDir)
+	}
 	return os.MkdirAll(baseDir, 0o700)
 }
 
@@ -105,6 +108,13 @@ func (m *Manager) EnsureStateDir(ctx context.Context, stateDir string) error {
 			return os.MkdirAll(filepath.Dir(stateDir), 0o700)
 		}
 		return ensurer.EnsureSubvolume(ctx, stateDir)
+	}
+	if m.backend.Kind() == "zfs" {
+		// For ZFS, Clone/Snapshot create each individual state as a child
+		// dataset via "zfs clone". The statesDir parent is a plain directory,
+		// exactly as for btrfs. Only the base dir (EnsureBaseDir) must be a
+		// real ZFS dataset.
+		return os.MkdirAll(filepath.Dir(stateDir), 0o700)
 	}
 	return os.MkdirAll(stateDir, 0o700)
 }
@@ -136,6 +146,16 @@ func (m *Manager) RemovePath(ctx context.Context, path string) error {
 			}
 		}
 	}
+	if m.backend.Kind() == "zfs" {
+		if checker, ok := m.backend.(datasetChecker); ok {
+			if isDS, err := checker.IsDataset(ctx, path); err == nil && isDS {
+				if err := m.backend.Destroy(ctx, path); err != nil {
+					return err
+				}
+				return removeAll(path)
+			}
+		}
+	}
 	if err := removeAll(path); err != nil {
 		if err := m.backend.Destroy(ctx, path); err != nil {
 			return err
@@ -151,4 +171,12 @@ type subvolumeEnsurer interface {
 
 type subvolumeChecker interface {
 	IsSubvolume(ctx context.Context, path string) (bool, error)
+}
+
+type datasetEnsurer interface {
+	EnsureDataset(ctx context.Context, path string) error
+}
+
+type datasetChecker interface {
+	IsDataset(ctx context.Context, path string) (bool, error)
 }

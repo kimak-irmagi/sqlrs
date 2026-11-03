@@ -39,3 +39,29 @@ func TestValidateStoreBtrfsUnsupported(t *testing.T) {
 		t.Fatalf("expected error")
 	}
 }
+
+func TestValidateStoreZfsMissingRoot(t *testing.T) {
+	if err := ValidateStore("zfs", ""); err == nil {
+		t.Fatalf("expected error")
+	}
+}
+
+func TestValidateStoreZfsSupported(t *testing.T) {
+	prev := zfsSupportedFn
+	zfsSupportedFn = func(string) bool { return true }
+	t.Cleanup(func() { zfsSupportedFn = prev })
+
+	if err := ValidateStore("zfs", "/data"); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestValidateStoreZfsUnsupported(t *testing.T) {
+	prev := zfsSupportedFn
+	zfsSupportedFn = func(string) bool { return false }
+	t.Cleanup(func() { zfsSupportedFn = prev })
+
+	if err := ValidateStore("zfs", "/data"); err == nil {
+		t.Fatalf("expected error")
+	}
+}
