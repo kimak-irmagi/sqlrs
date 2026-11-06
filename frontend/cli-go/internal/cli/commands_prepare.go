@@ -77,17 +77,15 @@ type PrepareOptions struct {
 	StartupTimeout  time.Duration
 	Verbose         bool
 
-	ImageID           string
-	PsqlArgs          []string
-	LiquibaseArgs     []string
-	LiquibaseExec     string
-	LiquibaseExecMode string
-	LiquibaseEnv      map[string]string
-	WorkDir           string
-	Stdin             *string
-	PrepareKind       string
-	PlanOnly          bool
-	CompositeRun      bool
+	ImageID          string
+	PsqlArgs         []string
+	LiquibaseArgs    []string
+	LiquibaseVersion string
+	WorkDir          string
+	Stdin            *string
+	PrepareKind      string
+	PlanOnly         bool
+	CompositeRun     bool
 	// DisableControlPrompt prevents interactive detach/stop controls when the
 	// caller cannot safely release temporary prepare inputs before job completion.
 	DisableControlPrompt bool
@@ -220,6 +218,8 @@ func RunWatch(ctx context.Context, opts PrepareOptions, jobID string) (client.Pr
 		return status, nil
 	case "failed":
 		return client.PrepareJobStatus{}, prepareFailureError(status, nil)
+	case "recovery_required":
+		return client.PrepareJobStatus{}, prepareRecoveryError(status)
 	}
 	eventsURL := "/v1/prepare-jobs/" + jobID + "/events"
 	return waitForPrepareWithOptions(ctx, cliClient, jobID, eventsURL, os.Stderr, opts.Verbose, waitPrepareOptions{
@@ -317,11 +317,6 @@ func createPrepareJob(ctx context.Context, opts PrepareOptions, planOnly bool) (
 		return nil, client.PrepareJobAccepted{}, err
 	}
 
-	prepareKind := strings.TrimSpace(opts.PrepareKind)
-	if prepareKind == "" {
-		prepareKind = "psql"
-	}
-
 	if opts.Verbose {
 		if planOnly {
 			fmt.Fprintln(os.Stderr, "submitting prepare job (plan-only)")
@@ -329,23 +324,33 @@ func createPrepareJob(ctx context.Context, opts PrepareOptions, planOnly bool) (
 			fmt.Fprintln(os.Stderr, "submitting prepare job")
 		}
 	}
-	request := client.PrepareJobRequest{
-		PrepareKind:       prepareKind,
-		ImageID:           opts.ImageID,
-		PsqlArgs:          opts.PsqlArgs,
-		LiquibaseArgs:     opts.LiquibaseArgs,
-		LiquibaseExec:     opts.LiquibaseExec,
-		LiquibaseExecMode: opts.LiquibaseExecMode,
-		LiquibaseEnv:      opts.LiquibaseEnv,
-		WorkDir:           opts.WorkDir,
-		Stdin:             opts.Stdin,
-		PlanOnly:          planOnly,
-	}
+	request := BuildPrepareJobRequest(opts, planOnly)
 	accepted, err := createPrepareJobWithSourceSync(ctx, cliClient, opts, request)
 	if err != nil {
 		return nil, client.PrepareJobAccepted{}, err
 	}
 	return cliClient, accepted, nil
+}
+
+// BuildPrepareJobRequest implements the container-only request boundary in
+// docs/architecture/liquibase-container-component-structure.md. No profile
+// sends client-side Liquibase runner settings to the engine.
+func BuildPrepareJobRequest(opts PrepareOptions, planOnly bool) client.PrepareJobRequest {
+	prepareKind := strings.TrimSpace(opts.PrepareKind)
+	if prepareKind == "" {
+		prepareKind = "psql"
+	}
+	request := client.PrepareJobRequest{
+		PrepareKind:      prepareKind,
+		ImageID:          opts.ImageID,
+		PsqlArgs:         opts.PsqlArgs,
+		LiquibaseArgs:    opts.LiquibaseArgs,
+		LiquibaseVersion: opts.LiquibaseVersion,
+		WorkDir:          opts.WorkDir,
+		Stdin:            opts.Stdin,
+		PlanOnly:         planOnly,
+	}
+	return request
 }
 
 func createPrepareJobWithSourceSync(ctx context.Context, cliClient *client.Client, opts PrepareOptions, request client.PrepareJobRequest) (client.PrepareJobAccepted, error) {
@@ -448,8 +453,7 @@ func waitForPrepareWithOptions(ctx context.Context, cliClient *client.Client, jo
 			}
 		}
 
-		counter := &countingReader{reader: resp.Body}
-		reader := util.NewNDJSONReader(counter)
+		reader := util.NewNDJSONReader(resp.Body)
 		currentIndex := startIndex
 		readErr := error(nil)
 		for {
@@ -475,7 +479,10 @@ func waitForPrepareWithOptions(ctx context.Context, cliClient *client.Client, jo
 				return client.PrepareJobStatus{}, err
 			}
 			tracker.Update(event)
-			if event.Type == "status" {
+			// A03c in docs/architecture/liquibase-container-tests.md:
+			// a terminal job-state event can be an error without a separate
+			// status event. The saved job status remains authoritative.
+			if event.Type == "status" || event.Status == "failed" || event.Status == "succeeded" || event.Status == "recovery_required" {
 				status, found, err := cliClient.GetPrepareJob(ctx, jobID)
 				if err != nil {
 					resp.Body.Close()
@@ -496,6 +503,10 @@ func waitForPrepareWithOptions(ctx context.Context, cliClient *client.Client, jo
 					resp.Body.Close()
 					cleanupInterrupt()
 					return client.PrepareJobStatus{}, prepareFailureError(status, tracker)
+				case "recovery_required":
+					resp.Body.Close()
+					cleanupInterrupt()
+					return client.PrepareJobStatus{}, prepareRecoveryError(status)
 				}
 			}
 			currentIndex++
@@ -519,11 +530,12 @@ func waitForPrepareWithOptions(ctx context.Context, cliClient *client.Client, jo
 			}
 			continue
 		}
-		if resp.StatusCode == http.StatusOK && resp.ContentLength >= 0 {
-			if counter.count >= resp.ContentLength {
-				return client.PrepareJobStatus{}, fmt.Errorf("prepare job events stream ended without terminal status")
-			}
-			continue
+		// A complete 200 response is the end of the stream regardless of
+		// whether HTTP declared its length. Only an interrupted read or a
+		// partial-content response may reconnect. See the completion rule in
+		// docs/architecture/prepare-job-events-flow.md.
+		if resp.StatusCode == http.StatusOK {
+			return client.PrepareJobStatus{}, fmt.Errorf("prepare job events stream ended without terminal status")
 		}
 		if ctx.Err() != nil {
 			return client.PrepareJobStatus{}, ctx.Err()
@@ -544,6 +556,8 @@ func handlePrepareControlAction(ctx context.Context, cliClient *client.Client, j
 		return &status, nil
 	case "failed":
 		return nil, prepareFailureError(status, tracker)
+	case "recovery_required":
+		return nil, prepareRecoveryError(status)
 	}
 
 	drainInterruptSignals(interrupts)
@@ -564,6 +578,8 @@ func handlePrepareControlAction(ctx context.Context, cliClient *client.Client, j
 			return &cancelStatus, nil
 		case "failed":
 			return nil, prepareFailureError(cancelStatus, tracker)
+		case "recovery_required":
+			return nil, prepareRecoveryError(cancelStatus)
 		default:
 			return nil, nil
 		}
@@ -597,6 +613,26 @@ func prepareFailureError(status client.PrepareJobStatus, tracker *prepareProgres
 		return fmt.Errorf("%s", status.Error.Message)
 	}
 	return fmt.Errorf("prepare job failed")
+}
+
+// prepareRecoveryError reports a nonterminal safety stop without treating it
+// as an ordinary failed job. See transformation-attempt-recovery-flow.md.
+func prepareRecoveryError(status client.PrepareJobStatus) error {
+	jobID := strings.TrimSpace(status.JobID)
+	if jobID == "" {
+		jobID = "unknown"
+	}
+	if status.Error == nil {
+		return fmt.Errorf("prepare job %s requires recovery", jobID)
+	}
+	reason := strings.TrimSpace(status.Error.Details)
+	if reason == "" {
+		reason = strings.TrimSpace(status.Error.Message)
+	}
+	if reason == "" {
+		return fmt.Errorf("prepare job %s requires recovery", jobID)
+	}
+	return fmt.Errorf("prepare job %s requires recovery: %s", jobID, reason)
 }
 
 func defaultCanUsePrepareControlPrompt(progress io.Writer) bool {
@@ -715,17 +751,6 @@ func confirmPrepareStop(reader *bufio.Reader, writer io.Writer, interrupts <-cha
 		default:
 		}
 	}
-}
-
-type countingReader struct {
-	reader io.Reader
-	count  int64
-}
-
-func (c *countingReader) Read(p []byte) (int, error) {
-	n, err := c.reader.Read(p)
-	c.count += int64(n)
-	return n, err
 }
 
 func parseEventsContentRange(value string) (int, error) {

@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -168,26 +170,129 @@ func Collect(args []string, resolver inputset.Resolver, fs inputset.FileSystem) 
 	if changelogPath == "" {
 		return inputset.InputSet{}, fmt.Errorf("liquibase command has no --changelog-file (required for diff)")
 	}
-	return collectInputSet(declared, searchPaths, resolver, fs)
+	return collectInputSet(declared, searchPaths, resolver, fs, nil)
 }
 
 // CollectInvocationInputs builds the deterministic Liquibase input set for a
 // concrete invocation and includes the changelog graph when a changelog file is
 // declared.
 func CollectInvocationInputs(args []string, resolver inputset.Resolver, fs inputset.FileSystem) (inputset.InputSet, error) {
-	declared, searchPaths, _, err := collectDeclared(args, resolver)
+	declared, searchPaths, changelogPath, err := collectDeclared(args, resolver)
 	if err != nil {
 		return inputset.InputSet{}, err
 	}
-	return collectInputSet(declared, searchPaths, resolver, fs)
+	var snapshots map[string]string
+	declared, searchPaths, snapshots, err = includeDefaultsPaths(declared, searchPaths, changelogPath, resolver, fs)
+	if err != nil {
+		return inputset.InputSet{}, err
+	}
+	return collectInputSet(declared, searchPaths, resolver, fs, snapshots)
 }
 
-func collectInputSet(declared []declaredPath, searchPaths []string, resolver inputset.Resolver, fs inputset.FileSystem) (inputset.InputSet, error) {
+// includeDefaultsPaths adds the explicit or automatically discovered settings
+// file and its file-bearing properties to the invocation closure. The
+// supported properties are documented in
+// docs/architecture/liquibase-container-component-structure.md.
+func includeDefaultsPaths(declared []declaredPath, searchPaths []string, changelogPath string, resolver inputset.Resolver, fs inputset.FileSystem) ([]declaredPath, []string, map[string]string, error) {
+	defaultsPath := ""
+	for _, path := range declared {
+		if path.flag == "--defaults-file" {
+			defaultsPath = path.path
+		}
+	}
+	if defaultsPath == "" {
+		candidate := filepath.Join(resolver.BaseDir, "liquibase.properties")
+		if info, err := fs.Stat(candidate); err == nil {
+			if !info.Mode().IsRegular() {
+				return nil, nil, nil, inputset.Errorf("unsupported_resource", "automatic Liquibase settings must be a regular file: %s", candidate)
+			}
+			defaultsPath = candidate
+			declared = append([]declaredPath{{flag: "--defaults-file", path: candidate, requireFile: true}}, declared...)
+		}
+	}
+	if defaultsPath == "" {
+		return declared, searchPaths, nil, nil
+	}
+	content, err := fs.ReadFile(defaultsPath)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	properties, err := parseDefaultsFilePaths(content)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if len(searchPaths) == 0 && properties.searchPath != "" {
+		searchPaths, err = resolveSearchPathParts(properties.searchPath, resolver)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
+	if changelogPath == "" && properties.changelogFile != "" {
+		if err := validateResourceRef(properties.changelogFile); err != nil {
+			return nil, nil, nil, err
+		}
+		resolved := ""
+		if !filepath.IsAbs(properties.changelogFile) {
+			for _, base := range searchPaths {
+				candidate := filepath.Clean(filepath.Join(base, filepath.FromSlash(properties.changelogFile)))
+				if _, err := fs.Stat(candidate); err == nil {
+					resolved = candidate
+					break
+				}
+			}
+		}
+		if resolved == "" {
+			resolved, err = resolver.ResolvePath(properties.changelogFile)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+		}
+		declared = append(declared, declaredPath{flag: "--changelog-file", path: resolved, requireFile: true})
+	}
+	return declared, searchPaths, map[string]string{defaultsPath: inputset.HashContent(content)}, nil
+}
+
+type defaultsFilePaths struct {
+	changelogFile string
+	searchPath    string
+}
+
+func parseDefaultsFilePaths(content []byte) (defaultsFilePaths, error) {
+	var paths defaultsFilePaths
+	for _, raw := range strings.Split(string(content), "\n") {
+		line := strings.TrimSpace(strings.TrimSuffix(raw, "\r"))
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "!") {
+			continue
+		}
+		if strings.Contains(line, "\\") {
+			return defaultsFilePaths{}, inputset.Errorf("unsupported_resource", "escaped Liquibase settings are not yet supported")
+		}
+		sep := strings.IndexAny(line, "=:")
+		if sep < 0 {
+			return defaultsFilePaths{}, inputset.Errorf("unsupported_resource", "unsupported Liquibase settings line: %s", line)
+		}
+		key := strings.TrimSpace(line[:sep])
+		value := strings.TrimSpace(line[sep+1:])
+		switch key {
+		case "liquibase.changelogFile", "changelogFile":
+			paths.changelogFile = value
+		case "liquibase.searchPath", "searchPath":
+			paths.searchPath = value
+		}
+	}
+	return paths, nil
+}
+
+func collectInputSet(declared []declaredPath, searchPaths []string, resolver inputset.Resolver, fs inputset.FileSystem, snapshots map[string]string) (inputset.InputSet, error) {
+	if snapshots == nil {
+		snapshots = make(map[string]string)
+	}
 	tracker := &tracker{
 		fs:          fs,
 		root:        resolver.Root,
 		searchPaths: searchPaths,
 		seen:        make(map[string]struct{}),
+		snapshots:   snapshots,
 	}
 	var order []string
 	for _, ref := range declared {
@@ -202,14 +307,26 @@ func collectInputSet(declared []declaredPath, searchPaths []string, resolver inp
 		}
 	}
 
-	return buildInputSet(order, resolver.Root, fs)
+	return buildInputSetWithSnapshots(order, resolver.Root, fs, tracker.snapshots)
 }
 
 func buildInputSet(order []string, root string, fs inputset.FileSystem) (inputset.InputSet, error) {
+	return buildInputSetWithSnapshots(order, root, fs, nil)
+}
+
+func buildInputSetWithSnapshots(order []string, root string, fs inputset.FileSystem, snapshots map[string]string) (inputset.InputSet, error) {
 	entries := make([]inputset.InputEntry, 0, len(order))
 	for _, path := range order {
 		rel, _ := filepath.Rel(root, path)
 		rel = filepath.ToSlash(rel)
+		content, err := fs.ReadFile(path)
+		if err != nil {
+			return inputset.InputSet{}, fmt.Errorf("read %s: %w", path, err)
+		}
+		contentHash := inputset.HashContent(content)
+		if expected, ok := snapshots[path]; ok && contentHash != expected {
+			return inputset.InputSet{}, inputset.Errorf("input_changed", "Liquibase input changed during capture: %s", rel)
+		}
 		var hash string
 		if oid, ok := fs.(inputset.BlobOIDer); ok {
 			h, err := oid.BlobOID(path)
@@ -218,11 +335,7 @@ func buildInputSet(order []string, root string, fs inputset.FileSystem) (inputse
 			}
 			hash = h
 		} else {
-			content, err := fs.ReadFile(path)
-			if err != nil {
-				return inputset.InputSet{}, fmt.Errorf("read %s: %w", path, err)
-			}
-			hash = inputset.HashContent(content)
+			hash = contentHash
 		}
 		entries = append(entries, inputset.InputEntry{
 			Path:    rel,
@@ -341,11 +454,12 @@ func collectDeclared(args []string, resolver inputset.Resolver) ([]declaredPath,
 			if err != nil {
 				return nil, nil, "", err
 			}
-			if !inputset.LooksLikeLiquibaseRemoteRef(value) {
-				declared = append(declared, declaredPath{flag: arg, path: value, requireFile: true})
-				if arg == "--changelog-file" {
-					changelogPath = value
-				}
+			if err := validateResourceRef(value); err != nil {
+				return nil, nil, "", err
+			}
+			declared = append(declared, declaredPath{flag: arg, path: value, requireFile: true})
+			if arg == "--changelog-file" {
+				changelogPath = value
 			}
 			i++
 		case arg == "--searchPath" || arg == "--search-path":
@@ -361,18 +475,20 @@ func collectDeclared(args []string, resolver inputset.Resolver) ([]declaredPath,
 			if err != nil {
 				return nil, nil, "", err
 			}
-			if !inputset.LooksLikeLiquibaseRemoteRef(value) {
-				declared = append(declared, declaredPath{flag: "--changelog-file", path: value, requireFile: true})
-				changelogPath = value
+			if err := validateResourceRef(value); err != nil {
+				return nil, nil, "", err
 			}
+			declared = append(declared, declaredPath{flag: "--changelog-file", path: value, requireFile: true})
+			changelogPath = value
 		case strings.HasPrefix(arg, "--defaults-file="):
 			value, err := rewriteValue("--defaults-file", strings.TrimPrefix(arg, "--defaults-file="), resolver)
 			if err != nil {
 				return nil, nil, "", err
 			}
-			if !inputset.LooksLikeLiquibaseRemoteRef(value) {
-				declared = append(declared, declaredPath{flag: "--defaults-file", path: value, requireFile: true})
+			if err := validateResourceRef(value); err != nil {
+				return nil, nil, "", err
 			}
+			declared = append(declared, declaredPath{flag: "--defaults-file", path: value, requireFile: true})
 		case strings.HasPrefix(arg, "--searchPath="):
 			if err := appendSearchPaths(strings.TrimPrefix(arg, "--searchPath=")); err != nil {
 				return nil, nil, "", err
@@ -398,7 +514,7 @@ func resolveSearchPathParts(value string, resolver inputset.Resolver) ([]string,
 			return nil, inputset.Errorf("empty_search_path", "searchPath is empty")
 		}
 		if inputset.LooksLikeLiquibaseRemoteRef(item) {
-			continue
+			return nil, inputset.Errorf("unsupported_resource", "external Liquibase search path is unsupported: %s", item)
 		}
 		path, err := resolver.ResolvePath(item)
 		if err != nil {
@@ -410,19 +526,21 @@ func resolveSearchPathParts(value string, resolver inputset.Resolver) ([]string,
 }
 
 type tracker struct {
-	fs          inputset.FileSystem
-	root        string
-	searchPaths []string
-	seen        map[string]struct{}
+	fs           inputset.FileSystem
+	root         string
+	searchPaths  []string
+	seen         map[string]struct{}
+	snapshots    map[string]string
+	visitingDirs map[string]struct{}
 }
 
 func (t *tracker) addLeaf(path string, order *[]string) error {
 	path = filepath.Clean(path)
+	if err := t.validateFile(path); err != nil {
+		return err
+	}
 	if _, ok := t.seen[path]; ok {
 		return nil
-	}
-	if _, err := t.fs.Stat(path); err != nil {
-		return err
 	}
 	t.seen[path] = struct{}{}
 	*order = append(*order, path)
@@ -431,11 +549,11 @@ func (t *tracker) addLeaf(path string, order *[]string) error {
 
 func (t *tracker) collect(path string, order *[]string) error {
 	path = filepath.Clean(path)
+	if err := t.validateFile(path); err != nil {
+		return err
+	}
 	if _, ok := t.seen[path]; ok {
 		return nil
-	}
-	if _, err := t.fs.Stat(path); err != nil {
-		return err
 	}
 	t.seen[path] = struct{}{}
 	*order = append(*order, path)
@@ -444,44 +562,121 @@ func (t *tracker) collect(path string, order *[]string) error {
 	if err != nil {
 		return err
 	}
+	if t.snapshots == nil {
+		t.snapshots = make(map[string]string)
+	}
+	t.snapshots[path] = inputset.HashContent(content)
 	refs, err := parseChangelogRefs(path, content)
 	if err != nil {
 		return err
 	}
 
 	changelogDir := filepath.Dir(path)
-	for _, inc := range refs.includes {
-		next := t.resolveIncludePath(changelogDir, inc.File, inc.RelativeToChangelogFile.useChangelogDir())
-		if next == "" {
-			continue
-		}
-		if err := t.collect(next, order); err != nil {
-			return err
-		}
-	}
-	for _, inc := range refs.includeAlls {
-		dir := t.resolveIncludePath(changelogDir, inc.Path, inc.RelativeToChangelogFile.useChangelogDir())
-		if dir == "" {
-			continue
-		}
-		if err := t.collectIncludeAll(dir, order); err != nil {
-			return err
-		}
-	}
-	for _, ref := range refs.localPaths {
-		next := t.resolveIncludePath(changelogDir, ref.rawPath(), ref.RelativeToChangelogFile.useChangelogDir())
-		if next == "" {
-			continue
-		}
-		if err := t.addLeaf(next, order); err != nil {
-			return err
+	for _, ref := range refs.ordered {
+		switch {
+		case ref.include != nil:
+			inc := ref.include
+			if err := validateResourceRef(inc.File); err != nil {
+				return err
+			}
+			next := t.resolveIncludePath(changelogDir, inc.File, inc.RelativeToChangelogFile.useChangelogDir())
+			if err := t.collect(next, order); err != nil {
+				return err
+			}
+		case ref.includeAll != nil:
+			inc := ref.includeAll
+			if err := validateResourceRef(inc.Path); err != nil {
+				return err
+			}
+			dir := t.resolveIncludePath(changelogDir, inc.Path, inc.RelativeToChangelogFile.useChangelogDir())
+			if err := t.collectIncludeAll(dir, order); err != nil {
+				return err
+			}
+		case ref.localPath != nil:
+			leaf := ref.localPath
+			if err := validateResourceRef(leaf.rawPath()); err != nil {
+				return err
+			}
+			next := t.resolveIncludePath(changelogDir, leaf.rawPath(), leaf.RelativeToChangelogFile.useChangelogDir())
+			if err := t.addLeaf(next, order); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
+// validateFile prevents a path which is absent, non-regular, outside the
+// admitted workspace, or an outbound host symlink from entering the manifest.
+// The bundle requirements are in docs/architecture/liquibase-container-component-structure.md.
+func (t *tracker) validateFile(path string) error {
+	if err := t.validateWithinRoot(path); err != nil {
+		return err
+	}
+	info, err := t.fs.Stat(path)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return inputset.Errorf("unsupported_resource", "Liquibase input must be a regular file: %s", path)
+	}
+	return nil
+}
+
+func (t *tracker) validateWithinRoot(path string) error {
+	root, err := filepath.Abs(t.root)
+	if err != nil {
+		return err
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	if _, ok := t.fs.(inputset.OSFileSystem); ok {
+		if resolved, err := filepath.EvalSymlinks(root); err == nil {
+			root = resolved
+		}
+		if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+			abs = resolved
+		}
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return inputset.Errorf("outside_workspace", "Liquibase input is outside workspace: %s", path)
+	}
+	return nil
+}
+
+func validateResourceRef(raw string) error {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return inputset.Errorf("unsupported_resource", "empty Liquibase resource reference")
+	}
+	if inputset.LooksLikeLiquibaseRemoteRef(value) || strings.Contains(value, "${") {
+		return inputset.Errorf("unsupported_resource", "unsupported Liquibase resource reference: %s", value)
+	}
+	return nil
+}
+
 func (t *tracker) collectIncludeAll(dir string, order *[]string) error {
+	if err := t.validateWithinRoot(dir); err != nil {
+		return err
+	}
+	canonicalDir := filepath.Clean(dir)
+	if _, ok := t.fs.(inputset.OSFileSystem); ok {
+		if resolved, err := filepath.EvalSymlinks(canonicalDir); err == nil {
+			canonicalDir = resolved
+		}
+	}
+	if t.visitingDirs == nil {
+		t.visitingDirs = make(map[string]struct{})
+	}
+	if _, active := t.visitingDirs[canonicalDir]; active {
+		return inputset.Errorf("circular_include_all", "circular Liquibase includeAll directory: %s", dir)
+	}
+	t.visitingDirs[canonicalDir] = struct{}{}
+	defer delete(t.visitingDirs, canonicalDir)
 	entries, err := t.fs.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("includeAll %s: %w", dir, err)
@@ -489,6 +684,7 @@ func (t *tracker) collectIncludeAll(dir string, order *[]string) error {
 	names := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() {
+			names = append(names, entry.Name())
 			continue
 		}
 		lower := strings.ToLower(entry.Name())
@@ -496,11 +692,23 @@ func (t *tracker) collectIncludeAll(dir string, order *[]string) error {
 			strings.HasSuffix(lower, ".yaml") || strings.HasSuffix(lower, ".yml") ||
 			strings.HasSuffix(lower, ".json") {
 			names = append(names, entry.Name())
+		} else {
+			return inputset.Errorf("unsupported_resource", "unclassified Liquibase includeAll entry: %s", filepath.Join(dir, entry.Name()))
 		}
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		if err := t.collect(filepath.Join(dir, name), order); err != nil {
+		path := filepath.Join(dir, name)
+		info, err := t.fs.Stat(path)
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			err = t.collectIncludeAll(path, order)
+		} else {
+			err = t.collect(path, order)
+		}
+		if err != nil {
 			return err
 		}
 	}
@@ -534,6 +742,13 @@ type changelogRefs struct {
 	includes    []includeSpec
 	includeAlls []includeAll
 	localPaths  []localPathRef
+	ordered     []orderedRef
+}
+
+type orderedRef struct {
+	include    *includeSpec
+	includeAll *includeAll
+	localPath  *localPathRef
 }
 
 func parseChangelogRefs(path string, content []byte) (changelogRefs, error) {
@@ -543,10 +758,15 @@ func parseChangelogRefs(path string, content []byte) (changelogRefs, error) {
 		if err := xml.Unmarshal(content, &log); err != nil {
 			return changelogRefs{}, fmt.Errorf("parse liquibase changelog %s: %w", path, err)
 		}
+		ordered, err := parseXMLOrderedRefs(content)
+		if err != nil {
+			return changelogRefs{}, fmt.Errorf("parse liquibase changelog %s: %w", path, err)
+		}
 		return changelogRefs{
 			includes:    log.Includes,
 			includeAlls: log.IncludeAll,
 			localPaths:  flattenXMLLocalPathRefs(log.ChangeSets),
+			ordered:     ordered,
 		}, nil
 	case ".yaml", ".yml":
 		var log structuredChangeLog
@@ -557,6 +777,7 @@ func parseChangelogRefs(path string, content []byte) (changelogRefs, error) {
 			includes:    flattenIncludes(log.DatabaseChangeLog),
 			includeAlls: flattenIncludeAll(log.DatabaseChangeLog),
 			localPaths:  flattenLocalPathRefs(log.DatabaseChangeLog),
+			ordered:     orderedStructuredRefs(log.DatabaseChangeLog),
 		}, nil
 	case ".json":
 		var log structuredChangeLog
@@ -567,9 +788,79 @@ func parseChangelogRefs(path string, content []byte) (changelogRefs, error) {
 			includes:    flattenIncludes(log.DatabaseChangeLog),
 			includeAlls: flattenIncludeAll(log.DatabaseChangeLog),
 			localPaths:  flattenLocalPathRefs(log.DatabaseChangeLog),
+			ordered:     orderedStructuredRefs(log.DatabaseChangeLog),
 		}, nil
-	default:
+	case ".sql":
+		if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(string(content))), "--liquibase formatted sql") {
+			return changelogRefs{}, inputset.Errorf("unsupported_changelog", "SQL changelog is not Liquibase formatted SQL: %s", path)
+		}
+		for _, raw := range strings.Split(string(content), "\n") {
+			line := strings.ToLower(strings.TrimSpace(raw))
+			if strings.HasPrefix(line, "--include ") || strings.HasPrefix(line, "--includeall ") {
+				return changelogRefs{}, inputset.Errorf("unsupported_resource", "formatted SQL includes require unsupported Liquibase Secure features: %s", path)
+			}
+		}
 		return changelogRefs{}, nil
+	default:
+		return changelogRefs{}, inputset.Errorf("unsupported_changelog", "unsupported Liquibase changelog extension: %s", path)
+	}
+}
+
+func orderedStructuredRefs(items []changeItem) []orderedRef {
+	var result []orderedRef
+	for _, item := range items {
+		if item.Include != nil {
+			result = append(result, orderedRef{include: item.Include})
+		}
+		if item.IncludeAll != nil {
+			result = append(result, orderedRef{includeAll: item.IncludeAll})
+		}
+		if item.ChangeSet != nil {
+			for _, ref := range localPathRefsFromChangeSet(*item.ChangeSet) {
+				copy := ref
+				result = append(result, orderedRef{localPath: &copy})
+			}
+		}
+	}
+	return result
+}
+
+func parseXMLOrderedRefs(content []byte) ([]orderedRef, error) {
+	decoder := xml.NewDecoder(bytes.NewReader(content))
+	var result []orderedRef
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			return result, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		start, ok := token.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		attribute := func(name string) string {
+			for _, attr := range start.Attr {
+				if attr.Name.Local == name {
+					return attr.Value
+				}
+			}
+			return ""
+		}
+		switch start.Name.Local {
+		case "include":
+			result = append(result, orderedRef{include: &includeSpec{File: attribute("file"), RelativeToChangelogFile: boolish(attribute("relativeToChangelogFile"))}})
+		case "includeAll":
+			if attribute("resourceComparator") != "" || attribute("filter") != "" {
+				return nil, inputset.Errorf("unsupported_resource", "custom Liquibase includeAll loader or ordering is unsupported")
+			}
+			result = append(result, orderedRef{includeAll: &includeAll{Path: attribute("path"), RelativeToChangelogFile: boolish(attribute("relativeToChangelogFile"))}})
+		case "sqlFile", "loadData", "loadUpdateData":
+			result = append(result, orderedRef{localPath: &localPathRef{Path: attribute("path"), File: attribute("file"), RelativeToChangelogFile: boolish(attribute("relativeToChangelogFile"))}})
+		case "customChange", "customPrecondition":
+			return nil, inputset.Errorf("unsupported_resource", "custom Liquibase resource loader is unsupported: %s", start.Name.Local)
+		}
 	}
 }
 

@@ -74,17 +74,9 @@ func explainPrepareCache(ctx context.Context, opts cli.PrepareOptions) (client.C
 	if err != nil {
 		return client.CacheExplainPrepareResponse{}, err
 	}
-	request := client.PrepareJobRequest{
-		PrepareKind:       opts.PrepareKind,
-		ImageID:           opts.ImageID,
-		PsqlArgs:          opts.PsqlArgs,
-		LiquibaseArgs:     opts.LiquibaseArgs,
-		LiquibaseExec:     opts.LiquibaseExec,
-		LiquibaseExecMode: opts.LiquibaseExecMode,
-		LiquibaseEnv:      opts.LiquibaseEnv,
-		WorkDir:           opts.WorkDir,
-		Stdin:             opts.Stdin,
-		PlanOnly:          opts.PlanOnly,
+	request := cli.BuildPrepareJobRequest(opts, opts.PlanOnly)
+	if request.PrepareKind == "lb" {
+		return explainLiquibaseCacheJob(ctx, cliClient, opts, request)
 	}
 	if opts.SourceSync == nil || !opts.SourceSync.Enabled {
 		return cliClient.ExplainPrepareCache(ctx, request)
@@ -94,6 +86,35 @@ func explainPrepareCache(ctx context.Context, opts cli.PrepareOptions) (client.C
 	return remotesource.Execute(ctx, syncOpts, request, func(ctx context.Context, req client.PrepareJobRequest) (client.CacheExplainPrepareResponse, error) {
 		return cliClient.ExplainPrepareCache(ctx, req)
 	})
+}
+
+// explainLiquibaseCacheJob waits for the saved result of the accepted job.
+// The 202 admission body is never interpreted as a cache decision; an
+// ambiguous POST is not retried except for the explicit missing-source 409
+// handshake. See docs/architecture/liquibase-planning-recovery-design.md.
+func explainLiquibaseCacheJob(ctx context.Context, cliClient *client.Client, opts cli.PrepareOptions, request client.PrepareJobRequest) (client.CacheExplainPrepareResponse, error) {
+	var accepted client.PrepareJobAccepted
+	var err error
+	if opts.SourceSync == nil || !opts.SourceSync.Enabled {
+		accepted, err = cliClient.AdmitLiquibaseCacheExplain(ctx, request)
+	} else {
+		syncOpts := *opts.SourceSync
+		syncOpts.Uploader = cliClient
+		accepted, err = remotesource.Execute(ctx, syncOpts, request, func(ctx context.Context, req client.PrepareJobRequest) (client.PrepareJobAccepted, error) {
+			return cliClient.AdmitLiquibaseCacheExplain(ctx, req)
+		})
+	}
+	if err != nil {
+		return client.CacheExplainPrepareResponse{}, fmt.Errorf("Liquibase cache explanation admission failed or its response was lost; inspect the ordinary prepare-job list before retrying: %w", err)
+	}
+	status, err := cli.RunWatch(ctx, opts, accepted.JobID)
+	if err != nil {
+		return client.CacheExplainPrepareResponse{}, err
+	}
+	if status.Purpose != "cache_explain" || status.PrepareKind != "lb" || status.Result != nil || status.CacheExplainResult == nil {
+		return client.CacheExplainPrepareResponse{}, fmt.Errorf("Liquibase cache explanation job %s finished without a saved explanation", accepted.JobID)
+	}
+	return *status.CacheExplainResult, nil
 }
 
 func collectPrepareTrace(req stageRunRequest, opts cli.PrepareOptions, actualRef *refctx.Context) (prepareTraceBase, error) {

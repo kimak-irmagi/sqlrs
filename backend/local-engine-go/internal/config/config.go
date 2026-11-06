@@ -101,7 +101,7 @@ func DefaultConfig() map[string]any {
 				"lowWatermark":  0.80,
 				"minStateAge":   "10m",
 			},
-    },
+		},
 		"container": map[string]any{
 			"runtime": "auto",
 		},
@@ -160,9 +160,9 @@ func DefaultSchema() map[string]any {
 							},
 						},
 						"additionalProperties": true,
-          },
-        },
-      },
+					},
+				},
+			},
 			"container": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -233,6 +233,11 @@ func (m *Manager) Get(path string, effective bool) (any, error) {
 func (m *Manager) Set(path string, value any) (any, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	// Executable selection is not public mutable configuration. See
+	// docs/architecture/liquibase-container-component-structure.md.
+	if isReservedLiquibasePath(path) {
+		return nil, ErrInvalidPath
+	}
 	segments, err := parsePath(path)
 	if err != nil || len(segments) == 0 {
 		return nil, ErrInvalidPath
@@ -257,6 +262,11 @@ func (m *Manager) Set(path string, value any) (any, error) {
 	}
 	m.overrides = updated
 	return value, nil
+}
+
+func isReservedLiquibasePath(path string) bool {
+	path = strings.ToLower(strings.TrimSpace(path))
+	return path == "liquibase" || strings.HasPrefix(path, "liquibase.") || strings.HasPrefix(path, "liquibase_")
 }
 
 func (m *Manager) Remove(path string) (any, error) {

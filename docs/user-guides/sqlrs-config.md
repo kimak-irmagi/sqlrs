@@ -8,6 +8,13 @@ The CLI reads and writes configuration via the engine API.
 Local mode stores configuration in a JSON file next to the state store.
 Remote mode applies to the server deployment.
 
+Liquibase executable selection is not public server configuration. Writes to
+the reserved liquibase namespace are rejected. Obsolete workspace liquibase.exec,
+liquibase.exec_mode and liquibase.env keys are also rejected by the CLI, including
+empty or null values; they do not select a runner in either deployment mode.
+Use --liquibase-version or the file-backed liquibase_version attribute instead;
+see the [approved container contract](sqlrs-liquibase-container-cli-design.md).
+
 ---
 
 ## Command Syntax

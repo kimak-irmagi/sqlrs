@@ -3,7 +3,6 @@ package app
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -157,9 +156,6 @@ func TestResolveCommandContextAppliesCLIOverrides(t *testing.T) {
 		t.Fatalf("runDir = %q, want equivalent of /var/sqlrs/run", ctx.runDir)
 	}
 	wantEngineStoreDir := "/var/sqlrs/store"
-	if runtime.GOOS == "windows" {
-		wantEngineStoreDir = ""
-	}
 	if ctx.engineStoreDir != wantEngineStoreDir {
 		t.Fatalf("engineStoreDir = %q, want %q", ctx.engineStoreDir, wantEngineStoreDir)
 	}

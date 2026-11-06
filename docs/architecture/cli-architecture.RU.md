@@ -233,4 +233,7 @@ sequenceDiagram
 
 - CLI поддерживает `plan:lb` и `prepare:lb`, передавая Liquibase-аргументы в `POST /v1/prepare-jobs`.
 - CLI не строит локальный fallback step-план для Liquibase; планирование/выполнение принадлежат engine.
-- В Windows + WSL local mode CLI переписывает Liquibase path-аргументы/workdir для совместимости с host execution.
+- По утверждённому контейнерному контракту CLI привязывает координаты исходников,
+  а не путь Liquibase или окружение Java на хосте. Установка движка в Windows/WSL
+  отделена от выбора Liquibase. Состояние подключения и владение версией/digest
+  описаны в [ограниченном проекте #89](liquibase-container-component-structure.RU.md).

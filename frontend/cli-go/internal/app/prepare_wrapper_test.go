@@ -100,7 +100,7 @@ func TestRunPrepareParsedReturnsError(t *testing.T) {
 
 func TestRunPrepareLiquibaseParsedWithPathModePrintsDSN(t *testing.T) {
 	prevBind := bindPrepareLiquibaseInputsFn
-	bindPrepareLiquibaseInputsFn = func(cli.PrepareOptions, string, string, prepareArgs, *refctx.Context, string, string, bool) (prepareStageBinding, error) {
+	bindPrepareLiquibaseInputsFn = func(cli.PrepareOptions, string, string, prepareArgs, *refctx.Context, bool) (prepareStageBinding, error) {
 		return prepareStageBinding{
 			LiquibaseArgs: []string{"update", "--changelog-file", "master.xml"},
 			WorkDir:       t.TempDir(),
@@ -135,7 +135,7 @@ func TestRunPrepareLiquibaseParsedWithPathModePrintsDSN(t *testing.T) {
 
 func TestRunPrepareLiquibaseParsedWithPathModeHandlesSubmittedPrepare(t *testing.T) {
 	prevBind := bindPrepareLiquibaseInputsFn
-	bindPrepareLiquibaseInputsFn = func(cli.PrepareOptions, string, string, prepareArgs, *refctx.Context, string, string, bool) (prepareStageBinding, error) {
+	bindPrepareLiquibaseInputsFn = func(cli.PrepareOptions, string, string, prepareArgs, *refctx.Context, bool) (prepareStageBinding, error) {
 		return prepareStageBinding{
 			LiquibaseArgs: []string{"update", "--changelog-file", "master.xml"},
 			WorkDir:       t.TempDir(),

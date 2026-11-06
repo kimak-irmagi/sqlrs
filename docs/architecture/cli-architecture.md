@@ -232,4 +232,8 @@ Notes:
 
 - The CLI supports `plan:lb` and `prepare:lb` by sending Liquibase arguments to `POST /v1/prepare-jobs`.
 - The CLI does not build a fallback Liquibase step plan locally; planning/execution is owned by the engine.
-- On Windows + WSL local mode, the CLI rewrites Liquibase path arguments/workdir for host execution compatibility.
+- Under the approved container-only contract, the CLI binds source coordinates,
+  not host Liquibase executable paths or Java environment settings. Windows/WSL
+  engine installation is separate from Liquibase selection. Integration status
+  and version/digest ownership are in the
+  [bounded #89 design](liquibase-container-component-structure.md).

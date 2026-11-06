@@ -1015,6 +1015,9 @@ func (m *PrepareService) trimCompletedJobsBySignature(ctx context.Context, signa
 }
 
 func (m *PrepareService) prepareRequest(req Request) (preparedRequest, error) {
+	if req.LiquibaseExec != "" || req.LiquibaseExecMode != "" || len(req.LiquibaseEnv) != 0 {
+		return preparedRequest{}, ValidationError{Code: "invalid_argument", Message: "client Liquibase runner settings are not allowed"}
+	}
 	kind := strings.TrimSpace(req.PrepareKind)
 	if kind == "" {
 		return preparedRequest{}, ValidationError{Code: "invalid_argument", Message: "prepare_kind is required"}
@@ -1030,6 +1033,11 @@ func (m *PrepareService) prepareRequest(req Request) (preparedRequest, error) {
 	}
 	req.PrepareKind = kind
 	req.ImageID = imageID
+	version, err := normalizeLiquibaseVersion(kind, req.LiquibaseVersion)
+	if err != nil {
+		return preparedRequest{}, err
+	}
+	req.LiquibaseVersion = version
 	var prepared preparedRequest
 	switch kind {
 	case "psql":

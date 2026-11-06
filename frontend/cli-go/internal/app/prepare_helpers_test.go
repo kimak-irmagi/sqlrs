@@ -402,25 +402,19 @@ func TestDeriveLiquibaseWorkDirFromArgsCoverage(t *testing.T) {
 	if got := deriveLiquibaseWorkDirFromArgs([]string{"update", "--searchPath"}, fallback); got != fallback {
 		t.Fatalf("expected fallback for missing searchPath value, got %q", got)
 	}
-	if got := deriveLiquibaseWorkDirFromArgs([]string{"update", "--searchPath", "classpath:db"}, fallback); got != fallback {
-		t.Fatalf("expected fallback for remote-only searchPath, got %q", got)
-	}
-	if got := deriveLiquibaseWorkDirFromArgs([]string{"update", "--search-path", "dir1,classpath:db"}, fallback); got != filepath.Clean("dir1") {
+	if got := deriveLiquibaseWorkDirFromArgs([]string{"update", "--search-path", "dir1,dir2"}, fallback); got != filepath.Clean("dir1") {
 		t.Fatalf("expected dir1 workdir, got %q", got)
 	}
-	if got := deriveLiquibaseWorkDirFromArgs([]string{"update", "--searchPath=dir2,classpath:db"}, fallback); got != filepath.Clean("dir2") {
+	if got := deriveLiquibaseWorkDirFromArgs([]string{"update", "--searchPath=dir2,dir3"}, fallback); got != filepath.Clean("dir2") {
 		t.Fatalf("expected dir2 workdir, got %q", got)
-	}
-	if got := deriveLiquibaseWorkDirFromArgs([]string{"update", "--search-path=classpath:db,dir3"}, fallback); got != filepath.Clean("dir3") {
-		t.Fatalf("expected dir3 workdir, got %q", got)
 	}
 }
 
 func TestFirstLiquibaseSearchPathDirCoverage(t *testing.T) {
-	if got := firstLiquibaseSearchPathDir("classpath:db, https://example.com/db"); got != "" {
-		t.Fatalf("expected empty dir for remote-only searchPath, got %q", got)
+	if got := firstLiquibaseSearchPathDir(" "); got != "" {
+		t.Fatalf("expected empty dir for blank searchPath, got %q", got)
 	}
-	if got := firstLiquibaseSearchPathDir(" , classpath:db , dir/sub "); got != filepath.Clean("dir/sub") {
+	if got := firstLiquibaseSearchPathDir(" , dir/sub "); got != filepath.Clean("dir/sub") {
 		t.Fatalf("expected first local dir, got %q", got)
 	}
 }

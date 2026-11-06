@@ -140,9 +140,16 @@ func resolveCommandContext(cwd string, opts cli.GlobalOptions) (commandContext, 
 	engineWSLMountFSType := ""
 	wslDistro := ""
 	if runtime.GOOS == "windows" {
-		daemonPath, engineRunDir, engineStatePath, engineStoreDir, wslDistro, engineWSLMountUnit, engineWSLMountFSType, err = resolveWSLSettings(cfg, cfgResult.Paths, daemonPath)
+		var wslStoreDir string
+		daemonPath, engineRunDir, engineStatePath, wslStoreDir, wslDistro, engineWSLMountUnit, engineWSLMountFSType, err = resolveWSLSettings(cfg, cfgResult.Paths, daemonPath)
 		if err != nil {
 			return result, err
+		}
+		// WSL settings have no store path when host execution is selected.
+		// Preserve the configured host store for the Windows copy backend;
+		// see docs/architecture/local-deployment-architecture.md, section 7.
+		if wslDistro != "" {
+			engineStoreDir = wslStoreDir
 		}
 	}
 	result.profileName = profileName

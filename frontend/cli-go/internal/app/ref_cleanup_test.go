@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -61,8 +60,6 @@ func TestBindPrepareLiquibaseInputsCleansWorktreeOnError(t *testing.T) {
 		cwd,
 		prepareArgs{Ref: "HEAD", RefMode: "worktree", PsqlArgs: []string{"update", "--changelog-file", "../../outside.xml"}},
 		nil,
-		"",
-		"",
 		false,
 	)
 	if err == nil {
@@ -157,51 +154,6 @@ func TestBuildStageRuntimeLiquibaseRefUsesProjectedWorktreePaths(t *testing.T) {
 	}
 }
 
-func TestBindPrepareLiquibaseInputsBlobKeepsWindowsPathsForWindowsBat(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("windows-specific path conversion coverage")
-	}
-
-	root := t.TempDir()
-	writeTestFile(t, root, filepath.Join("config", "liquibase", "master.xml"), "<databaseChangeLog/>\n")
-
-	bound, err := bindPrepareLiquibaseInputs(
-		cli.PrepareOptions{WSLDistro: "Ubuntu"},
-		root,
-		root,
-		prepareArgs{PsqlArgs: []string{"update", "--changelog-file", filepath.Join("config", "liquibase", "master.xml")}},
-		&refctx.Context{
-			WorkspaceRoot: root,
-			BaseDir:       root,
-			RefMode:       "blob",
-			FileSystem:    inputset.OSFileSystem{},
-		},
-		"liquibase.cmd",
-		"windows-bat",
-		false,
-	)
-	if err != nil {
-		t.Fatalf("bindPrepareLiquibaseInputs: %v", err)
-	}
-	if bound.cleanup != nil {
-		t.Cleanup(func() {
-			if err := bound.cleanup(); err != nil {
-				t.Fatalf("cleanup: %v", err)
-			}
-		})
-	}
-
-	if got := strings.Join(bound.LiquibaseArgs, "|"); strings.Contains(got, "/mnt/") {
-		t.Fatalf("expected windows host paths, got %q", got)
-	}
-	if strings.HasPrefix(bound.WorkDir, "/mnt/") {
-		t.Fatalf("expected windows work dir, got %q", bound.WorkDir)
-	}
-	if filepath.VolumeName(bound.WorkDir) == "" {
-		t.Fatalf("expected absolute windows work dir, got %q", bound.WorkDir)
-	}
-}
-
 func TestBindPrepareLiquibaseInputsBlobStagesAdditionalLocalAssets(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(
@@ -223,8 +175,6 @@ func TestBindPrepareLiquibaseInputsBlobStagesAdditionalLocalAssets(t *testing.T)
 			RefMode:       "blob",
 			FileSystem:    inputset.OSFileSystem{},
 		},
-		"",
-		"",
 		false,
 	)
 	if err != nil {

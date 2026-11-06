@@ -5,6 +5,7 @@ type Request struct {
 	ImageID           string            `json:"image_id"`
 	PsqlArgs          []string          `json:"psql_args"`
 	LiquibaseArgs     []string          `json:"liquibase_args,omitempty"`
+	LiquibaseVersion  string            `json:"liquibase_version,omitempty"`
 	LiquibaseExec     string            `json:"liquibase_exec,omitempty"`
 	LiquibaseExecMode string            `json:"liquibase_exec_mode,omitempty"`
 	LiquibaseEnv      map[string]string `json:"liquibase_env,omitempty"`

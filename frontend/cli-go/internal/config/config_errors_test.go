@@ -18,20 +18,6 @@ func TestLookupDBMSImageReadError(t *testing.T) {
 	}
 }
 
-func TestLookupLiquibaseExecReadError(t *testing.T) {
-	dir := t.TempDir()
-	if _, _, err := LookupLiquibaseExec(dir); err == nil {
-		t.Fatalf("expected read error")
-	}
-}
-
-func TestLookupLiquibaseExecModeReadError(t *testing.T) {
-	dir := t.TempDir()
-	if _, _, err := LookupLiquibaseExecMode(dir); err == nil {
-		t.Fatalf("expected read error")
-	}
-}
-
 func TestReadConfigMapInvalidYAML(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

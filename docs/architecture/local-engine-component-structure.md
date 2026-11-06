@@ -198,8 +198,10 @@ determinism, safety, or observable API behavior.
 
 - `internal/prepare` helpers
   - Own lock/marker semantics for base/state build, dirty-state detection, cache
-    invalidation, Liquibase argument/path normalization, and host Liquibase
-    execution mode (`native` vs `windows-bat`) semantics.
+    invalidation and Liquibase argument/input normalization. Host Liquibase
+    execution modes are superseded by the approved
+    [container component contract](liquibase-container-component-structure.md);
+    that document distinguishes target ownership from incomplete service wiring.
 - `internal/runtime` helpers
   - Own docker error classification, startup diagnostics, `pg_hba.conf` host auth
     patching, and host-port parsing guarantees.

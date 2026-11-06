@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -32,8 +31,8 @@ func (routes prepareRoutes) handleJobs(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		_ = writeListResponse(w, r, routes.opts.Prepare.ListJobs(readQueryValue(r, "job")))
 	case http.MethodPost:
-		var req prepare.Request
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		req, err := decodePrepareRequest(r.Body)
+		if err != nil {
 			_ = writeError(w, prepare.ErrorResponse{
 				Code:    "invalid_argument",
 				Message: "invalid json payload",

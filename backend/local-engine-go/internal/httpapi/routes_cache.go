@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/sqlrs/engine-local/internal/auth"
@@ -48,8 +47,8 @@ func (routes cacheRoutes) handleExplainPrepare(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var req prepare.Request
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	req, err := decodePrepareRequest(r.Body)
+	if err != nil {
 		_ = writeErrorResponse(w, "invalid_argument", "invalid json payload", err.Error(), http.StatusBadRequest)
 		return
 	}

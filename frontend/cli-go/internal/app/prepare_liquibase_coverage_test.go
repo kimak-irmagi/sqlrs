@@ -3,10 +3,13 @@ package app
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/sqlrs/cli/internal/cli"
@@ -59,7 +62,7 @@ func TestNormalizeLiquibaseArgsVariants(t *testing.T) {
 		t.Fatalf("expected missing value error")
 	}
 
-	args, err := normalizeLiquibaseArgs([]string{"--search-path", "dir1,classpath:foo"}, root, cwd, nil)
+	args, err := normalizeLiquibaseArgs([]string{"--search-path", "dir1,dir2"}, root, cwd, nil)
 	if err != nil {
 		t.Fatalf("normalizeLiquibaseArgs: %v", err)
 	}
@@ -95,10 +98,6 @@ func TestRewriteLiquibasePathArg(t *testing.T) {
 	if _, err := rewriteLiquibasePathArg("--searchPath", "", root, cwd, nil); err == nil {
 		t.Fatalf("expected empty searchPath error")
 	}
-	out, err := rewriteLiquibasePathArg("--searchPath", "classpath:foo", root, cwd, nil)
-	if err != nil || out != "classpath:foo" {
-		t.Fatalf("expected remote ref, got %q err=%v", out, err)
-	}
 }
 
 func TestRelativizeLiquibaseArgsCoverage(t *testing.T) {
@@ -133,54 +132,6 @@ func TestToRelativeIfWithin(t *testing.T) {
 	}
 }
 
-func TestResolveLiquibaseConfigErrors(t *testing.T) {
-	root := t.TempDir()
-	project := filepath.Join(root, ".sqlrs")
-	if err := os.MkdirAll(project, 0o700); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	projectConfig := filepath.Join(project, "config.yaml")
-	if err := os.WriteFile(projectConfig, []byte("liquibase: ["), 0o600); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-	cfg := config.LoadedConfig{
-		ProjectConfigPath: projectConfig,
-		Paths:             paths.Dirs{ConfigDir: root},
-	}
-	if _, err := resolveLiquibaseExec(cfg); err == nil {
-		t.Fatalf("expected liquibase exec error")
-	}
-	if _, err := resolveLiquibaseExecMode(cfg); err == nil {
-		t.Fatalf("expected liquibase exec mode error")
-	}
-	if _, _, err := resolvePrepareImage("", cfg); err == nil {
-		t.Fatalf("expected dbms image error")
-	}
-}
-
-func TestResolveLiquibaseEnvAndSanitize(t *testing.T) {
-	t.Setenv("JAVA_HOME", "\"/opt/java/\"")
-	env := resolveLiquibaseEnv()
-	if env["JAVA_HOME"] != "/opt/java" {
-		t.Fatalf("unexpected JAVA_HOME: %q", env["JAVA_HOME"])
-	}
-	if got := sanitizeLiquibaseExec(" \"/opt/Program Files/lb\" "); got != "/opt/Program Files/lb" {
-		t.Fatalf("unexpected sanitize output: %q", got)
-	}
-	if got := sanitizeLiquibaseExec(" "); got != "" {
-		t.Fatalf("expected empty sanitize output, got %q", got)
-	}
-	if !shouldUseLiquibaseWindowsMode("liquibase.cmd", "") {
-		t.Fatalf("expected windows mode for cmd")
-	}
-	if shouldUseLiquibaseWindowsMode("liquibase", "native") {
-		t.Fatalf("expected native mode to be false")
-	}
-	if !shouldUseLiquibaseWindowsMode("", "windows-bat") {
-		t.Fatalf("expected windows-bat mode")
-	}
-}
-
 func TestResolvePrepareImageGlobalError(t *testing.T) {
 	root := t.TempDir()
 	cfg := config.LoadedConfig{Paths: paths.Dirs{ConfigDir: root}}
@@ -192,23 +143,6 @@ func TestResolvePrepareImageGlobalError(t *testing.T) {
 	}
 	if _, _, err := resolvePrepareImage("", cfg); err == nil {
 		t.Fatalf("expected error from bad global config")
-	}
-}
-
-func TestNormalizeLiquibaseArgsSearchPathRemote(t *testing.T) {
-	root := t.TempDir()
-	args, err := normalizeLiquibaseArgs([]string{"--searchPath=classpath:foo,dir1"}, root, root, nil)
-	if err != nil {
-		t.Fatalf("normalizeLiquibaseArgs: %v", err)
-	}
-	found := false
-	for _, arg := range args {
-		if strings.Contains(arg, "classpath:foo") {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("expected remote ref preserved: %+v", args)
 	}
 }
 
@@ -245,14 +179,6 @@ func TestNormalizeLiquibaseArgsMissingFlagValue(t *testing.T) {
 	}
 }
 
-func TestRewriteLiquibasePathArgNonSearch(t *testing.T) {
-	root := t.TempDir()
-	out, err := rewriteLiquibasePathArg("--defaults-file", "classpath:foo", root, root, nil)
-	if err != nil || out != "classpath:foo" {
-		t.Fatalf("expected remote defaults-file, got %q err=%v", out, err)
-	}
-}
-
 func TestNormalizeLiquibaseArgsWithConverterError(t *testing.T) {
 	root := t.TempDir()
 	_, err := normalizeLiquibaseArgs([]string{"--changelog-file", "file.xml"}, root, root, func(string) (string, error) {
@@ -280,19 +206,6 @@ func TestNormalizeWorkDirConversion(t *testing.T) {
 	}
 }
 
-func TestResolveLiquibaseExecModeGlobal(t *testing.T) {
-	root := t.TempDir()
-	cfgPath := filepath.Join(root, "config.yaml")
-	if err := os.WriteFile(cfgPath, []byte("liquibase:\n  exec_mode: windows-bat\n"), 0o600); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-	cfg := config.LoadedConfig{Paths: paths.Dirs{ConfigDir: root}}
-	mode, err := resolveLiquibaseExecMode(cfg)
-	if err != nil || mode != "windows-bat" {
-		t.Fatalf("expected execMode from global config, got %q err=%v", mode, err)
-	}
-}
-
 func TestNormalizeLiquibaseArgsSearchPathEmptyItem(t *testing.T) {
 	root := t.TempDir()
 	_, err := normalizeLiquibaseArgs([]string{"--searchPath", "dir1, "}, root, root, nil)
@@ -315,28 +228,26 @@ func TestPrepareResultUsesImageSourceVerbose(t *testing.T) {
 	}
 }
 
-func TestNormalizeLiquibaseArgsDefaultsFileRemote(t *testing.T) {
+func TestPrepareResultLiquibaseRejectsRemovedRunnerSettings(t *testing.T) {
 	root := t.TempDir()
-	args, err := normalizeLiquibaseArgs([]string{"--defaults-file=classpath:foo"}, root, root, nil)
-	if err != nil {
-		t.Fatalf("normalizeLiquibaseArgs: %v", err)
-	}
-	if len(args) != 1 || !strings.Contains(args[0], "classpath:foo") {
-		t.Fatalf("expected remote defaults file, got %+v", args)
-	}
-}
-
-func TestPrepareResultLiquibaseRespectsWindowsMode(t *testing.T) {
-	root := t.TempDir()
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(server.Close)
 	cfgPath := filepath.Join(root, "config.yaml")
 	if err := os.WriteFile(cfgPath, []byte("liquibase:\n  exec: lb.cmd\n  execMode: windows-bat\n"), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 	cfg := config.LoadedConfig{Paths: paths.Dirs{ConfigDir: root}}
-	runOpts := cli.PrepareOptions{Mode: "remote"}
+	runOpts := cli.PrepareOptions{Mode: "remote", Endpoint: server.URL}
 	_, _, err := prepareResultLiquibase(stdoutAndErr{stdout: os.Stdout, stderr: os.Stderr}, runOpts, cfg, root, root, []string{"--image", "img", "--", "update"})
-	if err == nil {
-		t.Fatalf("expected RunPrepare error for missing endpoint")
+	if requests.Load() != 0 {
+		t.Fatalf("removed runner setting caused %d remote requests", requests.Load())
+	}
+	if err == nil || !strings.Contains(err.Error(), "liquibase.exec") {
+		t.Fatalf("expected removed runner setting error, got %v", err)
 	}
 }
 
@@ -389,19 +300,6 @@ func TestNormalizeLiquibaseArgsSearchPathEmpty(t *testing.T) {
 	}
 }
 
-func TestResolveLiquibaseExecGlobal(t *testing.T) {
-	root := t.TempDir()
-	cfgPath := filepath.Join(root, "config.yaml")
-	if err := os.WriteFile(cfgPath, []byte("liquibase:\n  exec: \"lb.bat\"\n"), 0o600); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-	cfg := config.LoadedConfig{Paths: paths.Dirs{ConfigDir: root}}
-	execPath, err := resolveLiquibaseExec(cfg)
-	if err != nil || execPath != "lb.bat" {
-		t.Fatalf("expected exec from global config, got %q err=%v", execPath, err)
-	}
-}
-
 func TestNormalizeLiquibaseArgsSearchPathMultiple(t *testing.T) {
 	root := t.TempDir()
 	args, err := normalizeLiquibaseArgs([]string{"--searchPath", "dir1,dir2"}, root, root, nil)
@@ -445,24 +343,6 @@ func TestPrepareResultLiquibaseRunPrepareError(t *testing.T) {
 	_, _, err := prepareResultLiquibase(stdoutAndErr{stdout: os.Stdout, stderr: os.Stderr}, runOpts, cfg, root, root, []string{"--image", "img", "--", "update"})
 	if err == nil {
 		t.Fatalf("expected RunPrepare error")
-	}
-}
-
-func TestNormalizeLiquibaseArgsSearchPathRemoteOnly(t *testing.T) {
-	root := t.TempDir()
-	args, err := normalizeLiquibaseArgs([]string{"--searchPath", "classpath:foo"}, root, root, nil)
-	if err != nil {
-		t.Fatalf("normalizeLiquibaseArgs: %v", err)
-	}
-	if len(args) != 2 || args[1] != "classpath:foo" {
-		t.Fatalf("expected classpath preserved, got %+v", args)
-	}
-}
-
-func TestResolveLiquibaseEnvEmpty(t *testing.T) {
-	t.Setenv("JAVA_HOME", " ")
-	if env := resolveLiquibaseEnv(); env != nil {
-		t.Fatalf("expected nil env, got %+v", env)
 	}
 }
 

@@ -126,16 +126,16 @@ func TestNormalizeArgsKeepsSearchPathAliasAndRejectsEmptyEquals(t *testing.T) {
 }
 
 func TestCollectHandlesJSONIncludeAllAndErrors(t *testing.T) {
-	t.Run("includeAll sorts and filters", func(t *testing.T) {
+	t.Run("includeAll sorts and recurses", func(t *testing.T) {
 		root := t.TempDir()
 		writeFile(t, filepath.Join(root, "defaults.properties"), "x=y\n")
 		writeFile(t, filepath.Join(root, "master.json"), `{"databaseChangeLog":[{"includeAll":{"path":"changes"}}]}`)
-		writeFile(t, filepath.Join(root, "changes", "b.sql"), "select 2;\n")
+		writeFile(t, filepath.Join(root, "changes", "b.sql"), "--liquibase formatted sql\n--changeset dev:b\nselect 2;\n")
 		writeFile(t, filepath.Join(root, "changes", "a.xml"), `<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"/>`)
-		writeFile(t, filepath.Join(root, "changes", "skip.txt"), "ignore\n")
 		if err := os.MkdirAll(filepath.Join(root, "changes", "nested"), 0o700); err != nil {
 			t.Fatalf("MkdirAll nested: %v", err)
 		}
+		writeFile(t, filepath.Join(root, "changes", "nested", "c.xml"), `<databaseChangeLog/>`)
 
 		set, err := Collect([]string{
 			"--defaults-file=defaults.properties",
@@ -149,6 +149,7 @@ func TestCollectHandlesJSONIncludeAllAndErrors(t *testing.T) {
 			"master.json",
 			filepath.ToSlash("changes/a.xml"),
 			filepath.ToSlash("changes/b.sql"),
+			filepath.ToSlash("changes/nested/c.xml"),
 		}
 		if len(set.Entries) != len(want) {
 			t.Fatalf("entries = %+v", set.Entries)
@@ -228,9 +229,6 @@ func TestLiquibaseHelperBranches(t *testing.T) {
 		t.Fatalf("unexpected missing searchPath issues: %+v", issues)
 	}
 
-	if issue, ok := validateLocalArg("classpath:db/changelog.xml", resolver, inputset.OSFileSystem{}, true); ok {
-		t.Fatalf("expected remote ref to be ignored, got %+v", issue)
-	}
 	if issue, ok := validateLocalArg("", resolver, inputset.OSFileSystem{}, true); !ok || issue.Code != "empty_path" {
 		t.Fatalf("expected empty_path issue, got %+v ok=%v", issue, ok)
 	}
@@ -248,7 +246,7 @@ func TestLiquibaseHelperBranches(t *testing.T) {
 		t.Fatalf("expected path_outside_workspace issue, got %+v ok=%v", issue, ok)
 	}
 
-	searchParts, err := resolveSearchPathParts("classpath:db,shared", resolver)
+	searchParts, err := resolveSearchPathParts("shared", resolver)
 	if err != nil {
 		t.Fatalf("resolveSearchPathParts: %v", err)
 	}
@@ -264,9 +262,6 @@ func TestLiquibaseHelperBranches(t *testing.T) {
 	}
 	if got := tracker.resolveIncludePath(filepath.Join(root, "db"), " ", true); got != "" {
 		t.Fatalf("expected blank include to be ignored, got %q", got)
-	}
-	if got := tracker.resolveIncludePath(filepath.Join(root, "db"), "classpath:db", false); got != "" {
-		t.Fatalf("expected remote include to be ignored, got %q", got)
 	}
 	abs := filepath.Join(root, "abs.xml")
 	if got := tracker.resolveIncludePath(filepath.Join(root, "db"), abs, true); !pathutil.SameLocalPath(got, abs) {
@@ -305,7 +300,7 @@ func TestParseIncludesAndFlattenHelpers(t *testing.T) {
 		t.Fatalf("unexpected json parse result: includes=%+v includeAll=%+v", jsonIncludes, jsonIncludeAll)
 	}
 
-	otherIncludes, otherIncludeAll, err := parseIncludes("leaf.sql", []byte("select 1;"))
+	otherIncludes, otherIncludeAll, err := parseIncludes("leaf.sql", []byte("--liquibase formatted sql\n--changeset dev:leaf\nselect 1;"))
 	if err != nil {
 		t.Fatalf("parseIncludes(other): %v", err)
 	}
@@ -338,16 +333,12 @@ func TestRewriteHelpersAndCollectDeclaredBranches(t *testing.T) {
 		t.Fatalf("unexpected preserved flag: %q", got)
 	}
 
-	if value, err := rewriteValue("--defaults-file", "classpath:db/changelog.xml", resolver); err != nil || value != "classpath:db/changelog.xml" {
-		t.Fatalf("expected remote defaults-file to pass through, got %q err=%v", value, err)
-	}
 	if _, err := rewriteSearchPath("dir,,child", resolver); err == nil {
 		t.Fatalf("expected empty searchPath item error")
 	}
 
 	declared, searchPaths, changelogPath, err := collectDeclared([]string{
-		"--defaults-file", "classpath:db/defaults.properties",
-		"--search-path=classpath:db,dir",
+		"--search-path=dir",
 		"--changelog-file", "dir/child.xml",
 	}, resolver)
 	if err != nil {
@@ -447,8 +438,8 @@ func TestLiquibaseCollectAndValidateAdditionalBranches(t *testing.T) {
 			seen: make(map[string]struct{}),
 		}
 		var order []string
-		if err := trk.collect(filepath.Join(root, "master.xml"), &order); err == nil || !strings.Contains(err.Error(), "missing.xml") {
-			t.Fatalf("expected child collect error, got %v", err)
+		if err := trk.collect(filepath.Join(root, "master.xml"), &order); err == nil || !strings.Contains(err.Error(), "empty Liquibase resource reference") {
+			t.Fatalf("expected unsupported empty resource reference, got %v", err)
 		}
 
 		order = nil
@@ -515,10 +506,6 @@ func TestLiquibaseSecondPassSearchAndTrackerBranches(t *testing.T) {
 			t.Fatalf("resolveSearchPathParts(%q) should fail", value)
 		}
 	}
-	parts, err := resolveSearchPathParts("classpath:db,https://example.org/db", resolver)
-	if err != nil || len(parts) != 0 {
-		t.Fatalf("remote search parts = %v, %v", parts, err)
-	}
 	badResolver := inputset.NewWorkspaceResolver(root, root, func(string) (string, error) {
 		return "", errors.New("resolve failed")
 	})
@@ -538,13 +525,6 @@ func TestLiquibaseSecondPassSearchAndTrackerBranches(t *testing.T) {
 	var order []string
 	if err := trk.collect(master, &order); err == nil || !strings.Contains(err.Error(), "read failed") {
 		t.Fatalf("expected changelog read error, got %v", err)
-	}
-
-	writeFile(t, master, `<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"><include file="classpath:db/child.xml"/><includeAll path="https://example.org/db"/><changeSet><sqlFile path="classpath:db/query.sql"/></changeSet></databaseChangeLog>`)
-	trk = &tracker{fs: inputset.OSFileSystem{}, root: root, seen: make(map[string]struct{})}
-	order = nil
-	if err := trk.collect(master, &order); err != nil || len(order) != 1 {
-		t.Fatalf("remote-only changelog order = %v, %v", order, err)
 	}
 
 	writeFile(t, master, `<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"><includeAll path="missing" relativeToChangelogFile="true"/></databaseChangeLog>`)

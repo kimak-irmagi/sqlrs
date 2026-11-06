@@ -88,7 +88,7 @@ func TestBuildLbFileList_SQLLeafIncludedWithoutXMLParse(t *testing.T) {
 	if err := os.MkdirAll(changelogDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(changelogDir, "a.sql"), []byte("SELECT 1;\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(changelogDir, "a.sql"), []byte("--liquibase formatted sql\n--changeset test:1\nSELECT 1;\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	master := filepath.Join(dir, "master.xml")
@@ -163,7 +163,7 @@ func TestBuildLbFileList_BlobRefMode(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(repo, "ch"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(repo, "ch", "001.sql"), []byte("select 1;\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, "ch", "001.sql"), []byte("--liquibase formatted sql\n--changeset test:1\nselect 1;\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	master := filepath.Join(repo, "master.xml")

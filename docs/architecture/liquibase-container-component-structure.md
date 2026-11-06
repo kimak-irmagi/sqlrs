@@ -34,6 +34,33 @@ pinned Maven artifact before placing it under lib/postgresql-42.7.13.jar.
 The engine verifies bytes again before use. WSL transfer/installation must carry
 and recheck the same JAR; implementing that integration remains pending here.
 
+## Admission contract
+
+Both prepare-shaped API routes use the same strict decoder before admission.
+Client executable, mode and environment keys are forbidden by presence, even
+when empty/null or case-varied/escaped. Duplicate and unknown fields fail;
+plan-only and source metadata do not grant runner authority. The optional
+liquibase_version is a tag only for lb, with omission meaning latest. Typed
+service calls apply the same ownership and selector rules. This extracts the
+already approved admission contract, without enabling replay or new storage.
+
+The public configuration namespace cannot select a runner either. Editor hints
+and configuration documentation reject the obsolete executable/mode/environment
+settings. The resolved-input fingerprint builder rejects unpinned values and
+separates container identity from former host states. Its hash is not permission
+to replay; #170 remains a separate delivery.
+
+The complete engine regression passed after admission integration. The strict
+HTTP, typed-service and public-configuration controls passed, as did the
+resolved-input fingerprint matrix. These results do not prove that production
+planning/execution already uses the new binding: that wiring is still pending.
+
+The session coordinator and its record types have also been extracted, without
+installing tables or connecting a production worker. Its unchanged tests pass
+for three calls/one runner, exact predecessor-disposal dispatch, denial before
+execution, and retention after an ambiguous response. Those tests use journal
+doubles; they do not qualify SQLite slot ownership or the complete prepare flow.
+
 ## Delivery separation
 
 [#89](https://github.com/kimak-irmagi/sqlrs/issues/89) retains the normal container

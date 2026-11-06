@@ -158,23 +158,21 @@ func TestStagePipelinePrepareNoWatchSubmitsAndPrintsRefs(t *testing.T) {
 	}
 }
 
-func TestStagePipelineLiquibaseResolvesExecAndWorkDirOnce(t *testing.T) {
+func TestStagePipelineLiquibaseBindsInputsWithoutHostRunner(t *testing.T) {
+	t.Setenv("JAVA_HOME", "client-jdk-must-not-be-forwarded")
 	cfgDir := t.TempDir()
 	projectConfig := filepath.Join(cfgDir, ".sqlrs", "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(projectConfig), 0o700); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if err := os.WriteFile(projectConfig, []byte("liquibase:\n  exec: liquibase.cmd\n  exec_mode: windows-bat\n"), 0o600); err != nil {
+	if err := os.WriteFile(projectConfig, []byte("liquibase: {}\n"), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
 	prevBind := bindPrepareLiquibaseInputsFn
 	bindCalls := 0
-	bindPrepareLiquibaseInputsFn = func(_ cli.PrepareOptions, workspaceRoot string, cwd string, parsed prepareArgs, _ *refctx.Context, exec string, execMode string, relativizePaths bool) (prepareStageBinding, error) {
+	bindPrepareLiquibaseInputsFn = func(_ cli.PrepareOptions, workspaceRoot string, cwd string, parsed prepareArgs, _ *refctx.Context, relativizePaths bool) (prepareStageBinding, error) {
 		bindCalls++
-		if exec != "liquibase.cmd" || execMode != "windows-bat" {
-			t.Fatalf("unexpected liquibase exec settings: %q %q", exec, execMode)
-		}
 		if !relativizePaths {
 			t.Fatal("expected relativizePaths=true")
 		}
@@ -193,9 +191,6 @@ func TestStagePipelineLiquibaseResolvesExecAndWorkDirOnce(t *testing.T) {
 
 	prevRunPlan := runPlanFn
 	runPlanFn = func(_ context.Context, opts cli.PrepareOptions) (cli.PlanResult, error) {
-		if opts.LiquibaseExec != "liquibase.cmd" || opts.LiquibaseExecMode != "windows-bat" {
-			t.Fatalf("unexpected options: %+v", opts)
-		}
 		if opts.WorkDir != cfgDir {
 			t.Fatalf("WorkDir = %q, want %q", opts.WorkDir, cfgDir)
 		}
@@ -254,7 +249,7 @@ func TestStagePipelineRejectsPlanWatchFlagsBeforeInvocation(t *testing.T) {
 
 func TestStagePipelineRejectsLiquibaseWithoutCommand(t *testing.T) {
 	prevBind := bindPrepareLiquibaseInputsFn
-	bindPrepareLiquibaseInputsFn = func(cli.PrepareOptions, string, string, prepareArgs, *refctx.Context, string, string, bool) (prepareStageBinding, error) {
+	bindPrepareLiquibaseInputsFn = func(cli.PrepareOptions, string, string, prepareArgs, *refctx.Context, bool) (prepareStageBinding, error) {
 		t.Fatal("bindPrepareLiquibaseInputsFn should not be called")
 		return prepareStageBinding{}, nil
 	}

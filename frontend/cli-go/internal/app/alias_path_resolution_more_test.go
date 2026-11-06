@@ -17,8 +17,8 @@ func TestRebasePrepareAliasArgs(t *testing.T) {
 		t.Fatalf("rebasePrepareAliasArgs(psql) = %#v, want %#v", got, want)
 	}
 
-	got = rebasePrepareAliasArgs("lb", []string{"update", "--search-path", "migrations,classpath:db"}, aliasPath)
-	want = []string{"update", "--search-path", filepath.Join("workspace", "aliases", "migrations") + ",classpath:db"}
+	got = rebasePrepareAliasArgs("lb", []string{"update", "--search-path", "migrations,shared"}, aliasPath)
+	want = []string{"update", "--search-path", filepath.Join("workspace", "aliases", "migrations") + "," + filepath.Join("workspace", "aliases", "shared")}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("rebasePrepareAliasArgs(lb) = %#v, want %#v", got, want)
 	}
@@ -86,22 +86,22 @@ func TestRebaseLiquibasePathArgs(t *testing.T) {
 	got := rebaseLiquibasePathArgs([]string{
 		"update",
 		"--changelog-file", "migrations/changelog.xml",
-		"--defaults-file", "classpath:db/liquibase.properties",
+		"--defaults-file", "config/liquibase.properties",
 		"--searchPath", "migrations, shared",
-		"--changelog-file=https://example.com/changelog.xml",
+		"--changelog-file=other/changelog.xml",
 		"--defaults-file=defaults/liquibase.properties",
-		"--searchPath=one,https://example.com/db",
-		"--search-path=two,classpath:db",
+		"--searchPath=one,three",
+		"--search-path=two,four",
 	}, baseDir)
 	want := []string{
 		"update",
 		"--changelog-file", filepath.Join("workspace", "aliases", "migrations", "changelog.xml"),
-		"--defaults-file", "classpath:db/liquibase.properties",
+		"--defaults-file", filepath.Join("workspace", "aliases", "config", "liquibase.properties"),
 		"--searchPath", filepath.Join("workspace", "aliases", "migrations") + "," + filepath.Join("workspace", "aliases", "shared"),
-		"--changelog-file=https://example.com/changelog.xml",
+		"--changelog-file=" + filepath.Join("workspace", "aliases", "other", "changelog.xml"),
 		"--defaults-file=" + filepath.Join("workspace", "aliases", "defaults", "liquibase.properties"),
-		"--searchPath=" + filepath.Join("workspace", "aliases", "one") + ",https://example.com/db",
-		"--search-path=" + filepath.Join("workspace", "aliases", "two") + ",classpath:db",
+		"--searchPath=" + filepath.Join("workspace", "aliases", "one") + "," + filepath.Join("workspace", "aliases", "three"),
+		"--search-path=" + filepath.Join("workspace", "aliases", "two") + "," + filepath.Join("workspace", "aliases", "four"),
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("rebaseLiquibasePathArgs = %#v, want %#v", got, want)
@@ -123,8 +123,8 @@ func TestRebaseLiquibasePathArgs(t *testing.T) {
 func TestRebaseLiquibaseSearchPath(t *testing.T) {
 	baseDir := filepath.Join("workspace", "aliases")
 
-	got := rebaseLiquibaseSearchPath(" one , ,classpath:db,https://example.com/db,dir/two ", baseDir)
-	want := filepath.Join("workspace", "aliases", "one") + ",,classpath:db,https://example.com/db," + filepath.Join("workspace", "aliases", "dir", "two")
+	got := rebaseLiquibaseSearchPath(" one , ,dir/two ", baseDir)
+	want := filepath.Join("workspace", "aliases", "one") + ",," + filepath.Join("workspace", "aliases", "dir", "two")
 	if got != want {
 		t.Fatalf("rebaseLiquibaseSearchPath = %q, want %q", got, want)
 	}

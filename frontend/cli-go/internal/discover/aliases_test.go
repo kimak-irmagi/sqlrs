@@ -419,8 +419,8 @@ func TestAnalyzeAliasesSkipsUnrelatedBinaryArtifactsAndValidatesLiquibaseJar(t *
 	if finding.Type != alias.ClassPrepare || finding.Kind != "lb" {
 		t.Fatalf("unexpected binary Liquibase finding: %+v", finding)
 	}
-	if !finding.Valid {
-		t.Fatalf("expected binary Liquibase finding to be valid: %+v", finding)
+	if finding.Valid || !strings.Contains(finding.Error, "unsupported Liquibase changelog extension") {
+		t.Fatalf("expected unsupported binary changelog diagnostic: %+v", finding)
 	}
 	if finding.File != filepath.ToSlash(filepath.Join("liquibase", "master.jar")) {
 		t.Fatalf("unexpected binary Liquibase file: %+v", finding)
