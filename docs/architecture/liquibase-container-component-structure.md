@@ -64,6 +64,19 @@ ordinary-start and cancellation budgets. The test has not been changed and
 the latest full module run is not green.
 These are component results, not end-to-end acceptance of #89.
 
+### Approved follow-up: OT-MP02 and OT-MP03
+
+@evilguest approved both limited test changes on 2026-11-06; see the
+[fixture decision](../adr/2026-11-06-liquibase-main-path-test-fixtures.md).
+The updated three-JVM/incomplete-manifest/surviving-child test passed on
+Windows (30.83 s) and Linux UID 1001 (87.19 s). All 11 bounded-process cases
+passed three times on Windows and once on Linux, retaining the original
+cancellation, quota and cleanup constraints. The subsequent complete engine
+module passed. Neither production code nor production timeouts changed.
+
+These results supersede the two open fixture failures recorded at the
+foundation checkpoint, not the remaining integration/release gates.
+
 Coverage thresholds, complete current-branch regression, native multi-step
 execution/cache/cleanup and the agreed v1 performance comparison remain release
 gates. No roadmap item or issue is marked complete by this checkpoint.

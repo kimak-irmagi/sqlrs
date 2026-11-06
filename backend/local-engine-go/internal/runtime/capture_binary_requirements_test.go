@@ -105,7 +105,13 @@ func TestCaptureAccessBoundedBinaryRunner(t *testing.T) {
 			if !ok {
 				t.Fatal("approved bounded binary transport is not implemented; subprocess case not reached")
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			// OT-MP03 separates cold process startup from the targeted cancellation
+			// case; quotas and the seven-second cleanup bound remain unchanged.
+			budget := 5 * time.Second
+			if tc.mode == "stall" || tc.cancelled {
+				budget = time.Second
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), budget)
 			defer cancel()
 			if tc.cancelled {
 				cancel()
