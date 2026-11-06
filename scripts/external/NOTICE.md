@@ -1,5 +1,16 @@
 # Third-party SQL datasets (fetched on demand)
 
+## Engine dependencies
+
+### PostgreSQL JDBC driver
+
+Artifact: `org.postgresql:postgresql:42.7.13` (BSD-2-Clause).
+Source: [Maven Central](https://repo.maven.apache.org/maven2/org/postgresql/postgresql/42.7.13/).
+Upstream: [pgjdbc](https://github.com/pgjdbc/pgjdbc).
+The external-artifact manifest pins its SHA-256. Build and release scripts verify
+the fetched JAR and package it under `lib/postgresql-42.7.13.jar`; job execution
+does not download a substitute.
+
 ## Plain sql examples
 
 ### Chinook (PostgreSQL)

@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { ensureDir, run } from "./_lib.mjs";
+import { installJdbcDriver } from "./jdbc-driver-bundle.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,6 +100,11 @@ if (!isWindowsTarget(goos) && wslEngineBin) {
   throw new Error("--wsl-engine-bin is valid only for Windows release bundles.");
 }
 
+await run({
+  cmd: ["node", "scripts/fetch-sql-scripts.mjs", "--lock", "--source-prefix", "jdbc-postgresql-"],
+  cwd: repoRoot
+});
+
 const exeSuffix = isWindowsTarget(goos) ? ".exe" : "";
 
 const cliRoot = path.join(repoRoot, "frontend", "cli-go");
@@ -147,6 +153,7 @@ if (isWindowsTarget(goos)) {
 
 fs.copyFileSync(cliPath, path.join(stagingDir, `sqlrs${exeSuffix}`));
 fs.copyFileSync(engineOut, path.join(stagingDir, `sqlrs-engine${exeSuffix}`));
+installJdbcDriver(repoRoot, stagingDir);
 if (isWindowsTarget(goos)) {
   const wslEngineOut = path.join(stagingDir, "libexec", `linux-${goarch}`, "sqlrs-engine");
   ensureDir(path.dirname(wslEngineOut));

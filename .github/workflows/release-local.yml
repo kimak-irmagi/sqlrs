@@ -215,6 +215,12 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Install release dependency resolver
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.26.2 --activate
+          pnpm install --frozen-lockfile
+
       - name: Build engine (unix)
         if: runner.os != 'Windows'
         working-directory: backend/local-engine-go

@@ -1,5 +1,16 @@
 # Сторонние SQL-датасеты (загружаются по требованию)
 
+## Зависимости движка
+
+### Драйвер PostgreSQL JDBC
+
+Артефакт: `org.postgresql:postgresql:42.7.13` (BSD-2-Clause).
+Источник: [Maven Central](https://repo.maven.apache.org/maven2/org/postgresql/postgresql/42.7.13/).
+Исходный проект: [pgjdbc](https://github.com/pgjdbc/pgjdbc).
+В описании внешних артефактов закреплён SHA-256. Сценарии сборки и выпуска проверяют
+загруженный JAR и включают его как `lib/postgresql-42.7.13.jar`; выполнение задания
+не загружает замену.
+
 ## Примеры с обычным SQL
 
 ### Chinook (PostgreSQL)
