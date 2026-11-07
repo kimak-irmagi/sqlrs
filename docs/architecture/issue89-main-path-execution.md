@@ -60,8 +60,12 @@ The installation-only 96.41%/97.22% figures do not describe this larger journal;
 no whole-delivery 95% coverage or finished #89 is asserted here. The block union
 of the successful full Windows run and the successful native run of the same
 production code is 84.01% overall: prepare 87.04%, queue 63.80%, runtime 92.56%,
-engine startup 94.92%, access 95.63%. The 95% gate remains unresolved; a separate
-question explicitly asks how it applies after the #174 split. The largest
+engine startup 94.92%, access 95.63%. The user subsequently approved an explicit
+[#89-only exception](../adr/2026-11-07-issue89-coverage-exception.md): aggregate
+coverage remediation belongs to #174; green regressions and fulfilled functional/
+performance criteria remain mandatory. The shared CI threshold is unchanged.
+This resolves coverage as a #89 acceptance blocker, not the red CI result or
+merge authorization. The largest
 uncovered files are completion_session_disposal_journal.go (262 statements),
 completion_finalization_journal.go (173) and liquibase_normal_worker.go (156).
 Per-block reports/HTML are in the ignored engine coverage directory.

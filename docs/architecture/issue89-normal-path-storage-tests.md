@@ -1,7 +1,10 @@
 # #89: normal-path installation test inventory
 
 Status: NI01–NI08 approved by @evilguest on 2026-11-07; implemented and passing.
-Production execution and the coverage threshold remain open.
+Production execution is now connected; see the current
+[execution evidence](issue89-main-path-execution.md). The later explicit
+[#89 coverage exception](../adr/2026-11-07-issue89-coverage-exception.md) moves
+aggregate remediation to #174 without waiving regressions or performance.
 The [component boundary](issue89-normal-path-storage-extraction.md) was approved
 by @evilguest on 2026-11-07. This inventory covers that boundary only, preserving
 the previously approved MP01–MP07 normal-path requirements.
@@ -194,7 +197,9 @@ go tool cover -html=coverage/issue89-main-installation-full.out -o coverage/issu
 Keep separate Windows/Linux reports, require every proposed test name and
 counter, and run the unchanged CLI module regressions. Detailed uncovered-line
 analysis and any additional coverage iteration require the existing approval
-process; 95% is not waived. Native MP checks use their own explicit conditions,
+process. The later #89-only exception linked above supersedes the original
+blocking 95% acceptance requirement; #174 retains the target and shared CI
+thresholds are unchanged. Native MP checks use their own explicit conditions,
 not an implicit opt-in in these commands.
 
 ## Critical review, corrections and repeat review

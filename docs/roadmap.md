@@ -87,12 +87,14 @@ expanded journal package. Real normal-path planning/session/publication/pruning
 operations are connected to the production worker. Real Windows/Linux UID 1000
 checks pass the three-step flow, actual checkpoint/cache contents and normal
 cleanup; separate known-error/cancellation checks pass. WSL JDBC transfer and
-validation are connected. Full regressions still require the requested limited
-old-fixture updates; coverage and performance release gates remain open. See the
+validation are connected. Approved limited fixture updates are applied; complete
+local runs and all cross-platform regression jobs pass. The user explicitly
+granted #89 an aggregate-coverage exception, moving remediation to #174 without
+changing shared CI thresholds. Performance acceptance remains open. See the
 [execution checkpoint](architecture/issue89-main-path-execution.md).
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
-qualification, remaining coverage gates and the agreed repeated v1 performance
+qualification and the agreed repeated v1 performance
 comparison are still pending. Deferred recovery/SQLite/search work
 and broad coverage remain in #170–#174; their completion is not claimed here.
 
