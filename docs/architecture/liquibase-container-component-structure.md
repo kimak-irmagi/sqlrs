@@ -77,9 +77,11 @@ was approved: retain the exact referenced catalog, install final definitions
 directly, keep only the bounded released-baseline bridge, and do not activate
 deferred recovery or the common psql executor. NI01–NI08 were separately approved
 and the direct installer is implemented. Their Windows and Linux UID 1001 runs
-pass, including real COMMIT BUSY and rollback visibility. This establishes the
-installation boundary, not production planning/session integration or the 95%
-coverage gate.
+pass, including real COMMIT BUSY and rollback visibility. Approved IC01–IC05
+also pass on both platforms: complete-package block unions give managedstore
+96.41% and queue 97.22%, meeting 95% for those two packages. These installation
+results do not qualify production planning/session integration, other packages'
+coverage or the remaining release gates.
 
 ## Foundation checkpoint, 2026-11-06
 

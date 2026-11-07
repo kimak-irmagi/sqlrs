@@ -74,6 +74,19 @@ gantt
 
 ---
 
+## #89 installation checkpoint (2026-11-07)
+
+The normal-path Liquibase journal is installed directly from the approved final
+catalog, retaining only the exact released-baseline bridge. NI01–NI08 and
+IC01–IC05 pass on Windows and Linux UID 1001; complete-package block unions give
+managedstore 96.41% and queue 97.22%. The complete Windows engine module and vet
+pass. See [installation evidence](architecture/issue89-normal-path-storage-tests.md).
+
+This is local progress, not completed #89 or a merge. Production planning/session
+wiring, native prepare/cache/cleanup, remaining coverage gates and the agreed v1
+performance comparison are still pending. Deferred recovery/SQLite/search work
+and broad coverage remain in #170–#174; their completion is not claimed here.
+
 ## Status (as of 2026-10-21)
 
 - **Implemented locally; source CI/merge pending

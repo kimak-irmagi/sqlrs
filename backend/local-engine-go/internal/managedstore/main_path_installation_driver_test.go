@@ -27,6 +27,91 @@ type niSQLTrace struct {
 	cancelAfterWrite                                 context.CancelFunc
 	committed                                        bool
 	faultConsumed                                    bool
+	// Ordered faults are exclusive to IC01–IC05. The original NI fault mode
+	// remains unchanged when this list is empty; no product hook is added.
+	faults    []niOrderedFault
+	nextFault int
+}
+
+// niOrderedFault observes a real SQL boundary. Skip counts matching calls,
+// never changes returned rows/counts, and permits named before/after effects.
+type niOrderedFault struct {
+	kind, needle, when          string
+	exact                       bool
+	skip, minBegins             int
+	requireWrite, requireCommit bool
+	err                         error
+}
+
+func (s *niSQLTrace) injected(kind, query, when string) error {
+	s.mu.Lock()
+	if s.nextFault < len(s.faults) {
+		f := &s.faults[s.nextFault]
+		matches := strings.Contains(query, f.needle)
+		if f.exact {
+			matches = query == f.needle
+		}
+		if f.kind == kind && f.when == when && matches && s.begins >= f.minBegins &&
+			(!f.requireWrite || s.writeAttempts > 0) && (!f.requireCommit || s.committed) {
+			if f.skip > 0 {
+				f.skip--
+			} else {
+				err := f.err
+				if err == nil {
+					err = errNIInjected
+				}
+				s.nextFault++
+				s.hitCount++
+				s.mu.Unlock()
+				return err
+			}
+		}
+	}
+	s.mu.Unlock()
+	if s.refuse(kind, query, when) {
+		return errNIInjected
+	}
+	return nil
+}
+
+func (s *niSQLTrace) wrapRows(query string, rows driver.Rows, err error) (driver.Rows, error) {
+	if err != nil {
+		return rows, err
+	}
+	s.mu.Lock()
+	observeRows := false
+	for _, f := range s.faults {
+		if f.kind == "rows" && strings.Contains(query, f.needle) {
+			observeRows = true
+			break
+		}
+	}
+	s.mu.Unlock()
+	if !observeRows {
+		return rows, nil
+	}
+	return &niObservedRows{Rows: rows, query: query, trace: s}, nil
+}
+
+// niObservedRows keeps the real columns/values. Only an approved stream error
+// is injected; this is not a synthetic Scan error or a fake catalog row.
+type niObservedRows struct {
+	driver.Rows
+	query string
+	trace *niSQLTrace
+}
+
+func (r *niObservedRows) Next(values []driver.Value) error {
+	if err := r.trace.injected("rows", r.query, "before"); err != nil {
+		return err
+	}
+	err := r.Rows.Next(values)
+	if err == nil {
+		if fault := r.trace.injected("rows", r.query, "after"); fault != nil {
+			return fault
+		}
+	}
+	return err
 }
 
 func (s *niSQLTrace) mutations() int { s.mu.Lock(); defer s.mu.Unlock(); return s.writeAttempts }
@@ -129,8 +214,8 @@ func (c *niDriverConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driv
 	c.trace.mu.Lock()
 	c.trace.begins++
 	c.trace.mu.Unlock()
-	if c.trace.refuse("begin", "", "before") {
-		return nil, errNIInjected
+	if err := c.trace.injected("begin", "", "before"); err != nil {
+		return nil, err
 	}
 	var tx driver.Tx
 	var err error
@@ -167,15 +252,17 @@ func (c *niDriverConn) ExecContext(ctx context.Context, query string, args []dri
 		return nil, driver.ErrSkip
 	}
 	c.trace.observe("exec", query)
-	if c.trace.refuse("exec", query, "before") {
-		return nil, errNIInjected
+	if err := c.trace.injected("exec", query, "before"); err != nil {
+		return nil, err
 	}
 	result, err := execer.ExecContext(ctx, query, args)
 	if err == nil {
 		c.trace.afterWrite(query)
 	}
-	if err == nil && c.trace.refuse("exec", query, "after") {
-		return nil, errNIInjected
+	if err == nil {
+		if fault := c.trace.injected("exec", query, "after"); fault != nil {
+			return nil, fault
+		}
 	}
 	return result, err
 }
@@ -185,10 +272,11 @@ func (c *niDriverConn) QueryContext(ctx context.Context, query string, args []dr
 		return nil, driver.ErrSkip
 	}
 	c.trace.observe("query", query)
-	if c.trace.refuse("query", query, "before") {
-		return nil, errNIInjected
+	if err := c.trace.injected("query", query, "before"); err != nil {
+		return nil, err
 	}
-	return queryer.QueryContext(ctx, query, args)
+	rows, err := queryer.QueryContext(ctx, query, args)
+	return c.trace.wrapRows(query, rows, err)
 }
 func (c *niDriverConn) ResetSession(ctx context.Context) error {
 	if r, ok := c.Conn.(driver.SessionResetter); ok {
@@ -212,8 +300,8 @@ func (tx *niDriverTx) Commit() error {
 	tx.trace.mu.Lock()
 	tx.trace.commits++
 	tx.trace.mu.Unlock()
-	if tx.trace.refuse("commit", "", "before") {
-		return errNIInjected
+	if err := tx.trace.injected("commit", "", "before"); err != nil {
+		return err
 	}
 	err := tx.Tx.Commit()
 	code := 0
@@ -240,6 +328,16 @@ func (tx *niDriverTx) Commit() error {
 	return err
 }
 
+func (tx *niDriverTx) Rollback() error {
+	if err := tx.trace.injected("rollback", "", "before"); err != nil {
+		return err
+	}
+	if err := tx.Tx.Rollback(); err != nil {
+		return err
+	}
+	return tx.trace.injected("rollback", "", "after")
+}
+
 type niDriverStmt struct {
 	driver.Stmt
 	query string
@@ -248,37 +346,42 @@ type niDriverStmt struct {
 
 func (s *niDriverStmt) Exec(args []driver.Value) (driver.Result, error) {
 	s.trace.observe("exec", s.query)
-	if s.trace.refuse("exec", s.query, "before") {
-		return nil, errNIInjected
+	if err := s.trace.injected("exec", s.query, "before"); err != nil {
+		return nil, err
 	}
 	result, err := s.Stmt.Exec(args)
 	if err == nil {
 		s.trace.afterWrite(s.query)
 	}
-	if err == nil && s.trace.refuse("exec", s.query, "after") {
-		return nil, errNIInjected
+	if err == nil {
+		if fault := s.trace.injected("exec", s.query, "after"); fault != nil {
+			return nil, fault
+		}
 	}
 	return result, err
 }
 func (s *niDriverStmt) Query(args []driver.Value) (driver.Rows, error) {
 	s.trace.observe("query", s.query)
-	if s.trace.refuse("query", s.query, "before") {
-		return nil, errNIInjected
+	if err := s.trace.injected("query", s.query, "before"); err != nil {
+		return nil, err
 	}
-	return s.Stmt.Query(args)
+	rows, err := s.Stmt.Query(args)
+	return s.trace.wrapRows(s.query, rows, err)
 }
 func (s *niDriverStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
 	if e, ok := s.Stmt.(driver.StmtExecContext); ok {
 		s.trace.observe("exec", s.query)
-		if s.trace.refuse("exec", s.query, "before") {
-			return nil, errNIInjected
+		if err := s.trace.injected("exec", s.query, "before"); err != nil {
+			return nil, err
 		}
 		result, err := e.ExecContext(ctx, args)
 		if err == nil {
 			s.trace.afterWrite(s.query)
 		}
-		if err == nil && s.trace.refuse("exec", s.query, "after") {
-			return nil, errNIInjected
+		if err == nil {
+			if fault := s.trace.injected("exec", s.query, "after"); fault != nil {
+				return nil, fault
+			}
 		}
 		return result, err
 	}
@@ -291,10 +394,11 @@ func (s *niDriverStmt) ExecContext(ctx context.Context, args []driver.NamedValue
 func (s *niDriverStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	if q, ok := s.Stmt.(driver.StmtQueryContext); ok {
 		s.trace.observe("query", s.query)
-		if s.trace.refuse("query", s.query, "before") {
-			return nil, errNIInjected
+		if err := s.trace.injected("query", s.query, "before"); err != nil {
+			return nil, err
 		}
-		return q.QueryContext(ctx, args)
+		rows, err := q.QueryContext(ctx, args)
+		return s.trace.wrapRows(s.query, rows, err)
 	}
 	values := make([]driver.Value, len(args))
 	for i, v := range args {

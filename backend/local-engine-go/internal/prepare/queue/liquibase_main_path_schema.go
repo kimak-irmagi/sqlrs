@@ -314,6 +314,9 @@ func bridgeMainPathJobs(ctx context.Context, tx *sql.Tx, actual map[string]mainP
 // VerifyLiquibaseMainPathSchema never installs or repairs. It rechecks the
 // actual catalog, singleton component versions and actual FK relationships.
 func VerifyLiquibaseMainPathSchema(ctx context.Context, tx *sql.Tx) error {
+	if tx == nil {
+		return ErrLiquibaseMainPathSchema
+	}
 	artifact, err := loadMainPathArtifact(ctx)
 	if err != nil {
 		return err

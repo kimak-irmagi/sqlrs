@@ -246,10 +246,10 @@ managedstore has 23 uncovered statements of 167 (86.23%); queue has 40 of 574
 (93.03%) after that preflight correction. These are unioned block counters, not an average of per-test percentages.
 Neither exceeds 95%; neither proves production Liquibase execution.
 
-## Proposed bounded coverage iteration IC01–IC05
+## Approved bounded coverage iteration IC01–IC05
 
-Status: proposed, not approved or implemented. No additional recovery delivery
-or broad old queue coverage is authorized by this proposal.
+Status: approved by @evilguest on 2026-11-07; implemented and verified.
+No additional recovery delivery or broad old queue coverage is authorized.
 
 Uncovered-line reports are the two profiles above and their adjacent HTML files.
 The shared profile includes the final unmarked-namespace correction.
@@ -274,3 +274,66 @@ Repeat review also corrected the original IC05 wording: a driver cannot directly
 inject sql.Rows.Scan failure while transparently preserving the returned values.
 The proposal now tests the reachable stream error and audits Scan reachability
 separately. No remaining P0–P2 was found in the corrected bounded proposal.
+
+### IC results and repeat review, 2026-11-07
+
+The four new tests in main_path_installation_coverage_test.go implement all five
+groups: DirectBoundaries (9 cases plus reference cancellation), DirectCatalogue
+(7 cases, each exercising install and verify), ObservedRefusals (25 cases,
+including IC05's real stream refusal), and CleanupProof (6 cases). The ordered
+observer is per test database, preserves real SQL values/effects and leaves the
+original NI fault mode unchanged. No old test assertion/fixture was changed.
+
+IC01 first reproduced a panic in VerifyLiquibaseMainPathSchema with a nil
+transaction. The only product change is a three-line refusal guard. No API,
+schema, recovery authority, queue executor or physical cleanup rule changed.
+
+Complete managedstore/queue suites pass on Windows and Linux UID 1001, as do
+the final strengthened IC assertions on both platforms. The complete Windows
+engine module and vet pass. The ordinary full profile is
+coverage/issue89-ic-windows-full.out. Linux runs execute the real native test
+binaries, not only cross-compilation; no Docker/izess is needed by these tests.
+
+| Package | Before IC | After IC, Windows | After IC, Linux UID 1001 |
+| --- | --- | --- | --- |
+| managedstore | 144/167 = 86.23% | 161/167 = 96.41% | 161/167 = 96.41% |
+| prepare/queue | 534/574 = 93.03% | 560/576 = 97.22% | 560/576 = 97.22% |
+
+Both packages meet the accepted 95% minimum; 100% is not claimed. These are
+complete-package block unions with real cross-package calls, not averages of
+per-test percentages or the percentage of a selected helper. The two extra
+queue statements are the new nil guard. Ordinary queue-only coverage remains
+86.3% because its startup checks execute in managedstore's suite; the ordinary
+engine module and other packages do not inherit the two union percentages.
+
+Windows sources: coverage/issue89-ic-windows-combined.out; Linux sources:
+coverage/issue89-ic-linux-managedstore.out and issue89-ic-linux-queue.out.
+Deduplicate identical file/start/end/statement blocks, taking the set union of
+positive counters within each platform. Normalized union profiles and per-line
+HTML reports are coverage/issue89-ic-{windows,linux}-union.{out,html}.
+
+Remaining blocks, retained rather than hidden or deleted:
+
+- main_path_startup.go: 5 statements, ranges 29–31, 46–48, 73–75, 137–139,
+  208–210; guards/invariants and cancellation timing. Repeated quarantine and
+  sql.Conn.Close's extra error branch remain removal candidates only, not an
+  approved removal or an excuse to fabricate driver behavior.
+- managedstore/store.go: 1 statement, 48–50. Go 1.25.5's Rows.scanLocked checks
+  cancellation-driven closure between Next and Scan, so this error path is not
+  proved dead. It remains protected; IC05 tests the deterministic stream error
+  without substituting impossible catalog values or adding a product seam.
+- liquibase_main_path_schema.go: 3 statements, 57–59, 219–221, 283–285:
+  malformed embedded metadata, an object differing after earlier exact checks,
+  and a copied-row comparison invariant. Frozen artifacts are not corrupted by
+  tests merely to force those branches.
+- Existing queue code: 13 statements (managed_schema.go:22–24 and
+  sqlite_store.go:192–194, 200–202, 233–235, 243–245, 268–270, 300–302, 317–319,
+  411–413, 433–435, 458–460, 477–479, 497–499). No claims of new qualification
+  or deletion of these older paths are made.
+
+Repeat review strengthened exact-connection exclusion, zero mutation attempts
+on preflight failures, and independent primary/rollback/cleanup error identity.
+Valid controls, same-handle checks before Close, independent committed visibility
+and two physical reopens pass. No unresolved P0–P2 was found in this iteration.
+The native production prepare/cache/cleanup and performance gates of MP05–MP07
+remain open; IC completion does not close #89 or deferred issues #170–#174.
