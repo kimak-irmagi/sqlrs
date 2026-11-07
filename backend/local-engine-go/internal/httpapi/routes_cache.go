@@ -66,5 +66,10 @@ func (routes cacheRoutes) handleExplainPrepare(w http.ResponseWriter, r *http.Re
 		_ = writeError(w, *resp, status)
 		return
 	}
+	if result.Accepted != nil {
+		w.Header().Set("Location", result.Accepted.StatusURL)
+		_ = writeJSONStatus(w, *result.Accepted, http.StatusAccepted)
+		return
+	}
 	_ = writeJSON(w, result)
 }

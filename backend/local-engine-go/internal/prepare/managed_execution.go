@@ -15,6 +15,7 @@ import (
 	"github.com/sqlrs/engine-local/internal/dbms"
 	"github.com/sqlrs/engine-local/internal/instanceaccess"
 	"github.com/sqlrs/engine-local/internal/managedidentity"
+	"github.com/sqlrs/engine-local/internal/prepare/queue"
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
 	"github.com/sqlrs/engine-local/internal/store"
 )
@@ -32,6 +33,13 @@ func managedOperationRef(parts ...string) string {
 // provenance. Partial/unowned targets fail closed without destructive reset.
 // See managed-database-identity-internals.md, atomicity and recovery.
 func (e *taskExecutor) startManagedRuntime(ctx context.Context, jobID string, prepared preparedRequest, input *TaskInput) (*jobRuntime, *ErrorResponse) {
+	return e.startManagedRuntimeWithPlan(ctx, jobID, prepared, input, nil)
+}
+
+// startManagedRuntimeWithPlan honors the already committed clone/name intent.
+// The nil-plan path retains the existing psql behavior. A tracked start failure
+// retains its files for exact reconciliation instead of deleting a possible DB.
+func (e *taskExecutor) startManagedRuntimeWithPlan(ctx context.Context, jobID string, prepared preparedRequest, input *TaskInput, plan *queue.ClonePlan) (*jobRuntime, *ErrorResponse) {
 	m := e.m
 	fail := func(err error) (*jobRuntime, *ErrorResponse) {
 		return nil, errorResponse("internal_error", "managed runtime unavailable", err.Error())
@@ -112,6 +120,11 @@ func (e *taskExecutor) startManagedRuntime(ctx context.Context, jobID string, pr
 	}
 	opRef := "runtime_" + managedOperationRef(m.stateStoreRoot, jobID, input.Kind, input.ID)
 	target := filepath.Join(m.stateStoreRoot, "jobs", jobID, opRef)
+	if plan != nil {
+		if plan.Ref != filepath.ToSlash(filepath.Join("jobs", jobID, opRef)) || plan.ID == "" || plan.PlannedRuntimeName == "" || plan.SourceKind != input.Kind || input.Kind == "image" && plan.SourceImageID != input.ID || input.Kind == "state" && plan.SourceStateID != input.ID {
+			return fail(instanceaccess.ErrConflict)
+		}
+	}
 	op, err := m.access.Assign(ctx, opRef, target, input.ID, prepared.managed.IdentityBinding)
 	if err != nil {
 		return fail(err)
@@ -134,9 +147,15 @@ func (e *taskExecutor) startManagedRuntime(ctx context.Context, jobID string, pr
 		_ = clone.Cleanup()
 		return fail(err)
 	}
-	instance, err := rt.StartManaged(ctx, engineRuntime.ManagedStartRequest{StartRequest: engineRuntime.StartRequest{ImageID: image, DataDir: clone.MountDir, Name: "sqlrs-managed-" + op.PhysicalIdentity, Mounts: runtimeMountsFrom(mount)}, Identity: prepared.managed.IdentityBinding, PhysicalIdentity: op.PhysicalIdentity})
+	runtimeName := "sqlrs-managed-" + op.PhysicalIdentity
+	if plan != nil {
+		runtimeName = plan.PlannedRuntimeName
+	}
+	instance, err := rt.StartManaged(ctx, engineRuntime.ManagedStartRequest{StartRequest: engineRuntime.StartRequest{ImageID: image, DataDir: clone.MountDir, Name: runtimeName, Mounts: runtimeMountsFrom(mount)}, Identity: prepared.managed.IdentityBinding, PhysicalIdentity: op.PhysicalIdentity})
 	if err != nil {
-		_ = clone.Cleanup()
+		if plan == nil {
+			_ = clone.Cleanup()
+		}
 		return fail(err)
 	}
 	owned := &jobRuntime{instance: instance, dataDir: clone.MountDir, runtimeDir: target, cleanup: clone.Cleanup, scriptMount: mount, operation: op, bootstrap: &bootstrap}

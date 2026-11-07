@@ -2,7 +2,8 @@
 
 Status: component amendment approved by @evilguest on 2026-11-07;
 NI01–NI08 were separately approved on the same date and the direct installer is
-implemented. Production session wiring and release qualification remain pending. This is a
+implemented. Production session wiring is connected; see the
+[execution checkpoint](issue89-main-path-execution.md). Release qualification remains pending. This is a
 delivery-boundary decision, not a change to the public CLI/API, resource-ownership
 rules, private/v2 protocol, or approved physical table/trigger definitions.
 

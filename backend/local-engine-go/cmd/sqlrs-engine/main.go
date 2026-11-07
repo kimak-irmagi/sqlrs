@@ -34,10 +34,13 @@ import (
 	"github.com/sqlrs/engine-local/internal/managedidentity"
 	"github.com/sqlrs/engine-local/internal/managedstore"
 	"github.com/sqlrs/engine-local/internal/prepare"
+	"github.com/sqlrs/engine-local/internal/prepare/driverbundle"
+	"github.com/sqlrs/engine-local/internal/prepare/inputbundle"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
 	"github.com/sqlrs/engine-local/internal/registry"
 	runpkg "github.com/sqlrs/engine-local/internal/run"
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
+	"github.com/sqlrs/engine-local/internal/sqliteconn"
 	"github.com/sqlrs/engine-local/internal/statefs"
 	"github.com/sqlrs/engine-local/internal/store/sqlite"
 )
@@ -372,7 +375,7 @@ var openDBFn = func(path string) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
 	}
-	return sql.Open("sqlite", path)
+	return sqliteconn.Open(path)
 }
 var newStoreFn = sqlite.New
 var newQueueFn = queue.New
@@ -504,7 +507,11 @@ func run(args []string) (int, error) {
 		return 1, fmt.Errorf("open protected access store: %w", err)
 	}
 	defer secrets.Close()
-	access, err := instanceaccess.NewService(db, secrets, format.DomainRef)
+	queueStore, err := newQueueFn(db)
+	if err != nil {
+		return 1, fmt.Errorf("open queue db: %v", err)
+	}
+	access, err := instanceaccess.NewServiceWithPublicationPins(db, secrets, format.DomainRef, queueStore)
 	if err != nil {
 		return 1, err
 	}
@@ -521,11 +528,6 @@ func run(args []string) (int, error) {
 	identityOwner, err := managedidentity.NewOwner(identityService, format.DomainRef, hex.EncodeToString(initDigest[:]))
 	if err != nil {
 		return 1, err
-	}
-
-	queueStore, err := newQueueFn(db)
-	if err != nil {
-		return 1, fmt.Errorf("open queue db: %v", err)
 	}
 
 	state := EngineState{
@@ -552,7 +554,17 @@ func run(args []string) (int, error) {
 	connector := dbms.NewPostgres(rt, dbms.WithLogLevel(func() string {
 		return logLevelFromConfig(configMgr)
 	}))
+	executable, err := os.Executable()
+	if err != nil {
+		return 1, fmt.Errorf("locate engine dependency bundle: %w", err)
+	}
 	prepareSvc, err := newPrepareServiceFn(prepare.Options{
+		ContainerLiquibase: &prepare.LiquibaseContainerDeps{
+			Images: engineRuntime.NewRunnerImageResolver(nil), Runtime: rt,
+			Sources:          inputbundle.Store{Root: filepath.Join(stateStoreRoot, "liquibase-artifacts")},
+			Drivers:          driverbundle.New(filepath.Join(stateStoreRoot, "liquibase-drivers"), executable),
+			MaterializedRoot: filepath.Join(stateStoreRoot, "liquibase-projections"),
+		},
 		Identity:       identityOwner,
 		Access:         access,
 		Store:          store,

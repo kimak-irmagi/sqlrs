@@ -4,6 +4,9 @@ This is the bounded #89 view of the previously approved container design,
 following the delivery split accepted by @evilguest on 2026-11-06. It does not
 introduce a new recovery policy or storage schema.
 
+Current status: [connected normal execution](issue89-main-path-execution.md).
+The foundation/journal checkpoints below are historical, not the current wiring.
+
 ## Ownership and boundaries
 
 | Component | Responsibility | Owned data |

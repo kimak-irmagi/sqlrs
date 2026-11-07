@@ -13,6 +13,13 @@ Current API surface includes:
 The engine owns local prepare planning/execution, state snapshotting, instance
 lifecycle, config persistence, and deletion flows.
 
+Liquibase production jobs use the engine-owned Docker runner, not a host Java
+installation. Build the complete bundle with `node scripts/build-engine-go.mjs`
+from the repository root to include the checksum-locked JDBC dependency under
+`lib/` beside the executable. A bare `go build` does not package that dependency.
+See [normal execution](../../docs/architecture/issue89-main-path-execution.md)
+for supported inputs, cleanup and the deferred automatic-recovery boundary.
+
 See also:
 
 - `../../docs/architecture/engine-internals.md`
