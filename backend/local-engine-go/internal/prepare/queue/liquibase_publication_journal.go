@@ -206,7 +206,8 @@ func (s *SQLiteStore) RequestLiquibaseSessionDBRestart(ctx context.Context, sess
 		return ErrCommonAttempt
 	}
 	result, err := s.db.ExecContext(ctx, `UPDATE prepare_liquibase_sessions SET db_phase='restart_requested'
-WHERE `+liquibaseSessionIdentityPredicate+` AND runner_id=? AND runner_phase='running'
+WHERE `+liquibaseSessionIdentityPredicate+` AND runner_id=?
+AND (runner_phase='running' OR (`+finalPublicationResumeSQL+`))
 AND db_phase IN ('stopped','restart_requested') AND retired_at IS NULL
 AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_cache_restores r WHERE r.session_id=prepare_liquibase_sessions.session_id AND r.restore_phase NOT IN ('published','abandoned'))
 AND NOT EXISTS (SELECT 1 FROM prepare_step_attempts a WHERE a.clone_id=prepare_liquibase_sessions.clone_id AND a.resolution IS NULL)`,
@@ -231,7 +232,8 @@ func (s *SQLiteStore) MarkLiquibaseSessionDBReady(ctx context.Context, session L
 	defer tx.Rollback()
 	var eligible int
 	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM prepare_liquibase_sessions WHERE `+liquibaseSessionIdentityPredicate+`
-AND runner_id=? AND runner_phase='running' AND db_phase IN ('restart_requested','running') AND retired_at IS NULL`,
+AND runner_id=? AND (runner_phase='running' OR (`+finalPublicationResumeSQL+`))
+AND db_phase IN ('restart_requested','running') AND retired_at IS NULL`,
 		append(sessionIdentityArgs(session), session.RunnerID)...).Scan(&eligible); err != nil || eligible != 1 {
 		return ErrCommonAttempt
 	}
@@ -247,3 +249,17 @@ AND db_phase IN ('restart_requested','running') AND retired_at IS NULL`, session
 	}
 	return tx.Commit()
 }
+
+// A stopped parent can resume PostgreSQL only to publish its complete suffix;
+// the invocation guards still forbid session_exec. Handoff schema §3 / WH04.
+const finalPublicationResumeSQL = `runner_phase='stopped' AND cursor_state_id IS NOT NULL
+AND EXISTS (SELECT 1 FROM prepare_tasks final_task WHERE final_task.job_id=prepare_liquibase_sessions.job_id
+ AND final_task.type='state_execute' AND final_task.status='succeeded'
+ AND final_task.output_state_id=prepare_liquibase_sessions.cursor_state_id
+ AND final_task.position=prepare_liquibase_sessions.cursor_position-1)
+AND NOT EXISTS (SELECT 1 FROM prepare_tasks pending WHERE pending.job_id=prepare_liquibase_sessions.job_id
+ AND pending.type='state_execute' AND pending.status<>'succeeded')
+AND NOT EXISTS (SELECT 1 FROM prepare_step_attempts pending WHERE pending.clone_id=prepare_liquibase_sessions.clone_id
+ AND (pending.phase<>'closed' OR pending.resolution IS NOT 'published'))
+AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_job_cancellations cancel WHERE cancel.job_id=prepare_liquibase_sessions.job_id)
+AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_job_finalizations final WHERE final.job_id=prepare_liquibase_sessions.job_id)`

@@ -1,9 +1,11 @@
 # #89: working-instance handoff tests
 
-Status: proposed after critical and repeat review; user approval pending.
+Status: WH01–WH09 and the limited OT-WH01–OT-WH03 changes approved by
+@evilguest on 2026-11-07 after critical and repeat review. Implementation and
+verification are in progress; this is not a completed WH01–WH09 acceptance claim.
 The [components](issue89-working-instance-handoff-design.md) and
 [schema](issue89-working-instance-handoff-schema.md) are approved. This document
-does not authorize new tests, product changes or old-test edits by itself.
+records that explicit approval; additional old-test changes still need approval.
 
 ## Scope and evidence
 
@@ -221,3 +223,43 @@ skipped or weakened. Any additional contradiction requires a separate decision.
 
 Repeat review found no remaining P0–P2 contradiction within this bounded plan.
 This is a design review, not executed test evidence or release acceptance.
+
+## Implementation checkpoint, 2026-11-07
+
+New schema/physical-reopen/damage tests pass, as do exact-authority variants,
+deferred outcome COMMIT refusal, nullable-shape/immutability checks, real COMMIT
+BUSY/rollback, ten lost-reply/full-transfer-readback cases, cancellation after
+the real instance INSERT, private-parent refusal, retirement and terminal
+history after ordinary metadata deletion. The authority audit additionally
+found and fixed acceptance of a mismatched session start kind/position, number
+and creation time; each now has a reproducing negative control. Strict final
+proof still rejects pending private owners; only publication exempts its exact
+transferred session. The unused old normal destroy/recreate coordinator helper
+was removed; ordinary failure/cancellation disposal and queue APIs remain.
+
+The existing strengthened native main test passed at the implementation
+checkpoint: Windows 278.28 s, Linux/amd64 in Ubuntu as UID 1000 140.15 s. Both
+cover the three-step run, exact hit, plan/explanation, independently restored
+prefixes and one new suffix step, with the published ID equal to the last
+working DB and cleanup checked before fallback. These are functional test times,
+not a benchmark comparison or qualification of subsequent source edits.
+The cleared-PGDATA Windows run also passed the separate known-failure and
+cancellation tests. A first attempt inherited an unrelated application PGDATA
+and correctly refused native access; only the child test process environment
+was cleared. A later concurrent run timed out in plan-only and fallback; the
+isolated complete main rerun above passed without test/timeout changes.
+
+The complete client module passed. The engine run passed every package except
+the existing startup idle-request timing test; that test subsequently passed
+three isolated repetitions unchanged. The earlier full-run profile totals
+75.0%, not a current all-green acceptance profile; the approved #89 exception
+still applies. Engine vet passed at the checkpoint. No test-owned sqlrs Docker
+containers remained after the native runs; unrelated containers were untouched.
+
+WH06's new real queue test and Docker job-deletion test remain **red** on the
+shared decision-evidence cascade guard. The proposed bounded correction in
+[schema §4](issue89-working-instance-handoff-schema.md) awaits separate approval;
+no guard bypass, skipped assertion or old-test weakening was applied. Remaining
+WH02–WH07 negative/order checks, final all-current-source regressions/CI and
+the unchanged real-v1 speed qualification are still required. This checkpoint
+does not close #89 or make PR #175 ready.

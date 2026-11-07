@@ -33,27 +33,30 @@ func scanFailureOwnerRows(ctx context.Context, tx *sql.Tx, query string, job str
 // job outcome. The SQL guards own reason-specific authority and its lifetime.
 // Requirements: liquibase-private-capture-storage-schema.md §§3.3–3.4.
 type privateSessionDisposal struct {
-	reason, authority, requested, runner, database                      string
-	dbAbsent, runnerAbsent                                              sql.NullString
-	nonstartBasis, nonstartScope, nonstartObservation, nonstartObserved sql.NullString
+	reason, authority, requested, runner, database                                         string
+	dbAbsent, runnerAbsent                                                                 sql.NullString
+	nonstartBasis, nonstartScope, nonstartObservation, nonstartObserved                    sql.NullString
+	handoffJob, handoffInstance, handoffState, handoffOperation, handoffDir, handoffDigest sql.NullString
 }
 
 // readPrivateSessionDisposal binds saved physical ownership to the complete
 // immutable session and clone, not just a caller-supplied session ID.
 func readPrivateSessionDisposal(ctx context.Context, reader privateReadinessReader, session LiquibaseSessionRecord) (privateSessionDisposal, error) {
 	var d privateSessionDisposal
-	err := reader.QueryRowContext(ctx, `SELECT d.reason,d.authority_ref,d.requested_at,d.runner_id,d.db_runtime_id,d.db_absent_at,d.runner_absent_at,d.nonstart_basis,d.nonstart_scope_digest,d.nonstart_observation_digest,d.nonstart_observed_at
+	err := reader.QueryRowContext(ctx, `SELECT d.reason,d.authority_ref,d.requested_at,d.runner_id,d.db_runtime_id,d.db_absent_at,d.runner_absent_at,d.nonstart_basis,d.nonstart_scope_digest,d.nonstart_observation_digest,d.nonstart_observed_at,
+d.handoff_job_id,d.handoff_instance_id,d.handoff_state_id,d.handoff_operation_ref,d.handoff_runtime_dir,d.handoff_outcome_digest
 FROM prepare_liquibase_session_disposals d JOIN prepare_liquibase_sessions ON prepare_liquibase_sessions.session_id=d.session_id
 JOIN prepare_clones clone ON clone.clone_id=prepare_liquibase_sessions.clone_id AND clone.job_id=prepare_liquibase_sessions.job_id
 WHERE prepare_liquibase_sessions.session_id IN (SELECT session_id FROM prepare_liquibase_sessions WHERE `+liquibaseSessionIdentityPredicate+`) AND prepare_liquibase_sessions.runner_id=?
 AND d.runner_id=prepare_liquibase_sessions.runner_id AND d.db_runtime_id=clone.db_runtime_id
 AND prepare_liquibase_sessions.capture_location='container_private' AND prepare_liquibase_sessions.capture_protocol_revision='lb-step-capture-v2'`,
-		append(sessionIdentityArgs(session), session.RunnerID)...).Scan(&d.reason, &d.authority, &d.requested, &d.runner, &d.database, &d.dbAbsent, &d.runnerAbsent, &d.nonstartBasis, &d.nonstartScope, &d.nonstartObservation, &d.nonstartObserved)
+		append(sessionIdentityArgs(session), session.RunnerID)...).Scan(&d.reason, &d.authority, &d.requested, &d.runner, &d.database, &d.dbAbsent, &d.runnerAbsent, &d.nonstartBasis, &d.nonstartScope, &d.nonstartObservation, &d.nonstartObserved,
+		&d.handoffJob, &d.handoffInstance, &d.handoffState, &d.handoffOperation, &d.handoffDir, &d.handoffDigest)
 	if err != nil {
 		return privateSessionDisposal{}, err
 	}
 	if !validFinalizationUTC(d.requested) || !dockerContainerID.MatchString(d.runner) || !dockerContainerID.MatchString(d.database) ||
-		d.dbAbsent.Valid && !validFinalizationUTC(d.dbAbsent.String) || d.runnerAbsent.Valid && (!d.dbAbsent.Valid || !validFinalizationUTC(d.runnerAbsent.String)) {
+		d.dbAbsent.Valid && !validFinalizationUTC(d.dbAbsent.String) || d.runnerAbsent.Valid && (d.reason != "instance_transferred" && !d.dbAbsent.Valid || !validFinalizationUTC(d.runnerAbsent.String)) {
 		return privateSessionDisposal{}, ErrCommonAttempt
 	}
 	if d.reason == "proven_nonstart" {
@@ -64,6 +67,14 @@ AND prepare_liquibase_sessions.capture_location='container_private' AND prepare_
 			return privateSessionDisposal{}, ErrCommonAttempt
 		}
 	} else if d.nonstartBasis.Valid || d.nonstartScope.Valid || d.nonstartObservation.Valid || d.nonstartObserved.Valid {
+		return privateSessionDisposal{}, ErrCommonAttempt
+	}
+	for _, field := range []sql.NullString{d.handoffJob, d.handoffInstance, d.handoffState, d.handoffOperation, d.handoffDir, d.handoffDigest} {
+		if d.reason == "instance_transferred" && (!field.Valid || field.String == "") || d.reason != "instance_transferred" && field.Valid {
+			return privateSessionDisposal{}, ErrCommonAttempt
+		}
+	}
+	if d.reason == "instance_transferred" && (d.dbAbsent.Valid || d.handoffJob.String != session.JobID || !bindingDigest.MatchString(d.handoffDigest.String) || d.authority != d.handoffDigest.String) {
 		return privateSessionDisposal{}, ErrCommonAttempt
 	}
 	return d, nil

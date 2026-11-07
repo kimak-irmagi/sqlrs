@@ -2387,6 +2387,25 @@ func (m *PrepareService) removeJobDir(jobID string) error {
 		return nil
 	}
 	path := filepath.Join(m.stateStoreRoot, "jobs", jobID)
+	// A transferred working runtime keeps its original job-shaped pathname.
+	// Job deletion removes history, never instance-owned live data. Fail closed
+	// on a metadata read error. Handoff design/WH06; instance deletion owns the
+	// runtime directory even after the originating job has been deleted.
+	if m.store != nil {
+		instances, err := m.store.ListInstances(context.Background(), store.InstanceFilters{})
+		if err != nil {
+			return err
+		}
+		for _, instance := range instances {
+			if instance.RuntimeDir == nil {
+				continue
+			}
+			rel, err := filepath.Rel(path, *instance.RuntimeDir)
+			if err == nil && !filepath.IsAbs(rel) && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				return nil
+			}
+		}
+	}
 	if m.statefs != nil {
 		runtimeDir := filepath.Join(path, "runtime")
 		_ = m.statefs.RemovePath(context.Background(), runtimeDir)

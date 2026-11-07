@@ -4,7 +4,9 @@
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.
 - Status: Component design accepted; the separately recorded schema decision
-  below is accepted. Test inventory approval is still pending.
+  below is accepted. WH01–WH09 and the separately limited OT-WH01–OT-WH03
+  were subsequently approved on the same conversation date; implementation is
+  under verification, not release acceptance.
 
 ## Question and alternatives
 

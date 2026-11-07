@@ -271,24 +271,24 @@
       "name": "prepare_liquibase_session_disposals",
       "type": "table",
       "table": "prepare_liquibase_session_disposals",
-      "sha256": "47093521ae64499c98aeeb079016757ba989d1d280cf7a11ec0c2ec9fee5f664",
+      "sha256": "df1858dcd484110efcde2354bdd0936e5d21600ff1694150678cd3d0ce8fb91f",
       "offset": 31290,
-      "length": 7150
+      "length": 8389
     },
     {
       "name": "prepare_liquibase_session_readiness",
       "type": "table",
       "table": "prepare_liquibase_session_readiness",
       "sha256": "109fbbf850592c663fb34cc4f300d6722dc6d78c3caa84742f3626d8fd8bc8ac",
-      "offset": 38442,
+      "offset": 39681,
       "length": 1785
     },
     {
       "name": "prepare_liquibase_session_store_format",
       "type": "table",
       "table": "prepare_liquibase_session_store_format",
-      "sha256": "ab8bbc7eb097d5af345889167fd60ca6ad6d444eb4ff629232a6cd518946283a",
-      "offset": 40229,
+      "sha256": "a9f17a6fd30ae1d6c7a00bc7e611c40b3428f7737d27e80c057872002ab349e7",
+      "offset": 41468,
       "length": 158
     },
     {
@@ -296,7 +296,7 @@
       "type": "table",
       "table": "prepare_liquibase_sessions",
       "sha256": "4ead92199f7f861535a29c9dd6130da0fbbf230adc749ba14aebef2a3a869349",
-      "offset": 40389,
+      "offset": 41628,
       "length": 1724
     },
     {
@@ -304,7 +304,7 @@
       "type": "table",
       "table": "prepare_planning_attempt_artifacts",
       "sha256": "43238ca88d1505ca510b2df0d73d867f9e603e349d0cbad5d389a9058a51a162",
-      "offset": 42115,
+      "offset": 43354,
       "length": 1715
     },
     {
@@ -312,7 +312,7 @@
       "type": "table",
       "table": "prepare_planning_changesets",
       "sha256": "d7c2367f24d796501908215ded037fede3dbbb896aaadb217bc98b8f93fe2100",
-      "offset": 43832,
+      "offset": 45071,
       "length": 379
     },
     {
@@ -320,7 +320,7 @@
       "type": "table",
       "table": "prepare_planning_intents",
       "sha256": "e25b431d7e30e54288d548bc6aacd6efe5ec4776832fd176d666c4f6e896fe70",
-      "offset": 44213,
+      "offset": 45452,
       "length": 2653
     },
     {
@@ -328,7 +328,7 @@
       "type": "table",
       "table": "prepare_state_bindings",
       "sha256": "0e07aba719883b310a6f66900ed2cb7a535f45f56e77070957b7fd6a1f2d0263",
-      "offset": 46868,
+      "offset": 48107,
       "length": 204
     },
     {
@@ -336,7 +336,7 @@
       "type": "table",
       "table": "prepare_step_attempts",
       "sha256": "c0339d5c7d301d7bfc683f24f1b52cd2adee6bbbd3f599b4c1271dcb6e7a0541",
-      "offset": 47074,
+      "offset": 48313,
       "length": 1168
     },
     {
@@ -344,7 +344,7 @@
       "type": "table",
       "table": "prepare_step_bindings",
       "sha256": "b05d059b0677e1b8aaa89d2c82024ecf7eb5f0c3de2f9b86ca6d1150d77e87a6",
-      "offset": 48244,
+      "offset": 49483,
       "length": 324
     },
     {
@@ -352,7 +352,7 @@
       "type": "table",
       "table": "prepare_tasks",
       "sha256": "6b04d9bda71704a5d979b7e6ef94e6003098c688f315453cfae28dfbca9ff2c1",
-      "offset": 48570,
+      "offset": 49809,
       "length": 569,
       "released_sha256": "6b04d9bda71704a5d979b7e6ef94e6003098c688f315453cfae28dfbca9ff2c1"
     },
@@ -361,7 +361,7 @@
       "type": "table",
       "table": "runtime_v2_materialization_components",
       "sha256": "11a0fafb89fe9120c2a7939f948a947a6c77bef9e0878fb8add867ae9b20e315",
-      "offset": 49141,
+      "offset": 50380,
       "length": 718,
       "released_sha256": "11a0fafb89fe9120c2a7939f948a947a6c77bef9e0878fb8add867ae9b20e315"
     },
@@ -370,7 +370,7 @@
       "type": "table",
       "table": "runtime_v2_materializations",
       "sha256": "16c2cf0b6ad4749b9e88264f170647fcb4b4eedce60b9aa4949c78a5f399c4a0",
-      "offset": 49861,
+      "offset": 51100,
       "length": 834,
       "released_sha256": "16c2cf0b6ad4749b9e88264f170647fcb4b4eedce60b9aa4949c78a5f399c4a0"
     },
@@ -379,7 +379,7 @@
       "type": "table",
       "table": "runtime_v2_provenance_observations",
       "sha256": "866f3a11059f0a4e615c75a41ef2c408428db98b7a11ffd2d4605becfe5b0d31",
-      "offset": 50697,
+      "offset": 51936,
       "length": 521,
       "released_sha256": "866f3a11059f0a4e615c75a41ef2c408428db98b7a11ffd2d4605becfe5b0d31"
     },
@@ -388,7 +388,7 @@
       "type": "table",
       "table": "runtime_v2_resolutions",
       "sha256": "c4b32d5d7b810a4e450bbbf2a36107688aa42fe98071ae1a43f67a9177e386c8",
-      "offset": 51220,
+      "offset": 52459,
       "length": 295,
       "released_sha256": "c4b32d5d7b810a4e450bbbf2a36107688aa42fe98071ae1a43f67a9177e386c8"
     },
@@ -397,7 +397,7 @@
       "type": "table",
       "table": "runtime_v2_states",
       "sha256": "a1d31c39497402c954cb7c951baa3cc16bd3fc50060fc327735ef9c03d5660d4",
-      "offset": 51517,
+      "offset": 52756,
       "length": 730,
       "released_sha256": "a1d31c39497402c954cb7c951baa3cc16bd3fc50060fc327735ef9c03d5660d4"
     },
@@ -406,7 +406,7 @@
       "type": "table",
       "table": "runtime_v2_store_format",
       "sha256": "eccd2259bd6f8d7ced940f7ccbc60bc7cc38407c4b6c56084cd32bf8f117a301",
-      "offset": 52249,
+      "offset": 53488,
       "length": 253,
       "released_sha256": "eccd2259bd6f8d7ced940f7ccbc60bc7cc38407c4b6c56084cd32bf8f117a301"
     },
@@ -415,7 +415,7 @@
       "type": "table",
       "table": "states",
       "sha256": "fbc8a2462630b2cad307e2e68e7437521dfb3109afb4b726bf003db0e35b0007",
-      "offset": 52504,
+      "offset": 53743,
       "length": 463,
       "released_sha256": "fbc8a2462630b2cad307e2e68e7437521dfb3109afb4b726bf003db0e35b0007"
     },
@@ -424,7 +424,7 @@
       "type": "index",
       "table": "instances",
       "sha256": "35790e3d340f728cd0af7f61bb509cd53f3cbc3c4e42b49da21e934c0d32b8d1",
-      "offset": 52969,
+      "offset": 54208,
       "length": 60,
       "released_sha256": "35790e3d340f728cd0af7f61bb509cd53f3cbc3c4e42b49da21e934c0d32b8d1"
     },
@@ -433,7 +433,7 @@
       "type": "index",
       "table": "instances",
       "sha256": "bc8a70c9b75f5234b76f3467afa503749be0b908f67d839ec68d435230039df6",
-      "offset": 53031,
+      "offset": 54270,
       "length": 56,
       "released_sha256": "bc8a70c9b75f5234b76f3467afa503749be0b908f67d839ec68d435230039df6"
     },
@@ -442,7 +442,7 @@
       "type": "index",
       "table": "instances",
       "sha256": "0cb5b6130d1b1ecaea72e671d3c301178d8b9345a136452333fa91e3630eec5b",
-      "offset": 53089,
+      "offset": 54328,
       "length": 56,
       "released_sha256": "0cb5b6130d1b1ecaea72e671d3c301178d8b9345a136452333fa91e3630eec5b"
     },
@@ -451,7 +451,7 @@
       "type": "index",
       "table": "liquibase_job_bindings",
       "sha256": "94c238590ccc83c7157d7049b84c5e1ea03334eac1de6c36fbe7fa6bcc0ec745",
-      "offset": 53147,
+      "offset": 54386,
       "length": 92
     },
     {
@@ -459,7 +459,7 @@
       "type": "index",
       "table": "liquibase_state_bindings",
       "sha256": "d9dfe0ba9a2d94397045c15016df3969c2d956a86ccb9a6aed829e2a03ceab5b",
-      "offset": 53241,
+      "offset": 54480,
       "length": 96
     },
     {
@@ -467,7 +467,7 @@
       "type": "index",
       "table": "managed_base_lineages",
       "sha256": "56a29509cee83f37d1af92d975a182bb5887040d6171e93a7162839dc77fb4ac",
-      "offset": 53339,
+      "offset": 54578,
       "length": 84,
       "released_sha256": "56a29509cee83f37d1af92d975a182bb5887040d6171e93a7162839dc77fb4ac"
     },
@@ -476,7 +476,7 @@
       "type": "index",
       "table": "names",
       "sha256": "8e8982d8f05e23551abe6faf5e97ffefcf9a96937a9f8ae725b4ee2df37152d9",
-      "offset": 53425,
+      "offset": 54664,
       "length": 48,
       "released_sha256": "8e8982d8f05e23551abe6faf5e97ffefcf9a96937a9f8ae725b4ee2df37152d9"
     },
@@ -485,7 +485,7 @@
       "type": "index",
       "table": "names",
       "sha256": "dbe4d86153f79121f42d46230afb0ab9d66dc0e118e3b565fb625ed7356aa7e3",
-      "offset": 53475,
+      "offset": 54714,
       "length": 54,
       "released_sha256": "dbe4d86153f79121f42d46230afb0ab9d66dc0e118e3b565fb625ed7356aa7e3"
     },
@@ -494,7 +494,7 @@
       "type": "index",
       "table": "names",
       "sha256": "e3c0ff02d498873e9031c60dce3f2f60674e04112c6367a600baf83941219f33",
-      "offset": 53531,
+      "offset": 54770,
       "length": 65,
       "released_sha256": "e3c0ff02d498873e9031c60dce3f2f60674e04112c6367a600baf83941219f33"
     },
@@ -503,7 +503,7 @@
       "type": "index",
       "table": "names",
       "sha256": "e29af352de68e0a46e0ee5b9e66d6176dafc606572b28f23edfbb91e41032901",
-      "offset": 53598,
+      "offset": 54837,
       "length": 48,
       "released_sha256": "e29af352de68e0a46e0ee5b9e66d6176dafc606572b28f23edfbb91e41032901"
     },
@@ -512,7 +512,7 @@
       "type": "index",
       "table": "prepare_events",
       "sha256": "11af1da718fdbab9be75fe0671977aa298693a024a63bb62a145f49b6d99936b",
-      "offset": 53648,
+      "offset": 54887,
       "length": 71,
       "released_sha256": "11af1da718fdbab9be75fe0671977aa298693a024a63bb62a145f49b6d99936b"
     },
@@ -521,7 +521,7 @@
       "type": "index",
       "table": "prepare_jobs",
       "sha256": "c75775ed13c22b96701b4f761cc69974e25bc09b8a1ff453325a53e336488292",
-      "offset": 53721,
+      "offset": 54960,
       "length": 61,
       "released_sha256": "c75775ed13c22b96701b4f761cc69974e25bc09b8a1ff453325a53e336488292"
     },
@@ -530,7 +530,7 @@
       "type": "index",
       "table": "prepare_tasks",
       "sha256": "073d2bc829c48e0b818d5575f16099c1b978ad12702bee714518bfd8ab55c4b6",
-      "offset": 53784,
+      "offset": 55023,
       "length": 60,
       "released_sha256": "073d2bc829c48e0b818d5575f16099c1b978ad12702bee714518bfd8ab55c4b6"
     },
@@ -539,7 +539,7 @@
       "type": "index",
       "table": "prepare_tasks",
       "sha256": "7d5298691cf760702c65bd08d8d7fe4f750daf83952fb5d75cd32d04a2fdee6a",
-      "offset": 53846,
+      "offset": 55085,
       "length": 75,
       "released_sha256": "7d5298691cf760702c65bd08d8d7fe4f750daf83952fb5d75cd32d04a2fdee6a"
     },
@@ -548,7 +548,7 @@
       "type": "index",
       "table": "prepare_tasks",
       "sha256": "98b14f785bcf36dc09fc3353365b58b84a4a75688f15526929b15e8a5f979df4",
-      "offset": 53923,
+      "offset": 55162,
       "length": 63,
       "released_sha256": "98b14f785bcf36dc09fc3353365b58b84a4a75688f15526929b15e8a5f979df4"
     },
@@ -557,7 +557,7 @@
       "type": "index",
       "table": "states",
       "sha256": "8d42763d81247ba8e3b127c70982e232ad80fc042623c5519063428879086aeb",
-      "offset": 53988,
+      "offset": 55227,
       "length": 72,
       "released_sha256": "8d42763d81247ba8e3b127c70982e232ad80fc042623c5519063428879086aeb"
     },
@@ -566,7 +566,7 @@
       "type": "index",
       "table": "states",
       "sha256": "a32346259bf46ae7f40a40ef4a300f7baad0e8bdec11a37d61728031178d2be2",
-      "offset": 54062,
+      "offset": 55301,
       "length": 50,
       "released_sha256": "a32346259bf46ae7f40a40ef4a300f7baad0e8bdec11a37d61728031178d2be2"
     },
@@ -575,7 +575,7 @@
       "type": "index",
       "table": "states",
       "sha256": "57bfd8a723f7f645da3e57c564a962307708522a20500e24c68350d13b3551c0",
-      "offset": 54114,
+      "offset": 55353,
       "length": 53,
       "released_sha256": "57bfd8a723f7f645da3e57c564a962307708522a20500e24c68350d13b3551c0"
     },
@@ -584,7 +584,7 @@
       "type": "index",
       "table": "states",
       "sha256": "44996ed5cadee5e982d0515a25b09d1e9a7b74d084eda2e08965a3bb01ac90c0",
-      "offset": 54169,
+      "offset": 55408,
       "length": 58,
       "released_sha256": "44996ed5cadee5e982d0515a25b09d1e9a7b74d084eda2e08965a3bb01ac90c0"
     },
@@ -593,7 +593,7 @@
       "type": "index",
       "table": "prepare_artifact_leases",
       "sha256": "ecef00af8f4f510fcbff716af9470d24320f2ea4c959f1ce31ad2deb3393c12b",
-      "offset": 54229,
+      "offset": 55468,
       "length": 82
     },
     {
@@ -601,7 +601,7 @@
       "type": "index",
       "table": "prepare_step_attempts",
       "sha256": "f03e73c3b18ac225db73451393048dd059b4432f66362ea0d67c7b008f1918ee",
-      "offset": 54313,
+      "offset": 55552,
       "length": 141
     },
     {
@@ -609,7 +609,7 @@
       "type": "index",
       "table": "prepare_clones",
       "sha256": "a34033bc73baddecfed90a1a60eeadb1f9ffa06f9dddec10d144c7cdd78b8709",
-      "offset": 54456,
+      "offset": 55695,
       "length": 124
     },
     {
@@ -617,7 +617,7 @@
       "type": "index",
       "table": "prepare_liquibase_cache_selections",
       "sha256": "a61c9159b724f7fd7fdffc89af9110c7e8070964c297525073c5d1e237eea8d4",
-      "offset": 54582,
+      "offset": 55821,
       "length": 162
     },
     {
@@ -625,7 +625,7 @@
       "type": "index",
       "table": "prepare_liquibase_job_finalizations",
       "sha256": "3fb75c475ce23ceb9c2f59df2006392fc9642d50156f2fbc39ea3c2aaae3fe9a",
-      "offset": 54746,
+      "offset": 55985,
       "length": 134
     },
     {
@@ -633,7 +633,7 @@
       "type": "index",
       "table": "prepare_liquibase_sessions",
       "sha256": "fc385fd0f810154581060ba73896ee75aac1e0d6554547bb405d7b2b52acfca2",
-      "offset": 54882,
+      "offset": 56121,
       "length": 118
     },
     {
@@ -641,7 +641,7 @@
       "type": "index",
       "table": "prepare_liquibase_cache_restores",
       "sha256": "2e677a8f9a562aca79c98483aee81431059b8069bfe7228dd983e5165bdc03f4",
-      "offset": 55002,
+      "offset": 56241,
       "length": 159
     },
     {
@@ -649,7 +649,7 @@
       "type": "index",
       "table": "prepare_liquibase_invocations",
       "sha256": "49df7b2ca367668d466532303a9196e028ed20fe94df0ccf41f303f049e275d8",
-      "offset": 55163,
+      "offset": 56402,
       "length": 158
     },
     {
@@ -657,7 +657,7 @@
       "type": "index",
       "table": "runtime_v2_materializations",
       "sha256": "c71f9223b33a40f34a6c6539a32f71969ac353b5876f1ec95d2703fa3bff6091",
-      "offset": 55323,
+      "offset": 56562,
       "length": 115,
       "released_sha256": "c71f9223b33a40f34a6c6539a32f71969ac353b5876f1ec95d2703fa3bff6091"
     },
@@ -666,7 +666,7 @@
       "type": "index",
       "table": "runtime_v2_provenance_observations",
       "sha256": "fb4e0751dcc142492c7128d6e53f5fada10311961518ee291f1e69c014e2868e",
-      "offset": 55440,
+      "offset": 56679,
       "length": 115,
       "released_sha256": "fb4e0751dcc142492c7128d6e53f5fada10311961518ee291f1e69c014e2868e"
     },
@@ -675,7 +675,7 @@
       "type": "index",
       "table": "runtime_v2_states",
       "sha256": "138c601714c952e54ee2b0601714117fd1f0fcdf9a43ca1aa6c92addd0beeec9",
-      "offset": 55557,
+      "offset": 56796,
       "length": 76,
       "released_sha256": "138c601714c952e54ee2b0601714117fd1f0fcdf9a43ca1aa6c92addd0beeec9"
     },
@@ -684,7 +684,7 @@
       "type": "trigger",
       "table": "bootstrap_access",
       "sha256": "010554acc6c8b5a827e23083bbf4eb1dd139dee91c3f52eef1d0de765375c2a5",
-      "offset": 55635,
+      "offset": 56874,
       "length": 144,
       "released_sha256": "010554acc6c8b5a827e23083bbf4eb1dd139dee91c3f52eef1d0de765375c2a5"
     },
@@ -693,7 +693,7 @@
       "type": "trigger",
       "table": "instance_access",
       "sha256": "4c963aee1e4f191645ef6e45cfa2fd974241a6f71693bb61bb28a81d7320428d",
-      "offset": 55781,
+      "offset": 57020,
       "length": 180,
       "released_sha256": "4c963aee1e4f191645ef6e45cfa2fd974241a6f71693bb61bb28a81d7320428d"
     },
@@ -702,7 +702,7 @@
       "type": "trigger",
       "table": "instance_access",
       "sha256": "af8ed4341f63e32e646c0cf4751c8b52090b76ba1a0f5570e53323db195df508",
-      "offset": 55963,
+      "offset": 57202,
       "length": 522,
       "released_sha256": "af8ed4341f63e32e646c0cf4751c8b52090b76ba1a0f5570e53323db195df508"
     },
@@ -711,7 +711,7 @@
       "type": "trigger",
       "table": "liquibase_execution_bindings",
       "sha256": "6e32ac1f0fd1b9782f98ea69df21c5016b61acfe1b511ce9915df3ad8d3d6c10",
-      "offset": 56487,
+      "offset": 57726,
       "length": 166
     },
     {
@@ -719,7 +719,7 @@
       "type": "trigger",
       "table": "liquibase_job_bindings",
       "sha256": "2b2496c178dee403db16af78938a76662cc7c2b9cba260043b9dfc4d7c4ca952",
-      "offset": 56655,
+      "offset": 57894,
       "length": 586
     },
     {
@@ -727,7 +727,7 @@
       "type": "trigger",
       "table": "liquibase_job_bindings",
       "sha256": "eb67bd499bb89264ac7e71a3e5b103cbceea16aec5ca663015bca1e598988bce",
-      "offset": 57243,
+      "offset": 58482,
       "length": 229
     },
     {
@@ -735,7 +735,7 @@
       "type": "trigger",
       "table": "liquibase_job_bindings",
       "sha256": "2147085f4252f5d4b7a70dbb22a55cdd75f48cff1cd477a61f2ca8b912751247",
-      "offset": 57474,
+      "offset": 58713,
       "length": 243
     },
     {
@@ -743,7 +743,7 @@
       "type": "trigger",
       "table": "liquibase_state_bindings",
       "sha256": "7b2b61621a9538130da43e823743e43514174eccac45f538428b49ced1ab33ac",
-      "offset": 57719,
+      "offset": 58958,
       "length": 253
     },
     {
@@ -751,7 +751,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "eb6d6a0de558334becc0e7dc22523a4d3a4659e90078cdee892a5bb31c909c6a",
-      "offset": 57974,
+      "offset": 59213,
       "length": 967,
       "released_sha256": "7e339d8a9320905bda24df1535ea27e7abb236d9d0bcbc4f57df4c05572f9813"
     },
@@ -760,7 +760,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "8328045303ff4365681abd8088386c5a8403208ed8d414e6a9d6851fc5bfbd20",
-      "offset": 58943,
+      "offset": 60182,
       "length": 611,
       "released_sha256": "136521714893d49e50578d976479a1e1bbf79a325c06b7365945c699292afe82"
     },
@@ -769,7 +769,7 @@
       "type": "trigger",
       "table": "managed_base_lineages",
       "sha256": "f76bfb5aaed89d57b7bfb124b2de50c4012e3ea8ff956feab46bb2856e8694ac",
-      "offset": 59556,
+      "offset": 60795,
       "length": 237,
       "released_sha256": "f76bfb5aaed89d57b7bfb124b2de50c4012e3ea8ff956feab46bb2856e8694ac"
     },
@@ -778,7 +778,7 @@
       "type": "trigger",
       "table": "managed_base_lineages",
       "sha256": "acd0e6de985088fbdb73192aad8beac2d06b36177df77e8adac2d1e6092ea084",
-      "offset": 59795,
+      "offset": 61034,
       "length": 142,
       "released_sha256": "acd0e6de985088fbdb73192aad8beac2d06b36177df77e8adac2d1e6092ea084"
     },
@@ -787,7 +787,7 @@
       "type": "trigger",
       "table": "states",
       "sha256": "9d0fbbb39536b2bc5614f912cbcee1cc484b71379d73a0599430e1286d0c2f7f",
-      "offset": 59939,
+      "offset": 61178,
       "length": 562,
       "released_sha256": "9d0fbbb39536b2bc5614f912cbcee1cc484b71379d73a0599430e1286d0c2f7f"
     },
@@ -796,7 +796,7 @@
       "type": "trigger",
       "table": "states",
       "sha256": "994f59a388df3e2052006268d0e0ed8a24d1651f2b7a0ce078838560f8b56c1e",
-      "offset": 60503,
+      "offset": 61742,
       "length": 1330,
       "released_sha256": "994f59a388df3e2052006268d0e0ed8a24d1651f2b7a0ce078838560f8b56c1e"
     },
@@ -805,7 +805,7 @@
       "type": "trigger",
       "table": "states",
       "sha256": "3f15db715d66db747299bb13c1727d0ee250bd5da1be7f1ebbaafc1437815268",
-      "offset": 61835,
+      "offset": 63074,
       "length": 137,
       "released_sha256": "3f15db715d66db747299bb13c1727d0ee250bd5da1be7f1ebbaafc1437815268"
     },
@@ -814,7 +814,7 @@
       "type": "trigger",
       "table": "prepare_artifact_leases",
       "sha256": "c329b6a24eb18672fbf752c4e11367c6cae3f7e6f17355ab34c33bb667111dae",
-      "offset": 61974,
+      "offset": 63213,
       "length": 576
     },
     {
@@ -822,7 +822,7 @@
       "type": "trigger",
       "table": "prepare_artifact_leases",
       "sha256": "76f1f17e82cdb9911cbb4a4159fd0852d3dbea37f4cdbaceeb5439db70649510",
-      "offset": 62552,
+      "offset": 63791,
       "length": 536
     },
     {
@@ -830,7 +830,7 @@
       "type": "trigger",
       "table": "prepare_artifact_leases",
       "sha256": "564fb31a3322c1a41937fabdecd04ebbc7ae28267131ab5229edbf4860817d02",
-      "offset": 63090,
+      "offset": 64329,
       "length": 221
     },
     {
@@ -838,7 +838,7 @@
       "type": "trigger",
       "table": "prepare_attempt_decisions",
       "sha256": "ab7c479078b8f509e0bab31fa2e193dd2e72edc677be2a98961f2db596851988",
-      "offset": 63313,
+      "offset": 64552,
       "length": 223
     },
     {
@@ -846,7 +846,7 @@
       "type": "trigger",
       "table": "prepare_attempt_decisions",
       "sha256": "e135617df173e4b5417158ab22b1eeddb01f869a5e6163404591274d1bbdfa65",
-      "offset": 63538,
+      "offset": 64777,
       "length": 359
     },
     {
@@ -854,7 +854,7 @@
       "type": "trigger",
       "table": "prepare_attempt_decisions",
       "sha256": "2e07701968b451bf04c9a47769710064bee17b5189e7434ebaa2a6770651d700",
-      "offset": 63899,
+      "offset": 65138,
       "length": 158
     },
     {
@@ -862,7 +862,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "8d00253a3291aa57f76acec33d4fbed710beee3ce34ab205486197056de197f8",
-      "offset": 64059,
+      "offset": 65298,
       "length": 222
     },
     {
@@ -870,7 +870,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "a8e6d41764f55fa558ccaeb4a0134fc96b18dc48c84a8028c8439919ddc4ec07",
-      "offset": 64283,
+      "offset": 65522,
       "length": 10378
     },
     {
@@ -878,7 +878,7 @@
       "type": "trigger",
       "table": "prepare_attempt_evidence",
       "sha256": "4dd97677219857c7f2eae196f3c3523a7fab7353f04e06c40e0c1fd46a1483d5",
-      "offset": 74663,
+      "offset": 75902,
       "length": 222
     },
     {
@@ -886,7 +886,7 @@
       "type": "trigger",
       "table": "prepare_attempt_evidence",
       "sha256": "e44c9c24d5b03f025b5538be3b2db97133fedc7a5d7c4f433dc976a12eedcdb9",
-      "offset": 74887,
+      "offset": 76126,
       "length": 358
     },
     {
@@ -894,7 +894,7 @@
       "type": "trigger",
       "table": "prepare_attempt_evidence",
       "sha256": "b7936a6874ff135f32ffd7eaa705df857c7288aba4e75fa684d7f739ec6e32d4",
-      "offset": 75247,
+      "offset": 76486,
       "length": 157
     },
     {
@@ -902,7 +902,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "a39a940abc06dc5de387c8b0ae2a85e31892de194b75400e35dd226ca8409ea1",
-      "offset": 75406,
+      "offset": 76645,
       "length": 258
     },
     {
@@ -910,7 +910,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "9a978352d9285bbec78317980e3aa11f4be82a2bf7af46556c9173d947224920",
-      "offset": 75666,
+      "offset": 76905,
       "length": 1807
     },
     {
@@ -918,7 +918,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "9fdc23fcd8f5bcaf6b898c5d679c1f5c6c9298182ce5eff2037a907d5ca65b24",
-      "offset": 77475,
+      "offset": 78714,
       "length": 457
     },
     {
@@ -926,7 +926,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "af408dfc8349a7ab7624978ceffaee95501b5311d5ab48503606ad4df821935d",
-      "offset": 77934,
+      "offset": 79173,
       "length": 412
     },
     {
@@ -934,7 +934,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "7a1453589ae1b979c360f8a676bb9c76a49d636b464ec07b67bb128f80216a32",
-      "offset": 78348,
+      "offset": 79587,
       "length": 2385
     },
     {
@@ -942,7 +942,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "4066246aa0fba48fad9e5d12018be346da5708d18af068374f9212dcbd03e32b",
-      "offset": 80735,
+      "offset": 81974,
       "length": 2202
     },
     {
@@ -950,7 +950,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "3dc29216c2a875c5c2dac3a0df79ffdcb16ed50d3360e7a20755f7877e3f6cbd",
-      "offset": 82939,
+      "offset": 84178,
       "length": 3198
     },
     {
@@ -958,7 +958,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "94f52a52c940c452eb40be5e7cdc4b70d5362f9b328d05eb038ca1052f60748b",
-      "offset": 86139,
+      "offset": 87378,
       "length": 243
     },
     {
@@ -966,7 +966,7 @@
       "type": "trigger",
       "table": "prepare_tasks",
       "sha256": "4bb30ec64130020210f1571231374ec2d8e783ccacb1c5eb83d606b3882b08e2",
-      "offset": 86384,
+      "offset": 87623,
       "length": 268
     },
     {
@@ -974,7 +974,7 @@
       "type": "trigger",
       "table": "prepare_tasks",
       "sha256": "a68f7697070642a87f19eddc9ea99303f5ad97c4c36a0d8f7e7fd25c841ba013",
-      "offset": 86654,
+      "offset": 87893,
       "length": 326
     },
     {
@@ -982,7 +982,7 @@
       "type": "trigger",
       "table": "prepare_clones",
       "sha256": "3a9b819c891289285c3df25fd5948ba2dac9306e7c5a8e5c1b634e36e3d8cd56",
-      "offset": 86982,
+      "offset": 88221,
       "length": 203
     },
     {
@@ -990,7 +990,7 @@
       "type": "trigger",
       "table": "prepare_clones",
       "sha256": "4defd4ceb78dd638050211efd6756ea2e62a410e33be50ab460e0b1a04f65062",
-      "offset": 87187,
+      "offset": 88426,
       "length": 7730
     },
     {
@@ -998,7 +998,7 @@
       "type": "trigger",
       "table": "prepare_clones",
       "sha256": "e9c4dd5b62229f2c24f6bb33c0548dfc0f7b6c42575e6a3ecdc92f5da41a10a8",
-      "offset": 94919,
+      "offset": 96158,
       "length": 346
     },
     {
@@ -1006,7 +1006,7 @@
       "type": "trigger",
       "table": "states",
       "sha256": "6d3d14c3db301f6cfe7361528a04325568a0ffa5e7f97ee64accf9bc5b4cef02",
-      "offset": 95267,
+      "offset": 96506,
       "length": 256
     },
     {
@@ -1014,7 +1014,7 @@
       "type": "trigger",
       "table": "prepare_clones",
       "sha256": "2a9ee3b9e884f0bb4295179cfae6554abb425bbc42b7f44f4851d8be0025ed96",
-      "offset": 95525,
+      "offset": 96764,
       "length": 263
     },
     {
@@ -1022,7 +1022,7 @@
       "type": "trigger",
       "table": "prepare_clones",
       "sha256": "6d0210de1df07529b2e76da2005fdfc333931a09f7ef8d5a5dcff52044a61269",
-      "offset": 95790,
+      "offset": 97029,
       "length": 348
     },
     {
@@ -1030,7 +1030,7 @@
       "type": "trigger",
       "table": "prepare_decision_evidence",
       "sha256": "8617a3ec7deda9cfd16ba01e0b129b793bd7b8047b3604d7f1065818afe96963",
-      "offset": 96140,
+      "offset": 97379,
       "length": 253
     },
     {
@@ -1038,7 +1038,7 @@
       "type": "trigger",
       "table": "prepare_decision_evidence",
       "sha256": "00a090460a7558c75381127da5b3af06364a4509b32ac93b1ab91509a371046a",
-      "offset": 96395,
+      "offset": 97634,
       "length": 163
     },
     {
@@ -1046,7 +1046,7 @@
       "type": "trigger",
       "table": "prepare_decision_evidence",
       "sha256": "61127d723e7596ebe33a5166f1c87bd921f57b63f89f585795b36ccf65bf5896",
-      "offset": 96560,
+      "offset": 97799,
       "length": 418
     },
     {
@@ -1054,7 +1054,7 @@
       "type": "trigger",
       "table": "prepare_execution_bindings",
       "sha256": "7d21d25adbbe776c5bbf4b94d84d8982873c83abdcf96250a1ca82c6a71b62d1",
-      "offset": 96980,
+      "offset": 98219,
       "length": 160
     },
     {
@@ -1062,7 +1062,7 @@
       "type": "trigger",
       "table": "prepare_execution_bindings",
       "sha256": "49ff4e64055cc73dcbbd3b167a490b33d4db96434e82c72967f93cd228f35f46",
-      "offset": 97142,
+      "offset": 98381,
       "length": 158
     },
     {
@@ -1070,7 +1070,7 @@
       "type": "trigger",
       "table": "prepare_execution_bindings",
       "sha256": "c9959e0c02522c44523ecd44eaf59558ee8efa0fc09861a064923e812de1df1c",
-      "offset": 97302,
+      "offset": 98541,
       "length": 485
     },
     {
@@ -1078,7 +1078,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "aec8aab028b0c337988c94e644a93f29f7cbe1b5e6a1431a9e620aefb2ad282d",
-      "offset": 97789,
+      "offset": 99028,
       "length": 737
     },
     {
@@ -1086,7 +1086,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "009e1b240aac85f4ffd5a106d29435562c87078e208d61c931f3c393364018ac",
-      "offset": 98528,
+      "offset": 99767,
       "length": 781
     },
     {
@@ -1094,7 +1094,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_selections",
       "sha256": "26cbd2dc1741d5a8febbdebf24c703644494990f606a5012ec7b70894a2999aa",
-      "offset": 99311,
+      "offset": 100550,
       "length": 4592
     },
     {
@@ -1102,7 +1102,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_selections",
       "sha256": "7dab9286c49c76d4ad81ee0ce51c9444f5d3181bb0d20671ba06f878338f5bad",
-      "offset": 103905,
+      "offset": 105144,
       "length": 306
     },
     {
@@ -1110,7 +1110,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "835035bd4ebaa480988f912a56ae78fcfc31ee13e60b9d31f36f8581f72085ad",
-      "offset": 104213,
+      "offset": 105452,
       "length": 349
     },
     {
@@ -1118,7 +1118,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "0a3396d9b56c9e9a3e3303f67853e2e9f4ef72f83c59e077f757e1ee28dcceb8",
-      "offset": 104564,
+      "offset": 105803,
       "length": 410
     },
     {
@@ -1126,7 +1126,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_selections",
       "sha256": "4ecfa151f1272d20e3451d858bf4bc9ab26ccb09e08808858a71d798a5a0113d",
-      "offset": 104976,
+      "offset": 106215,
       "length": 263
     },
     {
@@ -1134,7 +1134,7 @@
       "type": "trigger",
       "table": "states",
       "sha256": "0afb0c90154e440e6b1ac3c8305d42c22417eb99e81890403d3f122b141b5944",
-      "offset": 105241,
+      "offset": 106480,
       "length": 352
     },
     {
@@ -1142,7 +1142,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_selections",
       "sha256": "e9da11031ed9daf883ac5df751702c939e7d1f9f57bbe27ebc2ee4ed307b3096",
-      "offset": 105595,
+      "offset": 106834,
       "length": 1212
     },
     {
@@ -1150,7 +1150,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_selections",
       "sha256": "32eac6e4bce19431214b5fc7d165f264f55f300ad75466e0a1011717a3a1c3d6",
-      "offset": 106809,
+      "offset": 108048,
       "length": 2624
     },
     {
@@ -1158,7 +1158,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_job_finalizations",
       "sha256": "69c2fc0c92b32056fe91e3f799fcd423fd99ec002048186f1fd818fe032603e5",
-      "offset": 109435,
+      "offset": 110674,
       "length": 259
     },
     {
@@ -1166,7 +1166,7 @@
       "type": "trigger",
       "table": "prepare_attempt_evidence",
       "sha256": "af99d007709de77dd71d18b71ecee55bec4b02a09642696bb70956393447c84e",
-      "offset": 109696,
+      "offset": 110935,
       "length": 5776
     },
     {
@@ -1174,7 +1174,7 @@
       "type": "trigger",
       "table": "liquibase_job_bindings",
       "sha256": "44c7cba18398f75d86007d8a23a030da612bc0c5e22f2c2cf0d09737883865c9",
-      "offset": 115474,
+      "offset": 116713,
       "length": 550
     },
     {
@@ -1182,7 +1182,7 @@
       "type": "trigger",
       "table": "prepare_clones",
       "sha256": "ca9d8278e4fb95e015e857e9d32db446f9bb252a007ba7999956d14a027480f6",
-      "offset": 116026,
+      "offset": 117265,
       "length": 534
     },
     {
@@ -1190,7 +1190,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_restores",
       "sha256": "d33cdf15aa9d9e6ee46273ea6300dd1bdbbf832e05256d5836568984033c2975",
-      "offset": 116562,
+      "offset": 117801,
       "length": 570
     },
     {
@@ -1198,7 +1198,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "87f1bdc94a274fa8e1a54b2d500b0d74c4355fea2ec3d8dbb404cc4dad7908fd",
-      "offset": 117134,
+      "offset": 118373,
       "length": 564
     },
     {
@@ -1206,7 +1206,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "f4915e02b285ad8d6421a5931a5462651d5efbb55923a7ca24332126146e4c98",
-      "offset": 117700,
+      "offset": 118939,
       "length": 558
     },
     {
@@ -1214,7 +1214,7 @@
       "type": "trigger",
       "table": "prepare_planning_attempt_artifacts",
       "sha256": "eb134a02b1ff4bac85662234f6408ddeca2b5b4a60d6761afb54abf6d4cc2b35",
-      "offset": 118260,
+      "offset": 119499,
       "length": 574
     },
     {
@@ -1222,7 +1222,7 @@
       "type": "trigger",
       "table": "prepare_planning_changesets",
       "sha256": "eac77f8effbc0dab2b68df457eaaa81a53f877be302c8b7d04abb616f412d3b3",
-      "offset": 118836,
+      "offset": 120075,
       "length": 560
     },
     {
@@ -1230,7 +1230,7 @@
       "type": "trigger",
       "table": "prepare_planning_intents",
       "sha256": "3f3cdbc89c19b0987cd6bb2df4d1074d476b9492b8c4b0fefdabfff81534d8cf",
-      "offset": 119398,
+      "offset": 120637,
       "length": 554
     },
     {
@@ -1238,7 +1238,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "edb889d7fbd5d51ee967c0288ef8c296e943ca5407699c0197ae83f4fc369444",
-      "offset": 119954,
+      "offset": 121193,
       "length": 548
     },
     {
@@ -1246,7 +1246,7 @@
       "type": "trigger",
       "table": "prepare_step_bindings",
       "sha256": "cdcb7049a0ccf5ef833264cd9205e555b988ef7e168361e7786e07243c949faa",
-      "offset": 120504,
+      "offset": 121743,
       "length": 548
     },
     {
@@ -1254,7 +1254,7 @@
       "type": "trigger",
       "table": "prepare_tasks",
       "sha256": "9b6840e1c8b83971aa2a9c563fc0b9521d9b85bee2a1aae1f2fc76d9fafd3148",
-      "offset": 121054,
+      "offset": 122293,
       "length": 532
     },
     {
@@ -1262,7 +1262,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_job_finalizations",
       "sha256": "e8182b955567e1ebc2e8e7127782c321d5531d34b4c47e0b89f89e8d0f11477a",
-      "offset": 121588,
+      "offset": 122827,
       "length": 4535
     },
     {
@@ -1270,7 +1270,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_job_finalizations",
       "sha256": "453b657fe99ef03dc04646cb537e389efca72e892a4acefb83744b4218b06ce1",
-      "offset": 126125,
+      "offset": 127364,
       "length": 1925
     },
     {
@@ -1278,7 +1278,7 @@
       "type": "trigger",
       "table": "prepare_tasks",
       "sha256": "558303fe9d11f345fe2048e140ad2a4faa582c03d0fc42f0cee10c0f5fae6dda",
-      "offset": 128052,
+      "offset": 129291,
       "length": 2452
     },
     {
@@ -1286,7 +1286,7 @@
       "type": "trigger",
       "table": "prepare_tasks",
       "sha256": "a092e5322acbba267c9ee355c1b2d6a59ad91e817808fcae195af2290757911a",
-      "offset": 130506,
+      "offset": 131745,
       "length": 1033
     },
     {
@@ -1294,7 +1294,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_job_finalizations",
       "sha256": "5849ec68dfaf2483499f7083bd11227c0809437347e52c90381dc1f13abf1c70",
-      "offset": 131541,
+      "offset": 132780,
       "length": 298
     },
     {
@@ -1302,7 +1302,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_job_finalizations",
       "sha256": "aad8a84d928e4860108fbd796186aa61acfd67c04dba851fde90cf5973a09339",
-      "offset": 131841,
+      "offset": 133080,
       "length": 947
     },
     {
@@ -1310,7 +1310,7 @@
       "type": "trigger",
       "table": "instances",
       "sha256": "454bc7d1ec0bf05b3bf04542816caf539bcc6348e78b6c442373522b50b13eba",
-      "offset": 132790,
+      "offset": 134029,
       "length": 663
     },
     {
@@ -1318,7 +1318,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "de41398d0668745bd53522ac8bc91c499540d8d400487d780142a4f8421d38e3",
-      "offset": 133455,
+      "offset": 134694,
       "length": 414
     },
     {
@@ -1326,7 +1326,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "8c230affa8f7acfbf837544e189564a368526d464d37b5aa99b7791c72466faa",
-      "offset": 133871,
+      "offset": 135110,
       "length": 1188
     },
     {
@@ -1334,7 +1334,7 @@
       "type": "trigger",
       "table": "managed_runtime_operations",
       "sha256": "ba7e248dce4e1941be905c6fa34cf109038c280faf92bff2f470a7b72d1c766e",
-      "offset": 135061,
+      "offset": 136300,
       "length": 965
     },
     {
@@ -1342,7 +1342,7 @@
       "type": "trigger",
       "table": "managed_runtime_operations",
       "sha256": "492c5bd1a8fdfa8f4da101f303d48e2639a50be811ac2f7094bd41eacd42b9cc",
-      "offset": 136028,
+      "offset": 137267,
       "length": 2331
     },
     {
@@ -1350,7 +1350,7 @@
       "type": "trigger",
       "table": "managed_runtime_operations",
       "sha256": "3f56a9d0ebab4b7ae083dcc636885d45acfd59eeddbb66b3b9f7bbf0f9d11d74",
-      "offset": 138361,
+      "offset": 139600,
       "length": 976
     },
     {
@@ -1358,7 +1358,7 @@
       "type": "trigger",
       "table": "managed_runtime_operations",
       "sha256": "5a5a5e41bf48f91b018b8fa9cb9f962245cbe862ab370eb25f0add62e70bcf7b",
-      "offset": 139339,
+      "offset": 140578,
       "length": 478
     },
     {
@@ -1366,7 +1366,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "1fbf7cb26b9ec9c171b29dfc287adea2f71f76294af55142ce46685e8c4c5491",
-      "offset": 139819,
+      "offset": 141058,
       "length": 641
     },
     {
@@ -1374,7 +1374,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "a3d66b8dbb24ec8d4f492bcc9c662809bd20d6176f59d044f910bbf907aa3485",
-      "offset": 140462,
+      "offset": 141701,
       "length": 625
     },
     {
@@ -1382,7 +1382,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "f68997a412377464f5a08a7e60d3e2a8e1ff75b4d599afc33e21aa0970bed32e",
-      "offset": 141089,
+      "offset": 142328,
       "length": 656
     },
     {
@@ -1390,7 +1390,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_job_finalizations",
       "sha256": "5c9a15f5bb7b20d487c28501355478a6d5f3d2e85204947c8e9ef884df442e4d",
-      "offset": 141747,
+      "offset": 142986,
       "length": 438
     },
     {
@@ -1398,7 +1398,7 @@
       "type": "trigger",
       "table": "prepare_planning_intents",
       "sha256": "b4c271e77a12ce5a4a2cb5b0d2a185ebc462e7e13c196d8ca8cccc5e28ac01b3",
-      "offset": 142187,
+      "offset": 143426,
       "length": 858
     },
     {
@@ -1406,7 +1406,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_job_finalizations",
       "sha256": "88c643d9b55e3d3f9c8979d22f9a12f39bb8e3d353cf96f3172dffe67601f707",
-      "offset": 143047,
+      "offset": 144286,
       "length": 455
     },
     {
@@ -1414,7 +1414,7 @@
       "type": "trigger",
       "table": "prepare_attempt_decisions",
       "sha256": "a4494c84276d47151fb7f5c871780e6142db2315095ad51121a6869e3c05aad1",
-      "offset": 143504,
+      "offset": 144743,
       "length": 354
     },
     {
@@ -1422,7 +1422,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "62ff70653971819de540743dda5e7eebd418acd3ea434838505a2a49e3ece70d",
-      "offset": 143860,
+      "offset": 145099,
       "length": 406
     },
     {
@@ -1430,7 +1430,7 @@
       "type": "trigger",
       "table": "prepare_attempt_decisions",
       "sha256": "f7f85fd723ea2d5b942cb087cd6136a4575343ef5ad59ebabf48e8a4af4529d4",
-      "offset": 144268,
+      "offset": 145507,
       "length": 589
     },
     {
@@ -1438,7 +1438,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_job_cancellations",
       "sha256": "84ee976e06ada5be6ff5cc49b97025370058ea806c08e84c467c9ecc57984feb",
-      "offset": 144859,
+      "offset": 146098,
       "length": 272
     },
     {
@@ -1446,7 +1446,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_job_cancellations",
       "sha256": "c4ffab8a03827ee3d879cc59d98b5f35258261badc5566d7cb2fa853f0bd2005",
-      "offset": 145133,
+      "offset": 146372,
       "length": 188
     },
     {
@@ -1454,7 +1454,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_job_cancellations",
       "sha256": "48a261427f82abc10e370b0816b86b27211f23529673ca22467a12405c40face",
-      "offset": 145323,
+      "offset": 146562,
       "length": 468
     },
     {
@@ -1462,7 +1462,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_restores",
       "sha256": "aac15ffe34fdbc192edccc4bf99bbb4461b734e2ba481c61fdfe4033309688c2",
-      "offset": 145793,
+      "offset": 147032,
       "length": 1191
     },
     {
@@ -1470,7 +1470,7 @@
       "type": "trigger",
       "table": "liquibase_job_bindings",
       "sha256": "3ab772ba82772ef1804acf442d88ad51930a391fd0a952fb34e0fab84ac2a03d",
-      "offset": 146986,
+      "offset": 148225,
       "length": 397
     },
     {
@@ -1478,7 +1478,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_restores",
       "sha256": "23c19a71cbdfb6f8e9a86ba97a4d0fd8fd69e06886fc97e6f333408cbde86509",
-      "offset": 147385,
+      "offset": 148624,
       "length": 417
     },
     {
@@ -1486,7 +1486,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "6f0493067f242efc4b06ed27a004f96e9aa24efa31e02bc2f94c3eb4601278b3",
-      "offset": 147804,
+      "offset": 149043,
       "length": 405
     },
     {
@@ -1494,7 +1494,7 @@
       "type": "trigger",
       "table": "prepare_step_bindings",
       "sha256": "79da5d3bb5d389e70e52783b14ed9797d9f320f40fca036ab01016c47d9b40d0",
-      "offset": 148211,
+      "offset": 149450,
       "length": 395
     },
     {
@@ -1502,7 +1502,7 @@
       "type": "trigger",
       "table": "managed_runtime_operations",
       "sha256": "0df1855a6cce7623e11baedfc132bd4ad74878e6a2b21eee903304a2ae78028c",
-      "offset": 148608,
+      "offset": 149847,
       "length": 730
     },
     {
@@ -1510,7 +1510,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "0242da93078c9015b0109a0c4b833f03d83a7b70cec02d896f5274805e0df988",
-      "offset": 149340,
+      "offset": 150579,
       "length": 571
     },
     {
@@ -1518,7 +1518,7 @@
       "type": "trigger",
       "table": "prepare_tasks",
       "sha256": "690703fb30e6459285367fb0e374d6de7e05d679f3cf6527f29fb10d49794296",
-      "offset": 149913,
+      "offset": 151152,
       "length": 1294
     },
     {
@@ -1526,7 +1526,7 @@
       "type": "trigger",
       "table": "prepare_tasks",
       "sha256": "b4f7e72380672211ac7b413d8bc0239b7b29be6c431c9fada9e18d2942fe4ab6",
-      "offset": 151209,
+      "offset": 152448,
       "length": 523
     },
     {
@@ -1534,7 +1534,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "74e48d02f08878e682e798c2f9ff70218db010f32ce159636637fb8db13c0445",
-      "offset": 151734,
+      "offset": 152973,
       "length": 565
     },
     {
@@ -1542,7 +1542,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "996a40e33db8e052d03db8c960b5adf8629309e55a5158119ee4b724470cdb7a",
-      "offset": 152301,
+      "offset": 153540,
       "length": 251
     },
     {
@@ -1550,7 +1550,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "f492af692a6528fcbc274e619859c3a6488da828ac89107ea64cc8ec2ff6ae02",
-      "offset": 152554,
+      "offset": 153793,
       "length": 311
     },
     {
@@ -1558,7 +1558,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "d2a7095211beac96624beeb104abfbd8727a515547e7c34880b251ba82f64e21",
-      "offset": 152867,
+      "offset": 154106,
       "length": 1734
     },
     {
@@ -1566,7 +1566,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "813d1887c64deba2053f5fc12aad02271743ff7a81d3f3e05af97090130dc1d6",
-      "offset": 154603,
+      "offset": 155842,
       "length": 326
     },
     {
@@ -1574,7 +1574,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "775f34d2224b3b974b26568a46943b38b63c11a0f85cdeb93dbac812bf8dadd3",
-      "offset": 154931,
+      "offset": 156170,
       "length": 551
     },
     {
@@ -1582,7 +1582,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "ff9d614590d61bea6fcf7bae66b97d87055a8f977564edd5933dfa2909499c85",
-      "offset": 155484,
+      "offset": 156723,
       "length": 617
     },
     {
@@ -1590,7 +1590,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "ebb8ff97e877a429a0788c0b4de4eac8914e4d6c42421cdf134e05da8cb6940d",
-      "offset": 156103,
+      "offset": 157342,
       "length": 327
     },
     {
@@ -1598,7 +1598,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_session_disposals",
       "sha256": "676fbb6204226475b62cc88cd3d441afe926af41d496643870de3a7003a0f6a7",
-      "offset": 156432,
+      "offset": 157671,
       "length": 725
     },
     {
@@ -1606,7 +1606,7 @@
       "type": "trigger",
       "table": "prepare_clones",
       "sha256": "269ce19972b025bd16a874c722ce8bb97ad0be4aebec28c8543f32bb2b460e40",
-      "offset": 157159,
+      "offset": 158398,
       "length": 338
     },
     {
@@ -1614,39 +1614,39 @@
       "type": "trigger",
       "table": "prepare_liquibase_session_disposals",
       "sha256": "20c422a4c65e44385b28e4354fe4942b635078d5a35c88cd4e47edf8a32726d1",
-      "offset": 157499,
+      "offset": 158738,
       "length": 317
     },
     {
       "name": "prepare_liquibase_private_disposal_identity",
       "type": "trigger",
       "table": "prepare_liquibase_session_disposals",
-      "sha256": "9f327b0ce6ba7c7ac02ab89172f6bd7a486bc684ec92678dd90cd98e25d31ab5",
-      "offset": 157818,
-      "length": 352
+      "sha256": "6a31ba3b35cbc625c29af1b307e37ca0c445d4f26a9ec0ce142a381226f3a003",
+      "offset": 159057,
+      "length": 469
     },
     {
       "name": "prepare_liquibase_private_disposal_insert",
       "type": "trigger",
       "table": "prepare_liquibase_session_disposals",
-      "sha256": "89ee23078aed1e95490e763cfad94b4c769b1f3f63b881635bb701e48d1d68f0",
-      "offset": 158172,
-      "length": 5151
+      "sha256": "1e74b0d086923b16d1da95a350893fb03bdb76ae2313ecf8a2dde405b9c3bed6",
+      "offset": 159528,
+      "length": 7776
     },
     {
       "name": "prepare_liquibase_private_disposal_runner_absence",
       "type": "trigger",
       "table": "prepare_liquibase_session_disposals",
-      "sha256": "bd797ef48d29233d5f1c17647b45f0cfa91db79f7981410e429f98b076873f1b",
-      "offset": 163325,
-      "length": 315
+      "sha256": "464fc92cf95e50348da8ece489d9a49e81c70595da0437c0b7ef2076520295e5",
+      "offset": 167306,
+      "length": 1282
     },
     {
       "name": "prepare_liquibase_private_disposal_runner_attach",
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "ff650bd627db2f49dcc0f7e61e869a744adf57058a750aec763517bbb30426c5",
-      "offset": 163642,
+      "offset": 168590,
       "length": 289
     },
     {
@@ -1654,7 +1654,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "3b6e15185d1621fba8aa4e2ce20d7d5ad6b5584c588f332e595b848f766ab436",
-      "offset": 163933,
+      "offset": 168881,
       "length": 812
     },
     {
@@ -1662,7 +1662,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "bc0dde07c03b16eebb34bbcb0fe95c0e2439d1053aab7ab96475be32dbd69639",
-      "offset": 164747,
+      "offset": 169695,
       "length": 1487
     },
     {
@@ -1670,7 +1670,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_planning_capture_disposals",
       "sha256": "531a7538ea99f8685006795ea7cccf5f70048e6b7759471590b886ccdc0a9708",
-      "offset": 166236,
+      "offset": 171184,
       "length": 281
     },
     {
@@ -1678,7 +1678,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_planning_capture_disposals",
       "sha256": "5d34668d7030e61aefd472b591abb9373c4b45f01a717e430ed3964ea850ae0f",
-      "offset": 166519,
+      "offset": 171467,
       "length": 3486
     },
     {
@@ -1686,7 +1686,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_planning_capture_disposals",
       "sha256": "a38a729f32fcc4a3b0d2a4f0bdda1bc6d44e275cddaa449aff030a035eb4b27e",
-      "offset": 170007,
+      "offset": 174955,
       "length": 200
     },
     {
@@ -1694,7 +1694,7 @@
       "type": "trigger",
       "table": "prepare_planning_attempt_artifacts",
       "sha256": "e46a0cfe05145acbfb1eb32b04c56f167c8b636368ac87c30fff895088a5c023",
-      "offset": 170209,
+      "offset": 175157,
       "length": 280
     },
     {
@@ -1702,7 +1702,7 @@
       "type": "trigger",
       "table": "prepare_planning_attempt_artifacts",
       "sha256": "c0a6c06c596d85cfbe5146752b893e018ef38bb2b868351a026011b23fdd08d3",
-      "offset": 170491,
+      "offset": 175439,
       "length": 203
     },
     {
@@ -1710,7 +1710,7 @@
       "type": "trigger",
       "table": "prepare_planning_attempt_artifacts",
       "sha256": "590d74f026aa184dac0fa566b44350543e5381230aaa793c1e6d44fbd568b92d",
-      "offset": 170696,
+      "offset": 175644,
       "length": 668
     },
     {
@@ -1718,7 +1718,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_session_readiness",
       "sha256": "75502f26af5cf276d474ac09cf4561080bed41460abcb7c2ed069d8f6bbe868a",
-      "offset": 171366,
+      "offset": 176314,
       "length": 317
     },
     {
@@ -1726,7 +1726,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_session_readiness",
       "sha256": "9d6a0c44c26126231a62aea50b56804d77425a6f1f6b1be55121af4baee440bf",
-      "offset": 171685,
+      "offset": 176633,
       "length": 1111
     },
     {
@@ -1734,7 +1734,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_session_readiness",
       "sha256": "41119ef690c8efd8d83bded40f218a2cf47da100100d8edd5098ed1b030be443",
-      "offset": 172798,
+      "offset": 177746,
       "length": 173
     },
     {
@@ -1742,7 +1742,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_capture_retirements",
       "sha256": "ad3f7d34fb7fe0c7356a0d6fbeb9c367ea2c4a30269e04f36b83a70c5fee51cf",
-      "offset": 172973,
+      "offset": 177921,
       "length": 268
     },
     {
@@ -1750,7 +1750,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_capture_retirements",
       "sha256": "19a569b1c95e5018012f36acfaf4c5a3c8342eaded034f643234df85ed769f30",
-      "offset": 173243,
+      "offset": 178191,
       "length": 265
     },
     {
@@ -1758,23 +1758,23 @@
       "type": "trigger",
       "table": "prepare_liquibase_capture_retirements",
       "sha256": "55705a39bc93712d3182d368447187b7016cfbebe3ee2d4f16a988d29259d09f",
-      "offset": 173510,
+      "offset": 178458,
       "length": 2476
     },
     {
       "name": "prepare_liquibase_private_retirement_observation",
       "type": "trigger",
       "table": "prepare_liquibase_capture_retirements",
-      "sha256": "a6575894e95fc6c02f805a24f9579fd2ddd09ea3a196c1d1c96574d4bdf66be4",
-      "offset": 175988,
-      "length": 825
+      "sha256": "92d9bf34f5a535ab3f7f3798e2d2b75717c19fbeeb781ca04fb138ba4af513aa",
+      "offset": 180936,
+      "length": 1052
     },
     {
       "name": "prepare_liquibase_private_session_insert",
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "7c72d580607b2079375c29c4cf8cbd4fd8ab13a4cccaeb8d7c183663e5b970e6",
-      "offset": 176815,
+      "offset": 181990,
       "length": 277
     },
     {
@@ -1782,23 +1782,47 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "0b66117f12ce21078d93c738ca0227005d6b0fc9886e43e0effee755e2d7f09c",
-      "offset": 177094,
+      "offset": 182269,
       "length": 236
     },
     {
       "name": "prepare_liquibase_private_session_retired",
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
-      "sha256": "ed3fa4a4159e51bf6cfd63101e68d5f140860df89e786329087a22ed8ec82096",
-      "offset": 177332,
-      "length": 889
+      "sha256": "7f8e5e4911a35cf6d54574242945040e08faf54e6b4f727548882f9b093ed81c",
+      "offset": 182507,
+      "length": 1115
+    },
+    {
+      "name": "prepare_liquibase_handoff_outcome",
+      "type": "trigger",
+      "table": "prepare_liquibase_job_finalizations",
+      "sha256": "676faec94819fe8e7ea8ed09058b52ba9b7b2af7daf9414297d69c5be1059955",
+      "offset": 183624,
+      "length": 578
+    },
+    {
+      "name": "prepare_liquibase_handoff_instance",
+      "type": "trigger",
+      "table": "instances",
+      "sha256": "ed121497023396b251aa9bb8c7e2f6226139dc82910b716b998d71163c67693d",
+      "offset": 184204,
+      "length": 476
+    },
+    {
+      "name": "prepare_liquibase_handoff_resume",
+      "type": "trigger",
+      "table": "prepare_liquibase_sessions",
+      "sha256": "3fc07579e75dd943b0dde160c7d62757e3dec4f7fc0af18db83143d643878fbc",
+      "offset": 184682,
+      "length": 1015
     },
     {
       "name": "prepare_liquibase_private_slot_delete",
       "type": "trigger",
       "table": "prepare_liquibase_capture_slots",
       "sha256": "1479cd181c40e7262d662610be75017dfb1c9b23c52023e1d86867494cd60843",
-      "offset": 178223,
+      "offset": 185699,
       "length": 491
     },
     {
@@ -1806,7 +1830,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_capture_slots",
       "sha256": "d60b0c4f787bdb158cbb27b93e0c0aa8d804c96619306a60371c5c3fa208fc7b",
-      "offset": 178716,
+      "offset": 186192,
       "length": 2659
     },
     {
@@ -1814,7 +1838,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_capture_slots",
       "sha256": "95c89912a822826e0c81cac266c7f6a9cbea000d3c4182752c22aa9fb2486e82",
-      "offset": 181377,
+      "offset": 188853,
       "length": 178
     },
     {
@@ -1822,7 +1846,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_restores",
       "sha256": "c717d65e3a5d8087f9c374fb12ad448ae92dbc6b8cf253ec0932645780b65cb9",
-      "offset": 181557,
+      "offset": 189033,
       "length": 218
     },
     {
@@ -1830,7 +1854,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_restores",
       "sha256": "e2ec9a90d85f237ed9bfd79a1e4cf11eb8f12e25680922c8bd3a5e26cbaa3852",
-      "offset": 181777,
+      "offset": 189253,
       "length": 2293
     },
     {
@@ -1838,7 +1862,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_restores",
       "sha256": "dc7ef4c6130ccea5c50c09aa681dca92c8f8de8f21a6e4fe92a07e552aed8752",
-      "offset": 184072,
+      "offset": 191548,
       "length": 523
     },
     {
@@ -1846,7 +1870,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "eb2232260dccf0686b49d02d39f4ff1d201119e5730181075defc6df6a273d8e",
-      "offset": 184597,
+      "offset": 192073,
       "length": 11032
     },
     {
@@ -1854,7 +1878,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "1ccf578085b2ee4d1e458d7d595ce3b88ea70ee07eb35444c4dd268ff406540b",
-      "offset": 195631,
+      "offset": 203107,
       "length": 10496
     },
     {
@@ -1862,7 +1886,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "634a20c7a6860b475858c4554b7d157de237be5738b0de8db0e1587c3f7973a6",
-      "offset": 206129,
+      "offset": 213605,
       "length": 194
     },
     {
@@ -1870,7 +1894,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "58eb7e01822964d8622472d38a77fd8112c039c8c86f559d4499e689a3b864e0",
-      "offset": 206325,
+      "offset": 213801,
       "length": 1062
     },
     {
@@ -1878,7 +1902,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "647b4ab684e108672c5535ee8158b5771ff8bedd9a85b0aea4d1380681e9f276",
-      "offset": 207389,
+      "offset": 214865,
       "length": 1004
     },
     {
@@ -1886,7 +1910,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "092bc0479fcb80aa1512aa230b7d21e21e6233a2755f37a82b9ed4f844c4e5e2",
-      "offset": 208395,
+      "offset": 215871,
       "length": 274
     },
     {
@@ -1894,7 +1918,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "4bc570a33e70818936c12cec09aa6b05089a40674fd3d31aa03ca4f8c256f667",
-      "offset": 208671,
+      "offset": 216147,
       "length": 337
     },
     {
@@ -1902,7 +1926,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "870e3c575c408148715ab1fb64919c885183f975a7f052a0de5b0662d95f66d1",
-      "offset": 209010,
+      "offset": 216486,
       "length": 9344
     },
     {
@@ -1910,7 +1934,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "9794e8815e45118612dfbfff207637b77729a2f99a74f8dff2584bd471353b0f",
-      "offset": 218356,
+      "offset": 225832,
       "length": 337
     },
     {
@@ -1918,7 +1942,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_sessions",
       "sha256": "5ae77ed549173f94676fdc3220a04d27f3adab72c40b121347278d08aa1d4a0b",
-      "offset": 218695,
+      "offset": 226171,
       "length": 9529
     },
     {
@@ -1926,7 +1950,7 @@
       "type": "trigger",
       "table": "prepare_planning_attempt_artifacts",
       "sha256": "7cf4f1ea57d5d8bb937b492ac46c2a26d7e3b8e5cad11ad78b6fe1c19b920b32",
-      "offset": 228226,
+      "offset": 235702,
       "length": 246
     },
     {
@@ -1934,7 +1958,7 @@
       "type": "trigger",
       "table": "prepare_planning_attempt_artifacts",
       "sha256": "54f85851c38634ebd6ba8a54b418a46a0ad98e766b9b76645e1f64f2cb6657c9",
-      "offset": 228474,
+      "offset": 235950,
       "length": 346
     },
     {
@@ -1942,7 +1966,7 @@
       "type": "trigger",
       "table": "prepare_planning_attempt_artifacts",
       "sha256": "85a55db029074d12a432d5875cdc34bb60958b4b1909460288bdd4419e45d87e",
-      "offset": 228822,
+      "offset": 236298,
       "length": 758
     },
     {
@@ -1950,7 +1974,7 @@
       "type": "trigger",
       "table": "prepare_planning_attempt_artifacts",
       "sha256": "8e0678e1ea982d8476a6faa65ee2c40af4525d813414bcdb6dc2f775b1721e3d",
-      "offset": 229582,
+      "offset": 237058,
       "length": 424
     },
     {
@@ -1958,7 +1982,7 @@
       "type": "trigger",
       "table": "prepare_planning_attempt_artifacts",
       "sha256": "98fd42fa908af13a3d389abc8aa62cf76fae7ca817564f9fd746cb7d146676f9",
-      "offset": 230008,
+      "offset": 237484,
       "length": 813
     },
     {
@@ -1966,7 +1990,7 @@
       "type": "trigger",
       "table": "prepare_planning_changesets",
       "sha256": "a67cff7964d142c049aa891fc21af36dbb6393c8836eddbbbb5d591392b058d5",
-      "offset": 230823,
+      "offset": 238299,
       "length": 296
     },
     {
@@ -1974,7 +1998,7 @@
       "type": "trigger",
       "table": "prepare_planning_changesets",
       "sha256": "c82d164d216e6a7a67150cdd231ff65a67031e36278a9d97bc823f7fd8167dfa",
-      "offset": 231121,
+      "offset": 238597,
       "length": 307
     },
     {
@@ -1982,7 +2006,7 @@
       "type": "trigger",
       "table": "prepare_planning_changesets",
       "sha256": "e874fb79578141b4a393b3b35261093b5015f1a7d046c6e60a91ec67f139b79f",
-      "offset": 231430,
+      "offset": 238906,
       "length": 297
     },
     {
@@ -1990,7 +2014,7 @@
       "type": "trigger",
       "table": "prepare_attempt_decisions",
       "sha256": "e97ee1ab2546c0476a653d0d81b3ac7a1872f62e6453ef4046cf635b571fe440",
-      "offset": 231729,
+      "offset": 239205,
       "length": 705
     },
     {
@@ -1998,7 +2022,7 @@
       "type": "trigger",
       "table": "prepare_planning_intents",
       "sha256": "853efd536fecf2ca4beec4b5db83bbaae7f61feeffba56cf16ccf67d279f8bc0",
-      "offset": 232436,
+      "offset": 239912,
       "length": 448
     },
     {
@@ -2006,7 +2030,7 @@
       "type": "trigger",
       "table": "prepare_planning_intents",
       "sha256": "d81f99d08f918ed370d95ecc7f4921f2189b05b623949cd50fe41b9c621d3ae4",
-      "offset": 232886,
+      "offset": 240362,
       "length": 233
     },
     {
@@ -2014,7 +2038,7 @@
       "type": "trigger",
       "table": "prepare_planning_intents",
       "sha256": "989d4517d72de772a45498e2ba171df0ecb0543975a60f5a07ccf9c9b1dc3a59",
-      "offset": 233121,
+      "offset": 240597,
       "length": 247
     },
     {
@@ -2022,7 +2046,7 @@
       "type": "trigger",
       "table": "prepare_planning_intents",
       "sha256": "bad39a0ceec102d2836d2cbb972c17e4c2d2f8fc8fdaa9dca1d73d55ca4814b6",
-      "offset": 233370,
+      "offset": 240846,
       "length": 749
     },
     {
@@ -2030,7 +2054,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "955280b266e62ee7ffdffd9ee523375f3f03329c243b50da222f682b3c7c6d27",
-      "offset": 234121,
+      "offset": 241597,
       "length": 690
     },
     {
@@ -2038,7 +2062,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "fff9014d44e1aa514c092c6cb91d1b0efce91e8de349a6b6d60d85637aeebd9b",
-      "offset": 234813,
+      "offset": 242289,
       "length": 2358
     },
     {
@@ -2046,7 +2070,7 @@
       "type": "trigger",
       "table": "prepare_planning_intents",
       "sha256": "16ae55ebb583940b18197775b02c60e8fc05eef0cdc55160c0e5781ac807d6bb",
-      "offset": 237173,
+      "offset": 244649,
       "length": 527
     },
     {
@@ -2054,7 +2078,7 @@
       "type": "trigger",
       "table": "prepare_planning_intents",
       "sha256": "6fc9ae4e42e86c239fd1f09e8379ad214b7b169d01a6a8c49d2b039984d71003",
-      "offset": 237702,
+      "offset": 245178,
       "length": 1470
     },
     {
@@ -2062,7 +2086,7 @@
       "type": "trigger",
       "table": "prepare_planning_intents",
       "sha256": "cecad4579f07fa423ecea5018800edcc9301ee78ed9592ec1ab22a70e839f450",
-      "offset": 239174,
+      "offset": 246650,
       "length": 683
     },
     {
@@ -2070,7 +2094,7 @@
       "type": "trigger",
       "table": "prepare_planning_intents",
       "sha256": "2e73f3bf603e108a45b54e11630cf1c0c7e90f822f301e5ca249846dd3bb9e06",
-      "offset": 239859,
+      "offset": 247335,
       "length": 492
     },
     {
@@ -2078,7 +2102,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "6da809f1555f659b0f9413e47a9b7caccae17be894ac1c2d8915bb1e998af74b",
-      "offset": 240353,
+      "offset": 247829,
       "length": 3131
     },
     {
@@ -2086,7 +2110,7 @@
       "type": "trigger",
       "table": "prepare_tasks",
       "sha256": "bde9084435d8943717c5ac234f0781f3f9f0c3f499cbf14ea3b60a6bb050b9c0",
-      "offset": 243486,
+      "offset": 250962,
       "length": 332
     },
     {
@@ -2094,7 +2118,7 @@
       "type": "trigger",
       "table": "prepare_tasks",
       "sha256": "6a6b82e2435b58836e49544b2290f2c2056bd88cbea2e812a4e8a1e7ecd09236",
-      "offset": 243820,
+      "offset": 251296,
       "length": 730
     },
     {
@@ -2102,7 +2126,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "cbe5e250841e8a62370bbfa72a351f9c0098d0d7764cbb449c8c8c3a01c3a262",
-      "offset": 244552,
+      "offset": 252028,
       "length": 188
     },
     {
@@ -2110,7 +2134,7 @@
       "type": "trigger",
       "table": "prepare_jobs",
       "sha256": "dbf40361fdc0ecc64aef745bd8410a1e8f7fb0e48be8e8884f3d1dc6358f9c9e",
-      "offset": 244742,
+      "offset": 252218,
       "length": 246
     },
     {
@@ -2118,7 +2142,7 @@
       "type": "trigger",
       "table": "prepare_tasks",
       "sha256": "9ff012ab3f46454eaf584a5d6b113a602ee005c05858550d5103022beb7d0362",
-      "offset": 244990,
+      "offset": 252466,
       "length": 294
     },
     {
@@ -2126,7 +2150,7 @@
       "type": "trigger",
       "table": "prepare_tasks",
       "sha256": "f17f9e424f41b8a82ffebaa4a5983c7dca5a2ffbee5c8b94217fed3efde30048",
-      "offset": 245286,
+      "offset": 252762,
       "length": 2302
     },
     {
@@ -2134,7 +2158,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "063cdb5f02e9679ba3a2472d0c4778c289fe2f749bc11bef3a1410fc16973f79",
-      "offset": 247590,
+      "offset": 255066,
       "length": 19358
     },
     {
@@ -2142,7 +2166,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "c52c4ae17b39f44444a0b9ced96ae77b467d340067c383a3e1ebb2e332ae46bf",
-      "offset": 266950,
+      "offset": 274426,
       "length": 4942
     },
     {
@@ -2150,7 +2174,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "750d318c54f9ad58abf03b875dd7c320644ec1dc28d6d5f28a084c69307d7cda",
-      "offset": 271894,
+      "offset": 279370,
       "length": 907
     },
     {
@@ -2158,7 +2182,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "651564a1369252e4d8d24eaee66c056b237c86e67a22eb01af5feb1508b504b9",
-      "offset": 272803,
+      "offset": 280279,
       "length": 3308
     },
     {
@@ -2166,7 +2190,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "79f2c3e3211b202c91370bed3eafb0dff73a168909b03236ad14881d17c474c6",
-      "offset": 276113,
+      "offset": 283589,
       "length": 612
     },
     {
@@ -2174,7 +2198,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "7ddd70c8bcc18fb27fbffc2d71435c0e9b1a0ce923c5b68f67d0cae5cbb32434",
-      "offset": 276727,
+      "offset": 284203,
       "length": 455
     },
     {
@@ -2182,7 +2206,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_invocations",
       "sha256": "a3e1b5946c842f1364d5c8c37da8d9751fa2244a113050b6064015d87a3f790f",
-      "offset": 277184,
+      "offset": 284660,
       "length": 865
     },
     {
@@ -2190,7 +2214,7 @@
       "type": "trigger",
       "table": "prepare_liquibase_cache_restores",
       "sha256": "9935cfc3f0264d72f688ad1a1ca7f62803a04206544406b162ec17cc22fb6969",
-      "offset": 278051,
+      "offset": 285527,
       "length": 856
     },
     {
@@ -2198,7 +2222,7 @@
       "type": "trigger",
       "table": "prepare_step_attempts",
       "sha256": "9c4a09c22d7fa01abb821a55e79bb34c5494cc039e9ed01e86e08bde1a7fedbb",
-      "offset": 278909,
+      "offset": 286385,
       "length": 532
     },
     {
@@ -2206,7 +2230,7 @@
       "type": "trigger",
       "table": "prepare_state_bindings",
       "sha256": "8f936b0973cbae096d110a578e1dcdefe18d0ced1b6fc61693321d9292388893",
-      "offset": 279443,
+      "offset": 286919,
       "length": 222
     },
     {
@@ -2214,7 +2238,7 @@
       "type": "trigger",
       "table": "prepare_state_bindings",
       "sha256": "9907ba6030365e3513d9f2be0ffde3c362cf97c77789602a4014747d4633ffa1",
-      "offset": 279667,
+      "offset": 287143,
       "length": 520
     },
     {
@@ -2222,7 +2246,7 @@
       "type": "trigger",
       "table": "prepare_state_bindings",
       "sha256": "731213c724c7469e67bf097f7b0bce57981cb8fc230d3c1507eff3acf173a690",
-      "offset": 280189,
+      "offset": 287665,
       "length": 147
     },
     {
@@ -2230,7 +2254,7 @@
       "type": "trigger",
       "table": "prepare_step_bindings",
       "sha256": "49df34f8d13600cb7e9d7a39d01e3df61d9bdef5a750984c6cb2d2141069c6eb",
-      "offset": 280338,
+      "offset": 287814,
       "length": 144
     },
     {
@@ -2238,7 +2262,7 @@
       "type": "trigger",
       "table": "prepare_step_bindings",
       "sha256": "9793986101c68641f0d5bf6b9ec85fc7cacc2d726827755a253ffe9b31205f3f",
-      "offset": 280484,
+      "offset": 287960,
       "length": 347
     },
     {
@@ -2246,7 +2270,7 @@
       "type": "trigger",
       "table": "runtime_v2_materialization_components",
       "sha256": "22379fc6dacdfd17b4075182366299c88f20065b7dc5696b3af918bf8bff3cd8",
-      "offset": 280833,
+      "offset": 288309,
       "length": 202,
       "released_sha256": "22379fc6dacdfd17b4075182366299c88f20065b7dc5696b3af918bf8bff3cd8"
     },
@@ -2255,7 +2279,7 @@
       "type": "trigger",
       "table": "runtime_v2_materialization_components",
       "sha256": "f7710b61f6a747f0da6537acfec2a46015720eca4a8f234fea754fea0ded0247",
-      "offset": 281037,
+      "offset": 288513,
       "length": 213,
       "released_sha256": "f7710b61f6a747f0da6537acfec2a46015720eca4a8f234fea754fea0ded0247"
     },
@@ -2264,7 +2288,7 @@
       "type": "trigger",
       "table": "runtime_v2_materializations",
       "sha256": "002ea09bd8d96036ba5534a4e7ee5bcda2e63ae05cf16ae995fabab5131f1813",
-      "offset": 281252,
+      "offset": 288728,
       "length": 172,
       "released_sha256": "002ea09bd8d96036ba5534a4e7ee5bcda2e63ae05cf16ae995fabab5131f1813"
     },
@@ -2273,7 +2297,7 @@
       "type": "trigger",
       "table": "runtime_v2_materializations",
       "sha256": "65df0686ffc8d9aada30933188b2dc70cbec4e46371d6bdb78958875477c6f2b",
-      "offset": 281426,
+      "offset": 288902,
       "length": 183,
       "released_sha256": "65df0686ffc8d9aada30933188b2dc70cbec4e46371d6bdb78958875477c6f2b"
     },
@@ -2282,7 +2306,7 @@
       "type": "trigger",
       "table": "runtime_v2_provenance_observations",
       "sha256": "4134bba1336e86f9614c7947455a37404314faba489f22514f829965d8606936",
-      "offset": 281611,
+      "offset": 289087,
       "length": 168,
       "released_sha256": "4134bba1336e86f9614c7947455a37404314faba489f22514f829965d8606936"
     },
@@ -2291,7 +2315,7 @@
       "type": "trigger",
       "table": "runtime_v2_provenance_observations",
       "sha256": "ac70ee266fb8b88b5b1ac6cc8da0f2091dbf04c4250131b2da19f15eabacde41",
-      "offset": 281781,
+      "offset": 289257,
       "length": 179,
       "released_sha256": "ac70ee266fb8b88b5b1ac6cc8da0f2091dbf04c4250131b2da19f15eabacde41"
     },
@@ -2300,7 +2324,7 @@
       "type": "trigger",
       "table": "runtime_v2_states",
       "sha256": "f1e42d5826cbfbba6a438fff36cb86c929ce2983c8e7b5472d1a53670eeeeb3f",
-      "offset": 281962,
+      "offset": 289438,
       "length": 142,
       "released_sha256": "f1e42d5826cbfbba6a438fff36cb86c929ce2983c8e7b5472d1a53670eeeeb3f"
     },
@@ -2309,7 +2333,7 @@
       "type": "trigger",
       "table": "runtime_v2_states",
       "sha256": "a189368604af86a443943a97714bf30b82c05a303f62408ed49d06a5d6e228b1",
-      "offset": 282106,
+      "offset": 289582,
       "length": 153,
       "released_sha256": "a189368604af86a443943a97714bf30b82c05a303f62408ed49d06a5d6e228b1"
     }
@@ -2333,7 +2357,7 @@
     },
     {
       "table": "prepare_liquibase_session_store_format",
-      "sql": "INSERT INTO prepare_liquibase_session_store_format(slot,format_version) VALUES(1,2);"
+      "sql": "INSERT INTO prepare_liquibase_session_store_format(slot,format_version) VALUES(1,3);"
     }
   ]
 }

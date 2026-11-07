@@ -437,7 +437,7 @@ AND strftime('%Y-%m-%dT%H:%M:%SZ',julianday(substr((CASE WHEN substr(requested_a
 
 CREATE TABLE prepare_liquibase_session_disposals (
  session_id TEXT PRIMARY KEY NOT NULL REFERENCES prepare_liquibase_sessions(session_id) ON DELETE CASCADE,
- reason TEXT NOT NULL CHECK(reason IN ('final_published','cache_selected','selected_failure','accepted_cancel','unknown_discard','proven_nonstart')),
+ reason TEXT NOT NULL CHECK(reason IN ('final_published','cache_selected','selected_failure','accepted_cancel','unknown_discard','proven_nonstart','instance_transferred')),
  authority_ref TEXT NOT NULL CHECK(length(authority_ref)>0),
  requested_at TEXT NOT NULL CHECK(coalesce(((CASE WHEN substr(requested_at,-6)='+00:00' THEN substr(requested_at,1,length(requested_at)-6)||'Z' ELSE requested_at END) GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]*Z'
 AND (length((CASE WHEN substr(requested_at,-6)='+00:00' THEN substr(requested_at,1,length(requested_at)-6)||'Z' ELSE requested_at END))=20 OR (length((CASE WHEN substr(requested_at,-6)='+00:00' THEN substr(requested_at,1,length(requested_at)-6)||'Z' ELSE requested_at END)) BETWEEN 22 AND 30
@@ -460,6 +460,22 @@ AND strftime('%Y-%m-%dT%H:%M:%SZ',julianday(substr((CASE WHEN substr(runner_abse
  nonstart_scope_digest TEXT,
  nonstart_observation_digest TEXT,
  nonstart_observed_at TEXT,
+ handoff_job_id TEXT REFERENCES prepare_liquibase_job_finalizations(job_id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+ handoff_instance_id TEXT,
+ handoff_state_id TEXT,
+ handoff_operation_ref TEXT,
+ handoff_runtime_dir TEXT,
+ handoff_outcome_digest TEXT,
+ CHECK((reason='instance_transferred' AND handoff_job_id IS NOT NULL AND length(handoff_job_id)>0
+ AND handoff_instance_id IS NOT NULL AND length(handoff_instance_id)>0
+ AND handoff_state_id IS NOT NULL AND length(handoff_state_id)>0
+ AND handoff_operation_ref IS NOT NULL AND length(handoff_operation_ref)>0
+ AND handoff_runtime_dir IS NOT NULL AND length(handoff_runtime_dir)>0
+ AND handoff_outcome_digest IS NOT NULL AND length(handoff_outcome_digest)=71
+ AND substr(handoff_outcome_digest,1,7)='sha256:' AND substr(handoff_outcome_digest,8) NOT GLOB '*[^0-9a-f]*'
+ AND authority_ref=handoff_outcome_digest AND runner_id IS NOT NULL AND db_runtime_id IS NOT NULL AND db_absent_at IS NULL)
+ OR (reason<>'instance_transferred' AND handoff_job_id IS NULL AND handoff_instance_id IS NULL
+ AND handoff_state_id IS NULL AND handoff_operation_ref IS NULL AND handoff_runtime_dir IS NULL AND handoff_outcome_digest IS NULL)),
  CHECK((reason='proven_nonstart' AND nonstart_basis IS NOT NULL AND nonstart_scope_digest IS NOT NULL
    AND nonstart_observation_digest IS NOT NULL AND nonstart_observed_at IS NOT NULL
    AND length(nonstart_scope_digest)=71 AND substr(nonstart_scope_digest,1,7)='sha256:' AND substr(nonstart_scope_digest,8) NOT GLOB '*[^0-9a-f]*' AND length(nonstart_observation_digest)=71 AND substr(nonstart_observation_digest,1,7)='sha256:' AND substr(nonstart_observation_digest,8) NOT GLOB '*[^0-9a-f]*' AND coalesce(((CASE WHEN substr(nonstart_observed_at,-6)='+00:00' THEN substr(nonstart_observed_at,1,length(nonstart_observed_at)-6)||'Z' ELSE nonstart_observed_at END) GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]*Z'
@@ -469,7 +485,7 @@ AND substr((CASE WHEN substr(nonstart_observed_at,-6)='+00:00' THEN substr(nonst
 AND strftime('%Y-%m-%dT%H:%M:%SZ',julianday(substr((CASE WHEN substr(nonstart_observed_at,-6)='+00:00' THEN substr(nonstart_observed_at,1,length(nonstart_observed_at)-6)||'Z' ELSE nonstart_observed_at END),1,19)||'Z'))=substr((CASE WHEN substr(nonstart_observed_at,-6)='+00:00' THEN substr(nonstart_observed_at,1,length(nonstart_observed_at)-6)||'Z' ELSE nonstart_observed_at END),1,19)||'Z'),0))
  OR (reason<>'proven_nonstart' AND nonstart_basis IS NULL AND nonstart_scope_digest IS NULL
    AND nonstart_observation_digest IS NULL AND nonstart_observed_at IS NULL)),
- CHECK(runner_absent_at IS NULL OR db_absent_at IS NOT NULL)
+ CHECK(runner_absent_at IS NULL OR db_absent_at IS NOT NULL OR reason='instance_transferred')
 );
 
 CREATE TABLE prepare_liquibase_session_readiness (
@@ -486,7 +502,7 @@ AND strftime('%Y-%m-%dT%H:%M:%SZ',julianday(substr((CASE WHEN substr(verified_at
 
 CREATE TABLE "prepare_liquibase_session_store_format" (
   slot INTEGER PRIMARY KEY CHECK(slot=1),
-  format_version INTEGER NOT NULL CHECK(format_version=2)
+  format_version INTEGER NOT NULL CHECK(format_version=3)
 );
 
 CREATE TABLE prepare_liquibase_sessions (
@@ -2164,7 +2180,7 @@ WHEN EXISTS (SELECT 1 FROM prepare_liquibase_sessions s JOIN prepare_jobs j ON j
 BEGIN SELECT RAISE(ABORT,'session disposal is retained with its job'); END;
 
 CREATE TRIGGER prepare_liquibase_private_disposal_identity
-BEFORE UPDATE OF session_id,reason,authority_ref,requested_at,runner_id,db_runtime_id,nonstart_basis,nonstart_scope_digest,nonstart_observation_digest,nonstart_observed_at
+BEFORE UPDATE OF session_id,reason,authority_ref,requested_at,runner_id,db_runtime_id,nonstart_basis,nonstart_scope_digest,nonstart_observation_digest,nonstart_observed_at,handoff_job_id,handoff_instance_id,handoff_state_id,handoff_operation_ref,handoff_runtime_dir,handoff_outcome_digest
 ON prepare_liquibase_session_disposals
 BEGIN SELECT RAISE(ABORT,'Liquibase session disposal identity is immutable'); END;
 
@@ -2178,6 +2194,33 @@ WHEN NEW.db_absent_at IS NOT NULL OR NEW.runner_absent_at IS NOT NULL
  AND s.runner_id IS NEW.runner_id AND clone.db_runtime_id IS NEW.db_runtime_id
  AND j.prepare_kind='lb' AND j.purpose='prepare' AND j.plan_only=0 AND j.status IN ('queued','running','recovery_required')
  AND (
+ (NEW.reason='instance_transferred' AND NEW.handoff_job_id=j.job_id AND NEW.handoff_state_id=s.cursor_state_id
+ AND s.runner_phase='stopped' AND s.db_phase='running' AND clone.phase='active'
+ AND EXISTS (SELECT 1 FROM prepare_tasks t JOIN prepare_liquibase_invocations i USING(job_id,task_id)
+ JOIN prepare_step_attempts a USING(job_id,task_id,attempt_no)
+ WHERE t.job_id=j.job_id AND t.position=s.cursor_position-1 AND t.output_state_id=s.cursor_state_id
+ AND t.type='state_execute' AND t.status='succeeded' AND i.session_id=s.session_id
+ AND a.clone_id=s.clone_id AND a.worker_generation=s.worker_generation AND a.phase='closed' AND a.resolution='published')
+ AND EXISTS (SELECT 1 FROM states state JOIN liquibase_state_bindings lb ON lb.state_id=state.state_id
+ WHERE state.state_id=s.cursor_state_id AND state.prepare_kind='lb' AND lb.execution_fingerprint=s.execution_fingerprint
+ AND state.image_id=j.resolved_image_id AND state.lineage_ref=j.lineage_ref AND state.identity_digest=j.identity_digest)
+ AND EXISTS (SELECT 1 FROM managed_runtime_operations o JOIN managed_state_seals seal ON seal.operation_ref=o.operation_ref
+ JOIN instance_access access ON access.instance_ref=NEW.handoff_instance_id AND access.stage='verified'
+ WHERE o.operation_ref=NEW.handoff_operation_ref AND o.target_path=NEW.handoff_runtime_dir
+ AND o.source_ref=s.start_id AND o.runtime_ref=clone.db_runtime_id AND o.stage='running'
+ AND seal.state_id=s.cursor_state_id
+ AND json_extract(seal.binding_json,'$.RuntimeRef')=o.runtime_ref
+ AND json_extract(seal.binding_json,'$.PhysicalIdentity')=o.physical_identity
+ AND json_extract(access.binding_json,'$.RuntimeRef')=o.runtime_ref
+ AND json_extract(access.binding_json,'$.PhysicalIdentity')=o.physical_identity)
+ AND NOT EXISTS (SELECT 1 FROM prepare_tasks t WHERE t.job_id=j.job_id AND t.type='state_execute' AND t.status<>'succeeded')
+ AND NOT EXISTS (SELECT 1 FROM prepare_step_attempts a WHERE a.job_id=j.job_id AND (a.phase<>'closed' OR a.resolution IS NULL))
+ AND NOT EXISTS (SELECT 1 FROM prepare_clones c WHERE c.job_id=j.job_id AND c.clone_id<>s.clone_id AND c.phase<>'released')
+ AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_sessions other WHERE other.job_id=j.job_id AND other.session_id<>s.session_id AND other.retired_at IS NULL)
+ AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_cache_restores r WHERE r.job_id=j.job_id AND r.restore_phase NOT IN ('published','abandoned'))
+ AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_job_cancellations cancel WHERE cancel.job_id=j.job_id)
+ AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_job_finalizations f WHERE f.job_id=j.job_id))
+ OR
  (NEW.reason='accepted_cancel' AND NEW.authority_ref=j.job_id AND EXISTS (SELECT 1 FROM prepare_liquibase_job_cancellations c WHERE c.job_id=j.job_id))
  OR (NEW.reason='selected_failure' AND EXISTS (SELECT 1 FROM prepare_liquibase_job_finalizations f WHERE f.job_id=j.job_id AND f.outcome_kind='failure' AND f.outcome_digest=NEW.authority_ref))
  OR (NEW.reason='final_published' AND s.cursor_state_id=NEW.authority_ref
@@ -2217,7 +2260,17 @@ WHEN NEW.db_absent_at IS NOT NULL OR NEW.runner_absent_at IS NOT NULL
 BEGIN SELECT RAISE(ABORT,'invalid exact Liquibase session disposal authority'); END;
 
 CREATE TRIGGER prepare_liquibase_private_disposal_runner_absence BEFORE UPDATE OF runner_absent_at ON prepare_liquibase_session_disposals
-WHEN OLD.runner_absent_at IS NOT NULL OR NEW.runner_absent_at IS NULL OR OLD.db_absent_at IS NULL
+WHEN OLD.runner_absent_at IS NOT NULL OR NEW.runner_absent_at IS NULL OR (OLD.db_absent_at IS NULL AND NOT EXISTS (
+ SELECT 1 FROM prepare_liquibase_job_finalizations f JOIN instances i ON i.instance_id=f.instance_pin
+ JOIN managed_runtime_operations o ON o.runtime_ref=i.runtime_id AND o.target_path=i.runtime_dir
+ JOIN prepare_liquibase_sessions s ON s.session_id=OLD.session_id
+ JOIN prepare_clones c ON c.clone_id=s.clone_id AND c.job_id=s.job_id
+ WHERE OLD.reason='instance_transferred' AND f.job_id=OLD.handoff_job_id AND s.job_id=f.job_id
+ AND f.outcome_kind='prepare_success' AND f.outcome_digest=OLD.handoff_outcome_digest AND f.projections_removed_at IS NULL
+ AND f.instance_id=OLD.handoff_instance_id AND f.final_state_id=OLD.handoff_state_id
+ AND i.state_id=OLD.handoff_state_id AND i.runtime_id=OLD.db_runtime_id AND i.runtime_dir=OLD.handoff_runtime_dir
+ AND o.operation_ref=OLD.handoff_operation_ref AND o.source_ref=s.start_id AND o.stage='running'
+ AND s.runner_id=OLD.runner_id AND s.runner_phase='stopped' AND c.db_runtime_id=OLD.db_runtime_id))
 BEGIN SELECT RAISE(ABORT,'runner absence follows saved database absence'); END;
 
 CREATE TRIGGER prepare_liquibase_private_disposal_runner_attach BEFORE UPDATE OF runner_id ON prepare_liquibase_sessions
@@ -2372,7 +2425,10 @@ WHEN OLD.verified_at IS NOT NULL OR OLD.absence_kind IS NOT NULL OR NEW.verified
  AND slot.job_id=OLD.job_id AND slot.task_id=OLD.task_id AND slot.attempt_no=OLD.attempt_no)
  OR (NEW.absence_kind='path_absent' AND OLD.reason<>'published_prune')
  OR (NEW.absence_kind='container_absent' AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_session_disposals d
- WHERE d.session_id=OLD.session_id AND d.db_absent_at IS NOT NULL AND d.runner_absent_at IS NOT NULL))
+ WHERE d.session_id=OLD.session_id AND d.runner_absent_at IS NOT NULL
+ AND (d.db_absent_at IS NOT NULL OR (d.reason='instance_transferred' AND EXISTS (
+ SELECT 1 FROM prepare_liquibase_job_finalizations f WHERE f.job_id=d.handoff_job_id
+ AND f.instance_pin=d.handoff_instance_id AND f.outcome_digest=d.handoff_outcome_digest)))))
 BEGIN SELECT RAISE(ABORT,'invalid exact capture retirement observation'); END;
 
 CREATE TRIGGER prepare_liquibase_private_session_insert BEFORE INSERT ON prepare_liquibase_sessions
@@ -2389,8 +2445,34 @@ WHEN NEW.retired_at IS NOT NULL AND OLD.capture_location='container_private'
  SELECT 1 FROM prepare_liquibase_capture_retirements r WHERE r.job_id=i.job_id AND r.task_id=i.task_id AND r.attempt_no=i.attempt_no
  AND r.session_id=i.session_id AND r.verified_at IS NOT NULL AND r.absence_kind IS NOT NULL))
  OR NOT EXISTS (SELECT 1 FROM prepare_liquibase_session_disposals d WHERE d.session_id=OLD.session_id
- AND d.db_absent_at IS NOT NULL AND d.runner_absent_at IS NOT NULL))
+ AND d.runner_absent_at IS NOT NULL AND (d.db_absent_at IS NOT NULL OR (d.reason='instance_transferred' AND EXISTS (
+ SELECT 1 FROM prepare_liquibase_job_finalizations f WHERE f.job_id=d.handoff_job_id
+ AND f.instance_pin=d.handoff_instance_id AND f.outcome_digest=d.handoff_outcome_digest)))))
 BEGIN SELECT RAISE(ABORT,'private session retains capture or disposal ownership'); END;
+
+CREATE TRIGGER prepare_liquibase_handoff_outcome BEFORE INSERT ON prepare_liquibase_job_finalizations
+WHEN EXISTS (SELECT 1 FROM prepare_liquibase_session_disposals d WHERE d.handoff_job_id=NEW.job_id
+ AND (NEW.outcome_kind<>'prepare_success' OR NEW.instance_id IS NOT d.handoff_instance_id
+ OR NEW.instance_pin IS NOT d.handoff_instance_id OR NEW.final_state_id IS NOT d.handoff_state_id
+ OR NEW.outcome_digest IS NOT d.handoff_outcome_digest OR NEW.created_at IS NOT d.requested_at))
+BEGIN SELECT RAISE(ABORT,'working transfer requires its exact future success outcome'); END;
+
+CREATE TRIGGER prepare_liquibase_handoff_instance BEFORE INSERT ON instances
+WHEN EXISTS (SELECT 1 FROM prepare_liquibase_session_disposals d WHERE d.handoff_instance_id=NEW.instance_id
+ AND (NEW.state_id IS NOT d.handoff_state_id OR NEW.runtime_id IS NOT d.db_runtime_id
+ OR NEW.runtime_dir IS NOT d.handoff_runtime_dir OR NEW.created_at IS NOT d.requested_at OR NEW.status IS NOT 'active'))
+BEGIN SELECT RAISE(ABORT,'working transfer requires its exact live instance'); END;
+
+CREATE TRIGGER prepare_liquibase_handoff_resume BEFORE UPDATE OF db_phase ON prepare_liquibase_sessions
+WHEN OLD.runner_phase='stopped' AND NEW.db_phase<>OLD.db_phase AND NEW.db_phase IN ('restart_requested','running')
+AND (OLD.retired_at IS NOT NULL OR OLD.cursor_state_id IS NULL
+ OR NOT EXISTS (SELECT 1 FROM prepare_tasks t WHERE t.job_id=OLD.job_id AND t.position=OLD.cursor_position-1
+ AND t.type='state_execute' AND t.status='succeeded' AND t.output_state_id=OLD.cursor_state_id)
+ OR EXISTS (SELECT 1 FROM prepare_tasks t WHERE t.job_id=OLD.job_id AND t.type='state_execute' AND t.status<>'succeeded')
+ OR EXISTS (SELECT 1 FROM prepare_step_attempts a WHERE a.clone_id=OLD.clone_id AND (a.phase<>'closed' OR a.resolution IS NOT 'published'))
+ OR EXISTS (SELECT 1 FROM prepare_liquibase_job_cancellations c WHERE c.job_id=OLD.job_id)
+ OR EXISTS (SELECT 1 FROM prepare_liquibase_job_finalizations f WHERE f.job_id=OLD.job_id))
+BEGIN SELECT RAISE(ABORT,'publication-only resume requires completed suffix'); END;
 
 CREATE TRIGGER prepare_liquibase_private_slot_delete BEFORE DELETE ON prepare_liquibase_capture_slots
 WHEN EXISTS (SELECT 1 FROM prepare_jobs j WHERE j.job_id=OLD.job_id)

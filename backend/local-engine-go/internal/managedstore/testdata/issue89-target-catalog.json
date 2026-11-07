@@ -784,6 +784,21 @@
     "table": "prepare_liquibase_finalization_store_format",
     "sha256": "dfc68e892ae6dec8895451e2f72f18b5e3ff6f7f2444b9be147f86e934260155"
   },
+  "prepare_liquibase_handoff_instance": {
+    "type": "trigger",
+    "table": "instances",
+    "sha256": "ed121497023396b251aa9bb8c7e2f6226139dc82910b716b998d71163c67693d"
+  },
+  "prepare_liquibase_handoff_outcome": {
+    "type": "trigger",
+    "table": "prepare_liquibase_job_finalizations",
+    "sha256": "676faec94819fe8e7ea8ed09058b52ba9b7b2af7daf9414297d69c5be1059955"
+  },
+  "prepare_liquibase_handoff_resume": {
+    "type": "trigger",
+    "table": "prepare_liquibase_sessions",
+    "sha256": "3fc07579e75dd943b0dde160c7d62757e3dec4f7fc0af18db83143d643878fbc"
+  },
   "prepare_liquibase_invocation_completion_guard": {
     "type": "trigger",
     "table": "prepare_liquibase_invocations",
@@ -877,17 +892,17 @@
   "prepare_liquibase_private_disposal_identity": {
     "type": "trigger",
     "table": "prepare_liquibase_session_disposals",
-    "sha256": "9f327b0ce6ba7c7ac02ab89172f6bd7a486bc684ec92678dd90cd98e25d31ab5"
+    "sha256": "6a31ba3b35cbc625c29af1b307e37ca0c445d4f26a9ec0ce142a381226f3a003"
   },
   "prepare_liquibase_private_disposal_insert": {
     "type": "trigger",
     "table": "prepare_liquibase_session_disposals",
-    "sha256": "89ee23078aed1e95490e763cfad94b4c769b1f3f63b881635bb701e48d1d68f0"
+    "sha256": "1e74b0d086923b16d1da95a350893fb03bdb76ae2313ecf8a2dde405b9c3bed6"
   },
   "prepare_liquibase_private_disposal_runner_absence": {
     "type": "trigger",
     "table": "prepare_liquibase_session_disposals",
-    "sha256": "bd797ef48d29233d5f1c17647b45f0cfa91db79f7981410e429f98b076873f1b"
+    "sha256": "464fc92cf95e50348da8ece489d9a49e81c70595da0437c0b7ef2076520295e5"
   },
   "prepare_liquibase_private_disposal_runner_attach": {
     "type": "trigger",
@@ -967,7 +982,7 @@
   "prepare_liquibase_private_retirement_observation": {
     "type": "trigger",
     "table": "prepare_liquibase_capture_retirements",
-    "sha256": "a6575894e95fc6c02f805a24f9579fd2ddd09ea3a196c1d1c96574d4bdf66be4"
+    "sha256": "92d9bf34f5a535ab3f7f3798e2d2b75717c19fbeeb781ca04fb138ba4af513aa"
   },
   "prepare_liquibase_private_session_insert": {
     "type": "trigger",
@@ -982,7 +997,7 @@
   "prepare_liquibase_private_session_retired": {
     "type": "trigger",
     "table": "prepare_liquibase_sessions",
-    "sha256": "ed3fa4a4159e51bf6cfd63101e68d5f140860df89e786329087a22ed8ec82096"
+    "sha256": "7f8e5e4911a35cf6d54574242945040e08faf54e6b4f727548882f9b093ed81c"
   },
   "prepare_liquibase_private_slot_delete": {
     "type": "trigger",
@@ -1032,7 +1047,7 @@
   "prepare_liquibase_session_disposals": {
     "type": "table",
     "table": "prepare_liquibase_session_disposals",
-    "sha256": "47093521ae64499c98aeeb079016757ba989d1d280cf7a11ec0c2ec9fee5f664"
+    "sha256": "df1858dcd484110efcde2354bdd0936e5d21600ff1694150678cd3d0ce8fb91f"
   },
   "prepare_liquibase_session_identity_immutable": {
     "type": "trigger",
@@ -1077,7 +1092,7 @@
   "prepare_liquibase_session_store_format": {
     "type": "table",
     "table": "prepare_liquibase_session_store_format",
-    "sha256": "ab8bbc7eb097d5af345889167fd60ca6ad6d444eb4ff629232a6cd518946283a"
+    "sha256": "a9f17a6fd30ae1d6c7a00bc7e611c40b3428f7737d27e80c057872002ab349e7"
   },
   "prepare_liquibase_sessions": {
     "type": "table",

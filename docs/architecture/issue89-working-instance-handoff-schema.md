@@ -2,8 +2,9 @@
 
 Status: approved by @evilguest on 2026-11-07 after critical/repeat review.
 The [component flow](issue89-working-instance-handoff-design.md) is approved.
-The separate [test inventory](issue89-working-instance-handoff-tests.md) awaits
-approval. No product, SQL artifact or existing test changes are authorized yet.
+The separate [test inventory](issue89-working-instance-handoff-tests.md) and
+OT-WH01–OT-WH03 are approved. Implementation/verification is in progress;
+the separate shared-cascade correction in §4 is still pending approval.
 
 ## 1. Smallest persistent representation
 
@@ -89,6 +90,26 @@ No instance/state lifetime is extended after normal completion. Instance deletio
 remains the sole ordinary owner of runtime/directory removal after handoff.
 
 ## 4. Format and installation
+
+### Pending narrow cascade correction (WH06 evidence)
+
+The new real queue/Docker tests reach successful handoff but terminal job DELETE
+fails with `decision evidence link is retained`: the common
+prepare_decision_evidence_delete_guard checks the still-present decision during
+an evidence cascade, even though its parent job has already been removed.
+Proposed correction, **not yet approved or implemented**: retain the link while
+its decision's job exists (join prepare_attempt_decisions to prepare_jobs),
+rather than merely while the decision exists. Direct history deletion while
+the job exists remains forbidden; the existing job-delete guards run before
+any cascade and still reject active/protected work. No table/FK/API change.
+
+Review: requiring the parent job avoids relying on sibling-cascade order.
+It does not allow deleting a decision/evidence link from a live job, or crossing
+job identity; existing exact-scope and append-only guards remain. Repeat review
+found no further P0–P2 issue. This shared guard change and its exact artifact
+expectation/provenance update require separate approval beyond OT-WH02; WH06's
+already approved terminal-deletion test is the failing requirement, not a new
+test-plan expansion. Do not change the guard until approval.
 
 Advance the session component's store format from 2 to 3; capture helper protocols
 remain private/v2. Update canonical SQL and regenerate its exact catalog using

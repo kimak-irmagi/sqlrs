@@ -330,7 +330,7 @@ func VerifyLiquibaseMainPathSchema(ctx context.Context, tx *sql.Tx) error {
 	}
 	for table, want := range map[string]int{
 		"liquibase_store_format": 2, "prepare_attempt_store_format": 3,
-		"prepare_liquibase_session_store_format":         2,
+		"prepare_liquibase_session_store_format":         3,
 		"prepare_liquibase_finalization_store_format":    2,
 		"prepare_liquibase_cache_selection_store_format": 1,
 	} {

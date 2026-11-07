@@ -51,10 +51,8 @@ type normalLiquibaseJournal interface {
 	PublishLiquibaseSessionState(context.Context, queue.LiquibaseSessionRecord, queue.LiquibaseInvocationRecord, store.StateCreate, string, string, int64, int64, string) error
 	RequestLiquibaseSessionDBRestart(context.Context, queue.LiquibaseSessionRecord) error
 	MarkLiquibaseSessionDBReady(context.Context, queue.LiquibaseSessionRecord, string, string) error
-	SaveLiquibaseSessionPublishedDisposal(context.Context, queue.LiquibaseSessionRecord, string) error
 	RecordLiquibaseSessionDisposalDBAbsent(context.Context, queue.LiquibaseSessionRecord, queue.CloneAbsenceVerifier, string) error
 	RetireLiquibaseSessionPrivateCapture(context.Context, queue.LiquibaseSessionRecord, queue.LiquibaseSessionAbsenceVerifier, string) error
-	RetirePublishedLiquibaseSession(context.Context, queue.LiquibaseSessionRecord, queue.LiquibaseSessionAbsenceVerifier, string) error
 	SelectLiquibaseJobFailure(context.Context, string, finalizationcodec.Outcome, string) (queue.FinalizationSnapshot, error)
 	SaveLiquibaseSessionFailureDisposal(context.Context, queue.FinalizationSnapshot, queue.LiquibaseSessionRecord, string) error
 	DiscardSelectedLiquibaseFailureSession(context.Context, queue.FinalizationSnapshot, queue.LiquibaseSessionRecord, queue.LiquibaseSessionAbsenceVerifier, string) error
@@ -63,6 +61,8 @@ type normalLiquibaseJournal interface {
 	DiscardCancelledLiquibaseSession(context.Context, queue.LiquibaseSessionRecord, queue.LiquibaseInvocationRecord, queue.LiquibaseSessionAbsenceVerifier, string) error
 	BeginFinalization(context.Context, string, finalizationcodec.Outcome, string) (queue.FinalizationSnapshot, error)
 	PublishInstanceAndBeginFinalization(context.Context, string, store.InstanceCreate, managedidentity.RuntimeBinding, instanceaccess.Operation) (queue.FinalizationSnapshot, error)
+	PublishWorkingInstanceAndBeginFinalization(context.Context, queue.LiquibaseSessionRecord, store.InstanceCreate, managedidentity.RuntimeBinding, instanceaccess.Operation) (queue.FinalizationSnapshot, error)
+	RetireTransferredLiquibaseSession(context.Context, queue.LiquibaseSessionRecord, queue.LiquibaseTransferredSessionVerifier, string) error
 	ConfirmProjectionsRemoved(context.Context, queue.FinalizationSnapshot, queue.LiquibaseProjectionAbsenceVerifier, string) (queue.FinalizationSnapshot, error)
 	CommitFinalization(context.Context, queue.FinalizationSnapshot, string, string) error
 }
@@ -246,11 +246,10 @@ func (c *jobCoordinator) runContainerLiquibase(p preparedRequest, jobID string) 
 		}
 	}
 	if working != nil {
-		if err := m.retireNormalLiquibaseSession(ctx, q, runtime, working); err != nil {
+		if err := m.publishNormalLiquibaseWorkingInstance(ctx, q, runtime, runner, jobID, p, stateID, working); err != nil {
 			m.pauseContainerLiquibase(jobID, err)
-			return
 		}
-		runner.setRuntime(nil)
+		return
 	}
 	if err := m.publishNormalLiquibaseInstance(ctx, q, runtime, runner, jobID, p, stateID); err != nil {
 		m.pauseContainerLiquibase(jobID, err)
@@ -705,25 +704,6 @@ func (m *PrepareService) executeNormalLiquibaseStep(ctx context.Context, q norma
 	})
 }
 
-func (m *PrepareService) retireNormalLiquibaseSession(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, w *normalLiquibaseWorking) error {
-	if err := w.coordinator.stopRunner(ctx, w.session); err != nil {
-		return err
-	}
-	stopped, found, err := q.ReadLiquibaseSession(ctx, w.session.SessionID)
-	if err != nil || !found {
-		return queue.ErrCommonAttempt
-	}
-	w.session = stopped
-	if err := q.SaveLiquibaseSessionPublishedDisposal(ctx, w.session, m.normalTimestamp()); err != nil {
-		return err
-	}
-	absence, err := m.disposeNormalLiquibaseSessionResources(ctx, q, runtime, w)
-	if err != nil {
-		return err
-	}
-	return q.RetirePublishedLiquibaseSession(ctx, w.session, absence, m.normalTimestamp())
-}
-
 // disposeNormalLiquibaseSessionResources consumes an already saved disposal
 // basis. Its exact native absence probes run outside SQLite transactions.
 func (m *PrepareService) disposeNormalLiquibaseSessionResources(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, w *normalLiquibaseWorking) (normalLiquibaseAbsence, error) {
@@ -793,4 +773,93 @@ func (m *PrepareService) publishNormalLiquibaseInstance(ctx context.Context, q n
 		return err
 	}
 	return m.finishNormalLiquibase(ctx, q, intent)
+}
+
+// publishNormalLiquibaseWorkingInstance promotes the existing completed working
+// DB. Only its Liquibase parent/private files are disposed; a failed publication
+// or cleanup retains exact durable ownership and never repeats SQL or allocates
+// a replacement DB. See issue89-working-instance-handoff-design.md.
+func (m *PrepareService) publishNormalLiquibaseWorkingInstance(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, runner *jobRunner, jobID string, p preparedRequest, stateID string, w *normalLiquibaseWorking) error {
+	if err := m.updateTaskStatus(ctx, jobID, "prepare-instance", StatusRunning, strPtr(m.normalTimestamp()), nil, nil); err != nil {
+		return err
+	}
+	if err := w.coordinator.stopRunner(ctx, w.session); err != nil {
+		return err
+	}
+	var found bool
+	var err error
+	w.session, found, err = q.ReadLiquibaseSession(ctx, w.session.SessionID)
+	if err != nil || !found || w.session.CursorKind != "state" || w.session.CursorID != stateID {
+		return queue.ErrLiquibaseFinalization
+	}
+	if w.session.DBPhase == "stopped" {
+		if err := q.RequestLiquibaseSessionDBRestart(ctx, w.session); err != nil {
+			return err
+		}
+		if err := m.dbms.ResumeSnapshot(ctx, w.rt.instance); err != nil {
+			return err
+		}
+		if err := m.verifyManagedRuntime(ctx, w.rt); err != nil {
+			return err
+		}
+		if err := q.MarkLiquibaseSessionDBReady(ctx, w.session, w.clone.PlannedRuntimeName, w.rt.instance.ID); err != nil {
+			return err
+		}
+		w.session, found, err = q.ReadLiquibaseSession(ctx, w.session.SessionID)
+		if err != nil || !found {
+			return queue.ErrLiquibaseFinalization
+		}
+	}
+	if w.session.DBPhase != "running" {
+		return queue.ErrLiquibaseFinalization
+	}
+	connection, err := m.managedConnection(ctx, w.rt)
+	if err != nil {
+		return err
+	}
+	instanceID := managedOperationRef("instance", jobID)[:32]
+	var intent queue.FinalizationSnapshot
+	var publicationError error
+	err = m.access.Activate(ctx, instanceID, w.rt.instance.Binding, func(secret instanceaccess.Secret) error {
+		return dbms.EnsureManagedPassword(ctx, connection, secret.Password)
+	}, func() error {
+		active := store.InstanceStatusActive
+		intent, publicationError = q.PublishWorkingInstanceAndBeginFinalization(ctx, w.session, store.InstanceCreate{InstanceID: instanceID, StateID: stateID, ImageID: p.effectiveImageID(), CreatedAt: m.normalTimestamp(), RuntimeID: &w.rt.instance.ID, RuntimeDir: &w.rt.runtimeDir, Status: &active}, w.rt.instance.Binding, w.rt.operation)
+		return publicationError
+	})
+	if err != nil {
+		if publicationError != nil {
+			return publicationError
+		}
+		return err
+	}
+	// The known committed intent/pin protects this exact runtime until terminal
+	// completion. Do not enter disposeNormalLiquibaseSessionResources here.
+	if err := runtime.RemoveStoppedContainer(ctx, w.session.RunnerID); err != nil {
+		return err
+	}
+	absence := normalLiquibaseAbsence{runtime: runtime, session: w.session, clone: w.clone, database: w.rt.instance.ID}
+	if err := absence.VerifyTransferredLiquibaseSession(ctx, w.session, w.clone, w.rt.instance.ID); err != nil {
+		return err
+	}
+	if err := w.protected.Close(); err != nil {
+		return err
+	}
+	if err := os.Remove(w.helper); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := q.RetireTransferredLiquibaseSession(ctx, w.session, absence, m.normalTimestamp()); err != nil {
+		return err
+	}
+	runner.setRuntime(nil)
+	return m.finishNormalLiquibase(ctx, q, intent)
+}
+
+// VerifyTransferredLiquibaseSession intentionally does NOT inspect DB absence:
+// only the exact Liquibase parent's disappearance authorizes private retirement.
+func (v normalLiquibaseAbsence) VerifyTransferredLiquibaseSession(ctx context.Context, s queue.LiquibaseSessionRecord, clone queue.ClonePlan, database string) error {
+	if !sameLiquibaseSessionIdentity(s, v.session) || s.RunnerID != v.session.RunnerID || clone != v.clone || database != v.database {
+		return queue.ErrLiquibaseFinalization
+	}
+	return v.runtime.VerifyContainerAbsent(ctx, s.RunnerID)
 }

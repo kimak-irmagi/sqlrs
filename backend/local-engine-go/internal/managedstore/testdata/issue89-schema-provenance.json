@@ -18,10 +18,19 @@
     "description": "Final approved composed SQLite catalog, obtained through InitializeCommon; migrations run only during this one-time extraction, never by the delivered installer."
   },
   "artifact_sha256": {
-    "liquibase-main-schema.sql": "6ab1ef0a89226bb7a2db161b53ed971e189a4587586365a1188d399559c433ca",
-    "liquibase-main-catalog.json": "cb1bb66378961c9698b97f7dd40eb721a9dfd9862fcb23dc8035ab5f8c232231",
+    "liquibase-main-schema.sql": "d06c7a45ee3c125f7d01bf3435c590668710c70aef7343b6322a602285d0cc14",
+    "liquibase-main-catalog.json": "5408e2b6f0bfde18bfaa7d1cec6027da87ab97f7db54a7deb875d25f1082ac41",
     "issue89-released.sql": "3959fbec836ba13386a3a2fb3024f111c55a52a56b369d0537ff02795037674e",
-    "issue89-target-catalog.json": "0e5aabf515aad2667943660f11941cac996730e995de5810abe4c1ca4c7ad47a"
+    "issue89-target-catalog.json": "d9b373979af157eecded08f34405bd1025e78137bca48ce082ba1acb6ec6d288"
+  },
+  "working_instance_handoff": {
+    "decision": "docs/adr/2026-11-07-liquibase-working-instance-handoff.md",
+    "schema": "docs/architecture/issue89-working-instance-handoff-schema.md",
+    "session_format": 3,
+    "catalog_objects": 285,
+    "changed_objects": ["prepare_liquibase_session_disposals", "prepare_liquibase_session_store_format", "prepare_liquibase_private_disposal_identity", "prepare_liquibase_private_disposal_insert", "prepare_liquibase_private_disposal_runner_absence", "prepare_liquibase_private_retirement_observation", "prepare_liquibase_private_session_retired"],
+    "added_objects": ["prepare_liquibase_handoff_instance", "prepare_liquibase_handoff_outcome", "prepare_liquibase_handoff_resume"],
+    "description": "Approved semantic amendment, separate from the frozen composed source; all unrelated and released definitions retain their recorded identities."
   },
   "source_files_sha256": {
     "internal/instanceaccess/service.go": "97f5b6fdbde4a08edf56c8767e36eb9fb6d336b84b812dbacf88eae649774c93",

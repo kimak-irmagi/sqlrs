@@ -211,6 +211,11 @@ func TestMainPathLiquibasePrepareDocker(t *testing.T) {
 	if err != nil || len(instances) != 1 || instances[0].RuntimeID == nil {
 		t.Fatal("published instance unavailable", err)
 	}
+	// WH08 / OT-WH03: publishing metadata for a newly allocated clone is not
+	// reuse. The live result must be the database that applied the suffix.
+	if *instances[0].RuntimeID != rt.databases[len(rt.databases)-1] {
+		t.Fatal("result replaced the completed working database")
+	}
 	for _, id := range rt.allocated {
 		if id != *instances[0].RuntimeID {
 			if err := rt.VerifyContainerAbsent(ctx, id); err != nil {
@@ -309,6 +314,10 @@ func TestMainPathLiquibasePrepareDocker(t *testing.T) {
 		t.Fatal("cached prefix did not execute exactly one remaining change", resumed.Error)
 	}
 	mainPathAssertRows(t, ctx, resumed.Result.DSN, 3, 2)
+	resumedInstances, err := st.ListInstances(ctx, storepkg.InstanceFilters{})
+	if err != nil || len(resumedInstances) != 1 || resumedInstances[0].RuntimeID == nil || *resumedInstances[0].RuntimeID != rt.databases[len(rt.databases)-1] {
+		t.Fatal("cached-prefix suffix replaced its working database", err)
+	}
 	deleted, found, err := deletes.DeleteInstance(ctx, resumed.Result.InstanceID, deletion.DeleteOptions{})
 	if err != nil || !found || deleted.Outcome != deletion.OutcomeDeleted {
 		t.Fatal("published instance disposal failed", err)

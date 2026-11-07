@@ -123,6 +123,12 @@ func (s *SQLiteStore) BeginFinalization(ctx context.Context, jobID string, outco
 // historical attempts/captures count too; a current stopped runner alone is
 // never authority to dispose the complete job namespace.
 func validateFinalizationSelection(ctx context.Context, tx *sql.Tx, jobID string, outcome finalizationcodec.Outcome) error {
+	return validateFinalizationSelectionWithSession(ctx, tx, jobID, outcome, "", "")
+}
+
+// Only the atomic handoff publisher may exempt its exact pending private owner.
+// Projection proof and terminal completion always use the strict wrapper above.
+func validateFinalizationSelectionWithSession(ctx context.Context, tx *sql.Tx, jobID string, outcome finalizationcodec.Outcome, cloneID, sessionID string) error {
 	var kind, purpose, status string
 	var planOnly int
 	if err := tx.QueryRowContext(ctx, `SELECT j.prepare_kind,j.purpose,j.status,j.plan_only
@@ -144,13 +150,13 @@ FROM prepare_jobs j JOIN liquibase_job_bindings b ON b.job_id=j.job_id WHERE j.j
 	}
 	var unresolved, work int
 	if err := tx.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM prepare_step_attempts WHERE job_id=?1 AND (phase<>'closed' OR resolution IS NULL))
-+(SELECT count(*) FROM prepare_clones WHERE job_id=?1 AND phase<>'released')
++(SELECT count(*) FROM prepare_clones WHERE job_id=?1 AND phase<>'released' AND (?2='' OR clone_id IS NOT ?2))
 +(SELECT count(*) FROM prepare_planning_attempt_artifacts WHERE job_id=?1 AND (executor_retired_at IS NULL OR protected_input_retired_at IS NULL OR output_retired_at IS NULL OR stderr_retired_at IS NULL OR manifest_retired_at IS NULL))
-+(SELECT count(*) FROM prepare_liquibase_sessions WHERE job_id=?1 AND (retired_at IS NULL OR runner_phase<>'retired' OR cursor_image_id IS NOT NULL OR cursor_state_id IS NOT NULL))
-+(SELECT count(*) FROM prepare_liquibase_invocations WHERE job_id=?1 AND retired_at IS NULL)
++(SELECT count(*) FROM prepare_liquibase_sessions WHERE job_id=?1 AND (?3='' OR session_id IS NOT ?3) AND (retired_at IS NULL OR runner_phase<>'retired' OR cursor_image_id IS NOT NULL OR cursor_state_id IS NOT NULL))
++(SELECT count(*) FROM prepare_liquibase_invocations WHERE job_id=?1 AND (?3='' OR session_id IS NOT ?3) AND retired_at IS NULL)
 +(SELECT count(*) FROM prepare_liquibase_cache_restores WHERE job_id=?1 AND restore_phase NOT IN ('published','abandoned')),
 (SELECT count(*) FROM prepare_tasks WHERE job_id=?1)+(SELECT count(*) FROM prepare_planning_intents WHERE job_id=?1)
-+(SELECT count(*) FROM prepare_clones WHERE job_id=?1)+(SELECT count(*) FROM prepare_step_attempts WHERE job_id=?1)`, jobID).Scan(&unresolved, &work); err != nil || unresolved != 0 {
++(SELECT count(*) FROM prepare_clones WHERE job_id=?1)+(SELECT count(*) FROM prepare_step_attempts WHERE job_id=?1)`, jobID, cloneID, sessionID).Scan(&unresolved, &work); err != nil || unresolved != 0 {
 		return ErrLiquibaseFinalization
 	}
 	// Operations have exact engine-owned targets .../jobs/<job>/<operation>.
@@ -665,11 +671,28 @@ func (s *SQLiteStore) HasPublicationPin(ctx context.Context, instanceID string) 
 // Requirements: projection-cleanup design, protocol step 3, LC11.
 func (s *SQLiteStore) PublishInstanceAndBeginFinalization(ctx context.Context, jobID string, entry store.InstanceCreate,
 	binding managedidentity.RuntimeBinding, operation instanceaccess.Operation) (FinalizationSnapshot, error) {
+	return s.publishInstanceAndBeginFinalization(ctx, jobID, entry, binding, operation, nil)
+}
+
+// PublishWorkingInstanceAndBeginFinalization atomically transfers the exact
+// completed working database, never a newly materialized output clone. Caller
+// holds the job and access activation fences. Handoff schema §2 / WH02–WH03.
+func (s *SQLiteStore) PublishWorkingInstanceAndBeginFinalization(ctx context.Context, session LiquibaseSessionRecord, entry store.InstanceCreate,
+	binding managedidentity.RuntimeBinding, operation instanceaccess.Operation) (FinalizationSnapshot, error) {
+	if session.RunnerPhase != "stopped" || session.DBPhase != "running" || session.RetiredAt != nil || session.CursorKind != "state" ||
+		session.CursorID != entry.StateID || operation.Source != session.StartID {
+		return FinalizationSnapshot{}, ErrLiquibaseFinalization
+	}
+	return s.publishInstanceAndBeginFinalization(ctx, session.JobID, entry, binding, operation, &session)
+}
+
+func (s *SQLiteStore) publishInstanceAndBeginFinalization(ctx context.Context, jobID string, entry store.InstanceCreate,
+	binding managedidentity.RuntimeBinding, operation instanceaccess.Operation, handoff *LiquibaseSessionRecord) (FinalizationSnapshot, error) {
 	sum := sha256.Sum256([]byte("instance\x00" + jobID + "\x00"))
 	if s == nil || s.db == nil || jobID == "" || entry.InstanceID != hex.EncodeToString(sum[:])[:32] || entry.StateID == "" ||
 		!validFinalizationUTC(entry.CreatedAt) || entry.Status == nil || *entry.Status != store.InstanceStatusActive ||
 		entry.RuntimeID == nil || entry.RuntimeDir == nil || *entry.RuntimeID != binding.RuntimeRef || binding.Validate() != nil ||
-		operation.Ref == "" || operation.Source != entry.StateID || operation.Target != *entry.RuntimeDir ||
+		operation.Ref == "" || (handoff == nil && operation.Source != entry.StateID) || operation.Target != *entry.RuntimeDir ||
 		operation.PhysicalIdentity != binding.PhysicalIdentity || operation.Identity != binding.IdentityBinding {
 		return FinalizationSnapshot{}, ErrLiquibaseFinalization
 	}
@@ -681,13 +704,22 @@ func (s *SQLiteStore) PublishInstanceAndBeginFinalization(ctx context.Context, j
 	}
 	return withFinalization(ctx, s, func(f *finalizationConnection) (FinalizationSnapshot, error) {
 		tx := f.tx
+		validate := func(ctx context.Context, tx *sql.Tx) error {
+			if handoff != nil {
+				if err := verifyWorkingInstanceTransfer(ctx, tx, *handoff, entry, binding, operation, digest); err != nil {
+					return err
+				}
+				return validateFinalizationSelectionWithSession(ctx, tx, jobID, outcome, handoff.CloneID, handoff.SessionID)
+			}
+			return validateFinalizationSelection(ctx, tx, jobID, outcome)
+		}
 		if saved, found, err := loadFinalization(ctx, tx, jobID); err != nil {
 			return FinalizationSnapshot{}, err
 		} else if found {
 			if saved.CanonicalJSON != canonical || saved.Digest != digest {
 				return FinalizationSnapshot{}, ErrLiquibaseFinalization
 			}
-			if err := validateFinalizationSelection(ctx, tx, jobID, outcome); err != nil {
+			if err := validate(ctx, tx); err != nil {
 				return FinalizationSnapshot{}, err
 			}
 			verified, op, err := verifyPrepareFinalizationReference(ctx, tx, jobID, outcome)
@@ -707,6 +739,11 @@ func (s *SQLiteStore) PublishInstanceAndBeginFinalization(ctx context.Context, j
 		if err := tx.QueryRowContext(ctx, `SELECT coalesce(use_count,0) FROM states WHERE state_id=?`, entry.StateID).Scan(&previousUses); err != nil {
 			return FinalizationSnapshot{}, err
 		}
+		if handoff != nil {
+			if err := writeWorkingInstanceTransfer(ctx, tx, *handoff, entry, binding, operation, digest); err != nil {
+				return FinalizationSnapshot{}, err
+			}
+		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO prepare_liquibase_job_finalizations
 (job_id,format_revision,outcome_kind,event_profile,instance_id,instance_pin,final_state_id,outcome_json,outcome_digest,created_at)
 VALUES(?,1,'prepare_success','status_result',?,?,?,?,?,?)`, jobID, entry.InstanceID, entry.InstanceID, entry.StateID, canonical, digest, entry.CreatedAt); err != nil {
@@ -721,7 +758,7 @@ AND input_kind='state' AND input_id=?`, entry.CreatedAt, jobID, entry.StateID)
 		if err != nil || oneRowChanged(result) != nil {
 			return FinalizationSnapshot{}, ErrLiquibaseFinalization
 		}
-		if err := validateFinalizationSelection(ctx, tx, jobID, outcome); err != nil {
+		if err := validate(ctx, tx); err != nil {
 			return FinalizationSnapshot{}, err
 		}
 		verified, op, err := verifyPrepareFinalizationReference(ctx, tx, jobID, outcome)
@@ -737,7 +774,7 @@ AND input_kind='state' AND input_id=?`, entry.CreatedAt, jobID, entry.StateID)
 			if !sameFinalizationIntent(observed, intent) || observed.InstancePin != entry.InstanceID || observed.ProjectionsRemovedAt != "" {
 				return false, ErrLiquibaseFinalization
 			}
-			if err := validateFinalizationSelection(readCtx, check, jobID, outcome); err != nil {
+			if err := validate(readCtx, check); err != nil {
 				return false, err
 			}
 			verified, op, err := verifyPrepareFinalizationReference(readCtx, check, jobID, outcome)
@@ -782,9 +819,20 @@ JOIN instances i ON i.instance_id=? AND i.state_id=? AND i.status='active'
 JOIN states st ON st.state_id=i.state_id AND st.prepare_kind='lb' AND st.image_id=i.image_id
 JOIN liquibase_state_bindings lb ON lb.state_id=st.state_id AND lb.execution_fingerprint=jb.execution_fingerprint
 JOIN instance_access a ON a.instance_ref=i.instance_id
-JOIN managed_runtime_operations o ON o.runtime_ref=i.runtime_id AND o.target_path=i.runtime_dir AND o.source_ref=i.state_id
+JOIN managed_runtime_operations o ON o.runtime_ref=i.runtime_id AND o.target_path=i.runtime_dir
+AND (o.source_ref=i.state_id OR EXISTS (
+ SELECT 1 FROM prepare_liquibase_session_disposals d JOIN prepare_liquibase_sessions s ON s.session_id=d.session_id
+ JOIN prepare_clones c ON c.clone_id=s.clone_id AND c.job_id=s.job_id
+ WHERE d.reason='instance_transferred' AND d.handoff_job_id=j.job_id AND s.job_id=j.job_id
+ AND d.handoff_instance_id=i.instance_id AND d.handoff_state_id=i.state_id
+ AND d.handoff_operation_ref=o.operation_ref AND d.handoff_runtime_dir=o.target_path
+ AND d.db_runtime_id=i.runtime_id AND c.db_runtime_id=i.runtime_id AND d.runner_id=s.runner_id
+ AND o.source_ref=s.start_id))
 JOIN managed_store_format f ON f.slot=1
 JOIN prepare_liquibase_job_finalizations selected ON selected.job_id=j.job_id AND selected.instance_pin=i.instance_id
+AND (o.source_ref=i.state_id OR EXISTS (SELECT 1 FROM prepare_liquibase_session_disposals d
+ WHERE d.handoff_job_id=j.job_id AND d.reason='instance_transferred'
+ AND d.handoff_instance_id=i.instance_id AND d.handoff_outcome_digest=selected.outcome_digest))
 WHERE j.job_id=? AND j.purpose='prepare' AND j.plan_only=0 AND j.prepare_kind='lb' AND j.status IN ('running','recovery_required')
 AND i.image_id=j.resolved_image_id AND st.lineage_ref=j.lineage_ref AND st.identity_digest=j.identity_digest`,
 		outcome.Prepare.InstanceID, outcome.Prepare.StateID, jobID).Scan(&runtimeID, &runtimeDir, &raw, &secretRef, &stage, &domain,

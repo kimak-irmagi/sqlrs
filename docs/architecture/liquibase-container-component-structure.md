@@ -129,8 +129,8 @@ are superseded by the later [execution evidence](issue89-main-path-execution.md)
 The actual container path and JDBC delivery are connected; regressions pass.
 The explicit #89 coverage exception moves aggregate remediation to #174, not
 the shared CI threshold. Performance acceptance remains open. Working-instance
-handoff components and schema are approved; tests await separate approval and
-the handoff itself is not implemented. This does not make the PR ready to merge.
+handoff components, schema and WH01–WH09/OT-WH01–OT-WH03 are approved. Its
+implementation is under verification; this does not make the PR ready to merge.
 
 The real SQLite admission, execution binding, preview planning, working-session,
 invocation, readiness, state publication and bounded capture-retirement methods
