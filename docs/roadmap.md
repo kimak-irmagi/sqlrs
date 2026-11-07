@@ -84,15 +84,16 @@ pass. See [installation evidence](architecture/issue89-normal-path-storage-tests
 
 Those percentages describe the installation-only checkpoint, not the subsequently
 expanded journal package. Real normal-path planning/session/publication/pruning
-operations are now extracted and their focused SQLite tests pass on Windows and
-Linux UID 1001. Full Windows client and engine tests pass. This is still draft-PR
-work, not a deployable #89 fix: the production worker has not switched to the
-new path, and expanded-package coverage is below the release gate. See the
-[journal checkpoint](architecture/liquibase-container-component-structure.md#normal-journal-checkpoint-2026-11-07).
+operations are connected to the production worker. Real Windows/Linux UID 1000
+checks pass the three-step flow, actual checkpoint/cache contents and normal
+cleanup; separate known-error/cancellation checks pass. WSL JDBC transfer and
+validation are connected. Full regressions still require the requested limited
+old-fixture updates; coverage and performance release gates remain open. See the
+[execution checkpoint](architecture/issue89-main-path-execution.md).
 
-This is local progress, not completed #89 or a merge. Production planning/session
-wiring, native prepare/cache/cleanup, remaining coverage gates and the agreed v1
-performance comparison are still pending. Deferred recovery/SQLite/search work
+This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
+qualification, remaining coverage gates and the agreed repeated v1 performance
+comparison are still pending. Deferred recovery/SQLite/search work
 and broad coverage remain in #170–#174; their completion is not claimed here.
 
 ## Status (as of 2026-10-21)

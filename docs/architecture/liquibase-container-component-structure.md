@@ -35,7 +35,7 @@ The [JDBC artifact decision](../adr/2026-10-06-postgresql-jdbc-artifact-delivery
 uses the existing external dependency resolver. Build/release verifies the
 pinned Maven artifact before placing it under lib/postgresql-42.7.13.jar.
 The engine verifies bytes again before use. WSL transfer/installation must carry
-and recheck the same JAR; implementing that integration remains pending here.
+and recheck the same JAR; that installation/validation integration is now connected.
 
 ## Admission contract
 

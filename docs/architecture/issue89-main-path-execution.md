@@ -40,9 +40,11 @@ Actual-service Docker checks cover three changes in the same runner/database,
 real rows/`DATABASECHANGELOG`, each checkpoint, an exact hit, two cached steps
 plus one application, plan/explanation, and temporary absence before fallback.
 Windows main functionality and separate failure/cancellation checks passed.
-Linux UID 1000 failure/cancellation passed; its main functional assertions passed,
-but initial fixture cleanup failed after force-removing a published database.
-The fixture now uses managed shutdown/public deletion; a full rerun is pending.
+Linux UID 1000 failure/cancellation passed; the full main rerun with managed
+shutdown/public deletion also passed (214.59 s). The preceding force-removal
+fixture cleanup failure is fixed. On production commit `9128bf7`, all three
+Windows Docker cases passed again with cross-package coverage: main 297.25 s,
+known failure 66.50 s, cancellation 63.31 s. Full engine vet also passed.
 
 Engine regression currently has two old preparations without the required pin
 lookup; the client has three old WSL preparations without JDBC. Their limited
@@ -50,4 +52,10 @@ updates were requested, not silently applied. macOS canonical temporary roots
 also await the separately requested preparation approval. Full profiles, final
 native reruns, repeated real-v1 comparison, CI and PR readiness remain open.
 The installation-only 96.41%/97.22% figures do not describe this larger journal;
-no whole-delivery 95% coverage or finished #89 is asserted here.
+no whole-delivery 95% coverage or finished #89 is asserted here. The diagnostic
+block union of the failing full run and successful current-head native run is
+84.01% overall: prepare 87.06%, queue 63.80%, runtime 92.56%, engine startup
+94.92%, access 95.63%. It is not a green-suite acceptance result. The largest
+uncovered files are completion_session_disposal_journal.go (262 statements),
+completion_finalization_journal.go (173) and liquibase_normal_worker.go (156).
+Per-block reports/HTML are in the ignored engine coverage directory.
