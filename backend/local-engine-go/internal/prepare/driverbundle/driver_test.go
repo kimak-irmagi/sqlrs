@@ -16,8 +16,19 @@ func fixtureDigest(data []byte) string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
+// physicalDriverTestRoot resolves only the platform temporary-directory alias;
+// deliberately created input symlinks remain subject to production checks.
+func physicalDriverTestRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
 func TestPublishAndRestoreVerifiedPackagedDriver(t *testing.T) {
-	root := t.TempDir()
+	root := physicalDriverTestRoot(t)
 	exe := filepath.Join(root, "sqlrs-engine")
 	if err := os.WriteFile(exe, []byte("engine"), 0o700); err != nil {
 		t.Fatal(err)
@@ -93,7 +104,7 @@ func TestPublishAndRestoreVerifiedPackagedDriver(t *testing.T) {
 func TestMaterializeRequiresDisjointOwnedDestination(t *testing.T) {
 	for _, name := range []string{"relative", "store", "store_child", "store_ancestor", "existing_directory", "existing_file", "missing_binding"} {
 		t.Run(name, func(t *testing.T) {
-			root := t.TempDir()
+			root := physicalDriverTestRoot(t)
 			store := Store{Root: filepath.Join(root, "artifacts"), expectedDigest: fixtureDigest([]byte("driver"))}
 			if err := os.MkdirAll(store.Root, 0700); err != nil {
 				t.Fatal(err)
@@ -161,7 +172,7 @@ func TestMaterializeRequiresDisjointOwnedDestination(t *testing.T) {
 // directory before deleting anything. Repairing ambiguity makes the same
 // handle retryable; an independent artifact/sibling is never removed.
 func TestMaterializedCloseRetainsLocatorAndRejectsAmbiguity(t *testing.T) {
-	root := t.TempDir()
+	root := physicalDriverTestRoot(t)
 	destination := filepath.Join(root, "driver")
 	if err := os.Mkdir(destination, 0700); err != nil {
 		t.Fatal(err)
@@ -206,7 +217,7 @@ func TestMaterializedCloseRetainsLocatorAndRejectsAmbiguity(t *testing.T) {
 }
 
 func TestDriverPublicationRejectsChecksumAndSymlink(t *testing.T) {
-	root := t.TempDir()
+	root := physicalDriverTestRoot(t)
 	exe := filepath.Join(root, "sqlrs-engine")
 	if err := os.WriteFile(exe, []byte("engine"), 0o700); err != nil {
 		t.Fatal(err)
@@ -238,7 +249,7 @@ func TestDriverPublicationRejectsChecksumAndSymlink(t *testing.T) {
 }
 
 func TestLocatePackagedDriverBesideWSLEngine(t *testing.T) {
-	root := t.TempDir()
+	root := physicalDriverTestRoot(t)
 	exe := filepath.Join(root, "libexec", "linux-amd64", "sqlrs-engine")
 	if err := os.MkdirAll(filepath.Dir(exe), 0o700); err != nil {
 		t.Fatal(err)

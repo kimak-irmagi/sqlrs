@@ -13,7 +13,7 @@ func TestVerifyMaterializedIsReadOnly(t *testing.T) {
 	for _, variant := range []string{"control", "changed", "missing_file", "extra_file", "extra_directory", "missing_root", "relative_root", "cancelled_context"} {
 		t.Run(variant, func(t *testing.T) {
 			ctx := context.Background()
-			root := t.TempDir()
+			root := physicalInputTestRoot(t)
 			s := Store{Root: filepath.Join(root, "artifacts")}
 			ref, err := s.PublishMixed(ctx, nil, []MemoryFile{{Path: "db/input.sql", Data: []byte("original")}})
 			if err != nil {

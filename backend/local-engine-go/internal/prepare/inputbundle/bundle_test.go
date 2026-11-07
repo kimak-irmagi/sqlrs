@@ -9,9 +9,20 @@ import (
 	"testing"
 )
 
+// physicalInputTestRoot resolves only the platform temporary-directory alias;
+// deliberately created input symlinks remain subject to production checks.
+func physicalInputTestRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
 func TestPublishAndMaterializePreserveCapturedBytes(t *testing.T) {
 	ctx := context.Background()
-	root := t.TempDir()
+	root := physicalInputTestRoot(t)
 	source := filepath.Join(root, "changes.xml")
 	if err := os.WriteFile(source, []byte("first"), 0o600); err != nil {
 		t.Fatal(err)
@@ -42,7 +53,7 @@ func TestPublishAndMaterializePreserveCapturedBytes(t *testing.T) {
 
 func TestPublishMixedCapturesInMemoryStdinWithFiles(t *testing.T) {
 	ctx := context.Background()
-	root := t.TempDir()
+	root := physicalInputTestRoot(t)
 	source := filepath.Join(root, "script.sql")
 	if err := os.WriteFile(source, []byte("select 1;"), 0o600); err != nil {
 		t.Fatal(err)
@@ -70,7 +81,7 @@ func TestPublishMixedCapturesInMemoryStdinWithFiles(t *testing.T) {
 }
 
 func TestPublishRejectsUnsafeLogicalPathsAndSymlinks(t *testing.T) {
-	root := t.TempDir()
+	root := physicalInputTestRoot(t)
 	source := filepath.Join(root, "changes.xml")
 	if err := os.WriteFile(source, []byte("safe"), 0o600); err != nil {
 		t.Fatal(err)
@@ -90,7 +101,7 @@ func TestPublishRejectsUnsafeLogicalPathsAndSymlinks(t *testing.T) {
 }
 
 func TestMaterializeRejectsCorruptBlob(t *testing.T) {
-	root := t.TempDir()
+	root := physicalInputTestRoot(t)
 	source := filepath.Join(root, "changes.xml")
 	if err := os.WriteFile(source, []byte("original"), 0o600); err != nil {
 		t.Fatal(err)
@@ -119,7 +130,7 @@ func TestMaterializeRejectsCorruptBlob(t *testing.T) {
 // B03/S02: Docker's unprivileged Liquibase user can traverse only the
 // materialized mount, while the host-side parent remains private.
 func TestMaterializedBundleIsReadableInsideUnprivilegedContainer(t *testing.T) {
-	root := t.TempDir()
+	root := physicalInputTestRoot(t)
 	source := filepath.Join(root, "changes.xml")
 	if err := os.WriteFile(source, []byte("change"), 0o600); err != nil {
 		t.Fatal(err)
@@ -151,7 +162,7 @@ func TestMaterializedBundleIsReadableInsideUnprivilegedContainer(t *testing.T) {
 // B01/B03: admission preserves the complete, ordered directory view used by
 // Liquibase includeAll, including an empty directory and captured file bytes.
 func TestPublishRootsPreservesDirectoryViewAfterSourceMutation(t *testing.T) {
-	root := t.TempDir()
+	root := physicalInputTestRoot(t)
 	project := filepath.Join(root, "project")
 	if err := os.MkdirAll(filepath.Join(project, "nested", "empty"), 0o700); err != nil {
 		t.Fatal(err)
@@ -186,7 +197,7 @@ func TestPublishRootsPreservesDirectoryViewAfterSourceMutation(t *testing.T) {
 }
 
 func TestPublishRootsRejectsSymlinkAndOutsideLogicalPath(t *testing.T) {
-	root := t.TempDir()
+	root := physicalInputTestRoot(t)
 	project := filepath.Join(root, "project")
 	if err := os.MkdirAll(project, 0o700); err != nil {
 		t.Fatal(err)

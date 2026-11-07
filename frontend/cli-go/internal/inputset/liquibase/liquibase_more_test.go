@@ -499,7 +499,10 @@ func TestLiquibaseSecondPassCollectionErrorsAndBlobHashes(t *testing.T) {
 }
 
 func TestLiquibaseSecondPassSearchAndTrackerBranches(t *testing.T) {
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	resolver := inputset.NewWorkspaceResolver(root, root, nil)
 	for _, value := range []string{"", "one,,two"} {
 		if _, err := resolveSearchPathParts(value, resolver); err == nil {

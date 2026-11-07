@@ -11,6 +11,17 @@ import (
 	"testing"
 )
 
+// withVerifiedWSLDriverFixture supplies the verified-reader result for the
+// three legacy installer fixtures that use synthetic release executables.
+func withVerifiedWSLDriverFixture(t *testing.T) {
+	t.Helper()
+	previous := readBundledJDBCFn
+	readBundledJDBCFn = func(string) ([]byte, error) {
+		return []byte("verified driver fixture"), nil
+	}
+	t.Cleanup(func() { readBundledJDBCFn = previous })
+}
+
 // MP07/JDBC delivery: installation transfers verified bundle bytes, verifies
 // them in WSL before replacing the executable, and fails before transport when
 // the release artifact is missing or invalid. No actual WSL/device is modified.

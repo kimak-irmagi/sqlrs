@@ -43,6 +43,7 @@ func TestParseInitFlagsRejectsWSLEngineForRemote(t *testing.T) {
 }
 
 func TestInstallWSLEngineWritesAtomically(t *testing.T) {
+	withVerifiedWSLDriverFixture(t)
 	source := filepath.Join(t.TempDir(), "sqlrs-engine")
 	payload := []byte("\x7fELF-linux-engine")
 	if err := os.WriteFile(source, payload, 0o755); err != nil {
@@ -125,6 +126,7 @@ func TestRunInitPassesResolvedWSLEngineToProvisioner(t *testing.T) {
 }
 
 func TestRunInitRepairsMissingDerivedWSLEngineWithoutUpdate(t *testing.T) {
+	withVerifiedWSLDriverFixture(t)
 	withWindowsMode(t)
 	workspace := t.TempDir()
 	marker := filepath.Join(workspace, ".sqlrs")
