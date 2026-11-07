@@ -3,7 +3,8 @@
 - Conversation date: 2026-11-07, Asia/Novosibirsk; exact reply timestamp unavailable.
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.
-- Status: Component design accepted; schema/tests require separate approval.
+- Status: Component design accepted; the separately recorded schema decision
+  below is accepted. Test inventory approval is still pending.
 
 ## Question and alternatives
 
@@ -35,3 +36,27 @@ successfully completed working suffix. Failure/cancellation disposal still
 requires real database absence. Previous component decisions remain applicable
 elsewhere, and no general recovery or isolation guarantee is introduced. Exact
 storage guards and tests must be approved before implementation or old-test edits.
+
+## Separate decision: handoff storage
+
+- Conversation date: 2026-11-07, Asia/Novosibirsk; exact reply timestamp unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Status: accepted by explicit reply, "Утвердить схему передачи".
+- Question: how to persist the exact transfer without another owner table or
+  indefinite retention of a completed instance/state?
+- Alternatives: a new transfer table, permanent instance/state foreign keys,
+  or extending the existing session-disposal identity with bounded protection.
+- Decision: approve the [storage amendment](../architecture/issue89-working-instance-handoff-schema.md):
+  `instance_transferred`, six all-or-none identity fields, deferred outcome FK,
+  atomic publication/transfer/pin, immutable operation Source, and private-only
+  cleanup while the database stays live. Advance the session format to 3;
+  helper protocols remain private/v2. Do not migrate the unreleased prototype.
+- Rationale: a transfer must never commit alone, but historical references must
+  not prevent ordinary deletion after completion. The existing publication pin
+  bounds active protection without inventing database-absence evidence.
+
+This amends only the successful working-suffix retirement branch and current
+installation target. Earlier installation and private/v2 decisions still apply
+elsewhere. Test inventory and exact old-test changes need separate approval;
+the schema decision does not authorize them or waive the performance gate.

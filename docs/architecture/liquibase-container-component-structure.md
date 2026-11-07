@@ -124,6 +124,14 @@ gates. No roadmap item or issue is marked complete by this checkpoint.
 
 ## Normal journal checkpoint, 2026-11-07
 
+Historical checkpoint: the production-wiring, WSL and coverage blockers below
+are superseded by the later [execution evidence](issue89-main-path-execution.md).
+The actual container path and JDBC delivery are connected; regressions pass.
+The explicit #89 coverage exception moves aggregate remediation to #174, not
+the shared CI threshold. Performance acceptance remains open. Working-instance
+handoff components and schema are approved; tests await separate approval and
+the handoff itself is not implemented. This does not make the PR ready to merge.
+
 The real SQLite admission, execution binding, preview planning, working-session,
 invocation, readiness, state publication and bounded capture-retirement methods
 have now been extracted. Fourteen files group these operations by responsibility;

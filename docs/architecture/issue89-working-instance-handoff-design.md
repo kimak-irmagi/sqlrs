@@ -1,7 +1,9 @@
 # #89: reuse the working database as the result instance
 
 Status: component amendment approved by @evilguest on 2026-11-07 after critical/
-repeat review. This is not an approved schema or test inventory.
+repeat review. The separate [schema](issue89-working-instance-handoff-schema.md)
+is now approved; the [test inventory](issue89-working-instance-handoff-tests.md)
+still requires approval before tests or product implementation.
 
 ## Evidence and scope
 

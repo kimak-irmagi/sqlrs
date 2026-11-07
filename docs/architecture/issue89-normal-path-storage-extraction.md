@@ -109,3 +109,8 @@ release acceptance, a new schema approval, or permission to change old tests.
 Decision record: [installation boundary](../adr/2026-11-07-liquibase-normal-installation-boundary.md).
 The separately approved [installation test inventory](issue89-normal-path-storage-tests.md)
 records the installation evidence; a metadata PASS is not complete prepare acceptance.
+
+The later approved [working-instance handoff schema](issue89-working-instance-handoff-schema.md)
+amends the current target to session format 3. Record that semantic amendment
+separately from the frozen composed-source provenance; do not regenerate history.
+The released baseline/bridge stay unchanged. Its test inventory is a separate gate.

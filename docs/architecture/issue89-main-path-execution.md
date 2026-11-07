@@ -126,8 +126,9 @@ of that working clone. This explains concrete work, not a statistical claim that
 all elapsed differences have one cause. A bounded
 [working-instance handoff proposal](issue89-working-instance-handoff-design.md)
 addresses only the final replacement; its components are approved. The separate
-[storage amendment](issue89-working-instance-handoff-schema.md) awaits approval. Tests
-are separate gates; no product change or speed acceptance is asserted.
+[storage amendment](issue89-working-instance-handoff-schema.md) is now approved.
+The [test inventory](issue89-working-instance-handoff-tests.md) is the next
+approval gate; no product change or speed acceptance is asserted.
 
 The unchanged collector also passed the mobilitydata-user public workload on the
 same delivery artifact: all 12 changesets matched the independent database oracle,

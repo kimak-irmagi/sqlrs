@@ -1,8 +1,9 @@
 # #89 working-instance handoff: storage amendment
 
-Status: proposed after critical/repeat review; schema approval pending.
+Status: approved by @evilguest on 2026-11-07 after critical/repeat review.
 The [component flow](issue89-working-instance-handoff-design.md) is approved.
-No product, SQL artifact or existing test changes are authorized yet.
+The separate [test inventory](issue89-working-instance-handoff-tests.md) awaits
+approval. No product, SQL artifact or existing test changes are authorized yet.
 
 ## 1. Smallest persistent representation
 
@@ -114,4 +115,4 @@ the later explicit old-test review/approval, not this schema approval alone.
   immutable identity, exact format 3 and fail-before-write classification.
 
 Repeat review found no additional P0–P2 schema-level contradiction. Tests and
-limited old-fixture changes will be listed separately after schema approval.
+limited old-fixture changes are listed separately in the proposed test inventory.
