@@ -46,16 +46,22 @@ fixture cleanup failure is fixed. On production commit `9128bf7`, all three
 Windows Docker cases passed again with cross-package coverage: main 297.25 s,
 known failure 66.50 s, cancellation 63.31 s. Full engine vet also passed.
 
-Engine regression currently has two old preparations without the required pin
-lookup; the client has three old WSL preparations without JDBC. Their limited
-updates were requested, not silently applied. macOS canonical temporary roots
-also await the separately requested preparation approval. Full profiles, final
-native reruns, repeated real-v1 comparison, CI and PR readiness remain open.
+The three limited fixture amendments were approved and applied in `bfb4f30`:
+canonical temporary roots in the named macOS preparations, the queue pin lookup
+in managedExecutionFixture, and verified JDBC reader results in exactly three
+legacy WSL installer/repair cases. Assertions and deliberately created links
+remain unchanged. Both complete Windows modules pass. All 14 test/documentation
+jobs in CI run 42370736037 pass, including Windows/Linux/macOS regressions.
+The remaining coverage-merge job fails its unchanged 95% gate: engine 74.3%,
+client 94.8%. Those ordinary CI profiles exclude the opt-in local Docker checks
+and are not the cross-package union below. Repeated real-v1 comparison and PR
+readiness remain open.
 The installation-only 96.41%/97.22% figures do not describe this larger journal;
-no whole-delivery 95% coverage or finished #89 is asserted here. The diagnostic
-block union of the failing full run and successful current-head native run is
-84.01% overall: prepare 87.06%, queue 63.80%, runtime 92.56%, engine startup
-94.92%, access 95.63%. It is not a green-suite acceptance result. The largest
+no whole-delivery 95% coverage or finished #89 is asserted here. The block union
+of the successful full Windows run and the successful native run of the same
+production code is 84.01% overall: prepare 87.04%, queue 63.80%, runtime 92.56%,
+engine startup 94.92%, access 95.63%. The 95% gate remains unresolved; a separate
+question explicitly asks how it applies after the #174 split. The largest
 uncovered files are completion_session_disposal_journal.go (262 statements),
 completion_finalization_journal.go (173) and liquibase_normal_worker.go (156).
 Per-block reports/HTML are in the ignored engine coverage directory.
