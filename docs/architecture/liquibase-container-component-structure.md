@@ -75,8 +75,11 @@ Shared correctness prerequisites are not waived by this separation.
 On 2026-11-07 the [installation boundary](issue89-normal-path-storage-extraction.md)
 was approved: retain the exact referenced catalog, install final definitions
 directly, keep only the bounded released-baseline bridge, and do not activate
-deferred recovery or the common psql executor. Installation tests are proposed
-separately; no storage implementation is qualified by this approval.
+deferred recovery or the common psql executor. NI01–NI08 were separately approved
+and the direct installer is implemented. Their Windows and Linux UID 1001 runs
+pass, including real COMMIT BUSY and rollback visibility. This establishes the
+installation boundary, not production planning/session integration or the 95%
+coverage gate.
 
 ## Foundation checkpoint, 2026-11-06
 

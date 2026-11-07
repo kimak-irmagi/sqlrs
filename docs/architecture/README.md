@@ -104,7 +104,7 @@ Entry points for Taidon architecture and service design.
 - [`liquibase-integration.md`](liquibase-integration.md) - Liquibase provider
   strategy and structured logs.
 - [Liquibase main-path installation](issue89-normal-path-storage-extraction.md) -
-  approved separation from prototype migrations; [proposed installation tests](issue89-normal-path-storage-tests.md).
+  approved separation from prototype migrations; [approved installation tests](issue89-normal-path-storage-tests.md).
 - [`k8s-architecture.md`](k8s-architecture.md) - Kubernetes architecture with a
   single gateway entry point.
 - [`cli-contract.md`](cli-contract.md) - CLI contract and commands.

@@ -1,0 +1,287 @@
+{
+  "bootstrap_access": {
+    "type": "table",
+    "table": "bootstrap_access",
+    "sha256": "9d6a43a2f70332b0ae10b44b8aa25c679134f3d5d656dd10449e6ca627c2d8d8"
+  },
+  "bootstrap_access_immutable": {
+    "type": "trigger",
+    "table": "bootstrap_access",
+    "sha256": "010554acc6c8b5a827e23083bbf4eb1dd139dee91c3f52eef1d0de765375c2a5"
+  },
+  "idx_instances_expires": {
+    "type": "index",
+    "table": "instances",
+    "sha256": "35790e3d340f728cd0af7f61bb509cd53f3cbc3c4e42b49da21e934c0d32b8d1"
+  },
+  "idx_instances_image": {
+    "type": "index",
+    "table": "instances",
+    "sha256": "bc8a70c9b75f5234b76f3467afa503749be0b908f67d839ec68d435230039df6"
+  },
+  "idx_instances_state": {
+    "type": "index",
+    "table": "instances",
+    "sha256": "0cb5b6130d1b1ecaea72e671d3c301178d8b9345a136452333fa91e3630eec5b"
+  },
+  "idx_managed_local_lineage": {
+    "type": "index",
+    "table": "managed_base_lineages",
+    "sha256": "56a29509cee83f37d1af92d975a182bb5887040d6171e93a7162839dc77fb4ac"
+  },
+  "idx_names_image": {
+    "type": "index",
+    "table": "names",
+    "sha256": "8e8982d8f05e23551abe6faf5e97ffefcf9a96937a9f8ae725b4ee2df37152d9"
+  },
+  "idx_names_instance": {
+    "type": "index",
+    "table": "names",
+    "sha256": "dbe4d86153f79121f42d46230afb0ab9d66dc0e118e3b565fb625ed7356aa7e3"
+  },
+  "idx_names_primary": {
+    "type": "index",
+    "table": "names",
+    "sha256": "e3c0ff02d498873e9031c60dce3f2f60674e04112c6367a600baf83941219f33"
+  },
+  "idx_names_state": {
+    "type": "index",
+    "table": "names",
+    "sha256": "e29af352de68e0a46e0ee5b9e66d6176dafc606572b28f23edfbb91e41032901"
+  },
+  "idx_prepare_events_job_seq": {
+    "type": "index",
+    "table": "prepare_events",
+    "sha256": "11af1da718fdbab9be75fe0671977aa298693a024a63bb62a145f49b6d99936b"
+  },
+  "idx_prepare_jobs_status": {
+    "type": "index",
+    "table": "prepare_jobs",
+    "sha256": "c75775ed13c22b96701b4f761cc69974e25bc09b8a1ff453325a53e336488292"
+  },
+  "idx_prepare_tasks_job": {
+    "type": "index",
+    "table": "prepare_tasks",
+    "sha256": "073d2bc829c48e0b818d5575f16099c1b978ad12702bee714518bfd8ab55c4b6"
+  },
+  "idx_prepare_tasks_position": {
+    "type": "index",
+    "table": "prepare_tasks",
+    "sha256": "7d5298691cf760702c65bd08d8d7fe4f750daf83952fb5d75cd32d04a2fdee6a"
+  },
+  "idx_prepare_tasks_status": {
+    "type": "index",
+    "table": "prepare_tasks",
+    "sha256": "98b14f785bcf36dc09fc3353365b58b84a4a75688f15526929b15e8a5f979df4"
+  },
+  "idx_states_fingerprint": {
+    "type": "index",
+    "table": "states",
+    "sha256": "8d42763d81247ba8e3b127c70982e232ad80fc042623c5519063428879086aeb"
+  },
+  "idx_states_image": {
+    "type": "index",
+    "table": "states",
+    "sha256": "a32346259bf46ae7f40a40ef4a300f7baad0e8bdec11a37d61728031178d2be2"
+  },
+  "idx_states_kind": {
+    "type": "index",
+    "table": "states",
+    "sha256": "57bfd8a723f7f645da3e57c564a962307708522a20500e24c68350d13b3551c0"
+  },
+  "idx_states_parent": {
+    "type": "index",
+    "table": "states",
+    "sha256": "44996ed5cadee5e982d0515a25b09d1e9a7b74d084eda2e08965a3bb01ac90c0"
+  },
+  "instance_access": {
+    "type": "table",
+    "table": "instance_access",
+    "sha256": "b8300f1f5e9c5ae65c6d54022f43200586c395bea701a60a5f90fb1e8b18470c"
+  },
+  "instance_access_immutable": {
+    "type": "trigger",
+    "table": "instance_access",
+    "sha256": "4c963aee1e4f191645ef6e45cfa2fd974241a6f71693bb61bb28a81d7320428d"
+  },
+  "instance_access_lifecycle": {
+    "type": "trigger",
+    "table": "instance_access",
+    "sha256": "af8ed4341f63e32e646c0cf4751c8b52090b76ba1a0f5570e53323db195df508"
+  },
+  "instances": {
+    "type": "table",
+    "table": "instances",
+    "sha256": "fcb5c644e978fb5cf2cfcee4fd562a45c43ddb60669d0576d9239840472cd041"
+  },
+  "managed_base_lineages": {
+    "type": "table",
+    "table": "managed_base_lineages",
+    "sha256": "54a4cafb0e22ed310d31296ecd8c4def9363420785ba4d0030668165e1028ea7"
+  },
+  "managed_base_targets": {
+    "type": "table",
+    "table": "managed_base_targets",
+    "sha256": "1485574e1a031a523b4299865dcc60d765456da9b688b11debef59a817b37e3b"
+  },
+  "managed_job_immutable": {
+    "type": "trigger",
+    "table": "prepare_jobs",
+    "sha256": "7e339d8a9320905bda24df1535ea27e7abb236d9d0bcbc4f57df4c05572f9813"
+  },
+  "managed_job_insert": {
+    "type": "trigger",
+    "table": "prepare_jobs",
+    "sha256": "136521714893d49e50578d976479a1e1bbf79a325c06b7365945c699292afe82"
+  },
+  "managed_lineage_domain": {
+    "type": "trigger",
+    "table": "managed_base_lineages",
+    "sha256": "f76bfb5aaed89d57b7bfb124b2de50c4012e3ea8ff956feab46bb2856e8694ac"
+  },
+  "managed_lineage_immutable": {
+    "type": "trigger",
+    "table": "managed_base_lineages",
+    "sha256": "acd0e6de985088fbdb73192aad8beac2d06b36177df77e8adac2d1e6092ea084"
+  },
+  "managed_runtime_operations": {
+    "type": "table",
+    "table": "managed_runtime_operations",
+    "sha256": "3eb3e49713778a824fed29a1ea5638ec2dc7ced6a077c3131dc1ed8a91dff2de"
+  },
+  "managed_state_immutable": {
+    "type": "trigger",
+    "table": "states",
+    "sha256": "9d0fbbb39536b2bc5614f912cbcee1cc484b71379d73a0599430e1286d0c2f7f"
+  },
+  "managed_state_insert": {
+    "type": "trigger",
+    "table": "states",
+    "sha256": "994f59a388df3e2052006268d0e0ed8a24d1651f2b7a0ce078838560f8b56c1e"
+  },
+  "managed_state_seal_eviction": {
+    "type": "trigger",
+    "table": "states",
+    "sha256": "3f15db715d66db747299bb13c1727d0ee250bd5da1be7f1ebbaafc1437815268"
+  },
+  "managed_state_seals": {
+    "type": "table",
+    "table": "managed_state_seals",
+    "sha256": "6dc00bacc4b89af83bf9def05e3dfb5b400efc3fbd3c346c0e63de169095f815"
+  },
+  "managed_store_format": {
+    "type": "table",
+    "table": "managed_store_format",
+    "sha256": "43fc18b24c47c25912405f7a76341bb529d3f9220382b9627c849580a62a94af"
+  },
+  "names": {
+    "type": "table",
+    "table": "names",
+    "sha256": "1372edc2984cfaf596e6ff22d418ef0f19df1c3f8ac8f6657f96ecdd145632bd"
+  },
+  "prepare_events": {
+    "type": "table",
+    "table": "prepare_events",
+    "sha256": "bbe0e398d5686db0c5c696fd68322c3629dbbf8911b4e50e2eebffd7132420bc"
+  },
+  "prepare_jobs": {
+    "type": "table",
+    "table": "prepare_jobs",
+    "sha256": "08e240c84583b362ec141d5791f56136e86db960d0edac6c07b9529d38971bb6"
+  },
+  "prepare_tasks": {
+    "type": "table",
+    "table": "prepare_tasks",
+    "sha256": "6b04d9bda71704a5d979b7e6ef94e6003098c688f315453cfae28dfbca9ff2c1"
+  },
+  "runtime_v2_materialization_components": {
+    "type": "table",
+    "table": "runtime_v2_materialization_components",
+    "sha256": "11a0fafb89fe9120c2a7939f948a947a6c77bef9e0878fb8add867ae9b20e315"
+  },
+  "runtime_v2_materialization_components_immutable": {
+    "type": "trigger",
+    "table": "runtime_v2_materialization_components",
+    "sha256": "22379fc6dacdfd17b4075182366299c88f20065b7dc5696b3af918bf8bff3cd8"
+  },
+  "runtime_v2_materialization_components_no_delete": {
+    "type": "trigger",
+    "table": "runtime_v2_materialization_components",
+    "sha256": "f7710b61f6a747f0da6537acfec2a46015720eca4a8f234fea754fea0ded0247"
+  },
+  "runtime_v2_materializations": {
+    "type": "table",
+    "table": "runtime_v2_materializations",
+    "sha256": "16c2cf0b6ad4749b9e88264f170647fcb4b4eedce60b9aa4949c78a5f399c4a0"
+  },
+  "runtime_v2_materializations_immutable": {
+    "type": "trigger",
+    "table": "runtime_v2_materializations",
+    "sha256": "002ea09bd8d96036ba5534a4e7ee5bcda2e63ae05cf16ae995fabab5131f1813"
+  },
+  "runtime_v2_materializations_no_delete": {
+    "type": "trigger",
+    "table": "runtime_v2_materializations",
+    "sha256": "65df0686ffc8d9aada30933188b2dc70cbec4e46371d6bdb78958875477c6f2b"
+  },
+  "runtime_v2_materializations_state_page": {
+    "type": "index",
+    "table": "runtime_v2_materializations",
+    "sha256": "c71f9223b33a40f34a6c6539a32f71969ac353b5876f1ec95d2703fa3bff6091"
+  },
+  "runtime_v2_provenance_immutable": {
+    "type": "trigger",
+    "table": "runtime_v2_provenance_observations",
+    "sha256": "4134bba1336e86f9614c7947455a37404314faba489f22514f829965d8606936"
+  },
+  "runtime_v2_provenance_no_delete": {
+    "type": "trigger",
+    "table": "runtime_v2_provenance_observations",
+    "sha256": "ac70ee266fb8b88b5b1ac6cc8da0f2091dbf04c4250131b2da19f15eabacde41"
+  },
+  "runtime_v2_provenance_observations": {
+    "type": "table",
+    "table": "runtime_v2_provenance_observations",
+    "sha256": "866f3a11059f0a4e615c75a41ef2c408428db98b7a11ffd2d4605becfe5b0d31"
+  },
+  "runtime_v2_provenance_state_page": {
+    "type": "index",
+    "table": "runtime_v2_provenance_observations",
+    "sha256": "fb4e0751dcc142492c7128d6e53f5fada10311961518ee291f1e69c014e2868e"
+  },
+  "runtime_v2_resolutions": {
+    "type": "table",
+    "table": "runtime_v2_resolutions",
+    "sha256": "c4b32d5d7b810a4e450bbbf2a36107688aa42fe98071ae1a43f67a9177e386c8"
+  },
+  "runtime_v2_states": {
+    "type": "table",
+    "table": "runtime_v2_states",
+    "sha256": "a1d31c39497402c954cb7c951baa3cc16bd3fc50060fc327735ef9c03d5660d4"
+  },
+  "runtime_v2_states_immutable": {
+    "type": "trigger",
+    "table": "runtime_v2_states",
+    "sha256": "f1e42d5826cbfbba6a438fff36cb86c929ce2983c8e7b5472d1a53670eeeeb3f"
+  },
+  "runtime_v2_states_no_delete": {
+    "type": "trigger",
+    "table": "runtime_v2_states",
+    "sha256": "a189368604af86a443943a97714bf30b82c05a303f62408ed49d06a5d6e228b1"
+  },
+  "runtime_v2_states_parent": {
+    "type": "index",
+    "table": "runtime_v2_states",
+    "sha256": "138c601714c952e54ee2b0601714117fd1f0fcdf9a43ca1aa6c92addd0beeec9"
+  },
+  "runtime_v2_store_format": {
+    "type": "table",
+    "table": "runtime_v2_store_format",
+    "sha256": "eccd2259bd6f8d7ced940f7ccbc60bc7cc38407c4b6c56084cd32bf8f117a301"
+  },
+  "states": {
+    "type": "table",
+    "table": "states",
+    "sha256": "fbc8a2462630b2cad307e2e68e7437521dfb3109afb4b726bf003db0e35b0007"
+  }
+}

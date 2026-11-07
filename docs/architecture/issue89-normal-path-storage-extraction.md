@@ -1,7 +1,8 @@
 # #89: extract installation without recovery migrations
 
 Status: component amendment approved by @evilguest on 2026-11-07;
-implementation and separate approval of installation tests remain pending. This is a
+NI01–NI08 were separately approved on the same date and the direct installer is
+implemented. Production session wiring and release qualification remain pending. This is a
 delivery-boundary decision, not a change to the public CLI/API, resource-ownership
 rules, private/v2 protocol, or approved physical table/trigger definitions.
 
@@ -105,5 +106,5 @@ Repeat review found no remaining P0–P2 in this component proposal. It is not
 release acceptance, a new schema approval, or permission to change old tests.
 
 Decision record: [installation boundary](../adr/2026-11-07-liquibase-normal-installation-boundary.md).
-The [installation test inventory](issue89-normal-path-storage-tests.md) is a
-separate proposal; component approval does not approve that inventory.
+The separately approved [installation test inventory](issue89-normal-path-storage-tests.md)
+records the installation evidence; a metadata PASS is not complete prepare acceptance.

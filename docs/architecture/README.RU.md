@@ -106,7 +106,7 @@
 - [`liquibase-integration.RU.md`](liquibase-integration.RU.md) - стратегия
   Liquibase провайдера и структурированные логи.
 - [Установка основного пути Liquibase](issue89-normal-path-storage-extraction.RU.md) -
-  утверждённое отделение от миграций прототипа; [предложенные проверки](issue89-normal-path-storage-tests.RU.md).
+  утверждённое отделение от миграций прототипа; [утверждённые проверки](issue89-normal-path-storage-tests.RU.md).
 - [`k8s-architecture.RU.md`](k8s-architecture.RU.md) - Kubernetes архитектура с
   единой точкой входа через gateway.
 - [`cli-contract.RU.md`](cli-contract.RU.md) - CLI контракт и команды.

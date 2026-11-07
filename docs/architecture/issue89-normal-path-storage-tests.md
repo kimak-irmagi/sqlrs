@@ -1,6 +1,7 @@
 # #89: normal-path installation test inventory
 
-Status: proposed NI01–NI08; not approved or implemented.
+Status: NI01–NI08 approved by @evilguest on 2026-11-07; implemented and passing.
+Production execution and the coverage threshold remain open.
 The [component boundary](issue89-normal-path-storage-extraction.md) was approved
 by @evilguest on 2026-11-07. This inventory covers that boundary only, preserving
 the previously approved MP01–MP07 normal-path requirements.
@@ -214,3 +215,62 @@ Repeat review checked the corrected cases against each numbered design rule.
 No remaining P0–P2 was found in this inventory. No product code or old test is
 changed by this document. After approval, audit old tests for contradictions
 and request separate permission for any necessary fixture/assertion change.
+
+## Implementation evidence, 2026-11-07
+
+The final artifact contains 282 catalog objects; the frozen v0.2.0-rc.1 baseline
+contains 57. Only prepare_jobs and its two named managed admission guards change
+among existing objects. Provenance records the original dirty source honestly,
+its source-file hashes and fixed artifact hashes; CI needs no other checkout.
+The source prototype was executed only during extraction, not during startup.
+
+All NI groups pass on Windows and Linux UID 1001. The real COMMIT BUSY test first
+exposed surviving uncommitted DDL on the same connection; startup now clears or
+excludes that exact connection before reconciling. Lost committed replies and
+unavailable readback are separate checks. Connection setup/restoration failures
+are exercised both before and after their actual effects. No old test changed.
+
+The complete Windows engine module passed with
+`-count=1 -timeout=10m -p=1 -coverprofile=coverage/issue89-normal-store-clean-full.out`.
+The separately repeated artifact test and vet passed after the provenance
+assertions were strengthened. Linux tests are native test binaries, run from
+their package directories with UID 1001, not compilation-only checks.
+Final NI05 review also reproduced late inventory for an unmarked partial managed
+namespace; the preflight now refuses every reserved namespace, including case
+variants, before inventory. Both new controls pass on Windows and Linux.
+
+Coverage is not qualified: managedstore is 86.2%, queue is 86.4% in the ordinary
+full run. A second complete run of both packages with shared instrumentation
+(`coverage/issue89-normal-store-combined.out`) records real cross-package calls:
+managedstore has 23 uncovered statements of 167 (86.23%); queue has 40 of 574
+(93.03%) after that preflight correction. These are unioned block counters, not an average of per-test percentages.
+Neither exceeds 95%; neither proves production Liquibase execution.
+
+## Proposed bounded coverage iteration IC01–IC05
+
+Status: proposed, not approved or implemented. No additional recovery delivery
+or broad old queue coverage is authorized by this proposal.
+
+Uncovered-line reports are the two profiles above and their adjacent HTML files.
+The shared profile includes the final unmarked-namespace correction.
+Order by the largest new-file deficit, then startup and remaining verification:
+
+| ID | Remaining code / requirement | Proposed tests and evidence |
+| --- | --- | --- |
+| IC01 | liquibase_main_path_schema.go: 27 uncovered statements, including 117–119, 172–190, 203–221, 318–327; NI01/NI05/NI07. | Direct installer/verifier controls for nil/closed transactions, cancellation, incomplete base prerequisites, altered namespace and an already exact target. Retain NI05's unmarked reserved-namespace controls. Require safe classification, no repair or writes on refusal, unchanged rows/catalog; exact current installation is idempotent. No mutation of embedded globals to manufacture invalid JSON. |
+| IC02 | Same file, reads/writes at 145–147, 245–247, 259–309, 335–349; NI03/NI06/NI07. | Observe real SQLite refusals at unfinished-job read, trigger suspension, temporary table creation, old/new count reads, EXCEPT read, replacement creation/copy/drop, trigger restoration, marker insertion/read and FK query/stream. One fault per case, actual prior effects, precise hit count, no ready format, same-handle and independent rollback checks, then clean reopen. Do not falsify count values or mutate canonical definitions to reach invariant-only branches. |
+| IC03 | main_path_startup.go: 21 uncovered statements, setup/restore and readback paths at 43–48, 80–82, 97–115, 129–141, 163–177; NI06/NI07. | Fail initial PRAGMA, second BeginTx, repeated preflight, current Runtime v2 marker read, restoration query and readback Begin/domain-read/rollback. Require original error/cancellation classification, zero ready format, preserved committed-versus-uncommitted outcome, and configured replacement if cleanliness cannot be proved. Use real effects and the existing per-DB driver observer, not a new product hook. |
+| IC04 | Same file, cleanup paths at 57–70 and 151–153; NI06/NI07. | Extend the test-only observer with an ordered fault list for raw ROLLBACK and subsequent real BEGIN/ROLLBACK proof. Check a failed cleanup excludes the exact connection; successful proof permits reuse. Distinguish real committed data from cleanup status, and preserve the primary failure. No physical Close diagnostic/late-error matrix from #172. |
+| IC05 | store.go: two uncovered scan/stream error statements at 48–55; NI01/NI06. | A transparent real-row observer returns a Rows.Next error during catalog verification, with valid control reaching that read, preserved original catalog/rows and successful next startup. Investigate whether cancellation can actually reach the Scan refusal; do not invent incompatible sqlite_master column values to force it. If unreachable under the owned query, record a removal candidate for separate approval. Repeat complete package tests and shared/ordinary coverage on Windows and Linux; if still below threshold, report the actual remaining blocks and request another iteration. |
+
+Review: the plan tests the existing installation contract, not undocumented
+implementation details. Invariant-only branches (including impossible repeated
+quarantine or a non-ErrConnDone sql.Conn.Close error) are candidates for a
+separate justified removal, not grounds to fake driver behavior. No removal is
+included here. Product boundaries and old tests remain unchanged. The existing
+queue's 13 other uncovered statements are not silently credited or deleted;
+this iteration does not claim that its prospective gain will meet 95%.
+Repeat review also corrected the original IC05 wording: a driver cannot directly
+inject sql.Rows.Scan failure while transparently preserving the returned values.
+The proposal now tests the reachable stream error and audits Scan reachability
+separately. No remaining P0–P2 was found in the corrected bounded proposal.
