@@ -72,6 +72,12 @@ expanded search compatibility to [#173](https://github.com/kimak-irmagi/sqlrs/is
 and broad coverage work to [#174](https://github.com/kimak-irmagi/sqlrs/issues/174).
 Shared correctness prerequisites are not waived by this separation.
 
+On 2026-11-07 the [installation boundary](issue89-normal-path-storage-extraction.md)
+was approved: retain the exact referenced catalog, install final definitions
+directly, keep only the bounded released-baseline bridge, and do not activate
+deferred recovery or the common psql executor. Installation tests are proposed
+separately; no storage implementation is qualified by this approval.
+
 ## Foundation checkpoint, 2026-11-06
 
 The independent input/driver/settings packages, JDBC packaging and runtime

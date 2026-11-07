@@ -8,6 +8,13 @@ not permission to infer or restore a fixed administrative role.
 This document defines the SQLite schema for persistent names/instances/states
 used by the local engine and exposed via `sqlrs ls`.
 
+For the main #89 Liquibase delivery, the approved
+[installation boundary](issue89-normal-path-storage-extraction.md) retains
+these existing data domains while adding the already approved journal catalog.
+It does not reinterpret old states or migrate unfinished old Liquibase jobs.
+The released prepare_jobs baseline has its own bounded, value-preserving bridge;
+prototype migration/recovery is not part of that installation path.
+
 ## 1. Goals
 
 - Persist names/instances/states in SQLite under `<StateDir>`.
