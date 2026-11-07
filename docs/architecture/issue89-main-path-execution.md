@@ -65,3 +65,36 @@ question explicitly asks how it applies after the #174 split. The largest
 uncovered files are completion_session_disposal_journal.go (262 statements),
 completion_finalization_journal.go (173) and liquibase_normal_worker.go (156).
 Per-block reports/HTML are in the ignored engine coverage directory.
+
+## Preliminary real-v1 comparison (not performance acceptance)
+
+The unchanged external benchmark collector ran the public jhipster workload
+against a clean build of delivery revision `bfb4f301fa551fca64532bc21bcc2ee79e80cca3`
+and the real v0.1.1-rc.7 artifact, revision
+`cab99c4c7ced5b18f4dc43a65b002d84d8fef02d`. Both complete uncached/cached runs
+passed the independent database oracle (eight changesets, then eight cache hits)
+and cleaned their exact temporary resources. No sqlrs containers remained.
+
+| Route / pass | Elapsed seconds | All Docker creates | Migration CLI starts |
+| --- | ---: | ---: | ---: |
+| v1 host / uncached | 262.173 | 3 | 9 |
+| new container / uncached | 347.524 | 9 | 9 |
+| v1 host / cached | 31.418 | 2 | 1 |
+| new container / cached | 49.144 | 4 | 1 |
+
+The container route adds one offline image-inspection CLI start per pass.
+Derived stock-launcher JVM starts are 18/21 uncached and 2/5 cached (v1/new),
+not independent process telemetry. Both routes use Liquibase 5.0.3 with identical
+core/JDBC checksums and the same warmed PostgreSQL digest. Host Java is Temurin
+21.0.2; container image metadata declares jdk-21.0.11+10. Host/container execution
+and Java builds differ explicitly, as approved for the real-v1 comparison.
+Engine SHA256: v1 `36316b24e61c6673a20f0c37523f0a2f4705b9b81ddc1fbc9146e68a578dd62d`;
+new `94c144efce60aa243f457bf237966f8aea9461e29fe8ef31792d4768984a90d4`.
+
+This first pair ran new then v1, without concurrent sqlrs workloads. The new
+route is 32.6% slower uncached and 56.4% slower cached in this observation.
+It is a warning, not a confirmed statistical regression: five alternating pairs,
+v1/v1 noise controls and an independent confirmation series are still absent.
+No speed acceptance, ready-for-merge status or completion of #89 is claimed.
+The joint all-platform CI/local/native coverage union also remains below the
+threshold: 13189/15636 statements (84.35%); the distinct CI gate is unchanged.
