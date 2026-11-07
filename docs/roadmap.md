@@ -82,6 +82,14 @@ IC01–IC05 pass on Windows and Linux UID 1001; complete-package block unions gi
 managedstore 96.41% and queue 97.22%. The complete Windows engine module and vet
 pass. See [installation evidence](architecture/issue89-normal-path-storage-tests.md).
 
+Those percentages describe the installation-only checkpoint, not the subsequently
+expanded journal package. Real normal-path planning/session/publication/pruning
+operations are now extracted and their focused SQLite tests pass on Windows and
+Linux UID 1001. Full Windows client and engine tests pass. This is still draft-PR
+work, not a deployable #89 fix: the production worker has not switched to the
+new path, and expanded-package coverage is below the release gate. See the
+[journal checkpoint](architecture/liquibase-container-component-structure.md#normal-journal-checkpoint-2026-11-07).
+
 This is local progress, not completed #89 or a merge. Production planning/session
 wiring, native prepare/cache/cleanup, remaining coverage gates and the agreed v1
 performance comparison are still pending. Deferred recovery/SQLite/search work

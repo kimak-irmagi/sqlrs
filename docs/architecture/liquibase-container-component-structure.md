@@ -118,3 +118,35 @@ foundation checkpoint, not the remaining integration/release gates.
 Coverage thresholds, complete current-branch regression, native multi-step
 execution/cache/cleanup and the agreed v1 performance comparison remain release
 gates. No roadmap item or issue is marked complete by this checkpoint.
+
+## Normal journal checkpoint, 2026-11-07
+
+The real SQLite admission, execution binding, preview planning, working-session,
+invocation, readiness, state publication and bounded capture-retirement methods
+have now been extracted. Fourteen files group these operations by responsibility;
+the final catalog and its guards are unchanged. A narrow physical-connection
+owner and publication-marker reader are prerequisites, not completion of #172.
+Neither automatic replay nor the #173 search-binding decoder is activated.
+
+The new `TestMainPathPlanningJournal` exercises actual planning milestones,
+metadata, saved disposal authority and exact observed resource retirement without
+inserting imaginary apply tasks. `TestMainPathCapturePrune*` exercises real state
+publication A, exact predecessor binding B, slot reuse C, refusal without writes,
+a failed second write and genuine COMMIT BUSY. These tests pass on Windows and
+in a native Linux test binary as UID 1001. They are SQLite/observer tests, not
+native Docker proof of the product workflow.
+
+Complete Windows client and engine regressions pass, including the engine run
+after the final mechanical file grouping. Current ordinary package coverage is
+queue 63.0%, prepare 93.2%, runtime 92.1%, managedstore 96.4%, sqliteconn 99.2%
+and statefs 99.1%; CLI app is 93.7%, CLI commands 97.0%, client module total 95.3%.
+The previous 96.41%/97.22% installation-checkpoint coverage does not describe the
+expanded queue package. Its new methods need additional applicable tests; the
+95% release gate is not claimed met.
+
+Production `NewPrepareService` still defaults to the previous host runner and
+does not yet connect the new binding/planning/session path. Therefore this
+branch is **not deployable as the completed #89 fix**. It must stay a draft PR:
+no `Closes #89`, ready-for-review status, release claim or issue closure until
+the complete real container workflow, cleanup, performance and coverage gates
+are satisfied. WSL JDBC installation also remains open.

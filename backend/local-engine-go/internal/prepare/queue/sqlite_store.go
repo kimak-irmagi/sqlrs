@@ -14,6 +14,8 @@ import (
 
 type SQLiteStore struct {
 	db *sql.DB
+	// Immutable mode for exact-connection settlement; New(db) is caller-owned.
+	requireCloseObservation bool
 }
 
 var sqlOpenFn = sql.Open
