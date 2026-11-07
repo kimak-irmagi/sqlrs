@@ -102,3 +102,40 @@ v1/v1 noise controls and an independent confirmation series are still absent.
 No speed acceptance, ready-for-merge status or completion of #89 is claimed.
 The joint all-platform CI/local/native coverage union also remains below the
 threshold: 13189/15636 statements (84.35%); the distinct CI gate is unchanged.
+
+## Follow-up diagnostics after the coverage exception
+
+The explicit coverage exception is recorded above and in #174; performance is
+not waived. A separate diagnostic pair passed the same independent jhipster
+database checks: new 286.093/83.264 s, real v1 229.828/33.941 s (uncached/cached).
+These retained-store probes are marked Qualifying=false and are not added to
+the statistical acceptance cohort. Read-only inspection exported only phases
+and relative timestamps, never requests, result JSON, credentials or SQL.
+
+| Journal interval | New seconds | Real v1 seconds |
+| --- | ---: | ---: |
+| Job admission to first working task | 65.094 | 56.848 |
+| First working task, including startup | 42.080 | 20.506 |
+| Median later working task (7 samples) | 22.082 | 20.673 |
+| Final checkpoint to terminal result | 18.185 | 0.751 |
+| Cached job: admission to plan completion | 59.913 | 17.976 |
+
+Source inspection confirms two extra database allocations in the uncached path:
+the separate working clone after preview, and the result clone after disposing
+of that working clone. This explains concrete work, not a statistical claim that
+all elapsed differences have one cause. A bounded
+[working-instance handoff proposal](issue89-working-instance-handoff-design.md)
+addresses only the final replacement; its components are approved. The separate
+[storage amendment](issue89-working-instance-handoff-schema.md) awaits approval. Tests
+are separate gates; no product change or speed acceptance is asserted.
+
+The unchanged collector also passed the mobilitydata-user public workload on the
+same delivery artifact: all 12 changesets matched the independent database oracle,
+then all 12 cache hits matched it again. Diagnostic times were 363.435/50.146 s;
+total Docker creates were 9/4 (uncached/cached), the same counts as the eight-step
+jhipster workload. It is Qualifying=false, not speed acceptance. Exact-root
+container cleanup completed; no sqlrs containers remained. The 102-change
+mobilitydata-main workload is not qualified by this separate 12-change check.
+Redacted timestamp-only reports were retained outside the workspace. The two
+private diagnostic stores remain ignored under the original worktree's .tmp:
+the environment rejected the cleanup command; no alternative deletion was tried.
