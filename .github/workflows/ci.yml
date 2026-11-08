@@ -7,6 +7,34 @@ on:
       - main
 
 jobs:
+  liquibase-performance-checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.25.5'
+          cache: false
+      - name: Locked helper dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.26.2 --activate
+          pnpm install --frozen-lockfile
+      - name: Fast performance-harness tests only (no Docker workloads)
+        run: |
+          node --test --experimental-test-coverage scripts/performance/*.test.mjs
+          cd test/performance/liquibase
+          GOWORK=off go test -count=1 -timeout=2m ./...
+          GOWORK=off go vet ./...
+
   docs-sync:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04

@@ -3,6 +3,13 @@ import test from 'node:test';
 import fs from 'node:fs';
 import YAML from 'yaml';
 
+test('PA03: Temurin uses the provider full build selector without floating to another Java',()=>{
+  const action=YAML.parse(fs.readFileSync(new URL('../../.github/actions/liquibase-perf-setup/action.yml',import.meta.url),'utf8'));
+  const java=action.runs.steps.find(step=>step.uses?.startsWith('actions/setup-java'));
+  assert.equal(java.with.distribution,'temurin');
+  assert.equal(java.with['java-version'],'21.0.2+13.0.LTS');
+});
+
 test('PA01/PA07/PA08/PA10: separate opt-in read-only workflow keeps cohorts on one bounded VM', () => {
   const text = fs.readFileSync(new URL('../../.github/workflows/liquibase-performance.yml', import.meta.url), 'utf8');
   const flow = YAML.parse(text);
