@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { fixtures, schedule, checkBudget, sanitizeSample, validateCohort, verifyBytes } from './control.mjs';
 import { fixtureSpec } from './inputs.mjs';
 import { warm } from './warm.mjs';
-import { parseCollectorResult, failureKind, failureHTTPStatus } from './collector-output.mjs';
+import { parseCollectorResult, failureKind, failureHTTPStatus, cleanupBoundary } from './collector-output.mjs';
 
 // PA07–PA10: the parent owns serial scheduling and a sanitized incomplete report.
 // Raw collector stdout/stderr stays in memory and is never forwarded/uploaded.
@@ -66,6 +66,7 @@ async function member(route,name){
         report.failureStage=boundary?.[1]||'collector_exit';persist();
         report.failureKind=failureKind(output);persist();
         report.httpFailure=failureHTTPStatus(output);persist();
+        report.cleanupBoundary=cleanupBoundary(output);persist();
         report.oracleParts=[...new Set([...output.matchAll(/P01B_ORACLE_PART (row_count|row_shape|kind|order|id|author|path|checksum|contexts|labels|schema)\b/g)].map(match=>match[1]))];persist();
         reject(new Error('Collector failed; private diagnostics withheld'));
       }else resolve(output);

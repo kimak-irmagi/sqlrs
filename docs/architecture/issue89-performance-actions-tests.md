@@ -141,3 +141,11 @@ CLI to the fixture's project directory with `searchPath=.` and native logical
 changelog names. Source bytes, full DB oracle and released binary stay unchanged.
 HTTP rejection status is separately allowlisted for diagnosis. No benchmark
 compatibility or timing pass is inferred until a new real run succeeds.
+
+Run 42474455740 narrowed the remaining boundary to `private_cleanup`, with no
+reported oracle mismatch dimensions. PA09 now checks nonce-marked private-root
+disposal after exact owner-container absence: a pinned Docker helper removes
+container-owned files without relaxing permissions, following symlinks or
+elevating either measured engine. The helper's full ID is retired and checked;
+failed cleanup cannot emit samples. Container/file cleanup failures are distinct
+safe enums. This is test teardown, not a change to product deletion/recovery.

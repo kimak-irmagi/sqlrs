@@ -1,6 +1,8 @@
 import { sanitizeSample } from './control.mjs';
 import { fixtureSpec } from './inputs.mjs';
 
+export function cleanupBoundary(output){return output.match(/P01B_CLEANUP_FAILURE (containers|files)\b/)?.[1]||'unknown';}
+
 /** Failure metadata is a fixed enum, not a sanitized copy of engine output. */
 export function failureKind(output){
   if(failureHTTPStatus(output)!==undefined)return 'api_http_failure';

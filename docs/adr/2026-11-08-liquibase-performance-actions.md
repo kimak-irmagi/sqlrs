@@ -53,3 +53,28 @@ observations remain diagnostics and cannot be pooled into Linux timings.
 - Rationale: preserve immutable artifact identity while accommodating transient
   transport failure. No private access, paid runner, alternate v1 build, product
   compatibility change or speed waiver is introduced. Exhaustion remains failure.
+
+## Private test-store disposal within PA09
+
+- Conversation/implementation date: 2026-11-08, Asia/Novosibirsk; exact user reply
+  time unavailable. Implementation choice within the separately approved PA09,
+  not a new approval attributed to the user.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: the native collector reaches oracle verification but reports private
+  cleanup failure. Container-owned PostgreSQL files can prevent an ordinary
+  hosted UID from traversing the temporary store during Go TempDir cleanup.
+- Alternatives: weaken file permissions, elevate the measured engine, or confine
+  a pinned Docker helper to disposal of the exact private test root after owner
+  containers are absent.
+- Decision: use the last option only in external-test teardown. Require a
+  canonical absolute non-root directory and exact unpredictable owner marker;
+  do not follow symlinks. Delete contents through the already pinned fixture
+  image, preserving the marker until Go removes the empty owned directory.
+  Retire the helper by its full ID, independently bound the cleanup and confirm
+  absence. Any unproved owner/removal remains an incomplete run.
+- Rationale: preserve closed permissions and identical measured engine users.
+  No production cleanup, public API, persistent schema, published instance or
+  laptop resource is changed. Teardown is outside measured intervals and inside
+  the overall hosted budget. The inherited prototype retain-store mode is not
+  part of this new collector; pilot versus cohort is owned by the scheduler.

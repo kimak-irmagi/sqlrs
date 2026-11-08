@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"debug/buildinfo"
@@ -40,7 +41,6 @@ type releasedBenchmarkSample struct {
 	ContainerCreates                              int
 	LiquibaseVersion, DriverSHA256                string
 	ImageDigest, HelperDigest                     string
-	Qualifying                                    bool
 	OracleOK, CleanupOK                           bool
 	SnapshotBackend                               string
 }
@@ -321,12 +321,9 @@ func collect(t *testing.T) {
 		liquibaseImage = "sha256:17f98b85e6d4c33b84ee409d055f1526227c77b55dd30e3879ec5088716a32eb"
 		coreSHA = "3ccd4608829836b4c0f7fb1d23a4619bac16c68ca725d623aae0838bce734156"
 	}
-	probeOnly := os.Getenv("SQLRS_BENCH_PROBE") == "1"
-	if !probeOnly {
-		owned, err := runDockerE2ECommand(context.Background(), "ps", "-a", "--filter", "name=sqlrs-", "--format", "{{.ID}}")
-		if err != nil || len(bytes.TrimSpace(owned)) != 0 {
-			t.Fatal("qualifying timing requires no other sqlrs Docker workload; a probe is not timing evidence")
-		}
+	owned, err := runDockerE2ECommand(context.Background(), "ps", "-a", "--filter", "name=sqlrs-", "--format", "{{.ID}}")
+	if err != nil || len(bytes.TrimSpace(owned)) != 0 {
+		t.Fatal("collection requires no other sqlrs Docker workload")
 	}
 	if route == "v1" {
 		req, err = hostRequest(req, fixture)
@@ -385,12 +382,13 @@ func collect(t *testing.T) {
 	}
 	launcherDigest := sha256.Sum256(launcherBytes)
 	root := t.TempDir()
-	if probeOnly && os.Getenv("SQLRS_BENCH_RETAIN_PROBE") == "1" {
-		root, err = os.MkdirTemp(filepath.Join(repo, ".tmp"), "issue89-benchmark-probe-")
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Logf("Private diagnostic store retained at %s; containers still receive exact-root cleanup", root)
+	ownerBytes := make([]byte, 32)
+	if _, err := rand.Read(ownerBytes); err != nil {
+		t.Fatal("private ownership unavailable")
+	}
+	ownerToken := hex.EncodeToString(ownerBytes)
+	if err := os.WriteFile(filepath.Join(root, ".collector-owner"), []byte(ownerToken), 0600); err != nil {
+		t.Fatal("private ownership unavailable")
 	}
 	storeRoot := filepath.Join(root, "store")
 	statePath := filepath.Join(root, "engine.json")
@@ -435,6 +433,12 @@ func collect(t *testing.T) {
 		clean, cleanCancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cleanCancel()
 		if err := cleanupDockerE2EContainers(clean, root, runDockerE2ECommand); err != nil {
+			t.Log("P01B_CLEANUP_FAILURE containers")
+			t.Error("exact cleanup failed")
+			return
+		}
+		if err := cleanupPrivateRoot(clean, root, ownerToken, req.ImageID, runDockerE2ECommand); err != nil {
+			t.Log("P01B_CLEANUP_FAILURE files")
 			t.Error("exact cleanup failed")
 		}
 	})
@@ -632,7 +636,7 @@ func collect(t *testing.T) {
 		if inspections != wantInspections {
 			t.Fatalf("offline image probes=%d expected=%d", inspections, wantInspections)
 		}
-		sample := releasedBenchmarkSample{Route: route, Fixture: fixture, Pass: pass, EngineSHA256: engineSHA, Platform: runtime.GOOS + "/" + runtime.GOARCH, ElapsedMS: float64(end.Sub(start)) / float64(time.Millisecond), Changesets: steps, CacheHits: hits, LiquibaseCLIStarts: starts, ContainerCreates: count, LiquibaseVersion: version, DriverSHA256: hex.EncodeToString(jarDigest[:]), ImageDigest: image, HelperDigest: helper, Qualifying: !probeOnly}
+		sample := releasedBenchmarkSample{Route: route, Fixture: fixture, Pass: pass, EngineSHA256: engineSHA, Platform: runtime.GOOS + "/" + runtime.GOARCH, ElapsedMS: float64(end.Sub(start)) / float64(time.Millisecond), Changesets: steps, CacheHits: hits, LiquibaseCLIStarts: starts, ContainerCreates: count, LiquibaseVersion: version, DriverSHA256: hex.EncodeToString(jarDigest[:]), ImageDigest: image, HelperDigest: helper}
 		sample.SourceRevision, sample.JavaDetails = revision, javaDetails
 		sample.MigrationCLIStarts, sample.ImageInspectionContainers = starts, inspections
 		sample.LiquibaseCLIStarts += inspections

@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseCollectorResult, failureKind, failureHTTPStatus } from './collector-output.mjs';
+import { parseCollectorResult, failureKind, failureHTTPStatus, cleanupBoundary } from './collector-output.mjs';
 import { fixtureSpec } from './inputs.mjs';
 
 test('PA10: failure diagnostics expose only reviewed fixed classes',()=>{
  assert.equal(failureKind('private log\nP01B_FAILURE_KIND permission_denied\n'),'permission_denied');
  assert.equal(failureKind('P01B_FAILURE_KIND postgres://SECRET'),'unknown');
  assert.equal(failureKind('PRIVATE_SENTINEL'),'unknown');
+});
+
+test('PA09/PA10: cleanup boundary is an enum, never a private path',()=>{
+ assert.equal(cleanupBoundary('P01B_CLEANUP_FAILURE files'),'files');
+ assert.equal(cleanupBoundary('P01B_CLEANUP_FAILURE containers'),'containers');
+ assert.equal(cleanupBoundary('P01B_CLEANUP_FAILURE /PRIVATE_SENTINEL'),'unknown');
 });
 
 test('PA04/PA10: rejected API request is distinguishable without exposing its body',()=>{
