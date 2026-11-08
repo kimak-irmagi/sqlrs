@@ -208,6 +208,8 @@ open pending the remaining gates.
 
 The four completed short-workload Actions cohorts now confirm slower v2 in
 uncached and cached passes, beyond the observed controls on both independent
-VMs. The two 102-change cohorts continue unchanged. See
+VMs. The 102-change comparison is now also collected; its confirmation continues
+unchanged. The diagnostic component design is approved; its separately reviewed
+DG01–DG12 inventory and OT-DG01–OT-DG03 await approval before implementation. See
 [paired results and retained evidence](issue89-actions-performance-results-2026-11-08.md).
 This is a release-blocking timing failure, not a waived gate or completed #89.

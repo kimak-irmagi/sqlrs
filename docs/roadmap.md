@@ -102,8 +102,10 @@ in `_test.go`. This is not aggregate product coverage or completed #89. See
 
 The completed JHipster and 12-change MobilityData comparison/confirmation
 cohorts reproduce slower v2 beyond their noise controls. Speed acceptance is
-therefore blocked, not merely awaiting an all-green collection; the 102-change
-cohorts continue. See [results](architecture/issue89-actions-performance-results-2026-11-08.md).
+therefore blocked, not merely awaiting an all-green collection. The 102-change
+comparison is collected; its confirmation continues. The diagnostic design is
+approved; its test inventory is pending approval. See
+[results](architecture/issue89-actions-performance-results-2026-11-08.md).
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
 qualification and the agreed repeated v1 performance

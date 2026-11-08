@@ -1,6 +1,6 @@
 # #89: native Actions performance results (2026-11-08)
 
-Status: four complete cohorts analysed; the two 102-change cohorts are still
+Status: five complete cohorts collected; the 102-change confirmation is still
 running. The collected short workloads already reproduce a release-blocking
 regression under the retained P01b rule. #89 is not complete and PR #175 remains
 draft. Do not cancel the remaining series, waive the timing criterion, or pool
@@ -28,8 +28,9 @@ separate diagnostic run before relying on launcher/JVM metadata.
 Each analysed cohort passed the existing `validateCohort`: 20 distinct engine
 runs, five alternating v1/v2 pairs and five v1/v1 control pairs, two passes per
 run, exact order/host/identity and independent full DB/cache/cleanup checks.
-Artifact identities were also compared across each fixture's two phases and
-match; the VM IDs differ as required. No cross-VM timings are pooled.
+For the four short-workload cohorts, artifact identities were also compared
+across each fixture's two phases and match; the VM IDs differ as required.
+No cross-VM timings are pooled.
 
 ## Completed cohorts
 
@@ -78,8 +79,23 @@ The original sanitized reports were downloaded under
 `.tmp/performance/evidence/42479055486/cohorts` and retained byte-for-byte in
 [the evidence directory](issue89-performance-evidence-2026-11-08/), with explicit
 LF checkout rules. Every retained file's SHA256 matches the downloaded report.
-Actions retention is 14 days; the pending final two reports must also be retained
-when available.
+Actions retention is 14 days; the pending final confirmation report must also
+be retained when available.
+
+### 102-change comparison update
+
+`mobilitydata-main-comparison.json` passed the existing completeness validator:
+20 members, full independent DB/cache/cleanup verification. Uncached route
+medians are 573.847 s (v1) / 597.790 s (v2), paired-median delta +25.290 s;
+the maximum absolute individual control-pair delta is 34.492 s. Cached medians
+are 12.750 / 10.525 s, paired-median delta -2.215 s, max absolute control delta
+1.815 s. Preserve the control outlier and wait for the independent confirmation;
+do not cherry-pick a smaller noise bound or treat this partial fixture result as
+an overall speed pass. The confirmed short-fixture failures remain blocking.
+
+The report is retained in the same evidence directory; Actions artifact
+`13624417581`, SHA256
+`e45ff96335967cd2449d8e7e6402c4fb7048840f6d5bf6c31872f6106375c9f2`.
 
 | Report | Actions artifact ID | SHA256 |
 | --- | ---: | --- |
@@ -87,8 +103,9 @@ when available.
 | jhipster-confirmation.json | 13618730554 | 419fe9a2df2b595db53b7ea52df4d707ffccc0984f2b17b6a4d6084cca7aca99 |
 | mobilitydata-user-comparison.json | 13618621974 | 6c180092af707c672a413369ca4470b1b1054ce8e12561400d19ffca58354429 |
 | mobilitydata-user-confirmation.json | 13618184524 | f303d9a49e8ad825e230920054c1f013ac93cac2b27c41ef581b9e39639c976f |
+| mobilitydata-main-comparison.json | 13624417581 | e45ff96335967cd2449d8e7e6402c4fb7048840f6d5bf6c31872f6106375c9f2 |
 
-Current-head ordinary CI (`44f8e28`, run `42481604984`) passes every test/doc job;
+Ordinary CI at the product/test checkpoint (`44f8e28`, run `42481604984`) passes every test/doc job;
 only the unchanged aggregate coverage gate is red under the explicit #89/#174
 exception. That exception does not waive this independently confirmed timing
 regression. Do not bypass repository protection or mark the feature complete.

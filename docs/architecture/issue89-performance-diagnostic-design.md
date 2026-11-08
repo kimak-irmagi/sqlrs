@@ -1,7 +1,8 @@
 # #89: isolate the confirmed performance regression
 
-Status: proposed after critical and repeat review; component approval requested
-before a separate test inventory and implementation. On 2026-11-08 @evilguest
+Status: approved by @evilguest on 2026-11-08 after critical and repeat review;
+exact reply timestamp unavailable. A separate test inventory still requires
+approval before implementation. On 2026-11-08 @evilguest
 retained the speed criterion and requested exact localisation, with additional
 instrumented runs if needed. Existing acceptance run `42479055486` is unchanged.
 
