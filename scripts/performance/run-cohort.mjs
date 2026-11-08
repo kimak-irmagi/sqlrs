@@ -66,6 +66,7 @@ async function member(route,name){
         report.failureStage=boundary?.[1]||'collector_exit';persist();
         report.failureKind=failureKind(output);persist();
         report.httpFailure=failureHTTPStatus(output);persist();
+        report.oracleParts=[...new Set([...output.matchAll(/P01B_ORACLE_PART (row_count|row_shape|kind|order|id|author|path|checksum|contexts|labels|schema)\b/g)].map(match=>match[1]))];persist();
         reject(new Error('Collector failed; private diagnostics withheld'));
       }else resolve(output);
     });

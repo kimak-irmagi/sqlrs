@@ -5,7 +5,16 @@ import { fixtureSpec } from './inputs.mjs';
 export function failureKind(output){
   if(failureHTTPStatus(output)!==undefined)return 'api_http_failure';
   const value=output.match(/P01B_FAILURE_KIND ([a-z_]+)\b/)?.[1];
-  return ['base_state','plan_parse','snapshot','runtime_start','clone_state','scripts_prepare','connection_refused','jdbc_missing','permission_denied','input_missing','file_missing','cli_arguments','liquibase_execute'].includes(value)?value:'unknown';
+  if(['base_state','plan_parse','snapshot','runtime_start','clone_state','scripts_prepare','connection_refused','jdbc_missing','permission_denied','input_missing','file_missing','cli_arguments','liquibase_execute'].includes(value))return value;
+  for(const [text,kind] of [
+    ['released engine result differs from independent public oracle','oracle_mismatch'],
+    ['benchmark oracle query failed','oracle_query'],['cannot verify benchmark result database','oracle_connection'],
+    ['benchmark cache pass is not the declared workload','cache_pass'],['benchmark Liquibase CLI count=','cli_count'],
+    ['benchmark Docker create stream is not complete','docker_count'],['offline image probes=','probe_count'],
+    ['TempDir RemoveAll cleanup:','private_cleanup'],['exact cleanup failed','private_cleanup']]){
+    if(output.includes(text))return kind;
+  }
+  return 'unknown';
 }
 
 /** Status number only; no body, URL, DSN or arbitrary error message escapes. */

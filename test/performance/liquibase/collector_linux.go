@@ -577,6 +577,9 @@ func collect(t *testing.T) {
 			}
 		}
 		if strings.Join(actual, "\n") != golden {
+			for _, part := range oracleMismatchParts(actual, golden) {
+				t.Logf("P01B_ORACLE_PART %s", part)
+			}
 			t.Fatal("released engine result differs from independent public oracle")
 		}
 		db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(dbPath)+"?mode=ro")

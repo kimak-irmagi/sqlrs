@@ -17,6 +17,17 @@ test('PA04/PA10: rejected API request is distinguishable without exposing its bo
  assert.equal(failureHTTPStatus('released status HTTP 503'),503);
 });
 
+test('PA05/PA10: fixed collector verification failures are distinct and disclose no rows',()=>{
+ for(const [text,kind] of [
+  ['released engine result differs from independent public oracle','oracle_mismatch'],
+  ['benchmark oracle query failed','oracle_query'],['cannot verify benchmark result database','oracle_connection'],
+  ['benchmark cache pass is not the declared workload','cache_pass'],['benchmark Liquibase CLI count=2 expected=1','cli_count'],
+  ['benchmark Docker create stream is not complete','docker_count'],['offline image probes=0 expected=1','probe_count'],
+  ['TempDir RemoveAll cleanup: PRIVATE_SENTINEL','private_cleanup']]){
+  assert.equal(failureKind('P01B_FAILURE_KIND unknown\n'+text+'\nPRIVATE_SENTINEL'),kind);
+ }
+});
+
 test('PA05/PA06/PA10: process success and exact independently verified workload are both mandatory',()=>{
  const spec=fixtureSpec('jhipster');const sha='a'.repeat(40), hash='b'.repeat(64);
  const rows=['uncached','cached'].map((pass,index)=>({Route:'v2',Fixture:'jhipster',Pass:pass,EngineSHA256:hash,SourceRevision:sha,

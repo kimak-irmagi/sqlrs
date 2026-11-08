@@ -107,6 +107,42 @@ func classifyEngineFailure(err *ErrorResponse) string {
 	return "unknown"
 }
 
+// oracleMismatchParts diagnoses dimensions only; never emit rows or values.
+func oracleMismatchParts(actual []string, expected string) []string {
+	want := strings.Split(expected, "\n")
+	if len(actual) != len(want) {
+		return []string{"row_count"}
+	}
+	seen := map[string]bool{}
+	result := []string{}
+	add := func(part string) {
+		if !seen[part] {
+			seen[part] = true
+			result = append(result, part)
+		}
+	}
+	for index, line := range want {
+		if actual[index] == line {
+			continue
+		}
+		if strings.HasPrefix(line, "change|") || strings.HasPrefix(line, "changelog|") {
+			a, b := strings.Split(actual[index], "|"), strings.Split(line, "|")
+			if len(a) != len(b) || len(b) != 8 {
+				add("row_shape")
+				continue
+			}
+			for field, name := range []string{"kind", "order", "id", "author", "path", "checksum", "contexts", "labels"} {
+				if a[field] != b[field] {
+					add(name)
+				}
+			}
+		} else {
+			add("schema")
+		}
+	}
+	return result
+}
+
 const (
 	StatusSucceeded        = "succeeded"
 	StatusFailed           = "failed"
