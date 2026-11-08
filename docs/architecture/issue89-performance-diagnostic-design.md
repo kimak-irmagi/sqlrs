@@ -31,6 +31,12 @@ such as read/write, or attach to unrelated/user processes.
    SHA256 `1367bce9ddaa44c0aa378b07c015dfb20a4c0d29f00d2f5a893905686fae14b0`
    and the existing pinned v1 SHA256. Compile the observer separately; only its
    private collector executable is replaced. No measured source/artifact patch.
+   Audit found the original Linux v1 observer hashes `liquibase.bat` while the
+   actual native request executes `liquibase`. Diagnostic provenance must use
+   the actual selected executable script, verify it against the pinned extracted
+   distribution and never describe its hash as the Windows launcher. Preserve
+   original collected samples unchanged; derived JVM totals remain provisional
+   until the actual script is verified. Separate tests cover this observer fix.
 3. Extend only the external collector with an explicit diagnostic mode. Launch
    the exact engine under `strace` for traced members, otherwise unchanged. Both
    remain in the owned process group. Keep native API, full DB/cache oracles,

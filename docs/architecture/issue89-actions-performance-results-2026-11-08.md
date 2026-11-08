@@ -16,6 +16,15 @@ v2 `1367bce9ddaa44c0aa378b07c015dfb20a4c0d29f00d2f5a893905686fae14b0`.
 Both routes use the same locked JDBC and `copy` snapshot backend. Their real
 host/container Java differences remain explicit in the samples.
 
+Collector audit caveat: the Linux v1 request executes `distribution/liquibase`,
+but the report's launcher inventory reads `liquibase.bat`. That is a provenance
+defect in the observer, not a demonstrated cause of slower v2. API elapsed time,
+DB oracle, cache hits and Docker/CLI observations do not come from that hash;
+the timing regression remains observed, but native-launcher provenance and
+derived JVM totals are not fully qualified. Preserve original evidence bytes;
+verify the actually executed Linux script and trace-derived observations in the
+separate diagnostic run before relying on launcher/JVM metadata.
+
 Each analysed cohort passed the existing `validateCohort`: 20 distinct engine
 runs, five alternating v1/v2 pairs and five v1/v1 control pairs, two passes per
 run, exact order/host/identity and independent full DB/cache/cleanup checks.
