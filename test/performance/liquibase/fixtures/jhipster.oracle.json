@@ -1,0 +1,612 @@
+{
+  "source": {
+    "repository": "https://github.com/jhipster/jhipster-sample-app",
+    "commit": "6b000b5d23a36c45e01472471b84a44fa2464044",
+    "license": "Apache-2.0"
+  },
+  "natural": {
+    "mechanism": "SpringLiquibase via JhipsterSampleApplicationApp",
+    "profile": "prod",
+    "liquibase_version": "5.0.3",
+    "liquibase_platform_digest": "sha256:17f98b85e6d4c33b84ee409d055f1526227c77b55dd30e3879ec5088716a32eb",
+    "dbms": "postgresql",
+    "postgres_major": 17,
+    "changelog": "classpath:config/liquibase/master.xml",
+    "contexts": "prod",
+    "invocation": "mvn -B -ntp -Pprod -DskipTests '-Dskip.npm=true' '-Dskip.installnodenpm=true' spring-boot:run",
+    "environment": [
+      "SPRING_DATASOURCE_URL=jdbc:postgresql://127.0.0.1:55489/jhipsterSampleApplication",
+      "SPRING_DATASOURCE_USERNAME=jhipster",
+      "SPRING_DATASOURCE_PASSWORD=<temporary fixture password>",
+      "JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET=<upstream sample secret>",
+      "SERVER_PORT=0"
+    ],
+    "observation": "Application started successfully on a fresh postgres:17 container; the frontend Maven goals alone were skipped."
+  },
+  "unsupported_natural_route": {
+    "profile": "dev",
+    "dbms": "h2",
+    "source": "https://github.com/jhipster/jhipster-sample-app/blob/6b000b5d23a36c45e01472471b84a44fa2464044/src/main/resources/config/application-dev.yml",
+    "sqlrs_result": "unsupported"
+  },
+  "expected": {
+    "changelog": [
+      {
+        "order": 1,
+        "id": "00000000000000",
+        "author": "jhipster",
+        "file": "config/liquibase/changelog/00000000000000_initial_schema.xml",
+        "checksum": "9:b6b4a3e0d2a6d7f1e5139675af65d7b0",
+        "contexts": null,
+        "labels": null
+      },
+      {
+        "order": 2,
+        "id": "00000000000001",
+        "author": "jhipster",
+        "file": "config/liquibase/changelog/00000000000000_initial_schema.xml",
+        "checksum": "9:1fe8b4e13f20fc44432c21045f92d736",
+        "contexts": null,
+        "labels": null
+      },
+      {
+        "order": 3,
+        "id": "20150805124838-1",
+        "author": "jhipster",
+        "file": "config/liquibase/changelog/20150805124838_added_entity_BankAccount.xml",
+        "checksum": "9:1228cf60729e675beeef0c1c0bffd820",
+        "contexts": null,
+        "labels": null
+      },
+      {
+        "order": 4,
+        "id": "20150805124936-1",
+        "author": "jhipster",
+        "file": "config/liquibase/changelog/20150805124936_added_entity_Label.xml",
+        "checksum": "9:6b074a1e34d24e19aceb4c6d9e7b43cf",
+        "contexts": null,
+        "labels": null
+      },
+      {
+        "order": 5,
+        "id": "20150805125054-1",
+        "author": "jhipster",
+        "file": "config/liquibase/changelog/20150805125054_added_entity_Operation.xml",
+        "checksum": "9:bc46d89eed832627c2a9b72e7775c362",
+        "contexts": null,
+        "labels": null
+      },
+      {
+        "order": 6,
+        "id": "20150805125054-1-relations",
+        "author": "jhipster",
+        "file": "config/liquibase/changelog/20150805125054_added_entity_Operation.xml",
+        "checksum": "9:48e9514b7f090dc6241d013699aef0ad",
+        "contexts": null,
+        "labels": null
+      },
+      {
+        "order": 7,
+        "id": "20150805124838-2",
+        "author": "jhipster",
+        "file": "config/liquibase/changelog/20150805124838_added_entity_constraints_BankAccount.xml",
+        "checksum": "9:9001ff44ad240ac3958b8f48c5e3967c",
+        "contexts": null,
+        "labels": null
+      },
+      {
+        "order": 8,
+        "id": "20150805125054-2",
+        "author": "jhipster",
+        "file": "config/liquibase/changelog/20150805125054_added_entity_constraints_Operation.xml",
+        "checksum": "9:1b0267f89c3e66b9c945ba40238cf736",
+        "contexts": null,
+        "labels": null
+      }
+    ],
+    "columns": [
+      {
+        "table": "bank_account",
+        "position": 1,
+        "name": "id",
+        "type": "bigint",
+        "length": null,
+        "precision": 64,
+        "scale": 0,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "bank_account",
+        "position": 2,
+        "name": "name",
+        "type": "character varying",
+        "length": 255,
+        "precision": null,
+        "scale": null,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "bank_account",
+        "position": 3,
+        "name": "balance",
+        "type": "numeric",
+        "length": null,
+        "precision": 21,
+        "scale": 2,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "bank_account",
+        "position": 4,
+        "name": "user_id",
+        "type": "bigint",
+        "length": null,
+        "precision": 64,
+        "scale": 0,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_authority",
+        "position": 1,
+        "name": "name",
+        "type": "character varying",
+        "length": 50,
+        "precision": null,
+        "scale": null,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 1,
+        "name": "id",
+        "type": "bigint",
+        "length": null,
+        "precision": 64,
+        "scale": 0,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 2,
+        "name": "login",
+        "type": "character varying",
+        "length": 50,
+        "precision": null,
+        "scale": null,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 3,
+        "name": "password_hash",
+        "type": "character varying",
+        "length": 60,
+        "precision": null,
+        "scale": null,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 4,
+        "name": "first_name",
+        "type": "character varying",
+        "length": 50,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 5,
+        "name": "last_name",
+        "type": "character varying",
+        "length": 50,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 6,
+        "name": "email",
+        "type": "character varying",
+        "length": 191,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 7,
+        "name": "image_url",
+        "type": "character varying",
+        "length": 256,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 8,
+        "name": "activated",
+        "type": "boolean",
+        "length": null,
+        "precision": null,
+        "scale": null,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 9,
+        "name": "lang_key",
+        "type": "character varying",
+        "length": 10,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 10,
+        "name": "activation_key",
+        "type": "character varying",
+        "length": 20,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 11,
+        "name": "reset_key",
+        "type": "character varying",
+        "length": 20,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 12,
+        "name": "created_by",
+        "type": "character varying",
+        "length": 50,
+        "precision": null,
+        "scale": null,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 13,
+        "name": "created_date",
+        "type": "timestamp without time zone",
+        "length": null,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 14,
+        "name": "reset_date",
+        "type": "timestamp without time zone",
+        "length": null,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 15,
+        "name": "last_modified_by",
+        "type": "character varying",
+        "length": 50,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_user",
+        "position": 16,
+        "name": "last_modified_date",
+        "type": "timestamp without time zone",
+        "length": null,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "jhi_user_authority",
+        "position": 1,
+        "name": "user_id",
+        "type": "bigint",
+        "length": null,
+        "precision": 64,
+        "scale": 0,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "jhi_user_authority",
+        "position": 2,
+        "name": "authority_name",
+        "type": "character varying",
+        "length": 50,
+        "precision": null,
+        "scale": null,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "label",
+        "position": 1,
+        "name": "id",
+        "type": "bigint",
+        "length": null,
+        "precision": 64,
+        "scale": 0,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "label",
+        "position": 2,
+        "name": "label",
+        "type": "character varying",
+        "length": 255,
+        "precision": null,
+        "scale": null,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "operation",
+        "position": 1,
+        "name": "id",
+        "type": "bigint",
+        "length": null,
+        "precision": 64,
+        "scale": 0,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "operation",
+        "position": 2,
+        "name": "date",
+        "type": "timestamp without time zone",
+        "length": null,
+        "precision": null,
+        "scale": null,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "operation",
+        "position": 3,
+        "name": "description",
+        "type": "character varying",
+        "length": 255,
+        "precision": null,
+        "scale": null,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "operation",
+        "position": 4,
+        "name": "amount",
+        "type": "numeric",
+        "length": null,
+        "precision": 21,
+        "scale": 2,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "operation",
+        "position": 5,
+        "name": "bank_account_id",
+        "type": "bigint",
+        "length": null,
+        "precision": 64,
+        "scale": 0,
+        "nullable": "YES",
+        "default": null
+      },
+      {
+        "table": "rel_operation__label",
+        "position": 1,
+        "name": "label_id",
+        "type": "bigint",
+        "length": null,
+        "precision": 64,
+        "scale": 0,
+        "nullable": "NO",
+        "default": null
+      },
+      {
+        "table": "rel_operation__label",
+        "position": 2,
+        "name": "operation_id",
+        "type": "bigint",
+        "length": null,
+        "precision": 64,
+        "scale": 0,
+        "nullable": "NO",
+        "default": null
+      }
+    ],
+    "constraints": [
+      {
+        "table": "bank_account",
+        "name": "bank_account_pkey",
+        "type": "p",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table": "bank_account",
+        "name": "fk_bank_account__user_id",
+        "type": "f",
+        "definition": "FOREIGN KEY (user_id) REFERENCES jhi_user(id)"
+      },
+      {
+        "table": "jhi_authority",
+        "name": "jhi_authority_pkey",
+        "type": "p",
+        "definition": "PRIMARY KEY (name)"
+      },
+      {
+        "table": "jhi_user",
+        "name": "jhi_user_pkey",
+        "type": "p",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table": "jhi_user",
+        "name": "ux_user_email",
+        "type": "u",
+        "definition": "UNIQUE (email)"
+      },
+      {
+        "table": "jhi_user",
+        "name": "ux_user_login",
+        "type": "u",
+        "definition": "UNIQUE (login)"
+      },
+      {
+        "table": "jhi_user_authority",
+        "name": "fk_authority_name",
+        "type": "f",
+        "definition": "FOREIGN KEY (authority_name) REFERENCES jhi_authority(name)"
+      },
+      {
+        "table": "jhi_user_authority",
+        "name": "fk_user_id",
+        "type": "f",
+        "definition": "FOREIGN KEY (user_id) REFERENCES jhi_user(id)"
+      },
+      {
+        "table": "jhi_user_authority",
+        "name": "jhi_user_authority_pkey",
+        "type": "p",
+        "definition": "PRIMARY KEY (user_id, authority_name)"
+      },
+      {
+        "table": "label",
+        "name": "label_pkey",
+        "type": "p",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table": "operation",
+        "name": "fk_operation__bank_account_id",
+        "type": "f",
+        "definition": "FOREIGN KEY (bank_account_id) REFERENCES bank_account(id)"
+      },
+      {
+        "table": "operation",
+        "name": "operation_pkey",
+        "type": "p",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table": "rel_operation__label",
+        "name": "fk_rel_operation__label__label_id",
+        "type": "f",
+        "definition": "FOREIGN KEY (label_id) REFERENCES label(id)"
+      },
+      {
+        "table": "rel_operation__label",
+        "name": "fk_rel_operation__label__operation_id",
+        "type": "f",
+        "definition": "FOREIGN KEY (operation_id) REFERENCES operation(id)"
+      },
+      {
+        "table": "rel_operation__label",
+        "name": "rel_operation__label_pkey",
+        "type": "p",
+        "definition": "PRIMARY KEY (operation_id, label_id)"
+      }
+    ],
+    "indexes": [
+      {
+        "table": "bank_account",
+        "name": "bank_account_pkey",
+        "definition": "CREATE UNIQUE INDEX bank_account_pkey ON public.bank_account USING btree (id)"
+      },
+      {
+        "table": "jhi_authority",
+        "name": "jhi_authority_pkey",
+        "definition": "CREATE UNIQUE INDEX jhi_authority_pkey ON public.jhi_authority USING btree (name)"
+      },
+      {
+        "table": "jhi_user",
+        "name": "jhi_user_pkey",
+        "definition": "CREATE UNIQUE INDEX jhi_user_pkey ON public.jhi_user USING btree (id)"
+      },
+      {
+        "table": "jhi_user",
+        "name": "ux_user_email",
+        "definition": "CREATE UNIQUE INDEX ux_user_email ON public.jhi_user USING btree (email)"
+      },
+      {
+        "table": "jhi_user",
+        "name": "ux_user_login",
+        "definition": "CREATE UNIQUE INDEX ux_user_login ON public.jhi_user USING btree (login)"
+      },
+      {
+        "table": "jhi_user_authority",
+        "name": "jhi_user_authority_pkey",
+        "definition": "CREATE UNIQUE INDEX jhi_user_authority_pkey ON public.jhi_user_authority USING btree (user_id, authority_name)"
+      },
+      {
+        "table": "label",
+        "name": "label_pkey",
+        "definition": "CREATE UNIQUE INDEX label_pkey ON public.label USING btree (id)"
+      },
+      {
+        "table": "operation",
+        "name": "operation_pkey",
+        "definition": "CREATE UNIQUE INDEX operation_pkey ON public.operation USING btree (id)"
+      },
+      {
+        "table": "rel_operation__label",
+        "name": "rel_operation__label_pkey",
+        "definition": "CREATE UNIQUE INDEX rel_operation__label_pkey ON public.rel_operation__label USING btree (operation_id, label_id)"
+      }
+    ],
+    "sequences": [
+      {
+        "name": "sequence_generator",
+        "type": "bigint",
+        "start": "1050",
+        "min": "1",
+        "max": "9223372036854775807",
+        "increment": "50",
+        "cycle": false
+      }
+    ]
+  }
+}

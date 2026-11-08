@@ -181,6 +181,6 @@ finish cleanup. No collector or sqlrs test container remained afterward. The
 third partial pair is excluded, regardless of its completed new-engine samples.
 The [Actions design](issue89-performance-actions-design.md) for a pinned Linux
 reference and same-VM paired collection was approved on 2026-11-08. The separate
-[reviewed test plan](issue89-performance-actions-tests.md) awaits approval.
+[reviewed test plan](issue89-performance-actions-tests.md) was separately approved.
 No remote benchmark has run yet and no
 performance gate is waived.

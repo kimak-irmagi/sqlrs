@@ -1,0 +1,109 @@
+name: Liquibase performance (explicit opt-in)
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact same-repository candidate commit (40 hex digits)
+        required: true
+        type: string
+      phase:
+        description: Pilot only, or pilot then retained full protocol
+        required: true
+        default: pilot
+        type: choice
+        options: [pilot, full]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: liquibase-performance-${{ github.event.pull_request.number || inputs.candidate_sha }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       (github.event.label.name == 'performance:pilot' || github.event.label.name == 'performance:full'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      sha: ${{ steps.selection.outputs.sha }}
+      phase: ${{ steps.selection.outputs.phase }}
+      engine_sha: ${{ steps.setup.outputs.engine_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - id: selection
+        run: node scripts/performance/select.mjs
+      - id: setup
+        uses: ./.github/actions/liquibase-perf-setup
+        with:
+          candidate_sha: ${{ steps.selection.outputs.sha }}
+
+  pilot:
+    needs: [prepare]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/liquibase-perf-setup
+        with:
+          candidate_sha: ${{ needs.prepare.outputs.sha }}
+          expected_engine_sha: ${{ needs.prepare.outputs.engine_sha }}
+      - name: Real Linux compatibility and six-hour budget pilot
+        run: node scripts/performance/run-cohort.mjs pilot
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: liquibase-pilot-${{ needs.prepare.outputs.sha }}
+          path: .tmp/performance/reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  collect:
+    needs: [prepare, pilot]
+    if: needs.prepare.outputs.phase == 'full'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture: [jhipster, mobilitydata-user, mobilitydata-main]
+        phase: [comparison, confirmation]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/liquibase-perf-setup
+        with:
+          candidate_sha: ${{ needs.prepare.outputs.sha }}
+          expected_engine_sha: ${{ needs.prepare.outputs.engine_sha }}
+      - name: Collect one entire same-VM cohort and its controls
+        env:
+          PERFORMANCE_FIXTURE: ${{ matrix.fixture }}
+          PERFORMANCE_PHASE: ${{ matrix.phase }}
+        run: node scripts/performance/run-cohort.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: liquibase-${{ matrix.fixture }}-${{ matrix.phase }}-${{ needs.prepare.outputs.sha }}
+          path: .tmp/performance/reports/*.json
+          if-no-files-found: warn
+          retention-days: 14

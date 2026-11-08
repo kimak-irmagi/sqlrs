@@ -1,7 +1,9 @@
 # #89: tests for off-laptop performance collection
 
-Status: proposed inventory after critical and repeat review, 2026-11-08;
-awaiting user approval before new tests or implementation.
+Status: PA01–PA12 approved by @evilguest on 2026-11-08 after critical and repeat
+review. Existing fetch/JDBC/release-workflow tests were audited: their separate
+paths and smoke checks do not conflict; no old-test changes are authorized or
+needed for the new performance-owned collector and full oracles.
 Scope: the approved [Actions design](issue89-performance-actions-design.md),
 not new product behavior or the recovery/coverage programs #170–#174.
 
@@ -93,3 +95,21 @@ control/confirmation identity, no silent sample replacement, privacy on failure,
 and hard-timeout limits. No further P0–P2 issue found in this bounded inventory.
 Compatibility, budget and performance are still unproven; no tests have been
 implemented or executed by this document.
+
+## First implementation checkpoint
+
+The approved inventory is now being implemented. Nine new deterministic Node
+tests and the unchanged fetch/JDBC/release-workflow checks pass locally. The
+three exercised pure modules (`control`, `inputs`, `collector-output`) have
+100% line and 96.48% branch coverage; this is **not** aggregate harness coverage.
+The standalone Linux Go collector cross-compiles and passes `go vet`; its actual
+unit/native execution belongs to the remote setup/pilot and is not claimed here.
+The module uses `GOWORK=off` because it is deliberately outside the product
+workspace, without changing Go cache paths. No product files or old tests changed.
+
+Candidate builds use fixed source/Go 1.25.5 and trimmed paths on each VM; every
+subsequent VM must match the initial candidate hash. Source/header/core/driver
+checks and Docker event barriers precede sample acceptance. Reports remain
+incomplete until child exit, full DB oracle and exact cleanup all succeed.
+PA11/PA12, six-hour feasibility and complete adapter/collector coverage remain
+open until real execution; no acceptance follows from this checkpoint.

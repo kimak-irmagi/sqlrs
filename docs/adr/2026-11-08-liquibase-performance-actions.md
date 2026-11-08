@@ -4,7 +4,7 @@
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.
 - Status: Actions direction and Ubuntu/component design approved on 2026-11-08;
-  the separate reviewed test inventory still awaits approval.
+  PA01–PA12 separately approved on the same date after critical and repeat review.
 
 ## Question and alternatives
 
