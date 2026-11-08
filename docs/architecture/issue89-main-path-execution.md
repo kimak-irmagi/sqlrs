@@ -199,5 +199,6 @@ The full opt-in workflow was launched on exact source `668d505`:
 It repeats the pilot before the complete comparison/control/confirmation jobs.
 The small helper-only profile exposed a test-file classification issue;
 [the bounded clarification](issue89-performance-actions-design.md#proposed-clarification-integration-test-versus-helper-coverage)
-awaits approval. No running cohort, product behavior or statistical rule is
-changed by that proposal. #89/#175 remain open pending the remaining gates.
+was approved by @evilguest on 2026-11-08. Its targeted helper test inventory
+awaits separate approval. No running cohort, product behavior or statistical
+rule changes. #89/#175 remain open pending the remaining gates.

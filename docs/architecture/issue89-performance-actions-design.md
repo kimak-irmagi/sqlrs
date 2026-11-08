@@ -119,7 +119,9 @@ performance acceptance and complete helper coverage remain open.
 
 ## Proposed clarification: integration-test versus helper coverage
 
-Status: awaiting separate approval; no file split implemented by this note.
+Status: approved by @evilguest on 2026-11-08 (exact reply time unavailable).
+Implementation follows separate approval of the helper test inventory; no
+file split has been implemented by this note.
 The successful real pilot is recorded in the test inventory. A subsequent
 helpers-only unit profile on source `668d505` is 24.2% (135/557 statements),
 not product coverage and not a native-execution profile. The largest gap is
@@ -129,7 +131,7 @@ Windows scenario was correctly a `_test.go` file; the port accidentally made
 these assertions ordinary library code. No laptop prepare/benchmark was run
 for this profile.
 
-Proposed structure, without weakening any assertion or runtime qualification:
+Approved structure, without weakening any assertion or runtime qualification:
 
 - Put the actual external integration scenario and helpers that call
   `testing.T` assertions in a Linux `_test.go` file. It still compiles through

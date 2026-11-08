@@ -175,3 +175,76 @@ coverage check is red under the explicit #89 exception.
 Before full collection, PA09 adds the explicit outside-root symlink control and
 unit faults for cancellation, helper create/start/removal/absence and residual
 files. These strengthen teardown only; measured product execution is unchanged.
+
+## HC01–HC07: targeted ordinary Go helper coverage
+
+Status: proposed after critical and repeat review; approval requested before
+new tests or the approved file split are implemented. One bounded iteration,
+not a product change or another native performance run. The boundary was approved
+on 2026-11-08; PA01–PA12 remain unchanged.
+
+Baseline: helpers-only Linux profile on `668d505`,
+`.tmp/performance/unit-current.out`: 135/557 statements (24.2%), not native or
+product coverage. Descending uncovered count: `collector_linux.go` 398/410,
+`cleanup.go` 21/53, `contract.go` 2/60, `private_root.go` 1/34. Most of the first
+file is the integration test, not dead code. Report denominator changes separately
+from newly exercised requirements; do not promise a resulting percentage.
+
+1. **HC01 — event integrity (PA06/PA10).** Keep scanner, decoding, event storage,
+   stream errors and counting in ordinary Go helpers. Move only `testing.T`
+   scenario/process/assertion orchestration to Linux `_test.go`. Test valid create
+   events, malformed/truncated JSON, wrong action, missing image/name, nonpositive
+   time, scanner read failure and oversized record. Verify exact decoded events;
+   a broken stream cannot produce a valid count. Use in-memory/failing readers,
+   not Docker.
+2. **HC02 — exact counts (PA06).** Exercise the time.Time wrapper and nanosecond
+   path, both inclusive endpoints and adjacent outside events; mixed images and
+   durable sqlrs names distinguish all creates from unnamed pinned-image probes.
+   Preserve existing interval and stream-error tests unchanged.
+3. **HC03 — command adapter (PA09/PA10).** Use a temporary fake `docker` executable
+   through test-scoped PATH. Check exact arguments/output on success, nonzero exit
+   and already-cancelled context. Failure returns no partial output or private
+   diagnostic sentinel. Restore PATH; no parallel environment mutation/real daemon.
+   This does not replace native Docker qualification.
+4. **HC04 — exact cleanup failures (PA09).** Test list failure, 64-character nonhex
+   ID, malformed/empty/multiple inspect records, mismatched ID and owned mount with
+   unrecognized name. Inspect failure is resolved only by successful exact-ID
+   empty listing; still-present/list-error cases reject. Test removal failure and
+   failed post-removal absence query. Require exact calls/order/IDs, no removal
+   without proved ownership, continued handling of another valid entry and overall
+   failure. Preserve foreign-root/name-prefix rejection and positive cleanup.
+   All effects use the existing command double.
+5. **HC05 — oracle shape (PA05/PA10).** Short/long changelog rows and wrong expected
+   row shape report only `row_shape`, never values/private sentinel. Preserve
+   matching/schema/count/dimension controls. This diagnostic test does not replace
+   the independent full database oracle.
+6. **HC06 — owner marker (PA09).** Missing, directory and symlink marker reject
+   before Docker; exact root/foreign target contents remain unchanged. Preserve
+   existing token/root/link, cancellation and helper retirement controls. No
+   permission relaxation or actual private-store deletion.
+7. **HC07 — boundary and full remeasurement.** Retain `TestReleasedEngine` and all
+   native assertions; compile the external Linux binary with `GOWORK=off`, run all
+   small Go tests/vet and Node helper tests, obtain the detailed ordinary-helper
+   line profile. Report assertion moves and newly tested branches separately.
+   Target 100%, minimum 95% for ordinary helpers; further shortfalls require
+   another approved iteration. Do not cancel/restart the immutable running
+   `668d505` cohort. No laptop prepare/timings; native/statistical acceptance
+   remains PA12.
+
+### Critical and repeat review
+
+- P1: hiding actual observer implementation. HC01 retains scanner/errors/storage/
+  counts in ordinary helpers and exercises their failures.
+- P1: negative cases failing before the intended boundary. HC03–HC06 require
+  observed exact calls/IDs/order and positive controls, not generic errors alone.
+- P1: mocks mistaken for native acceptance or pooled source revisions. HC07
+  separates evidence and preserves the selected measurement SHA.
+- P2: mutation of user Docker/PATH or following links. Only scoped fake
+  executables/command doubles and temporary no-follow controls apply.
+- P2: calling denominator reduction added coverage. Baseline and HC07 explicitly
+  distinguish reclassification from requirements newly tested.
+
+Repeat review found no remaining P0–P2 in this bounded inventory. No new product
+API/schema/seam, deleted test or weakened assertion. Existing helper expectations
+were checked without finding contradictions; repeat the required post-approval
+audit and ask separately if one is discovered.
