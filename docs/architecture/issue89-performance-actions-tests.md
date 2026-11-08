@@ -178,8 +178,8 @@ files. These strengthen teardown only; measured product execution is unchanged.
 
 ## HC01–HC07: targeted ordinary Go helper coverage
 
-Status: proposed after critical and repeat review; approval requested before
-new tests or the approved file split are implemented. One bounded iteration,
+Status: HC01–HC07 approved by @evilguest on 2026-11-08 after critical and repeat
+review (exact reply time unavailable). One bounded iteration,
 not a product change or another native performance run. The boundary was approved
 on 2026-11-08; PA01–PA12 remain unchanged.
 
@@ -247,4 +247,44 @@ from newly exercised requirements; do not promise a resulting percentage.
 Repeat review found no remaining P0–P2 in this bounded inventory. No new product
 API/schema/seam, deleted test or weakened assertion. Existing helper expectations
 were checked without finding contradictions; repeat the required post-approval
-audit and ask separately if one is discovered.
+audit and ask separately if one is discovered. The post-approval audit of all
+existing helper tests also found no contradictory expectation; no old test
+changes are needed for this iteration.
+
+### HC execution checkpoint (2026-11-08)
+
+HC01–HC07 pass. Tests were written first: the initial Linux compilation failed
+at the not-yet-extracted `consumeEvents` helper. After extraction, all small Go
+tests pass under Ubuntu WSL without Docker/native workloads. The existing
+`TestReleasedEngine` opt-in is unchanged. Linux compilation and `go vet ./...`
+pass with `GOWORK=off`. All 21 Node tests pass (100% lines / 96.76% branches in
+four imported helpers, not uninstrumented process adapters).
+
+The native `collect` scenario and all assertions following its comment anchor
+were compared with the preceding Git version and are text-identical. The scanner
+loop is extracted unchanged into `events_linux.go`; process/barrier/assertion
+orchestration remains in `collector_linux_test.go`. No old test was edited.
+
+| Ordinary helper | Covered / total statements | Before |
+| --- | --- | --- |
+| cleanup.go | 53/53 | 32/53 |
+| contract.go | 60/60 | 58/60 |
+| events_linux.go | 27/27 | 12/27 inside collector_linux.go |
+| private_root.go | 34/34 | 33/34 |
+| Total | 174/174 (100%) | 135/174 after separating the test scenario |
+
+The previous raw profile was 135/557 (24.2%): 383 integration-test statements are
+reclassified, not newly tested. Separately, 39 previously uncovered genuine
+helper statements are now exercised. Detailed block profile:
+`.tmp/performance/hc-all.out`; every ordinary helper function is 100%, with no
+uncovered block. Reproduce from the external module on Linux:
+
+```sh
+GOWORK=off go test -count=1 -timeout=2m -covermode=set -coverpkg=./... -coverprofile=../../../.tmp/performance/hc-all.out ./...
+GOWORK=off go tool cover -func=../../../.tmp/performance/hc-all.out
+GOWORK=off go vet ./...
+```
+
+Repeat implementation review found no P0–P2. This is helper coverage, not native
+timing or aggregate product coverage. The immutable full Actions run
+`42479055486` on `668d505` is unchanged; PA12/performance acceptance stays open.

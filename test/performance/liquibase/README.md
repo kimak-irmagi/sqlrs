@@ -26,6 +26,11 @@ GOWORK=off go test -count=1 -timeout=2m ./...
 ```
 
 The separate module intentionally uses `GOWORK=off`, not different Go caches.
+The integration scenario lives in `collector_linux_test.go`; event stream/count,
+validation and disposal helpers remain ordinary Go code. HC01–HC07 cover these
+helpers at 174/174 statements (100%), not the integration scenario, Node process
+adapters or product. See `docs/architecture/issue89-performance-actions-tests.md`
+for the approved boundary, profile and separate native acceptance evidence.
 The native collector test is explicitly opted in only by the Actions scheduler.
 Its internal samples are emitted only after oracle verification and successful
 exact cleanup. The parent never publishes raw child stdout/stderr. Private

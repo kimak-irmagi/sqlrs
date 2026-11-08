@@ -200,5 +200,8 @@ It repeats the pilot before the complete comparison/control/confirmation jobs.
 The small helper-only profile exposed a test-file classification issue;
 [the bounded clarification](issue89-performance-actions-design.md#proposed-clarification-integration-test-versus-helper-coverage)
 was approved by @evilguest on 2026-11-08. Its targeted helper test inventory
-awaits separate approval. No running cohort, product behavior or statistical
-rule changes. #89/#175 remain open pending the remaining gates.
+was separately approved as HC01–HC07 on 2026-11-08 and now passes: ordinary Go
+helpers cover 174/174 statements (100%). The unchanged native scenario moved to
+`_test.go`; 383 reclassified assertions are not counted as newly tested helpers.
+No running cohort, product behavior or statistical rule changes. #89/#175 remain
+open pending the remaining gates.

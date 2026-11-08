@@ -93,6 +93,13 @@ granted #89 an aggregate-coverage exception, moving remediation to #174 without
 changing shared CI thresholds. Performance acceptance remains open. See the
 [execution checkpoint](architecture/issue89-main-path-execution.md).
 
+The off-laptop performance pilot passes all three public workloads. Full paired
+and independent-confirmation collection is running in Actions on fixed `668d505`;
+speed acceptance remains open. Ordinary Go collector helpers pass HC01–HC07 at
+174/174 statements (100%), with the unchanged native scenario correctly placed
+in `_test.go`. This is not aggregate product coverage or completed #89. See
+[helper evidence](architecture/issue89-performance-actions-tests.md).
+
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
 qualification and the agreed repeated v1 performance
 comparison are still pending. Deferred recovery/SQLite/search work

@@ -115,7 +115,9 @@ workflow guards and evidence validation require a separate reviewed test plan.
 Repeat review found no further P0-P2 contradiction in this transport/component
 proposal. Linux compatibility and the pilot budget were unproven at that review;
 the subsequent successful pilot is recorded in the test inventory. Full-series
-performance acceptance and complete helper coverage remain open.
+performance acceptance remained open. Ordinary Go helper coverage subsequently
+reached 174/174 (100%) under the separately approved HC01–HC07 inventory; see the
+test inventory for execution evidence and the coverage boundary.
 
 ## Proposed clarification: integration-test versus helper coverage
 

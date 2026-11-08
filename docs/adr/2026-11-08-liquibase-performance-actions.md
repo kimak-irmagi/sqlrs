@@ -85,7 +85,8 @@ observations remain diagnostics and cannot be pooled into Linux timings.
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.
 - Status: approved by explicit user reply on 2026-11-08 after critical/repeat
-  review; the targeted helper test inventory still needs separate approval.
+  review; the targeted helper test inventory HC01–HC07 was subsequently approved
+  by explicit user reply on the same date (exact reply time unavailable).
 - Question: the helpers-only profile counts the external integration test's own
   assertions as ordinary implementation because the port named it `.go`.
 - Alternatives: test every assertion/fatal branch as library code, or restore
