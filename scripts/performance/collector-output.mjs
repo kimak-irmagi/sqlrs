@@ -3,8 +3,15 @@ import { fixtureSpec } from './inputs.mjs';
 
 /** Failure metadata is a fixed enum, not a sanitized copy of engine output. */
 export function failureKind(output){
+  if(failureHTTPStatus(output)!==undefined)return 'api_http_failure';
   const value=output.match(/P01B_FAILURE_KIND ([a-z_]+)\b/)?.[1];
   return ['base_state','plan_parse','snapshot','runtime_start','clone_state','scripts_prepare','connection_refused','jdbc_missing','permission_denied','input_missing','file_missing','cli_arguments','liquibase_execute'].includes(value)?value:'unknown';
+}
+
+/** Status number only; no body, URL, DSN or arbitrary error message escapes. */
+export function failureHTTPStatus(output){
+  const value=output.match(/(?:prepare rejected: HTTP|released status HTTP) ([1-5][0-9]{2})\b/)?.[1];
+  return value===undefined?undefined:Number(value);
 }
 
 /** PA05/PA06/PA10: output preceding a failed process/cleanup is never evidence.

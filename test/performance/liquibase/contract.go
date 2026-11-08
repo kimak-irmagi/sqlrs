@@ -32,6 +32,37 @@ type Request struct {
 	PrepareKind, ImageID, WorkDir, LiquibaseVersion, LiquibaseExec, LiquibaseExecMode string
 	LiquibaseArgs                                                                     []string
 }
+
+// hostRequest gives RC7's native normalizer and actual stock CLI the same
+// project directory. RC7 prepareRequest reads os.Getwd(), not Request.WorkDir;
+// Windows batch mode concealed that distinction in the former collector.
+// PA04 requires native Linux paths, not a product compatibility patch.
+func hostRequest(req Request, fixture string) (Request, error) {
+	dir := ""
+	switch fixture {
+	case "jhipster":
+		dir = "jhipster-sample-app"
+	case "mobilitydata-user", "mobilitydata-main":
+		dir = "mobilitydata"
+	default:
+		return Request{}, fmt.Errorf("unknown public fixture")
+	}
+	if !filepath.IsAbs(req.WorkDir) {
+		return Request{}, fmt.Errorf("absolute fixture root required")
+	}
+	req.WorkDir = filepath.Join(req.WorkDir, dir)
+	req.LiquibaseArgs = append([]string(nil), req.LiquibaseArgs...)
+	for index := 1; index < len(req.LiquibaseArgs); index++ {
+		if req.LiquibaseArgs[index-1] == "--searchPath" {
+			req.LiquibaseArgs[index] = "."
+		}
+		if req.LiquibaseArgs[index-1] == "--changelog-file" {
+			req.LiquibaseArgs[index] = strings.TrimPrefix(req.LiquibaseArgs[index], dir+"/")
+		}
+	}
+	return req, nil
+}
+
 type Accepted struct {
 	JobID string `json:"job_id"`
 }

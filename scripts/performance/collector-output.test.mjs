@@ -1,12 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseCollectorResult, failureKind } from './collector-output.mjs';
+import { parseCollectorResult, failureKind, failureHTTPStatus } from './collector-output.mjs';
 import { fixtureSpec } from './inputs.mjs';
 
 test('PA10: failure diagnostics expose only reviewed fixed classes',()=>{
  assert.equal(failureKind('private log\nP01B_FAILURE_KIND permission_denied\n'),'permission_denied');
  assert.equal(failureKind('P01B_FAILURE_KIND postgres://SECRET'),'unknown');
  assert.equal(failureKind('PRIVATE_SENTINEL'),'unknown');
+});
+
+test('PA04/PA10: rejected API request is distinguishable without exposing its body',()=>{
+ const output='released v1 prepare rejected: HTTP 400\nPRIVATE_SENTINEL';
+ assert.equal(failureKind(output),'api_http_failure');
+ assert.equal(failureHTTPStatus(output),400);
+ assert.equal(failureHTTPStatus('PRIVATE_SENTINEL'),undefined);
+ assert.equal(failureHTTPStatus('released status HTTP 503'),503);
 });
 
 test('PA05/PA06/PA10: process success and exact independently verified workload are both mandatory',()=>{

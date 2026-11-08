@@ -132,3 +132,12 @@ artifact has zero records and `failureStage=uncached`, so no sample is accepted.
 Fixed failure classes are now added to distinguish known input/driver/runtime
 operations without retaining raw engine messages/details/SQL. This improves
 diagnosis only; it does not relax either artifact or workload validation.
+
+Run 42473269289 reproduced the uncached refusal without a known engine class.
+Reading actual RC7 `prepareRequest` showed a native-path port defect: it resolves
+paths from process `os.Getwd()`, not request `work_dir`; Windows batch handling
+had hidden that distinction. PA04 now tests/sets the released process and host
+CLI to the fixture's project directory with `searchPath=.` and native logical
+changelog names. Source bytes, full DB oracle and released binary stay unchanged.
+HTTP rejection status is separately allowlisted for diagnosis. No benchmark
+compatibility or timing pass is inferred until a new real run succeeds.

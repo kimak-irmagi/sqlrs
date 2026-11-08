@@ -329,13 +329,9 @@ func collect(t *testing.T) {
 		}
 	}
 	if route == "v1" {
-		// Host Liquibase resolves changelogs relative to its explicit search
-		// directory. The container input resolver rewrites that prefix, but
-		// RC7 correctly uses the project's native relative spelling instead.
-		for index := range req.LiquibaseArgs {
-			if index > 0 && req.LiquibaseArgs[index-1] == "--changelog-file" {
-				req.LiquibaseArgs[index] = strings.TrimPrefix(strings.TrimPrefix(req.LiquibaseArgs[index], "jhipster-sample-app/"), "mobilitydata/")
-			}
+		req, err = hostRequest(req, fixture)
+		if err != nil {
+			t.Fatal("native fixture root unavailable")
 		}
 		req.LiquibaseExec = filepath.Join(distribution, "liquibase")
 		req.LiquibaseExecMode = "native"
@@ -400,6 +396,7 @@ func collect(t *testing.T) {
 	statePath := filepath.Join(root, "engine.json")
 	dbPath := filepath.Join(storeRoot, "state.db")
 	child := exec.CommandContext(ctx, engine, "--listen", "127.0.0.1:0", "--write-engine-json", statePath, "--idle-timeout", "0")
+	child.Dir = req.WorkDir
 	stage = "engine_start"
 	for _, entry := range os.Environ() {
 		name, _, _ := strings.Cut(entry, "=")
