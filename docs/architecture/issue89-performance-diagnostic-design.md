@@ -1,8 +1,8 @@
 # #89: isolate the confirmed performance regression
 
 Status: approved by @evilguest on 2026-11-08 after critical and repeat review;
-exact reply timestamp unavailable. A separate test inventory still requires
-approval before implementation. On 2026-11-08 @evilguest
+exact reply timestamp unavailable. DG01–DG12 and, separately, OT-DG01–OT-DG03
+were subsequently approved before tests and implementation. On 2026-11-08 @evilguest
 retained the speed criterion and requested exact localisation, with additional
 instrumented runs if needed. Existing acceptance run `42479055486` is unchanged.
 
@@ -109,4 +109,5 @@ with requirement-backed tests before implementation.
   ordinal/counter reconciliation and explicit incomplete/residual outcomes.
 
 Repeat review found no remaining P0–P2 in this component boundary. No old-test
-change is authorised here. After approval, submit the separate exact test list.
+change is authorised by this design alone. The separate reviewed test list and
+three explicit collector amendments have since been approved.
