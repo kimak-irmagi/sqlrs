@@ -40,3 +40,17 @@ test('PA02: real fetch verifies bytes from an isolated local test server',async(
  try{assert.deepEqual(await downloadPinned(`http://127.0.0.1:${server.address().port}/`,sha),bytes);}
  finally{await new Promise(resolve=>server.close(resolve));}
 });
+
+test('PA02: alternate transport must return the identical pinned bytes, never replace a bad checksum',async()=>{
+ const bytes=Buffer.from('same release');const sha=crypto.createHash('sha256').update(bytes).digest('hex');
+ let alternate=0;
+ const fallback=async()=>{alternate++;return bytes;};
+ const down=async()=>{throw new Error('transport');};
+ assert.deepEqual(await downloadPinned('https://example.invalid/release',sha,{fetchImpl:down,fallback,delayMS:0}),bytes);
+ assert.equal(alternate,1);
+ await assert.rejects(downloadPinned('https://example.invalid/release','0'.repeat(64),{fetchImpl:down,fallback,delayMS:0}));
+ assert.equal(alternate,2);
+ const bad={ok:true,status:200,arrayBuffer:async()=>new Uint8Array([0]).buffer};
+ await assert.rejects(downloadPinned('https://example.invalid/release',sha,{fetchImpl:async()=>bad,fallback,delayMS:0}));
+ assert.equal(alternate,2);
+});

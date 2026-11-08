@@ -31,7 +31,14 @@ run('go',['test','-c','-o',path.join(prepared,'collector.test'),'.'],path.join(r
 
 const baseline = path.join(prepared,'baseline');
 fs.mkdirSync(baseline,{recursive:true});
-const bytes=await downloadPinned('https://github.com/kimak-irmagi/sqlrs/releases/download/v0.1.1-rc.7/sqlrs_v0.1.1_linux_amd64.tar.gz',baselineArchiveSHA);
+const releaseURL='https://github.com/kimak-irmagi/sqlrs/releases/download/v0.1.1-rc.7/sqlrs_v0.1.1_linux_amd64.tar.gz';
+const bytes=await downloadPinned(releaseURL,baselineArchiveSHA,{fallback:()=>{
+  // Same public release and mandatory pin; curl also supports the runner's
+  // system transport/proxy configuration when Node fetch cannot acquire it.
+  try{return execFileSync('curl',['--silent','--show-error','--fail','--location','--connect-timeout','15','--max-time','120',releaseURL],
+    {timeout:125000,maxBuffer:64*1024*1024});}
+  catch{throw new Error('Pinned release alternate transport failed');}
+}});
 verifyBytes(bytes,baselineArchiveSHA);
 const archive=path.join(root,'baseline.tar.gz');
 fs.writeFileSync(archive,bytes,{mode:0o600});
