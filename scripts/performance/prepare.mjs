@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { installJdbcDriver } from '../jdbc-driver-bundle.mjs';
 import { baselineRevision, baselineArchiveSHA, verifyBytes, safeArchiveNames } from './control.mjs';
 import { validateMetadata } from './inputs.mjs';
+import { downloadPinned } from './download.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const root = path.join(repo, '.tmp/performance');
@@ -30,9 +31,7 @@ run('go',['test','-c','-o',path.join(prepared,'collector.test'),'.'],path.join(r
 
 const baseline = path.join(prepared,'baseline');
 fs.mkdirSync(baseline,{recursive:true});
-const response = await fetch('https://github.com/kimak-irmagi/sqlrs/releases/download/v0.1.1-rc.7/sqlrs_v0.1.1_linux_amd64.tar.gz');
-if (!response.ok) throw new Error('Pinned release download failed');
-const bytes=Buffer.from(await response.arrayBuffer());
+const bytes=await downloadPinned('https://github.com/kimak-irmagi/sqlrs/releases/download/v0.1.1-rc.7/sqlrs_v0.1.1_linux_amd64.tar.gz',baselineArchiveSHA);
 verifyBytes(bytes,baselineArchiveSHA);
 const archive=path.join(root,'baseline.tar.gz');
 fs.writeFileSync(archive,bytes,{mode:0o600});

@@ -89,6 +89,7 @@ export function validateCohort(records, fixture, phase) {
   const plan = schedule(fixture, phase);
   if (records.length !== plan.length) throw new Error('Incomplete cohort');
   const identities = new Map();
+  const elapsed = new Map();
   records.forEach((record, index) => {
     for (const key of ['id', 'kind', 'pair', 'side', 'route', 'fixture', 'phase']) {
       if (record[key] !== plan[index][key]) throw new Error('Cohort order differs');
@@ -102,7 +103,14 @@ export function validateCohort(records, fixture, phase) {
         sample.CoreSHA256, sample.LauncherSHA256, sample.JavaDetails, sample.HelperDigest]);
       if (identities.has(record.route) && identities.get(record.route) !== identity) throw new Error('Artifact changed inside cohort');
       identities.set(record.route, identity);
+      const key=`${record.kind}:${record.route}:${sample.Pass}`;
+      if(!elapsed.has(key))elapsed.set(key,[]);
+      elapsed.get(key).push(sample.ElapsedMS);
     });
   });
-  return { status: 'collected', fixture, phase, pairs: 5, controls: 5 };
+  const distributions=Object.fromEntries([...elapsed].map(([key,times])=>{
+    const sorted=[...times].sort((a,b)=>a-b),middle=Math.floor(sorted.length/2);
+    return [key,{min:sorted[0],median:sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2,max:sorted.at(-1)}];
+  }));
+  return { status: 'collected', fixture, phase, pairs: 5, controls: 5, distributions };
 }

@@ -76,6 +76,14 @@ function complete() {
     samples: ['uncached', 'cached'].map(pass => ({ ...sample(), Route: item.route, Pass: pass, CacheHits: pass === 'cached' ? 8 : 0 })) }));
 }
 
+test('PA07/PA10: elapsed spread is recorded separately from any acceptance verdict',()=>{
+  const rows=complete();let index=0;
+  for(const row of rows)if(row.route==='v2')row.samples[0].ElapsedMS=10*(++index);
+  const report=validateCohort(rows,'jhipster','comparison');
+  assert.deepEqual(report.distributions['comparison:v2:uncached'],{min:10,median:30,max:50});
+  assert.equal(report.status,'collected');
+});
+
 test('PA07/PA10: complete collection is not a speed verdict; every pair/pass/identity is required', () => {
   assert.equal(validateCohort(complete(), 'jhipster', 'comparison').status, 'collected');
   for (const mutate of [ rows => rows.pop(), rows => rows.push(rows[0]), rows => rows[1].host = 'vm-B',
