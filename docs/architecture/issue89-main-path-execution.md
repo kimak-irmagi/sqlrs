@@ -179,7 +179,8 @@ protocol but moving it to GitHub Actions if feasible, to avoid laptop load.
 The local scheduler was stopped; the already active collector was allowed to
 finish cleanup. No collector or sqlrs test container remained afterward. The
 third partial pair is excluded, regardless of its completed new-engine samples.
-The [Actions proposal](issue89-performance-actions-design.md) recommends a pinned
-Linux reference and same-VM paired collection; component/platform approval and
-the subsequent test plan are pending. No remote benchmark has run yet and no
+The [Actions design](issue89-performance-actions-design.md) for a pinned Linux
+reference and same-VM paired collection was approved on 2026-11-08. The separate
+[reviewed test plan](issue89-performance-actions-tests.md) awaits approval.
+No remote benchmark has run yet and no
 performance gate is waived.

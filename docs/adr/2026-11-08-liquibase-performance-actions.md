@@ -3,8 +3,8 @@
 - Conversation date: 2026-11-08, Asia/Novosibirsk; exact reply timestamp unavailable.
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.
-- Status: Actions direction accepted conditionally on feasibility; Ubuntu/component
-  proposal and subsequent test inventory still require separate approval.
+- Status: Actions direction and Ubuntu/component design approved on 2026-11-08;
+  the separate reviewed test inventory still awaits approval.
 
 ## Question and alternatives
 
@@ -21,13 +21,16 @@ The local multi-pair scheduler was stopped; the already active collector may
 finish its own exact cleanup, without launching more laptop series. An incomplete
 third pair is not acceptance evidence.
 
-Published Linux/amd64 RC7 is available. A separate proposal recommends standard
+Published Linux/amd64 RC7 is available. The approved component design selects standard
 Ubuntu Actions runners and the same released source, rather than pretending the
 Windows artifact runs unchanged there. Same-host pairing, isolated confirmation,
 six-hour feasibility, opt-in launch and private evidence handling are recorded in
-issue89-performance-actions-design.md. No paid/self-hosted runner is provisioned
-and no CI/collector implementation is approved merely by this direction choice.
+[issue89-performance-actions-design.md](../architecture/issue89-performance-actions-design.md).
+The user explicitly approved this Ubuntu design in the subsequent reply
+“Утвердить проект переноса на Ubuntu”. No paid/self-hosted runner is provisioned;
+implementation still follows the separate test-inventory approval.
 
-This changes the proposed execution venue, not the earlier accepted actual-v1
-comparison in 2026-10-16-liquibase-performance-baseline.md. Historical Windows
+This changes the execution venue, not the earlier accepted actual-v1
+comparison (conversation of 2026-10-16, retained in the original worktree's
+2026-10-16-liquibase-performance-baseline.md). Historical Windows
 observations remain diagnostics and cannot be pooled into Linux timings.

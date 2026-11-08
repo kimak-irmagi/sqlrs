@@ -1,9 +1,11 @@
 # #89: move performance collection to GitHub Actions
 
-Status: proposed, reviewed and corrected; component/platform approval pending.
+Status: component/platform design approved by @evilguest on 2026-11-08 after
+critical and repeat review; implementation awaits the separate test inventory.
 On 2026-11-08 @evilguest requested off-laptop execution while retaining the full
 performance protocol if Actions can support it. No workflow or collector code is
-authorized by this proposal alone; the test inventory follows separately.
+authorized by this design approval alone; the test inventory follows separately
+in [the Actions test plan](issue89-performance-actions-tests.md).
 
 ## Boundary and platform
 

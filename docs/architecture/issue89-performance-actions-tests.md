@@ -1,0 +1,95 @@
+# #89: tests for off-laptop performance collection
+
+Status: proposed inventory after critical and repeat review, 2026-11-08;
+awaiting user approval before new tests or implementation.
+Scope: the approved [Actions design](issue89-performance-actions-design.md),
+not new product behavior or the recovery/coverage programs #170–#174.
+
+## Boundaries and evidence
+
+Use fast deterministic tests for preparation, scheduling, evidence validation
+and workflow guards; they do not qualify engine behavior or speed. Use actual
+external Linux engine artifacts and Docker only on the Actions VM for pilot
+and measured series. No further laptop performance collection is planned.
+
+The new collector lives in `test/performance/liquibase`; preparation/report
+helpers and their Node tests live in `scripts/performance`. Workflow tests parse
+the YAML and check executable guard behavior with representative event data,
+not just search for suggestive text. Collector tests use private temporary
+fixtures and subprocesses, not new injection hooks in product packages.
+
+The delivery branch lacks the public MobilityData fixture acquisition/oracles,
+and its JHipster release query is only a smoke check. Add performance-owned
+copies of the full independently established public oracles with source/license
+provenance. Do not replace the old release smoke tests or depend on files in the
+prototype worktree. Fixture pins: JHipster `6b000b5d23a36c45e01472471b84a44fa2464044`
+(8 changes, Liquibase 5.0.3, prod); MobilityData
+`ed866e07b9af277ae78305d17e87ea34f4e6674b` (user: 12; main: 102; Liquibase 5.0.4).
+Both sources are public Apache-2.0 projects; izess is not an input.
+
+## Final proposed inventory
+
+Each row is a bounded test group; negative cases must reach the named boundary
+and assert that no later measured work/success report occurred.
+
+| ID | Level and cases | Required observation |
+| --- | --- | --- |
+| PA01 | Deterministic workflow/guard tests: explicit same-repository PR label and manual dispatch; wrong label, ordinary push/PR update, fork, malformed ref/SHA; candidate preparation and measured job configuration. | Only opted-in allowed events launch collection. Resolve/build the exact selected head SHA, never interpolate event text as shell commands or substitute a merge ref. Read-only permissions, no secrets/persisted checkout credentials, standard Ubuntu 24.04, no paid/self-hosted target. Measurement jobs do not cancel a running cohort on a routine push; one active collector per VM. |
+| PA02 | Preparation tests: pinned RC7 archive/source and extracted build metadata; candidate clean revision/platform/hash; missing file, wrong checksum/revision, dirty or wrong-platform build, unsafe archive entry. | Verify before executing an artifact; reject each mismatch with no fallback build of v1. All series use the same declared candidate artifact, not rebuilt moving heads. Corrupt downloads/extraction do not execute or overwrite outside the owned directory. |
+| PA03 | Preparation tests: locked public source acquisition, full oracle presence, JDBC installation in both routes, pinned LB/DB images and stock launchers/core; missing/changed source or dependency. | Full source commits and original LF bytes, exactly 8/12/102 expected changelog entries, independently stored schema/identity expectations. Fetch/verify/warm before timing. Verify the same project JDBC bytes for both engines, matching Liquibase versions/core; retain actual host/container Java and launcher identities without pretending they are identical. No private checkout/network requirement. Existing project JDBC resolver is reused, not bypassed. |
+| PA04 | Collector tests plus actual Linux pilot: native executable/launcher paths, sanitized child environment, actual route-specific API payloads, exact loopback engine PID/endpoint; startup/HTTP/terminal-status failures and cancellation. | RC7 uses its supported Linux host launcher and the candidate its container contract. Read back supported copy-backend settings for both; no host PG/state configuration leaks into private stores. Failed or mismatched startup/unsupported config ends the run before a timed sample can qualify. Polling stops on failed/recovery-required; no unbounded wait or diagnostic body leakage. |
+| PA05 | Collector/evidence tests: uncached/cached workload, oracle mismatch, wrong order/checksum/schema or missing cache proof; real pilot and series for all fixtures. | Timed interval is monotonic API submission through successful terminal result, equally defined for both engines; readiness, acquisition and oracle queries stay outside. Fresh store per engine run; cached follow-up uses that same store. Query the actual result DB and require full ordered changelog and schema oracle, plus 0 versus 8/12/102 actual state-cache hits. A successful HTTP status or task count alone cannot qualify. Mutating a changelog identity/checksum or schema expectation must independently fail. |
+| PA06 | Docker/count tests: event stream start/drain, invalid/truncated/error stream, unrelated creates, inspection versus migration commands; actual pilot observation. | Count all owned creates in the measurement interval, including short-lived helpers, without wrappers on measured commands. Do not silently lose late-delivered events or assume a missing probe is zero. Record observed migration/inspection CLI separately; JVM totals, if derived from pinned launcher bytes, are explicitly labelled derived. Missing/ambiguous observation makes the sample incomplete, not faster. No fixed Windows container total is imposed on Linux. |
+| PA07 | Scheduler/completeness tests with synthetic samples: alternating order, paired controls, duplicate/reused/missing pair, wrong fixture/pass/host/artifact, incomplete confirmation; timers and serial execution. | At least five distinct alternating v1/v2 pairs per fixture and uncached/cached pass, same-sized v1/v1 controls, all on the cohort's one VM. Independent confirmation uses a separate fresh VM and its own local controls with the same artifacts/settings. No cross-VM or Windows/Linux pooling, silent retries replacing a slow valid sample, parallel measurement or counting a pilot as a pair. Complete acquisition is not a speed pass; existing P01b evaluation remains separate. |
+| PA08 | Budget/deadline tests and actual pilot: preparation/runtime/oracle/cleanup costs, insufficient remaining time, near limit, timeout/cancellation. | First establish the small route, then measure both routes for the 102-change pilot to estimate the largest full cohort plus controls. Include untimed overhead and an explicit cleanup/upload reserve in the six-hour budget. Refuse an infeasible cohort, retain an incomplete report and request a new decision; do not truncate pair count, scatter the cohort or buy capacity. A process deadline precedes the job hard limit, leaving cleanup time. A prediction is not proof of completion. |
+| PA09 | Cleanup tests: normal result, engine failure, collector error, deadline/cancellation, cleanup error; resources with similar names/outside the owned root. | Gracefully stop then boundedly terminate/reap only owned processes; remove only exact validated job-owned Docker resources and private files. Never prune Docker globally or delete by broad name prefix alone. Check absence before test cleanup can hide a leak. Failure of cleanup makes collection unsuccessful; retain only safe diagnostics. Hard VM termination cannot guarantee finally blocks: partial evidence never qualifies. |
+| PA10 | Report/upload tests: successful and failed runs, nested unknown fields and secret/DSN/SQL/raw-log sentinels; incomplete series, timeout, fixture/oracle mismatch. | Allowlist typed report fields and upload only the dedicated sanitized report directory, never the working tree/store/log glob. No captured SQL, credentials, engine.json or DB bytes in artifacts, Actions summaries or console diagnostics, including failures. Persist run/VM/phase identity, artifact/source/dependency/image/backend provenance, samples/spread/counts, oracle and cleanup outcomes. Invalid or incomplete data cannot become complete collection or automatic speed acceptance. |
+| PA11 | Real explicitly launched remote pilot, before full scheduling. | Run actual published Linux RC7 and exact candidate, first JHipster then both MobilityData routes including all 102 changes, uncached and cached, with independent full DB checks, event observation and verified cleanup. Record executable compatibility, source/driver/image identities, actual snapshot backend and total costs. Green synthetic checks or the pilot do not close the performance criterion. If the six-hour feasibility check fails, stop before full cohorts and report the blocker. |
+| PA12 | Real remote protocol and regressions after pilot feasibility. | For all three fixtures collect the retained five-pair alternating comparisons and same-sized controls on one VM per cohort; independent confirmation has its own VM and controls. Preserve uncached/cached results separately; evaluate the existing P01b rule only after validating completeness/provenance. Run new fast tests with existing relevant fetch/JDBC/workflow checks and normal PR CI; do not weaken existing tests/coverage gates. Incomplete, noisy/inconclusive or confirmed-regression outcomes do not close #89 or permit merge. |
+
+## Retained acceptance rule and execution order
+
+P01b remains the user-approved actual-release comparison: record elapsed time,
+spread, CLI/derived-JVM starts, container creates, platform, fixed source and
+image/helper/driver identities. Preserve its predeclared v1/v1 noise envelope
+and paired-median v2-minus-v1 evaluation. A positive excess recurring in an
+independent confirmation blocks release; a positive delta within noise is
+inconclusive, not a pass. Missing measurements/baseline remain unresolved.
+This test inventory does not introduce a replacement statistical rule/calculator.
+Separate confirmation controls cannot be borrowed from the initial VM.
+
+After approval: audit existing tests for contradictions; write the new fast
+tests, implement only the approved transport/collector, run those checks, then
+launch the real pilot remotely. Only a feasible pilot authorizes proceeding to
+the already retained full collection. No new product/API/storage work is
+included. Measure coverage of new helpers/collector separately (target 100%,
+minimum 95%); the explicit
+#89 exception defers general engine coverage to #174, not functional or timing
+acceptance. Further coverage iterations still follow AGENTS.md.
+
+## Critical review, corrections and repeat review
+
+1. P1: copying the Windows collector would not exercise Linux. PA02/PA04/PA11
+   require the real Linux archive and stock launcher, exact endpoint and supported
+   settings before measurement; no product compatibility shim is authorized.
+2. P1: the delivery checkout lacks the full oracles. PA03/PA05 explicitly add
+   public, pinned performance-owned data; forbid current smoke checks or
+   candidate-generated expected values as substitutes.
+3. P1: a workflow could collect invalid/mixed or partial cohorts and appear
+   successful. PA07/PA10 reject wrong identities, reused/missing pairs and
+   incomplete controls; collection and the retained acceptance rule stay separate.
+4. P1: a small pilot could underestimate the largest case or omit overhead.
+   PA08/PA11 include the actual 102-change case, full run costs and cleanup
+   reserve; no guaranteed fit or hidden truncation is claimed.
+5. P1: failure diagnostics/cleanup could disclose private data or destroy other
+   resources. PA09/PA10 test failure paths, exact ownership and secret sentinels;
+   cleanup is checked before test-framework disposal and raw logs never upload.
+6. P2: stream latency and old platform counts could create falsely cheap samples.
+   PA06 requires drained valid events, explicit derived counts and Linux-native
+   observations, not blindly copied Windows totals.
+
+Repeat review checked opt-in bootstrap, immutable artifacts across VMs, distinct
+control/confirmation identity, no silent sample replacement, privacy on failure,
+and hard-timeout limits. No further P0–P2 issue found in this bounded inventory.
+Compatibility, budget and performance are still unproven; no tests have been
+implemented or executed by this document.
