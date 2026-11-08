@@ -329,8 +329,13 @@ errors are treated as requirement-level behavior. They are not "optional interna
   `--searchPath` according to the selected execution environment.
 - Command transformation helpers must preserve planning/execution parity:
   planning uses `updateSQL`, execution uses one-step `update-count --count=1`.
-- Host execution helpers must honor `exec_mode` (`native` vs `windows-bat`),
-  preserve `work_dir`/environment semantics, and stream command logs line-by-line.
+- Host executable/mode/environment selection is not a Liquibase capability:
+  CLI omits it and API rejects it. Only the engine-owned container runner is used.
+- Ordinary steps reuse one database and Liquibase parent; after the final working
+  step, the [handoff protocol](issue89-working-instance-handoff-design.md) publishes
+  that same database and disposes only private Liquibase resources. Plan-only and
+  a complete cache hit retain their separately defined paths; no SQL replay follows
+  from an uncertain observation. Protected captures are not public command logs.
 
 ### 7.3 Runtime helper contracts
 

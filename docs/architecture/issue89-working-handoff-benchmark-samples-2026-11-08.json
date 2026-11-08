@@ -1,0 +1,118 @@
+{
+  "status": "preliminary_not_performance_acceptance",
+  "date": "2026-11-08",
+  "fixture": "jhipster",
+  "platform": "windows/amd64",
+  "collector_role": "Unchanged external test collector; its mixed source worktree does not qualify the product implementation. Only the separately pinned executables are measured.",
+  "collector_source_sha256": "af4a6e215f7d60753e0d8b350f88c89e28692389b0b93cc759de1c5607517bde",
+  "collector_binary_sha256": "777ca7f36df5ff85ec97510e7568f6e746701700dfbdba7cf8802e55d300811e",
+  "postgres_image": "postgres@sha256:7352e0c4d62bbac8aa69d95e40220a60967c4a19f9c4f65b4d118175f7ce9e3b",
+  "liquibase_version": "5.0.3",
+  "liquibase_image_digest": "sha256:17f98b85e6d4c33b84ee409d055f1526227c77b55dd30e3879ec5088716a32eb",
+  "core_sha256": "3ccd4608829836b4c0f7fb1d23a4619bac16c68ca725d623aae0838bce734156",
+  "jdbc_sha256": "6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93",
+  "routes": {
+    "v2": {
+      "revision": "49f21709b6592dd3c74ae074a586f0dd0c695208",
+      "modified": false,
+      "engine_sha256": "6dde978664afb57a2ef9ce39d7769e24293d8f8dda68e8e3632ede02c43ebd95",
+      "java": "Linux image metadata jdk-21.0.11+10",
+      "launcher_sha256": "86dba6575da0c56526e9f3b284da416307dfde4eb610919977788abb2aad7f74",
+      "helper_digest": "sha256:b3c260167e08012ddcd7681525a08af72e29c013fc20f53bfdcf19d3d08866a3"
+    },
+    "v1": {
+      "revision": "cab99c4c7ced5b18f4dc43a65b002d84d8fef02d",
+      "engine_sha256": "36316b24e61c6673a20f0c37523f0a2f4705b9b81ddc1fbc9146e68a578dd62d",
+      "java": "Host Temurin 21.0.2+13-LTS",
+      "launcher_sha256": "e0ffd89868ce9e2dfbfb355578efdffaa5a729ee3821cfc061369a0878b7eb34"
+    }
+  },
+  "pairs": [
+    {
+      "number": 1,
+      "order": ["v2", "v1"],
+      "qualifying_collector_runs": true,
+      "independent_database_oracle": "passed for all four passes; eight changesets and eight subsequent cache hits",
+      "samples": [
+        {"route":"v2","pass":"uncached","elapsed_ms":207065.1908,"changesets":8,"cache_hits":0,"liquibase_cli_starts":10,"migration_cli_starts":9,"image_inspection_containers":1,"container_creates":8,"jvm_starts_derived_from_pinned_launcher":21},
+        {"route":"v2","pass":"cached","elapsed_ms":34452.9557,"changesets":8,"cache_hits":8,"liquibase_cli_starts":2,"migration_cli_starts":1,"image_inspection_containers":1,"container_creates":4,"jvm_starts_derived_from_pinned_launcher":5},
+        {"route":"v1","pass":"uncached","elapsed_ms":148999.3504,"changesets":8,"cache_hits":0,"liquibase_cli_starts":9,"migration_cli_starts":9,"image_inspection_containers":0,"container_creates":4,"jvm_starts_derived_from_pinned_launcher":18},
+        {"route":"v1","pass":"cached","elapsed_ms":25418.0555,"changesets":8,"cache_hits":8,"liquibase_cli_starts":1,"migration_cli_starts":1,"image_inspection_containers":0,"container_creates":2,"jvm_starts_derived_from_pinned_launcher":2}
+      ]
+    },
+    {
+      "number": 2,
+      "order": [
+        "v1",
+        "v2"
+      ],
+      "qualifying_collector_runs": true,
+      "independent_database_oracle": "passed for all four passes; eight changesets and eight subsequent cache hits",
+      "samples": [
+        {
+          "route": "v1",
+          "pass": "uncached",
+          "elapsed_ms": 139874.5909,
+          "changesets": 8,
+          "cache_hits": 0,
+          "liquibase_cli_starts": 9,
+          "migration_cli_starts": 9,
+          "image_inspection_containers": 0,
+          "container_creates": 4,
+          "jvm_starts_derived_from_pinned_launcher": 18
+        },
+        {
+          "route": "v1",
+          "pass": "cached",
+          "elapsed_ms": 25095.6489,
+          "changesets": 8,
+          "cache_hits": 8,
+          "liquibase_cli_starts": 1,
+          "migration_cli_starts": 1,
+          "image_inspection_containers": 0,
+          "container_creates": 2,
+          "jvm_starts_derived_from_pinned_launcher": 2
+        },
+        {
+          "route": "v2",
+          "pass": "uncached",
+          "elapsed_ms": 175100.6513,
+          "changesets": 8,
+          "cache_hits": 0,
+          "liquibase_cli_starts": 10,
+          "migration_cli_starts": 9,
+          "image_inspection_containers": 1,
+          "container_creates": 8,
+          "jvm_starts_derived_from_pinned_launcher": 21
+        },
+        {
+          "route": "v2",
+          "pass": "cached",
+          "elapsed_ms": 49877.951,
+          "changesets": 8,
+          "cache_hits": 8,
+          "liquibase_cli_starts": 2,
+          "migration_cli_starts": 1,
+          "image_inspection_containers": 1,
+          "container_creates": 4,
+          "jvm_starts_derived_from_pinned_launcher": 5
+        }
+      ]
+    }
+  ],
+  "discarded_pair": {
+    "number": 3,
+    "reason": "The user requested moving the retained protocol off the laptop. The local multi-pair scheduler was stopped; baseline completion evidence was not collected. Exact cleanup was independently observed afterward.",
+    "acceptance_evidence": false,
+    "completed_new_engine_samples_only": {
+      "uncached_elapsed_ms": 249706.5842,
+      "cached_elapsed_ms": 48871.3329
+    }
+  },
+  "limitations": [
+    "Two paired observations are not the approved five-pair cohort, noise envelope or independent confirmation series.",
+    "Host/container execution and Java builds differ explicitly as approved for comparison with the actual released v1 route.",
+    "JVM starts are derived from pinned stock launcher bytes, not independent process telemetry.",
+    "No other local sqlrs test workload ran during the measured pair; test-owned containers received exact-root cleanup."
+  ]
+}

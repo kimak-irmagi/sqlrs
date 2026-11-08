@@ -157,3 +157,29 @@ The standard project packager installed the verified JDBC 42.7.13 beside it.
 The original unchanged external collector is used only to drive this separate
 artifact, not to qualify the original mixed worktree's production implementation.
 No post-handoff timing or speed acceptance follows from artifact preparation.
+
+The first post-handoff paired jhipster observation subsequently passed both
+independent DB oracles and exact cleanup, in order new then real v1:
+
+| Route | Uncached | Cached | Docker creates uncached/cached |
+| --- | ---: | ---: | ---: |
+| New handoff artifact | 207.065 s | 34.453 s | 8 / 4 |
+| Real v1 host artifact | 148.999 s | 25.418 s | 4 / 2 |
+
+This observation still warns of slower new-route execution (+39.0%/+35.5%),
+not completed statistical qualification. Do not compare its absolute times with
+an older pair as a measured handoff speedup. Source/artifact/image/JDBC identity,
+CLI/derived JVM counts and samples are recorded in the
+[sample artifact](issue89-working-handoff-benchmark-samples-2026-11-08.json).
+The reverse-order second pair also passed: v1 139.875/25.096 s, new
+175.101/49.878 s (uncached/cached). Its spread is another reason not to infer a
+speed pass. The first five alternating pairs, noise controls and independent
+confirmation are incomplete. On 2026-11-08 the user requested retaining the full
+protocol but moving it to GitHub Actions if feasible, to avoid laptop load.
+The local scheduler was stopped; the already active collector was allowed to
+finish cleanup. No collector or sqlrs test container remained afterward. The
+third partial pair is excluded, regardless of its completed new-engine samples.
+The [Actions proposal](issue89-performance-actions-design.md) recommends a pinned
+Linux reference and same-VM paired collection; component/platform approval and
+the subsequent test plan are pending. No remote benchmark has run yet and no
+performance gate is waived.

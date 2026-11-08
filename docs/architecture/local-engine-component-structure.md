@@ -201,7 +201,10 @@ determinism, safety, or observable API behavior.
     invalidation and Liquibase argument/input normalization. Host Liquibase
     execution modes are superseded by the approved
     [container component contract](liquibase-container-component-structure.md);
-    that document distinguishes target ownership from incomplete service wiring.
+    that document distinguishes the historical foundation from the connected main
+    path. The [working-instance handoff](issue89-working-instance-handoff-design.md)
+    transfers the final live DB without a replacement allocation; job cleanup
+    cannot remove its instance-owned runtime directory.
 - `internal/runtime` helpers
   - Own docker error classification, startup diagnostics, `pg_hba.conf` host auth
     patching, and host-port parsing guarantees.

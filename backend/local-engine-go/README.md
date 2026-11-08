@@ -19,6 +19,9 @@ from the repository root to include the checksum-locked JDBC dependency under
 `lib/` beside the executable. A bare `go build` does not package that dependency.
 See [normal execution](../../docs/architecture/issue89-main-path-execution.md)
 for supported inputs, cleanup and the deferred automatic-recovery boundary.
+Ordinary Liquibase steps reuse their database and runner containers. The final
+working database is handed to the published instance; deleting its completed
+prepare job does not delete that instance's database or runtime directory.
 
 See also:
 
