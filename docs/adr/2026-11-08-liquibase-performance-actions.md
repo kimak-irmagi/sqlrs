@@ -78,3 +78,21 @@ observations remain diagnostics and cannot be pooled into Linux timings.
   laptop resource is changed. Teardown is outside measured intervals and inside
   the overall hosted budget. The inherited prototype retain-store mode is not
   part of this new collector; pilot versus cohort is owned by the scheduler.
+
+## Proposed coverage-boundary clarification
+
+- Conversation date: 2026-11-08, Asia/Novosibirsk; exact reply timestamp unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Status: proposed after critical/repeat review; separate user approval pending.
+- Question: the helpers-only profile counts the external integration test's own
+  assertions as ordinary implementation because the port named it `.go`.
+- Alternatives: test every assertion/fatal branch as library code, or restore
+  the actual integration scenario to `_test.go` while retaining genuine helpers
+  (including event decoder/counters) as ordinary measured implementation.
+- Proposed decision: the latter, with the existing 95% helper minimum and all
+  native assertions preserved. Do not hide helper logic under test filenames or
+  call a unit-only profile actual-engine evidence. No code split is approved yet.
+- Rationale: separate product/test-driver/helper coverage accurately; do not
+  manufacture a second test suite to cover assertion statements. The actual
+  full Actions collection selected at `668d505` continues independently.

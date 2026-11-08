@@ -113,5 +113,45 @@ workflow guards and evidence validation require a separate reviewed test plan.
   Verify the same copy backend in the pilot and retain same-VM noise controls.
 
 Repeat review found no further P0-P2 contradiction in this transport/component
-proposal. Linux port behavior, timing budget and executed qualification remain
-unproven until the approved tests and remote pilot actually run.
+proposal. Linux compatibility and the pilot budget were unproven at that review;
+the subsequent successful pilot is recorded in the test inventory. Full-series
+performance acceptance and complete helper coverage remain open.
+
+## Proposed clarification: integration-test versus helper coverage
+
+Status: awaiting separate approval; no file split implemented by this note.
+The successful real pilot is recorded in the test inventory. A subsequent
+helpers-only unit profile on source `668d505` is 24.2% (135/557 statements),
+not product coverage and not a native-execution profile. The largest gap is
+`collector_linux.go`: 398/410 statements are not entered by the small tests,
+mostly the `collect(t *testing.T)` scenario and fixture assertions. The original
+Windows scenario was correctly a `_test.go` file; the port accidentally made
+these assertions ordinary library code. No laptop prepare/benchmark was run
+for this profile.
+
+Proposed structure, without weakening any assertion or runtime qualification:
+
+- Put the actual external integration scenario and helpers that call
+  `testing.T` assertions in a Linux `_test.go` file. It still compiles through
+  `go test -c` and runs under PA11/PA12, not ordinary small unit tests.
+- Keep reusable Docker event decoding/counting, artifact/path validation,
+  error classification and ownership/disposal logic in ordinary `.go` helpers.
+  Event decoding/counting must not disappear from the measured helper boundary
+  merely because the observer's assertion fixture moves.
+- Keep the Node acquisition/scheduling/evidence helpers as implemented. Do not
+  claim their 100% line result covers uninstrumented process adapters or the
+  Go native scenario. Native behavior remains independently verified in Actions.
+- Preserve the 100% target / 95% minimum for ordinary helper implementation.
+  Do not manufacture tests of every `t.Fatal` branch just to count assertions
+  as product code. Remaining genuine helper gaps require the existing
+  requirement-backed, approved coverage process. Product coverage and its #89
+  exception/#174 remain unchanged.
+
+Critical review: P1 would be hiding event/cleanup implementation in test files;
+the proposed ordinary helper boundary explicitly retains it. P1 would be
+calling a unit profile native evidence or changing workload/timing to gain
+coverage; neither is authorized. P2 would be excluding all harness code under
+the product exception; helper coverage is retained and reported separately.
+Repeat review found no remaining P0–P2 contradiction in this clarification.
+No product API/schema, driver/artifact, statistical rule or running Actions
+cohort changes. The already selected performance source remains immutable.

@@ -182,8 +182,7 @@ third partial pair is excluded, regardless of its completed new-engine samples.
 The [Actions design](issue89-performance-actions-design.md) for a pinned Linux
 reference and same-VM paired collection was approved on 2026-11-08. The separate
 [reviewed test plan](issue89-performance-actions-tests.md) was separately approved.
-No remote benchmark has run yet and no
-performance gate is waived.
+At that checkpoint no remote benchmark had run; no performance gate was waived.
 
 Update: the approved collector subsequently passed the actual Ubuntu pilot in
 [run 42475910841](https://github.com/kimak-irmagi/sqlrs/actions/runs/42475910841).
@@ -194,3 +193,11 @@ See [pilot evidence](issue89-actions-pilot-2026-11-08.json) and the
 [execution inventory](issue89-performance-actions-tests.md). Full PA12 collection
 is now supported by the pilot budget estimate, not guaranteed to fit every VM;
 no timing acceptance follows from the pilot.
+
+The full opt-in workflow was launched on exact source `668d505`:
+[42479055486](https://github.com/kimak-irmagi/sqlrs/actions/runs/42479055486).
+It repeats the pilot before the complete comparison/control/confirmation jobs.
+The small helper-only profile exposed a test-file classification issue;
+[the bounded clarification](issue89-performance-actions-design.md#proposed-clarification-integration-test-versus-helper-coverage)
+awaits approval. No running cohort, product behavior or statistical rule is
+changed by that proposal. #89/#175 remain open pending the remaining gates.
