@@ -36,6 +36,8 @@ jobs:
       phase: ${{ steps.selection.outputs.phase }}
       engine_sha: ${{ steps.setup.outputs.engine_sha }}
     steps:
+      - name: Start hosted wall-clock budget
+        run: node -e 'require("fs").appendFileSync(process.env.GITHUB_ENV, "PERFORMANCE_JOB_STARTED_MS=" + Date.now() + "\n")'
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || inputs.candidate_sha }}
@@ -56,6 +58,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
+      - name: Start hosted wall-clock budget
+        run: node -e 'require("fs").appendFileSync(process.env.GITHUB_ENV, "PERFORMANCE_JOB_STARTED_MS=" + Date.now() + "\n")'
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.sha }}
@@ -86,6 +90,8 @@ jobs:
         fixture: [jhipster, mobilitydata-user, mobilitydata-main]
         phase: [comparison, confirmation]
     steps:
+      - name: Start hosted wall-clock budget
+        run: node -e 'require("fs").appendFileSync(process.env.GITHUB_ENV, "PERFORMANCE_JOB_STARTED_MS=" + Date.now() + "\n")'
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.sha }}

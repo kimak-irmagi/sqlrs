@@ -10,6 +10,11 @@ test('PA03: Temurin uses the provider full build selector without floating to an
   assert.equal(java.with['java-version'],'21.0.2+13.0.LTS');
 });
 
+test('PA08: hosted budget begins before checkout/tool setup, not just engine build',()=>{
+  const flow=YAML.parse(fs.readFileSync(new URL('../../.github/workflows/liquibase-performance.yml',import.meta.url),'utf8'));
+  for(const job of Object.values(flow.jobs))assert.match(job.steps[0].run,/PERFORMANCE_JOB_STARTED_MS/);
+});
+
 test('PA01/PA07/PA08/PA10: separate opt-in read-only workflow keeps cohorts on one bounded VM', () => {
   const text = fs.readFileSync(new URL('../../.github/workflows/liquibase-performance.yml', import.meta.url), 'utf8');
   const flow = YAML.parse(text);
