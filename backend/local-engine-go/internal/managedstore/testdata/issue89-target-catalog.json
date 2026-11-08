@@ -417,7 +417,7 @@
   "prepare_decision_evidence_delete_guard": {
     "type": "trigger",
     "table": "prepare_decision_evidence",
-    "sha256": "8617a3ec7deda9cfd16ba01e0b129b793bd7b8047b3604d7f1065818afe96963"
+    "sha256": "9bd087413c923d176f70ffe54ab0bfa91d6f48373186b4af7600d37aefa1da3f"
   },
   "prepare_decision_evidence_immutable": {
     "type": "trigger",

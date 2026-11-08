@@ -19,9 +19,9 @@ func TestMainPathInstallationArtifact(t *testing.T) {
 	// Locks were obtained at extraction, not calculated by the verifier.
 	// Regenerating both schema and oracle must not silently approve history.
 	for path, want := range map[string]string{
-		filepath.Join("assets", "liquibase-main-schema.sql"):        "d06c7a45ee3c125f7d01bf3435c590668710c70aef7343b6322a602285d0cc14",
-		filepath.Join("assets", "liquibase-main-catalog.json"):      "5408e2b6f0bfde18bfaa7d1cec6027da87ab97f7db54a7deb875d25f1082ac41",
-		filepath.Join(fixtureRoot, "issue89-target-catalog.json"):   "d9b373979af157eecded08f34405bd1025e78137bca48ce082ba1acb6ec6d288",
+		filepath.Join("assets", "liquibase-main-schema.sql"):        "6f65614ecd5359357c59c33d6e53d97f6bb3ad24452b9ee80f22da99d0aaed6b",
+		filepath.Join("assets", "liquibase-main-catalog.json"):      "a67f6a8d63b26569ca306e31c3d31fe411be854678fb7c4ac6b24e4d2e69c42c",
+		filepath.Join(fixtureRoot, "issue89-target-catalog.json"):   "4af3072d0042c1cbd48f8e63836df88a0e66eea9884ee4fe90aa8244441c6026",
 		filepath.Join(fixtureRoot, "issue89-released.sql"):          "3959fbec836ba13386a3a2fb3024f111c55a52a56b369d0537ff02795037674e",
 		filepath.Join(fixtureRoot, "issue89-released-catalog.json"): "2e2821f68340c57bb0cfaa0063a60edd4d9d78cd1c42e765c2950976809d53f5",
 	} {

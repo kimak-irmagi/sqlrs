@@ -616,6 +616,19 @@ func TestWorkingInstanceHandoffTerminalJobDeletion(t *testing.T) {
 	confirmed, err := f.q.ConfirmProjectionsRemoved(t.Context(), intent, &handoffProjectionProbe{db: f.db}, mainPathJournalUTC)
 	handoffCheck(t, err)
 	handoffCheck(t, f.q.CommitFinalization(t.Context(), confirmed, mainPathJournalUTC, "2026-11-08T12:00:00Z"))
+	// WH06: even terminal history cannot be deleted directly while its parent
+	// job exists. Only the real parent DELETE may cascade these links.
+	var links int
+	handoffCheck(t, f.db.QueryRow("SELECT count(*) FROM prepare_decision_evidence e JOIN prepare_attempt_decisions d ON d.decision_id=e.decision_id WHERE d.job_id=?", f.session.JobID).Scan(&links))
+	if links == 0 {
+		t.Fatal("terminal cascade control has no decision-evidence links")
+	}
+	before := mainPathJournalRows(t, f.db)
+	_, err = f.db.Exec("DELETE FROM prepare_decision_evidence WHERE decision_id IN (SELECT decision_id FROM prepare_attempt_decisions WHERE job_id=?)", f.session.JobID)
+	var coded interface{ Code() int }
+	if !errors.As(err, &coded) || coded.Code() != 1811 || !strings.Contains(err.Error(), "decision evidence link is retained") || !reflect.DeepEqual(before, mainPathJournalRows(t, f.db)) {
+		t.Fatal("direct history deletion bypassed the retained-parent guard", err)
+	}
 	handoffCheck(t, f.q.DeleteJob(t.Context(), f.session.JobID))
 	var live int
 	handoffCheck(t, f.db.QueryRow("SELECT count(*) FROM instances WHERE instance_id=?", f.entry.InstanceID).Scan(&live))

@@ -18,10 +18,10 @@
     "description": "Final approved composed SQLite catalog, obtained through InitializeCommon; migrations run only during this one-time extraction, never by the delivered installer."
   },
   "artifact_sha256": {
-    "liquibase-main-schema.sql": "d06c7a45ee3c125f7d01bf3435c590668710c70aef7343b6322a602285d0cc14",
-    "liquibase-main-catalog.json": "5408e2b6f0bfde18bfaa7d1cec6027da87ab97f7db54a7deb875d25f1082ac41",
+    "liquibase-main-schema.sql": "6f65614ecd5359357c59c33d6e53d97f6bb3ad24452b9ee80f22da99d0aaed6b",
+    "liquibase-main-catalog.json": "a67f6a8d63b26569ca306e31c3d31fe411be854678fb7c4ac6b24e4d2e69c42c",
     "issue89-released.sql": "3959fbec836ba13386a3a2fb3024f111c55a52a56b369d0537ff02795037674e",
-    "issue89-target-catalog.json": "d9b373979af157eecded08f34405bd1025e78137bca48ce082ba1acb6ec6d288"
+    "issue89-target-catalog.json": "4af3072d0042c1cbd48f8e63836df88a0e66eea9884ee4fe90aa8244441c6026"
   },
   "working_instance_handoff": {
     "decision": "docs/adr/2026-11-07-liquibase-working-instance-handoff.md",
@@ -31,6 +31,12 @@
     "changed_objects": ["prepare_liquibase_session_disposals", "prepare_liquibase_session_store_format", "prepare_liquibase_private_disposal_identity", "prepare_liquibase_private_disposal_insert", "prepare_liquibase_private_disposal_runner_absence", "prepare_liquibase_private_retirement_observation", "prepare_liquibase_private_session_retired"],
     "added_objects": ["prepare_liquibase_handoff_instance", "prepare_liquibase_handoff_outcome", "prepare_liquibase_handoff_resume"],
     "description": "Approved semantic amendment, separate from the frozen composed source; all unrelated and released definitions retain their recorded identities."
+  },
+  "terminal_cascade_amendment": {
+    "decision": "docs/adr/2026-11-08-decision-evidence-terminal-cascade.md",
+    "approved_date": "2026-11-08",
+    "changed_objects": ["prepare_decision_evidence_delete_guard"],
+    "description": "Retain links while the decision's parent job exists; permit terminal cascades independently of sibling deletion order. Frozen released/composed provenance is unchanged."
   },
   "source_files_sha256": {
     "internal/instanceaccess/service.go": "97f5b6fdbde4a08edf56c8767e36eb9fb6d336b84b812dbacf88eae649774c93",

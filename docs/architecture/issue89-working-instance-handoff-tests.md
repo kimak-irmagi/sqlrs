@@ -263,3 +263,34 @@ no guard bypass, skipped assertion or old-test weakening was applied. Remaining
 WH02–WH07 negative/order checks, final all-current-source regressions/CI and
 the unchanged real-v1 speed qualification are still required. This checkpoint
 does not close #89 or make PR #175 ready.
+
+## Cascade correction and bounded checks, 2026-11-08
+
+The separately approved correction to the decision-evidence deletion guard is
+implemented. The current catalog/provenance and three pinned hashes reflect only
+that additional definition change; frozen release/composed-source provenance is
+unchanged. TestWorkingInstanceHandoffTerminalJobDeletion now passes: direct link
+deletion while the terminal job exists still fails with SQLITE_CONSTRAINT_TRIGGER
+(1811) and the exact retention message, without row changes; deleting the actual
+terminal job succeeds and retains the published instance.
+
+TestWorkingInstanceHandoffDockerOwnership passed on native Windows (169.69 s).
+Before fallback cleanup, temporary containers were absent; deleting the terminal
+job left the same live database queryable and its directory intact. Ordinary
+instance deletion then removed its exact runtime. This is functional evidence,
+not benchmark acceptance or Linux qualification.
+
+Additional approved WH02/WH03/WH05/WH06 cases pass: publication without activated
+access, the unchanged strict cache-publisher source rule, selected failure before
+publication, late cancellation/failure after committed success, five missing or
+foreign cleanup-owner variants, cancellation after the real prepare-instance task
+UPDATE, and four private-retirement transaction cases (after logical release,
+real COMMIT BUSY, lost reply, unavailable settlement after a real commit).
+They observe the precise reached boundary, retained publication pin and live
+instance, with no partial journal effects after rollback. The new test's first
+run corrected its own expectations to the existing exact SQL refusal and required
+status_error failure profile; no product protection was relaxed.
+
+Final current-source regressions, remaining coordinator/order checks, native Linux
+qualification and real-v1 performance acceptance remain open. The earlier red
+cascade checkpoint above is historical and resolved, not a current blocker.

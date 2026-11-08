@@ -1476,7 +1476,7 @@ WHEN NEW.phase IN ('retained','released') AND EXISTS (
 BEGIN SELECT RAISE(ABORT,'unresolved attempt retains its clone'); END;
 
 CREATE TRIGGER prepare_decision_evidence_delete_guard BEFORE DELETE ON prepare_decision_evidence
-WHEN EXISTS (SELECT 1 FROM prepare_attempt_decisions WHERE decision_id=OLD.decision_id)
+WHEN EXISTS (SELECT 1 FROM prepare_attempt_decisions d JOIN prepare_jobs j ON j.job_id=d.job_id WHERE d.decision_id=OLD.decision_id)
 BEGIN SELECT RAISE(ABORT,'decision evidence link is retained'); END;
 
 CREATE TRIGGER prepare_decision_evidence_immutable BEFORE UPDATE ON prepare_decision_evidence
