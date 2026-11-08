@@ -1,10 +1,10 @@
 # #89: native Actions performance results (2026-11-08)
 
-Status: five complete cohorts collected; the 102-change confirmation is still
-running. The collected short workloads already reproduce a release-blocking
+Status: all six complete cohorts collected; the Actions workflow succeeded.
+The collected short workloads already reproduce a release-blocking
 regression under the retained P01b rule. #89 is not complete and PR #175 remains
-draft. Do not cancel the remaining series, waive the timing criterion, or pool
-their data with the pilot or another VM.
+draft. Successful collection is not speed acceptance. Do not waive the timing
+criterion or pool these data with the pilot or another VM.
 
 ## Provenance and validation
 
@@ -79,8 +79,7 @@ The original sanitized reports were downloaded under
 `.tmp/performance/evidence/42479055486/cohorts` and retained byte-for-byte in
 [the evidence directory](issue89-performance-evidence-2026-11-08/), with explicit
 LF checkout rules. Every retained file's SHA256 matches the downloaded report.
-Actions retention is 14 days; the pending final confirmation report must also
-be retained when available.
+All six reports are retained independently of Actions' 14-day artifact expiry.
 
 ### 102-change comparison update
 
@@ -89,13 +88,21 @@ be retained when available.
 medians are 573.847 s (v1) / 597.790 s (v2), paired-median delta +25.290 s;
 the maximum absolute individual control-pair delta is 34.492 s. Cached medians
 are 12.750 / 10.525 s, paired-median delta -2.215 s, max absolute control delta
-1.815 s. Preserve the control outlier and wait for the independent confirmation;
-do not cherry-pick a smaller noise bound or treat this partial fixture result as
+1.815 s. Preserve the control outlier;
+do not cherry-pick a smaller noise bound or treat this fixture result as
 an overall speed pass. The confirmed short-fixture failures remain blocking.
 
 The report is retained in the same evidence directory; Actions artifact
 `13624417581`, SHA256
 `e45ff96335967cd2449d8e7e6402c4fb7048840f6d5bf6c31872f6106375c9f2`.
+
+The independent 102-change confirmation also passed completeness and oracles.
+Uncached v1/v2 medians: 661.430 / 672.155 s; paired-median delta +9.964 s,
+maximum absolute control delta 10.067 s. Cached medians: 14.238 / 11.487 s;
+paired delta −2.683 s against 0.197 s control spread. Thus the long fully cached
+case is faster in both cohorts; positive uncached differences accompany sizeable
+control spread. This does not alter the short-workload blocker or establish a
+new noise rule in place of retained P01b.
 
 | Report | Actions artifact ID | SHA256 |
 | --- | ---: | --- |
@@ -104,6 +111,7 @@ The report is retained in the same evidence directory; Actions artifact
 | mobilitydata-user-comparison.json | 13618621974 | 6c180092af707c672a413369ca4470b1b1054ce8e12561400d19ffca58354429 |
 | mobilitydata-user-confirmation.json | 13618184524 | f303d9a49e8ad825e230920054c1f013ac93cac2b27c41ef581b9e39639c976f |
 | mobilitydata-main-comparison.json | 13624417581 | e45ff96335967cd2449d8e7e6402c4fb7048840f6d5bf6c31872f6106375c9f2 |
+| mobilitydata-main-confirmation.json | 13624749957 | 616e649a01eab32e58024a16d9a0f019fa87716b227041edc89fb0152c81e14a |
 
 Ordinary CI at the product/test checkpoint (`44f8e28`, run `42481604984`) passes every test/doc job;
 only the unchanged aggregate coverage gate is red under the explicit #89/#174

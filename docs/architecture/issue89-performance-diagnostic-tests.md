@@ -1,7 +1,8 @@
 # #89: exact-binary diagnostic tests
 
-Status: proposed after critical and repeat review; DG01–DG12 require approval
-before tests/code. The [component design](issue89-performance-diagnostic-design.md)
+Status: DG01–DG12 and separately OT-DG01–OT-DG03 approved by @evilguest on
+2026-11-08 after critical and repeat review (exact reply time unavailable).
+The [component design](issue89-performance-diagnostic-design.md)
 is approved on 2026-11-08. This inventory does not change P01b, product behaviour,
 API/schema or the ongoing `668d505` cohorts. It is diagnostic localisation, not
 another full statistical qualification or permission to implement a product fix.
@@ -137,4 +138,34 @@ to alter other tests. Repeat the audit after approval and ask about new conflict
   reclassification, genuine helpers and real orchestration evidence.
 
 Repeat review found no remaining P0–P2 in this bounded diagnostic inventory.
-No implementation, tests or existing fixture changes have been made yet.
+The post-approval audit found no additional old-test contradictions. Only the
+three named fixture amendments are authorised; implementation now follows tests.
+
+## DC01–DC03: proposed line-report follow-up
+
+First full small-test run after implementation: Go 91.0% statements; Node 100%
+lines. Previous Go helpers remain 100% covered. Native strace and DB/Liquibase
+are intentionally not run locally; DG11 and strace smoke await Actions.
+Profile: `.tmp/performance/diag-all.out`; DG12's minimum is not yet met.
+
+Order by uncovered statement count:
+
+1. **DC02 — trace, DG03/04/06:** `diagnostic_trace_linux.go`, 18 statements.
+   Independent malformed PID/time/exec/argument lists, two pending calls on one
+   PID, exit before resumed, row quota; positive helper categories and invalid
+   zero transport quota. Private markers never escape.
+2. **DC01 — journal, DG08:** `diagnostic_journal.go`, 15 statements. Real temporary
+   SQLite: missing mandatory timestamps, invalid task/invocation types/times,
+   missing required columns, optional-table query failures. No global DB stubs;
+   demonstrate the intended read was reached and retain positive controls.
+3. **DC03 — processes, DG06/07:** `diagnostic_process_linux.go`, 12 statements.
+   Exact strace arguments (explicit tracer signal-blocking mode), malformed
+   /proc, seek failure on a closed file, reader timeout/join, missing Wait proof
+   despite group absence. Check actual owned process/reader completion and the
+   foreign control. Do not invent os.Pipe/resource failures with global hooks.
+
+Then repeat all small tests, vet and line coverage. DG11 remains separate real
+evidence, not a substitute for small negative tests. No new product boundaries,
+schema, old-test changes, permissions or dead-code deletion are proposed.
+Critical review excluded synthetic OS failures/global interception; repeat
+review found no P0–P2 in this bounded follow-up. Approval is required.

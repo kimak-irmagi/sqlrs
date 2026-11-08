@@ -22,7 +22,7 @@ timestamps on unchanged fixed binaries; see
 [component design](../architecture/issue89-performance-diagnostic-design.md).
 Product hooks or a Docker wrapper were considered but not selected: the former
 changes measured code, the latter changes process/signal behaviour. The narrow
-diagnostic implementation still requires a separately approved test inventory.
+diagnostic implementation follows its separately approved test inventory below.
 
 ## Observe fixed executables externally, not through product hooks
 
@@ -40,3 +40,19 @@ diagnostic implementation still requires a separately approved test inventory.
 - Rationale: no product/API/schema changes or signal-altering Docker shim;
   observation overhead remains visible and is not accepted as P01b evidence.
   Original reports, including the launcher-inventory defect, remain unchanged.
+
+## Approve the diagnostic tests and three explicit collector amendments
+
+- Conversation date: 2026-11-08, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Status: both items explicitly approved in the latest user reply.
+- Question: implement DG01–DG12 and amend the existing collector, or leave the
+  observed executable ownership, Linux launcher provenance and cleanup invalid?
+- Alternatives: no observer; new product hooks; or the reviewed diagnostic tests
+  with only OT-DG01–OT-DG03 changes to the existing collect scenario.
+- Decision: approve DG01–DG12 and, separately, OT-DG01–OT-DG03: traced child proof,
+  actual POSIX launcher hash and joined trace/tree disposal before evidence.
+- Rationale: retain all existing workload/oracle/count/timer/normal cleanup
+  assertions while making unchanged-binary diagnostics trustworthy. This is not
+  approval of an optimisation or a waiver of speed/coverage requirements.

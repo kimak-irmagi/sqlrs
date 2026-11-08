@@ -94,7 +94,7 @@ changing shared CI thresholds. Performance acceptance remains open. See the
 [execution checkpoint](architecture/issue89-main-path-execution.md).
 
 The off-laptop performance pilot passes all three public workloads. Full paired
-and independent-confirmation collection is running in Actions on fixed `668d505`;
+and independent-confirmation collection is complete in Actions on fixed `668d505`;
 speed acceptance remains open. Ordinary Go collector helpers pass HC01–HC07 at
 174/174 statements (100%), with the unchanged native scenario correctly placed
 in `_test.go`. This is not aggregate product coverage or completed #89. See
@@ -103,8 +103,10 @@ in `_test.go`. This is not aggregate product coverage or completed #89. See
 The completed JHipster and 12-change MobilityData comparison/confirmation
 cohorts reproduce slower v2 beyond their noise controls. Speed acceptance is
 therefore blocked, not merely awaiting an all-green collection. The 102-change
-comparison is collected; its confirmation continues. The diagnostic design is
-approved; its test inventory is pending approval. See
+comparison and confirmation are also collected. The diagnostic design and
+DG01–DG12 / OT-DG01–OT-DG03 are approved. The new observer's small tests pass;
+Go helpers are 91.0%, below 95%, with DC01–DC03 awaiting approval before the next
+coverage iteration and remote diagnostic launch. See
 [results](architecture/issue89-actions-performance-results-2026-11-08.md).
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head

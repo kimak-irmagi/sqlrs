@@ -122,6 +122,9 @@ func collect(t *testing.T) {
 		t.Fatal("Linux/amd64 collector required")
 	}
 	var samples []releasedBenchmarkSample
+	diagnostic := os.Getenv("SQLRS_BENCH_DIAGNOSTIC") == "1"
+	traced := diagnostic && os.Getenv("SQLRS_BENCH_TRACE") == "1"
+	var diagnostics []diagnosticPass
 	stage := "identity"
 	t.Cleanup(func() {
 		if t.Failed() {
@@ -134,6 +137,10 @@ func collect(t *testing.T) {
 				sample.SnapshotBackend = "copy"
 				data, _ := json.Marshal(sample)
 				t.Logf("P01B_SAMPLE %s", data)
+			}
+			for _, observation := range diagnostics {
+				data, _ := json.Marshal(observation)
+				t.Logf("P01B_DIAGNOSTIC %s", data)
 			}
 		}
 	})
@@ -291,7 +298,8 @@ func collect(t *testing.T) {
 	// the pinned image's declared build metadata, not an OS process probe.
 	javaDetails, launcher := "", "liquibase"
 	if route == "v1" {
-		launcher = "liquibase.bat"
+		// OT-DG02: hash the actual native POSIX entry point, not adjacent BAT.
+		launcher = filepath.Base(req.LiquibaseExec)
 		versionCtx, done := context.WithTimeout(ctx, 15*time.Second)
 		output, err := exec.CommandContext(versionCtx, filepath.Join(javaHome, "bin", "java"), "-version").CombinedOutput()
 		done()
@@ -339,7 +347,17 @@ func collect(t *testing.T) {
 	storeRoot := filepath.Join(root, "store")
 	statePath := filepath.Join(root, "engine.json")
 	dbPath := filepath.Join(storeRoot, "state.db")
-	child := exec.CommandContext(ctx, engine, "--listen", "127.0.0.1:0", "--write-engine-json", statePath, "--idle-timeout", "0")
+	engineArgs := []string{"--listen", "127.0.0.1:0", "--write-engine-json", statePath, "--idle-timeout", "0"}
+	child := exec.CommandContext(ctx, engine, engineArgs...)
+	var trace *diagnosticTrace
+	if traced {
+		trace, err = newDiagnosticTrace(root)
+		if err != nil {
+			t.Fatal("private trace unavailable")
+		}
+		child = exec.CommandContext(ctx, "strace", diagnosticTraceArgs(engine, engineArgs)...)
+		child.ExtraFiles = []*os.File{trace.writer}
+	}
 	child.Dir = req.WorkDir
 	stage = "engine_start"
 	for _, entry := range os.Environ() {
@@ -354,26 +372,57 @@ func collect(t *testing.T) {
 	child.Stdout, child.Stderr = io.Discard, io.Discard
 	child.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := child.Start(); err != nil {
-		t.Fatal(err)
+		if trace != nil {
+			trace.abort()
+		}
+		t.Fatal("benchmark engine launcher failed")
+	}
+	if trace != nil {
+		trace.begin(child.Process.Pid)
 	}
 	wait := make(chan struct{})
 	go func() { _ = child.Wait(); close(wait) }()
+	enginePID := 0
 	t.Cleanup(func() {
-		// The exact process group is owned even if its leader already exited.
-		_ = syscall.Kill(-child.Process.Pid, syscall.SIGTERM)
-		select {
-		case <-wait:
-		default:
+		if trace != nil {
+			stopCtx, stopCancel := context.WithTimeout(context.Background(), 12*time.Second)
+			stopErr := stopDiagnosticGroup(stopCtx, child.Process.Pid, wait)
+			stopCancel()
+			if stopErr != nil {
+				trace.abort()
+				t.Error("diagnostic process tree did not disappear")
+				return
+			}
+			intervals, traceErr := trace.finish(enginePID)
+			if traceErr != nil {
+				t.Error("diagnostic trace incomplete")
+			} else {
+				for i := range diagnostics {
+					summary, err := summarizeDiagnosticIntervals(intervals, diagnostics[i].start, diagnostics[i].end)
+					if err != nil {
+						t.Error("diagnostic time window inconsistent")
+						break
+					}
+					diagnostics[i].Trace = &summary
+				}
+			}
+		} else {
+			// The exact process group is owned even if its leader already exited.
 			_ = syscall.Kill(-child.Process.Pid, syscall.SIGTERM)
 			select {
 			case <-wait:
-			case <-time.After(5 * time.Second):
-				_ = syscall.Kill(-child.Process.Pid, syscall.SIGKILL)
-			}
-			select {
-			case <-wait:
-			case <-time.After(10 * time.Second):
-				t.Error("benchmark engine process did not exit")
+			default:
+				_ = syscall.Kill(-child.Process.Pid, syscall.SIGTERM)
+				select {
+				case <-wait:
+				case <-time.After(5 * time.Second):
+					_ = syscall.Kill(-child.Process.Pid, syscall.SIGKILL)
+				}
+				select {
+				case <-wait:
+				case <-time.After(10 * time.Second):
+					t.Error("benchmark engine process did not exit")
+				}
 			}
 		}
 		clean, cleanCancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -412,9 +461,14 @@ func collect(t *testing.T) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	if state.PID != child.Process.Pid || !strings.HasPrefix(state.Endpoint, "127.0.0.1:") {
+	ownedEndpoint := state.PID == child.Process.Pid
+	if traced {
+		ownedEndpoint = verifyDiagnosticEndpoint("/proc", state.PID, child.Process.Pid, engine) == nil
+	}
+	if !ownedEndpoint || !strings.HasPrefix(state.Endpoint, "127.0.0.1:") {
 		t.Fatal("benchmark endpoint is not the exact spawned local engine")
 	}
+	enginePID = state.PID
 	client := &http.Client{Timeout: 30 * time.Second}
 	call := func(method, path string, body any, target any) int {
 		t.Helper()
@@ -565,6 +619,14 @@ func collect(t *testing.T) {
 				}
 				workingHelper = helper
 			}
+		}
+		if diagnostic {
+			phases, err := readDiagnosticJournal(ctx, db, accepted.JobID, start)
+			if err != nil {
+				db.Close()
+				t.Fatal("diagnostic journal incomplete")
+			}
+			diagnostics = append(diagnostics, diagnosticPass{Pass: pass, Traced: traced, ElapsedMS: float64(end.Sub(start)) / 1e6, Phases: phases, start: start, end: end})
 		}
 		db.Close()
 		wantStarts := 1
