@@ -73,7 +73,7 @@ async function member(route,name){
     });
   });
   const samples=parseCollectorResult(0,result,{route,fixture:name,engineHash,revision:route==='v1'?prepared.baselineRevision:prepared.revision});
-  return {samples,totalMS:Date.now()-before};
+  return {samples,totalMS:Date.now()-before,databaseImage:spec.database};
 }
 
 try{

@@ -381,11 +381,19 @@ func collect(t *testing.T) {
 		t.Fatal("stock launcher bytes must be retained for the declared JVM count")
 	}
 	launcherDigest := sha256.Sum256(launcherBytes)
-	root := t.TempDir()
-	ownerBytes := make([]byte, 32)
-	if _, err := rand.Read(ownerBytes); err != nil {
-		t.Fatal("private ownership unavailable")
+	foreignRoot := t.TempDir()
+	foreignFile := filepath.Join(foreignRoot, "untouched")
+	if err := os.WriteFile(foreignFile, []byte("foreign-control"), 0600); err != nil {
+		t.Fatal("cleanup control unavailable")
 	}
+	root := t.TempDir()
+	if err := os.Symlink(foreignRoot, filepath.Join(root, "foreign-link")); err != nil {
+		t.Fatal("cleanup symlink control unavailable")
+	}
+	ownerBytes := make([]byte, 32)
+	// Go 1.25 Read fills the buffer or terminates irrecoverably; it cannot
+	// return an error for a caller to turn into a recoverable test outcome.
+	rand.Read(ownerBytes)
 	ownerToken := hex.EncodeToString(ownerBytes)
 	if err := os.WriteFile(filepath.Join(root, ".collector-owner"), []byte(ownerToken), 0600); err != nil {
 		t.Fatal("private ownership unavailable")
@@ -440,6 +448,9 @@ func collect(t *testing.T) {
 		if err := cleanupPrivateRoot(clean, root, ownerToken, req.ImageID, runDockerE2ECommand); err != nil {
 			t.Log("P01B_CLEANUP_FAILURE files")
 			t.Error("exact cleanup failed")
+		}
+		if data, err := os.ReadFile(foreignFile); err != nil || string(data) != "foreign-control" {
+			t.Error("cleanup changed foreign control")
 		}
 	})
 	var state struct {

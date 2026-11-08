@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { fixtureSpec, validateSourceHead, validateMetadata } from './inputs.mjs';
 
+test('PA03: database workload images are immutable public manifest references',()=>{
+ for(const name of ['jhipster','mobilitydata-user','mobilitydata-main'])assert.match(fixtureSpec(name).database,/^(postgres|postgis\/postgis)@sha256:[a-f0-9]{64}$/);
+ assert.equal(fixtureSpec('mobilitydata-main').database,fixtureSpec('mobilitydata-user').database);
+});
+
 test('PA02/PA03: only clean pinned native builds and public fixture commits', () => {
   const sha = 'a'.repeat(40);
   const metadata = `\tbuild\tGOOS=linux\n\tbuild\tGOARCH=amd64\n\tbuild\tvcs.revision=${sha}\n\tbuild\tvcs.modified=false\n`;

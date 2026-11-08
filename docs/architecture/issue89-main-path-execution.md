@@ -184,3 +184,13 @@ reference and same-VM paired collection was approved on 2026-11-08. The separate
 [reviewed test plan](issue89-performance-actions-tests.md) was separately approved.
 No remote benchmark has run yet and no
 performance gate is waived.
+
+Update: the approved collector subsequently passed the actual Ubuntu pilot in
+[run 42475910841](https://github.com/kimak-irmagi/sqlrs/actions/runs/42475910841).
+Both real engines passed full DB/cache and cleanup checks on JHipster and both
+MobilityData routes (including 102 changes). The largest full-cohort estimate is
+257.66 minutes including controls/overhead/contingency/reserve, below six hours.
+See [pilot evidence](issue89-actions-pilot-2026-11-08.json) and the
+[execution inventory](issue89-performance-actions-tests.md). Full PA12 collection
+is now supported by the pilot budget estimate, not guaranteed to fit every VM;
+no timing acceptance follows from the pilot.

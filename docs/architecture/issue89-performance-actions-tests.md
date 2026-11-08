@@ -149,3 +149,29 @@ container-owned files without relaxing permissions, following symlinks or
 elevating either measured engine. The helper's full ID is retired and checked;
 failed cleanup cannot emit samples. Container/file cleanup failures are distinct
 safe enums. This is test teardown, not a change to product deletion/recovery.
+
+## Successful actual Ubuntu pilot
+
+Run [42475910841](https://github.com/kimak-irmagi/sqlrs/actions/runs/42475910841)
+on source `3d3e8e6` completed both real engines for all three public fixtures,
+including 102 changes. Every uncached/cached DB oracle, actual cache-hit count
+and exact container/private-store cleanup passed. The full sanitized
+[pilot evidence](issue89-actions-pilot-2026-11-08.json) is retained; it is not
+an acceptance cohort and will not be pooled into one.
+
+| Fixture | v1 uncached / cached | v2 uncached / cached | Estimated complete cohort with controls/reserve |
+| --- | --- | --- | --- |
+| JHipster (8) | 40.422 / 7.959 s | 52.914 / 9.219 s | 43.77 min |
+| MobilityData user (12) | 55.988 / 7.992 s | 67.897 / 9.118 s | 50.32 min |
+| MobilityData main (102) | 535.886 / 16.615 s | 581.679 / 10.621 s | 257.66 min |
+
+Budgets include preparation, measured and untimed member costs, 20% contingency
+and the 15-minute reserve. All fit the six-hour bound; this remains a prediction.
+The mixed timing differences are not a speed verdict. PA12 therefore proceeds
+to the retained alternating comparisons/controls and independent confirmation.
+All ordinary CI tests also pass on this source; only the unchanged aggregate
+coverage check is red under the explicit #89 exception.
+
+Before full collection, PA09 adds the explicit outside-root symlink control and
+unit faults for cancellation, helper create/start/removal/absence and residual
+files. These strengthen teardown only; measured product execution is unchanged.

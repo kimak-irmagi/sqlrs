@@ -17,6 +17,9 @@ import (
 // reading their contents. PA09: no outside-root removal, symlink following,
 // global prune or success after an unconfirmed helper retirement.
 func cleanupPrivateRoot(ctx context.Context, root, token, image string, run dockerE2ECommand) (returned error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	validHex := func(value string) bool { _, err := hex.DecodeString(value); return len(value) == 64 && err == nil }
 	if !filepath.IsAbs(root) || filepath.Dir(root) == root || !validHex(token) || !strings.Contains(image, "@sha256:") || !validHex(strings.Split(image, "@sha256:")[1]) || run == nil {
 		return fmt.Errorf("private cleanup target unproved")

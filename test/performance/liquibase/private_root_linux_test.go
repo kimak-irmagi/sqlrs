@@ -83,3 +83,26 @@ func TestPrivateRootDisposalRefusesUnprovedTargets(t *testing.T) {
 		t.Fatal("invalid target reached Docker")
 	}
 }
+
+func TestPrivateRootDisposalRejectsSymlinkRootWithoutTouchingTarget(t *testing.T) {
+	root := t.TempDir()
+	token := strings.Repeat("a", 64)
+	marker := filepath.Join(root, ".collector-owner")
+	if err := os.WriteFile(marker, []byte(token), 0600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(root, link); err != nil {
+		t.Fatal(err)
+	}
+	run := func(context.Context, ...string) ([]byte, error) {
+		t.Fatal("symlink root reached Docker")
+		return nil, nil
+	}
+	if cleanupPrivateRoot(context.Background(), link, token, "postgres@sha256:"+token, run) == nil {
+		t.Fatal("symlink root accepted")
+	}
+	if data, err := os.ReadFile(marker); err != nil || string(data) != token {
+		t.Fatal("foreign target changed")
+	}
+}
