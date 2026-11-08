@@ -119,7 +119,11 @@ func newWorkingHandoffFixtureSteps(t *testing.T, steps int) workingHandoffFixtur
 	handoffCheck(t, q.BindStep(t.Context(), job.JobID, "one", execution, mainPathJournalUTC))
 	session := queue.LiquibaseSessionRecord{SessionID: "handoff-session", JobID: job.JobID, CloneID: "handoff-clone", SessionNo: 1, WorkerGeneration: 1, ExecutionFingerprint: record.ExecutionFingerprint, StartKind: "image", StartID: job.ResolvedImageID, StartPosition: 1, PlannedRunnerName: "sqlrs-lb-handoff", RunnerConfigDigest: digest("8"), CaptureHelperDigest: digest("6"), ProtectedConfigRef: "handoff-config", CreatedAt: mainPathJournalUTC}
 	opRef := "runtime_handoff"
-	root := t.TempDir()
+	// macOS exposes its temporary directory through /var -> /private/var.
+	// Use its physical path in this positive fixture; managed access must still
+	// reject actual symlink-bearing runtime paths in the product.
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	handoffCheck(t, err)
 	clone := queue.ClonePlan{ID: session.CloneID, Ref: "jobs/working-handoff/" + opRef, PlannedRuntimeName: "sqlrs-db-handoff", Generation: 2, SourceKind: "image", SourceImageID: job.ResolvedImageID}
 	session, err = q.PlanLiquibaseSession(t.Context(), queue.LiquibaseSessionLaunch{Session: session, Clone: clone, FirstTaskID: "one", ExecutionDigest: execution.Digest, HelperLeaseID: "handoff-helper"})
 	handoffCheck(t, err)

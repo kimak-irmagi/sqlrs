@@ -294,3 +294,30 @@ status_error failure profile; no product protection was relaxed.
 Final current-source regressions, remaining coordinator/order checks, native Linux
 qualification and real-v1 performance acceptance remain open. The earlier red
 cascade checkpoint above is historical and resolved, not a current blocker.
+
+The complete Windows engine module subsequently passed with package parallelism
+one, and engine vet passed. Its ordinary profile is 75.2% overall (managedstore
+96.4%, prepare 76.7%, queue 45.3%); it is not a cross-platform/native union or a
+claim of 95%. Later test-only additions have separate focused results. The #174
+exception remains unchanged.
+
+On the current production source, Ubuntu/Linux amd64 as UID 1000 passed all four
+native cases in one serial run: main 208.74 s, known failure 36.15 s, cancellation
+28.97 s, job-deletion ownership 70.17 s. Native Windows also passed the new real
+coordinator observer (195.85 s): exact final snapshot, parent stop, saved resume
+request, same-DB resume/readiness, committed publication, parent removal, private
+retirement, terminal completion. Its runtime observer forbids another managed
+allocation or destructive DB stop after the final SQL. These are functional
+times, not benchmark samples. The subsequently added runtime-directory removal
+assertion and bounded coordinator refusal variants require their own rerun.
+
+A leftover stopped container from the previous main-test temporary root was
+identified through its exact full Docker ID and all bind-mount paths, then
+removed. No host files or unrelated containers were deleted. This corrects the
+earlier checkpoint's overly broad statement that no test-owned container remained.
+
+Fresh CI found a macOS-only setup error in the new working-handoff queue fixture:
+managed access correctly rejected a runtime path containing the platform's
+`/var` symlink. The positive fixture now resolves its temporary root with
+filepath.EvalSymlinks; the expected outcomes and product symlink prohibition are
+unchanged. This is a new-test preparation correction, not a waived regression.

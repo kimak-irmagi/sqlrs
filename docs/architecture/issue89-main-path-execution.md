@@ -141,3 +141,19 @@ mobilitydata-main workload is not qualified by this separate 12-change check.
 Redacted timestamp-only reports were retained outside the workspace. The two
 private diagnostic stores remain ignored under the original worktree's .tmp:
 the environment rejected the cleanup command; no alternative deletion was tried.
+
+## Post-handoff qualification, 2026-11-08 (in progress)
+
+The handoff and terminal job-cascade correction are implemented at delivery
+revision `49f21709b6592dd3c74ae074a586f0dd0c695208`. The complete ordinary Windows
+engine regression and vet passed; current native Windows/Linux functional
+evidence and its limits are recorded in the [handoff test inventory](issue89-working-instance-handoff-tests.md).
+No automatic replay, preview-DB adoption or expanded recovery delivery is claimed.
+
+An isolated normal Git clone produced the Windows/amd64 comparison engine with
+Go 1.25.5, `vcs.modified=false`, that exact revision and SHA256
+`6dde978664afb57a2ef9ce39d7769e24293d8f8dda68e8e3632ede02c43ebd95`.
+The standard project packager installed the verified JDBC 42.7.13 beside it.
+The original unchanged external collector is used only to drive this separate
+artifact, not to qualify the original mixed worktree's production implementation.
+No post-handoff timing or speed acceptance follows from artifact preparation.
