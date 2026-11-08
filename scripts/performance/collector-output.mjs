@@ -1,6 +1,12 @@
 import { sanitizeSample } from './control.mjs';
 import { fixtureSpec } from './inputs.mjs';
 
+/** Failure metadata is a fixed enum, not a sanitized copy of engine output. */
+export function failureKind(output){
+  const value=output.match(/P01B_FAILURE_KIND ([a-z_]+)\b/)?.[1];
+  return ['base_state','plan_parse','snapshot','runtime_start','clone_state','scripts_prepare','connection_refused','jdbc_missing','permission_denied','input_missing','file_missing','cli_arguments','liquibase_execute'].includes(value)?value:'unknown';
+}
+
 /** PA05/PA06/PA10: output preceding a failed process/cleanup is never evidence.
  * Only typed sample records leave the private subprocess output buffer.
  */

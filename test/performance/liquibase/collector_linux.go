@@ -538,6 +538,7 @@ func collect(t *testing.T) {
 				break
 			}
 			if status.Status == StatusFailed || status.Status == StatusRecoveryRequired {
+				t.Logf("P01B_FAILURE_KIND %s", classifyEngineFailure(status.Error))
 				code := "missing_error"
 				message := ""
 				if status.Error != nil {

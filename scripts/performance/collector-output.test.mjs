@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseCollectorResult } from './collector-output.mjs';
+import { parseCollectorResult, failureKind } from './collector-output.mjs';
 import { fixtureSpec } from './inputs.mjs';
+
+test('PA10: failure diagnostics expose only reviewed fixed classes',()=>{
+ assert.equal(failureKind('private log\nP01B_FAILURE_KIND permission_denied\n'),'permission_denied');
+ assert.equal(failureKind('P01B_FAILURE_KIND postgres://SECRET'),'unknown');
+ assert.equal(failureKind('PRIVATE_SENTINEL'),'unknown');
+});
 
 test('PA05/PA06/PA10: process success and exact independently verified workload are both mandatory',()=>{
  const spec=fixtureSpec('jhipster');const sha='a'.repeat(40), hash='b'.repeat(64);

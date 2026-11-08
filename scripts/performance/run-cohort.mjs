@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { fixtures, schedule, checkBudget, sanitizeSample, validateCohort, verifyBytes } from './control.mjs';
 import { fixtureSpec } from './inputs.mjs';
 import { warm } from './warm.mjs';
-import { parseCollectorResult } from './collector-output.mjs';
+import { parseCollectorResult, failureKind } from './collector-output.mjs';
 
 // PA07–PA10: the parent owns serial scheduling and a sanitized incomplete report.
 // Raw collector stdout/stderr stays in memory and is never forwarded/uploaded.
@@ -64,6 +64,7 @@ async function member(route,name){
       if(code!==0||overflow){
         const boundary=output.match(/P01B_FAILURE_STAGE (identity|engine_start|configuration|uncached|cached|oracle)\b/);
         report.failureStage=boundary?.[1]||'collector_exit';persist();
+        report.failureKind=failureKind(output);persist();
         reject(new Error('Collector failed; private diagnostics withheld'));
       }else resolve(output);
     });

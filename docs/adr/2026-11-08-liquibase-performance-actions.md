@@ -34,3 +34,22 @@ This changes the execution venue, not the earlier accepted actual-v1
 comparison (conversation of 2026-10-16, retained in the original worktree's
 2026-10-16-liquibase-performance-baseline.md). Historical Windows
 observations remain diagnostics and cannot be pooled into Linux timings.
+
+## Acquisition reliability within the approved PA02 boundary
+
+- Conversation/implementation date: 2026-11-08, Asia/Novosibirsk; exact user
+  reply timestamp unavailable. This is implementation of the approved inventory,
+  not a new approval attributed to the user.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: repeated preparation-only HTTP/transport failures prevent obtaining
+  the already pinned release on fresh hosted VMs. Retry whole jobs, use a
+  different reference, or retry acquisition through the system transport?
+- Decision: at most three transient Node acquisition attempts, then one bounded
+  system curl attempt against the **same public release URL**, with the same
+  mandatory SHA256 before extraction/execution. A received checksum mismatch
+  fails immediately, without trying another reference. No measured sample is
+  retried/replaced by this policy; all acquisition precedes measurement.
+- Rationale: preserve immutable artifact identity while accommodating transient
+  transport failure. No private access, paid runner, alternate v1 build, product
+  compatibility change or speed waiver is introduced. Exhaustion remains failure.

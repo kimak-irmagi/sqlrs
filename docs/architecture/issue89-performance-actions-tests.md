@@ -113,3 +113,22 @@ checks and Docker event barriers precede sample acceptance. Reports remain
 incomplete until child exit, full DB oracle and exact cleanup all succeed.
 PA11/PA12, six-hour feasibility and complete adapter/collector coverage remain
 open until real execution; no acceptance follows from this checkpoint.
+
+Actual Ubuntu fast Node/Go tests and `go vet` now also pass in the new ordinary
+CI job. The preparation VM verified published Linux RC7 and the second VM's
+candidate hash matched the first VM. However, runs 42470634262, 42470856975,
+42471396560 and 42471864295 all stopped **before measurement**: respectively
+Temurin provider selector, JDK HTTP 504, release download, and exhausted release
+transport. The selector now uses the provider's full name for the same Java
+build; acquisition has bounded retries/verified same-URL system fallback. No
+sample, actual-engine workload compatibility or full budget is established by
+these runs. Run 42472235367 retries preparation on source 16ee722; native
+qualification remains open. The later helper additions retain 100% line coverage
+of the four exercised Node modules, not the complete process adapters/Go harness.
+
+Run 42472235367 completed both preparation stages and entered the actual RC7
+JHipster uncached workload, which failed before a verified result. The sanitized
+artifact has zero records and `failureStage=uncached`, so no sample is accepted.
+Fixed failure classes are now added to distinguish known input/driver/runtime
+operations without retaining raw engine messages/details/SQL. This improves
+diagnosis only; it does not relax either artifact or workload validation.
