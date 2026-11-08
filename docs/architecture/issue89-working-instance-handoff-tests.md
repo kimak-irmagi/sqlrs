@@ -321,3 +321,35 @@ managed access correctly rejected a runtime path containing the platform's
 `/var` symlink. The positive fixture now resolves its temporary root with
 filepath.EvalSymlinks; the expected outcomes and product symlink prohibition are
 unchanged. This is a new-test preparation correction, not a waived regression.
+
+## Coordinator completion checks, 2026-11-08
+
+The complete local Windows CLI module and its vet passed again. After the
+physical-path correction all fresh CI test/documentation jobs passed on the
+three platforms; coverage-merge remains red under the separately approved #89
+exception, not a test pass or a changed shared threshold.
+
+All four new native coordinator refusal cases passed on Linux as UID 1000:
+stop, DB resume, publication and private-parent removal (261.05 s total). Before
+fallback, each retains the exact parent/database IDs, one active session, the
+three completed SQL steps and the unchanged complete capture-slot rows including
+the final invocation. Only the already committed-publication case has an instance
+pin; no case invents terminal success, a replacement runtime or another SQL step.
+The stopped-parent refusal also passed on current Windows (145.83 s).
+
+The first Windows refusal run found an incorrect new-test assumption of exactly
+two occupied slots. Normal pruning may already have removed the older output.
+The corrected oracle requires the identical pre/post slot rows, the final output
+and the existing maximum of two, not a fabricated second owner. The four original
+failed assertions are not counted as passing Windows evidence. The later focused
+Windows stop rerun and complete Linux refusal run above use the corrected oracle.
+
+The stronger Windows Docker ownership rerun passed (151.77 s), including explicit
+absence of the runtime directory after ordinary instance deletion. The new
+ordinary directory tests also cover exact ownership, ownership-read failure and
+an unrelated neighboring pathname without prefix-based false protection.
+None of these functional durations is a performance comparison.
+
+The current Linux observer/ownership rerun also passed as UID 1000 (65.59/59.76 s),
+including the explicit runtime-directory removal assertion. Native observer runs
+overlapped only other functional tests and are not isolated timing samples.

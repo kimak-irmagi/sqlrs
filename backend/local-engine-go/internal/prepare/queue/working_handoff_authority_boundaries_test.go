@@ -175,8 +175,8 @@ BEGIN SELECT RAISE(ABORT,'WH exact private retirement boundary'); END`)
 					control.field = "unavailable"
 				}
 			}
-			// Read through the writer handle before acquiring the peer's lock;
-			// the peer pool intentionally has just one connection.
+			// Read through the writer handle: the peer's sole connection may be
+			// intentionally occupied by the COMMIT-BUSY read transaction.
 			before := mainPathJournalRows(t, db)
 			probe := &handoffAbsence{db: db, session: f.session, database: f.binding.RuntimeRef}
 			err = q.RetireTransferredLiquibaseSession(t.Context(), f.session, probe, mainPathJournalUTC)

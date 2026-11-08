@@ -2,6 +2,7 @@ package prepare
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -38,6 +39,56 @@ func TestWorkingInstanceHandoffJobDirectory(t *testing.T) {
 	}
 	if body, err := os.ReadFile(marker); err != nil || string(body) != "instance-owned" {
 		t.Fatal("job cleanup removed published runtime bytes", err)
+	}
+}
+
+// WH06: fail closed on unreadable ownership, but do not mistake a neighboring
+// job with a shared string prefix for an owner of the directory being removed.
+func TestWorkingInstanceHandoffJobDirectoryBoundaries(t *testing.T) {
+	for _, variant := range []string{"unreadable", "exact-directory", "neighbor"} {
+		t.Run(variant, func(t *testing.T) {
+			root := t.TempDir()
+			jobDir := filepath.Join(root, "jobs", "handoff-job")
+			if err := os.MkdirAll(jobDir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			marker := filepath.Join(jobDir, "owned-by-instance")
+			if err := os.WriteFile(marker, []byte("keep"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			s := &handoffOwnedStore{}
+			if variant == "unreadable" {
+				s.err = errors.New("WH instance ownership read unavailable")
+			} else {
+				runtimeDir := jobDir
+				if variant == "neighbor" {
+					runtimeDir += "-other"
+					if err := os.MkdirAll(runtimeDir, 0700); err != nil {
+						t.Fatal(err)
+					}
+				}
+				s.live = []store.InstanceEntry{{InstanceID: "instance", RuntimeDir: &runtimeDir}}
+			}
+			m := &PrepareService{store: s, stateStoreRoot: root}
+			err := m.removeJobDir("handoff-job")
+			if variant == "unreadable" {
+				if !errors.Is(err, s.err) {
+					t.Fatal("ownership read failure was hidden", err)
+				}
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			if variant == "neighbor" {
+				if _, err := os.Stat(jobDir); !os.IsNotExist(err) {
+					t.Fatal("unrelated neighbor prevented ordinary job cleanup", err)
+				}
+				if _, err := os.Stat(*s.live[0].RuntimeDir); err != nil {
+					t.Fatal("job cleanup removed a neighboring instance", err)
+				}
+			} else if body, err := os.ReadFile(marker); err != nil || string(body) != "keep" {
+				t.Fatal("uncertain or exact ownership allowed directory destruction", err)
+			}
+		})
 	}
 }
 
@@ -86,5 +137,8 @@ func TestWorkingInstanceHandoffDockerOwnership(t *testing.T) {
 	}
 	if err := f.rt.VerifyContainerAbsent(f.ctx, runtimeID); err != nil {
 		t.Fatal("instance runtime leaked before fallback", err)
+	}
+	if _, err := os.Stat(*instances[0].RuntimeDir); !os.IsNotExist(err) {
+		t.Fatal("ordinary instance disposal retained its runtime directory", err)
 	}
 }
