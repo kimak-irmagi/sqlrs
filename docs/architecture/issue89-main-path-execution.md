@@ -205,3 +205,9 @@ helpers cover 174/174 statements (100%). The unchanged native scenario moved to
 `_test.go`; 383 reclassified assertions are not counted as newly tested helpers.
 No running cohort, product behavior or statistical rule changes. #89/#175 remain
 open pending the remaining gates.
+
+The four completed short-workload Actions cohorts now confirm slower v2 in
+uncached and cached passes, beyond the observed controls on both independent
+VMs. The two 102-change cohorts continue unchanged. See
+[paired results and retained evidence](issue89-actions-performance-results-2026-11-08.md).
+This is a release-blocking timing failure, not a waived gate or completed #89.

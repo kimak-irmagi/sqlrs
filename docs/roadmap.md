@@ -100,6 +100,11 @@ speed acceptance remains open. Ordinary Go collector helpers pass HC01–HC07 at
 in `_test.go`. This is not aggregate product coverage or completed #89. See
 [helper evidence](architecture/issue89-performance-actions-tests.md).
 
+The completed JHipster and 12-change MobilityData comparison/confirmation
+cohorts reproduce slower v2 beyond their noise controls. Speed acceptance is
+therefore blocked, not merely awaiting an all-green collection; the 102-change
+cohorts continue. See [results](architecture/issue89-actions-performance-results-2026-11-08.md).
+
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
 qualification and the agreed repeated v1 performance
 comparison are still pending. Deferred recovery/SQLite/search work
