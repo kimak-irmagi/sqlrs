@@ -162,14 +162,18 @@ remaining P0–P2. Exact acquisition/root checks TA01–TA06 are approved, and t
 repeated old-test audit found no contradictions. No old test changed; TA06
 remains the actual remote stage.
 
-## Proposed: terminal exec without a confirmed result
+## Approved: terminal exec without a confirmed result
+
+Status: explicitly approved by @evilguest on 2026-11-09; exact reply time unavailable.
+The separate EU01–EU06 inventory linked below still needs approval before tests
+or implementation are written.
 
 2026-11-09: retry `42612253733` again failed at member 3 with `trace_5`.
 Its exec attempt started no later than the final API boundary, so the narrow
 late-cleanup exception correctly did not apply. This does not establish that
 the record is a migration application or that any specific program was launched.
 
-Propose an explicit measured-decoding mode only:
+Approve an explicit measured-decoding mode only:
 
 - Given an observed exec entry and exact terminal record for the same process,
   but no exec result, retain **exec.unconfirmed** from attempt start to terminal
@@ -190,6 +194,6 @@ Alternative: retain full rejection and separately design another observation
 method. Recommend the explicit uncertain interval: distinguish known duration
 from unknown execution result honestly. Critical review addressed P1 false
 success/attribution and P1 corrupt-stream acceptance with the stated limits;
-repeat review found no additional P0–P2. Decision is pending. A separate exact
-test inventory must follow approval; this mode is not implemented and current
-strict checks have not been weakened.
+repeat review found no additional P0–P2. The decision is approved; see separate
+[EU01–EU06 tests](issue89-performance-diagnostic-tests.md#proposed-eu01eu06-unconfirmed-exec).
+This mode is not implemented and current strict checks have not been weakened.

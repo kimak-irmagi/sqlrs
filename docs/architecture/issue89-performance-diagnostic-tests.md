@@ -311,6 +311,83 @@ This does not yet locate it relative to both windows or identify any program.
 The [original report](issue89-diagnostic-evidence-2026-11-09/42612253733/jhipster-diagnostic.json),
 SHA256 `e0bacb484732934de17c0e6cc72b444273c71c9e09e09cb71a70d686b12223b1`, is retained.
 All ordinary CI `42612254604` jobs pass; only the aggregate coverage gate is red.
-The separately labelled `exec.unconfirmed` proposal awaits approval at the end
-of the diagnostic design. It is not implemented and its new tests are not written.
+The separately labelled `exec.unconfirmed` design was approved on 2026-11-09.
+It is not implemented and its new tests are not written; the separate inventory
+below still needs approval.
 TA06/DG11 and exact slowdown localisation remain unfinished; speed acceptance is blocked.
+
+## Proposed: EU01–EU06, unconfirmed exec
+
+Status: component design approved; this inventory passed critical and repeat
+review but is not yet approved. Observer-only addition; no new tests/code written
+and no existing test changes proposed.
+
+1. **EU01 — exact interval, not a launch claim.** Independently authored execve/
+   execveat entry-without-result records followed by the same PID's natural zero,
+   nonzero or signal exit. Only explicit measured mode returns `exec.unconfirmed`
+   with exact start/end; without a prior image, there are no other intervals.
+   With a prior confirmed image, that image ends exactly at attempt start, not
+   exit. Confirmed successful and explicitly failed exec retain their existing
+   behaviour. Engine-PID cases remain excluded from child-command reporting.
+   Neither category nor exit code establishes a successful JVM/CLI launch.
+2. **EU02 — strict mode and insufficient evidence.** Keep existing negative
+   tests, including `pending_exit`, unchanged. New paired checks require the
+   same EU01 input to fail in strict mode; the old narrow late-cleanup boundary
+   also remains unchanged. Measured mode still rejects absent terminal records,
+   another PID's exit, reversed time, duplicate pending, orphan resume, quotas,
+   read failure and malformed entries without partial success. Specifically test
+   a line ending in `<unfinished ...>` that is not a valid exec entry: the new
+   branch must not bypass format checks. Interleaved PIDs, reuse after exit and
+   a non-exec thread exit cannot merge histories or invent intervals. Errors
+   contain no original data.
+3. **EU03 — windows, union and counts.** Hand-calculated expectations cover
+   uncertainty inside each API window, crossing a boundary, between windows,
+   strictly after the final boundary and spanning both windows. Clip separately;
+   outside-window time contributes nothing. The prior image and uncertain span
+   of one PID cannot overlap; other-PID overlaps use union, not addition.
+   Assert exact `CoveredMS`, `ResidualMS`, `Commands` and zero duration: no negative
+   residual or empty added interval. `Commands` counts displayed intervals;
+   independent Liquibase application/planning counts do not increase.
+4. **EU04 — closed report and explicit uncertainty.** Go serialization and the
+   actual Node decoder accept only the exact new category in the existing
+   interval shape. Reject near-miss labels, extra fields, bad bounds, wrong
+   interval counts and forged summary totals. Program/argv sentinels appear in
+   neither JSON nor errors. Plain runs retain null Trace. The interval is not
+   relabelled Java/Docker and cannot change independent counters. Material unknown
+   time stays a visible limitation, not a causal finding or speed acceptance.
+5. **EU05 — explicit wiring and finished observation.** A named internal measured
+   entry point leaves default strict and existing late-boundary calls unchanged.
+   A small test through actual finish with a private temporary stream/file proves
+   mode selection and exact intervals, not just collector text. Collector wiring
+   checks require owned-tree stop, reader join, parsing, then report emission;
+   transport/unproved-stop failures cannot be repaired by an uncertain interval.
+   EU06 additionally proves actual tree ordering. No raw stream/new read boundary
+   or product changes.
+6. **EU06 — regressions and real retry.** Full small Go/Node tests, Linux vet,
+   script/Actions syntax and a fresh per-line helper profile (target 100%, minimum
+   95%). Then explicitly launch Actions on a pinned new observer: identical
+   binaries/hashes, mandatory native strace smoke, the same eight serial members,
+   DB/cache oracles, exact counters and cleanup. Do not rewrite old incomplete
+   reports. Retain another failure as failure, never delete records to obtain a
+   green report. Complete diagnostic collection alone neither closes P01b nor
+   authorises a product fix.
+
+Critical review and corrections:
+
+- P1 attributing unknown time to a prior JVM: EU01/EU03 require its exact boundary
+  and independent numeric expectations.
+- P1 accepting malformed unfinished input unchecked: EU02 requires a distinct
+  negative control before interval creation; EOF/another PID's exit is not proof.
+- P1 accepting any terminal PID/zero exit as a successful launch: EU01/EU02 check
+  linkage, PID reuse and unchanged independent counts.
+- P2 only the decoder is exercised, leaving collector wiring absent: EU05 tests
+  actual finish and collector selection; EU06 confirms actual Actions.
+- P2 Go accepts a category that Node drops/distorts: EU04 covers both sides,
+  shape/totals and private-data exclusion.
+- P2 green collection claims a regression fix: EU04/EU06 retain attribution limits
+  and the existing speed criterion.
+
+Repeat review found no remaining P0–P2 in this inventory. Preliminary audit of
+strict/late-cleanup tests indicates a separate explicit mode can preserve them
+unchanged. Repeat that audit after approval and separately agree any new conflict.
+No local Liquibase/DB workload: only small observer checks may run on the laptop.
