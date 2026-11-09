@@ -106,7 +106,9 @@ therefore blocked, not merely awaiting an all-green collection. The 102-change
 comparison and confirmation are also collected. The diagnostic design and
 DG01–DG12 / OT-DG01–OT-DG03 are approved. DC01–DC03 are approved and pass:
 Go helpers cover 98.0% (494/504), Node 100% lines; Linux vet passes.
-Remote diagnostic DG11 is the next unfinished stage. See
+API acquisition/fixed-source preparation TA01–TA05 also pass after separate
+approval (32 Node tests, ordinary helpers 100% lines). Remote TA06/DG11 is the
+next unfinished stage. See
 [results](architecture/issue89-actions-performance-results-2026-11-08.md).
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head

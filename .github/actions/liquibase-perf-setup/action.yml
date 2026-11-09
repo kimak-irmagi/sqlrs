@@ -7,6 +7,9 @@ inputs:
   expected_engine_sha:
     required: false
     description: Artifact hash established on the first preparation VM
+  source_root:
+    required: false
+    description: Explicit fixed source checkout; empty retains the action checkout
 outputs:
   engine_sha:
     description: Verified candidate artifact SHA256
@@ -42,4 +45,6 @@ runs:
       env:
         PERFORMANCE_CANDIDATE: ${{ inputs.candidate_sha }}
         PERFORMANCE_EXPECTED_ENGINE_SHA: ${{ inputs.expected_engine_sha }}
-      run: node scripts/performance/prepare.mjs
+        PERFORMANCE_SOURCE_ROOT: ${{ inputs.source_root }}
+        PERFORMANCE_PREPARE_SCRIPT: ${{ github.action_path }}/../../../scripts/performance/prepare.mjs
+      run: node "$PERFORMANCE_PREPARE_SCRIPT"

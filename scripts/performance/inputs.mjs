@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+
 /** Public source/image pins, from independently recorded natural-run oracles.
  * PA03: a benchmark never follows a mutable default branch or latest tag.
  */
@@ -27,4 +31,24 @@ export function validateMetadata(text, expected) {
   const settings = Object.fromEntries([...text.matchAll(/^\s*build\s+([^=\s]+)=(.*)$/gm)].map(m => [m[1], m[2].trim()]));
   if (!/^[a-f0-9]{40}$/.test(expected) || settings['vcs.revision'] !== expected || settings['vcs.modified'] !== 'false'
     || settings.GOOS !== 'linux' || settings.GOARCH !== 'amd64') throw new Error('Artifact build provenance differs');
+}
+
+/** TA03: choose build input independently of observer tooling, before writes.
+ * Explicit roots must be the hosted workspace; Git checks are read-only.
+ * Contract: issue89-performance-diagnostic-design.md API preparation amendment.
+ */
+export function preparationCheckout({ownRoot,sourceRoot,workspace,revision}){
+  let root;
+  try{
+    const selected=sourceRoot||ownRoot;
+    if(!path.isAbsolute(selected))throw new Error();
+    root=fs.realpathSync(selected);
+    if(!fs.statSync(root).isDirectory())throw new Error();
+    if(sourceRoot&&(!workspace||!path.isAbsolute(workspace)||fs.realpathSync(workspace)!==root))throw new Error();
+  }catch{throw new Error('Invalid preparation source root');}
+  try{
+    const git=args=>execFileSync('git',args,{cwd:root,encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:10000}).trim();
+    if(!/^[a-f0-9]{40}$/.test(revision||'')||git(['rev-parse','HEAD'])!==revision||git(['status','--porcelain','--untracked-files=no']))throw new Error();
+  }catch{throw new Error('Candidate checkout is not the fixed clean source');}
+  return root;
 }

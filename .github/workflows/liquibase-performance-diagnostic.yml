@@ -32,8 +32,9 @@ jobs:
           path: .tmp/performance-observer
           persist-credentials: false
           fetch-depth: 1
-      - uses: ./.github/actions/liquibase-perf-setup
+      - uses: ./.tmp/performance-observer/.github/actions/liquibase-perf-setup
         with:
+          source_root: ${{ github.workspace }}
           candidate_sha: 668d5050ad154c1967bea4c6e40b91f3a703d5ba
           expected_engine_sha: 1367bce9ddaa44c0aa378b07c015dfb20a4c0d29f00d2f5a893905686fae14b0
       - name: Prepare external observer only

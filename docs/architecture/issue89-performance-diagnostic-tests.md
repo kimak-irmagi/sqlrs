@@ -190,9 +190,10 @@ result failures; they are not claimed tested or dead. Next is DG11 on Actions.
 
 ## TA01–TA06: archive acquisition and fixed build-source root
 
-Status: awaiting inventory approval, 2026-11-09. The clarification at the end of
+Status: TA01–TA06 approved by @evilguest on 2026-11-09 before tests/code; exact
+reply time unavailable. The clarification at the end of
 [the diagnostic design](issue89-performance-diagnostic-design.md) is approved.
-No new tests or implementation for it yet. Three preparation failures in
+Repeated old-test audit found no contradictions or amendments. Three preparation failures in
 `42580413674` produced no measurements and do not satisfy DG11.
 
 1. **TA01 — transport ordering and identical bytes.** Small independent fixtures
@@ -258,4 +259,14 @@ Critical review and corrections:
 
 Repeat review found no remaining P0–P2. Preliminary audit of old download/inputs/
 workflow/diagnostic tests found no contradictions; no amendments are proposed.
-Repeat the audit after approval and implement tests first.
+The post-approval audit was repeated; implementation begins with tests.
+
+Small TA01–TA05 execution is complete: the first test run rejected the not-yet
+implemented helpers as expected, then implementation passed all **32 Node tests**,
+script/YAML checks, full small Go tests and Linux vet. The five ordinary Node
+helpers cover **100% lines / 95.75% branches**; Go covers **98.0% (494/504 statements)**.
+The unfiltered Node profile is 83.70% lines: it also includes the partially
+executed `prepare.mjs` process and imported JDBC code. That is a different
+denominator, not complete preparation/JDBC coverage or proof of a real build.
+No product files/old tests changed. Next is TA06/DG11 on Actions; neither an
+exact slowdown cause nor successful diagnostic collection is claimed yet.

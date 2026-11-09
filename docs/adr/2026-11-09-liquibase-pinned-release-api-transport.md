@@ -3,7 +3,8 @@
 - Conversation date: 2026-11-09, Asia/Novosibirsk; exact reply time unavailable.
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.
-- Status: component clarification explicitly approved; separate tests await approval.
+- Status: component clarification and, separately, TA01–TA06 explicitly approved
+  before tests/code on 2026-11-09; no old-test amendments authorised or needed.
 - Question: three diagnostic preparations fail on HTTP 504 from the browser
   download URL, before any measurements. Wait indefinitely, rebuild/substitute
   v1, patch the measured checkout, or acquire identical bytes via official API?

@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { diagnosticSelection, diagnosticIdentity, diagnosticSchedule, parseDiagnosticOutput } from './diagnostic.mjs';
 import { parseCollectorResult, failureKind, cleanupBoundary } from './collector-output.mjs';
 import { fixtureSpec } from './inputs.mjs';
-import { verifyBytes } from './control.mjs';
+import { verifyBytes, baselineArchiveSHA, baselineReleaseAPI } from './control.mjs';
+import { downloadPinned } from './download.mjs';
 import { warm } from './warm.mjs';
 
 // docs/architecture/issue89-performance-diagnostic-design.md DG10/DG11:
@@ -41,6 +42,10 @@ try{
   const jobStarted=Number(process.env.PERFORMANCE_JOB_STARTED_MS);
   if(!Number.isFinite(jobStarted)||jobStarted>Date.now())throw new Error('Invalid diagnostic budget');
   const deadline=jobStarted+50*60*1000;
+  // TA06: independently prove the official API bytes even if the browser URL
+  // has recovered. This is outside timing; it never substitutes another v1.
+  await downloadPinned(baselineReleaseAPI,baselineArchiveSHA,{fetchImpl:(url,options)=>fetch(url,{...options,headers:{Accept:'application/octet-stream'}})});
+  report.baselineAPIArchiveSHA256=baselineArchiveSHA;persist();
   warm(repo,['jhipster']);
   const spec=fixtureSpec('jhipster');
   for(const item of diagnosticSchedule()){

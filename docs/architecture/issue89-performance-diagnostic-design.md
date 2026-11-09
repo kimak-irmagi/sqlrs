@@ -117,7 +117,8 @@ three explicit collector amendments have since been approved.
 ## Approved clarification: acquire the same archive through Releases API
 
 Status: approved by @evilguest on 2026-11-09; exact reply time unavailable.
-No code change yet: the separate test inventory awaits approval. Diagnostic run
+TA01–TA06 were separately approved before tests/code. Preparation is implemented
+and passes small tests; its actual Actions retry is not complete yet. Diagnostic run
 `42580413674` failed three times before measurements: its browser download URL
 returned HTTP 504 through both Node and curl. Unchanged retries have stopped;
 strace/the eight members never ran and no diagnostic report was produced.
@@ -157,5 +158,6 @@ root/clean HEAD and both original executable hashes remain mandatory; P1 JSON
 or wrong bytes enable a bypass — byte verification is mandatory and final;
 P2 duplicated setup/global transport hooks — reuse the same action, with no
 fetch interception, source patch or expanded permission. Repeat review found no
-remaining P0–P2. Exact acquisition/root checks TA01–TA06 are drafted in the test
-inventory amendment; their approval and old-test audit precede implementation.
+remaining P0–P2. Exact acquisition/root checks TA01–TA06 are approved, and the
+repeated old-test audit found no contradictions. No old test changed; TA06
+remains the actual remote stage.

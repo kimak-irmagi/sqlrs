@@ -4,17 +4,17 @@ import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { installJdbcDriver } from '../jdbc-driver-bundle.mjs';
-import { baselineRevision, baselineArchiveSHA, verifyBytes, safeArchiveNames } from './control.mjs';
-import { validateMetadata } from './inputs.mjs';
+import { baselineRevision, baselineArchiveSHA, baselineReleaseAPI, verifyBytes, safeArchiveNames } from './control.mjs';
+import { validateMetadata, preparationCheckout } from './inputs.mjs';
 import { downloadPinned } from './download.mjs';
 
-const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const sha = process.env.PERFORMANCE_CANDIDATE;
+const repo = preparationCheckout({ownRoot:path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..'),
+  sourceRoot:process.env.PERFORMANCE_SOURCE_ROOT,workspace:process.env.GITHUB_WORKSPACE,revision:sha});
 const root = path.join(repo, '.tmp/performance');
 const prepared = path.join(root, 'prepared');
 fs.mkdirSync(prepared, { recursive: true, mode: 0o700 });
 const run = (cmd, args, cwd = repo, env = {}) => execFileSync(cmd, args, { cwd, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['ignore','pipe','pipe'], timeout: 15 * 60 * 1000 });
-const sha = process.env.PERFORMANCE_CANDIDATE;
-if (!/^[a-f0-9]{40}$/.test(sha || '') || run('git',['rev-parse','HEAD']).trim() !== sha || run('git',['status','--porcelain','--untracked-files=no']).trim()) throw new Error('Candidate checkout is not the fixed clean source');
 const started = Number(process.env.PERFORMANCE_JOB_STARTED_MS || Date.now());
 if(!Number.isFinite(started)||started<=0||started>Date.now())throw new Error('Invalid hosted budget start');
 run('node',['scripts/fetch-sql-scripts.mjs','--lock','--source-prefix','jdbc-postgresql-']);
@@ -32,7 +32,7 @@ run('go',['test','-c','-o',path.join(prepared,'collector.test'),'.'],path.join(r
 const baseline = path.join(prepared,'baseline');
 fs.mkdirSync(baseline,{recursive:true});
 const releaseURL='https://github.com/kimak-irmagi/sqlrs/releases/download/v0.1.1-rc.7/sqlrs_v0.1.1_linux_amd64.tar.gz';
-const bytes=await downloadPinned(releaseURL,baselineArchiveSHA,{fallback:()=>{
+const bytes=await downloadPinned(releaseURL,baselineArchiveSHA,{apiURL:baselineReleaseAPI,fallback:()=>{
   // Same public release and mandatory pin; curl also supports the runner's
   // system transport/proxy configuration when Node fetch cannot acquire it.
   try{return execFileSync('curl',['--silent','--show-error','--fail','--location','--connect-timeout','15','--max-time','120',releaseURL],

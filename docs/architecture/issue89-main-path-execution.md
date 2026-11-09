@@ -220,6 +220,7 @@ This is a release-blocking timing failure, not a waived gate or completed #89.
 2026-11-09: all three attempts of diagnostic run `42580413674` stopped before
 measurement on release-archive HTTP 504. The official Releases API independently
 returned the archive with the original SHA256; its binary was not run.
-The preparation clarification is approved; TA01–TA06 await separate approval
-before tests/code. No diagnostic report or established slowdown cause exists
+The preparation clarification and TA01–TA06 are approved. Implementation passes
+32 Node tests/full small Go/vet (Node helpers 100% lines, Go 98.0%). Actual TA06
+retry is not complete yet. No diagnostic report or established slowdown cause exists
 yet; the product is unchanged.

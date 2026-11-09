@@ -4,6 +4,7 @@ import path from 'node:path';
 export const fixtures = ['jhipster', 'mobilitydata-user', 'mobilitydata-main'];
 export const baselineRevision = 'cab99c4c7ced5b18f4dc43a65b002d84d8fef02d';
 export const baselineArchiveSHA = 'da6132c95185f2a11561628458d34b22e7cb928c574d8ecec9f06d44fc8d0f01';
+export const baselineReleaseAPI = 'https://api.github.com/repos/kimak-irmagi/sqlrs/releases/assets/583092383';
 const sha40 = /^[a-f0-9]{40}$/;
 const sha64 = /^[a-f0-9]{64}$/;
 const digest = /^sha256:[a-f0-9]{64}$/;

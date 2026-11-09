@@ -39,7 +39,9 @@ Its explicit `performance:diagnostic` label schedules eight serial members on
 the original fixed binaries, not another acceptance cohort. Three attempts of
 run `42580413674` failed on release-download HTTP 504 before any measurements.
 The official-API acquisition and observer-owned preparation clarification is
-approved; TA01–TA06 await separate approval before implementation. See
+approved along with TA01–TA06; preparation is implemented, with 32 small Node
+tests passing (five ordinary helpers 100% lines), Go 98.0% and Linux vet passing.
+Actual TA06 diagnostic retry remains unfinished. See
 [diagnostic design](../../../docs/architecture/issue89-performance-diagnostic-design.md)
 and [tests](../../../docs/architecture/issue89-performance-diagnostic-tests.md).
 The native collector test is explicitly opted in only by the Actions scheduler.
