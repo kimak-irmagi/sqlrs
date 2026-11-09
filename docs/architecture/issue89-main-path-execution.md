@@ -224,3 +224,11 @@ The preparation clarification and TA01–TA06 are approved. Implementation passe
 32 Node tests/full small Go/vet (Node helpers 100% lines, Go 98.0%). Actual TA06
 retry is not complete yet. No diagnostic report or established slowdown cause exists
 yet; the product is unchanged.
+
+`42603675428` subsequently passed preparation/API/strace and two plain members,
+but failed on the first traced v1; the original incomplete report is retained in
+the test-inventory amendment. DG03/DG09 now expose only closed failure codes for
+the next retry. CI `42603673967`: the first native managed-access attempt failed
+on retry after cancellation boundary 23; unchanged code/tests passed attempt 2.
+This is not claimed as a fix for that failure's cause. Only the existing aggregate
+coverage gate is red on attempt 2; the speed criterion is not waived.

@@ -18,6 +18,22 @@ var diagnosticCString = regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
 var diagnosticExecReturn = regexp.MustCompile(`\) = (-?[0-9]+)(?: [A-Z][A-Z0-9_]*(?: \([^\n]*\))?)?(?: <[0-9.]+>)?$`)
 var diagnosticExit = regexp.MustCompile(`^\+\+\+ (?:exited with [0-9]+|killed by SIG[A-Z0-9]+(?: \(core dumped\))?) \+\+\+$`)
 
+// diagnosticDecodeError stores a fixed code only, never a copy of trace data.
+// DG03/DG09 checkpoints: 1 quota, 2 framing, 3 PID, 4 time, 5 pending exit,
+// 6 duplicate pending, 7 orphan resume, 8 record kind, 9 result syntax,
+// 10 result value, 11 program, 12 program escape, 13 argv shape, 14 argv quote,
+// 15 argv escape, 16 separator/truncation, 17 stream/incomplete lifecycle.
+type diagnosticDecodeError struct{ code int }
+
+func (diagnosticDecodeError) Error() string { return "incomplete diagnostic trace" }
+func diagnosticDecodeCode(err error) int {
+	var value diagnosticDecodeError
+	if errors.As(err, &value) && value.code >= 1 && value.code <= 17 {
+		return value.code
+	}
+	return 0
+}
+
 // diagnosticInterval has no process IDs/argv. The contract is recorded in
 // docs/architecture/issue89-performance-diagnostic-design.md. DG03/DG05 retain executable
 // segments privately until they can be clipped into relative public intervals.
@@ -124,25 +140,25 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval
 	for scanner.Scan() {
 		lines++
 		if lines > 250000 {
-			return nil, errDiagnosticTrace
+			return nil, diagnosticDecodeError{1}
 		}
 		m := diagnosticTraceLine.FindStringSubmatch(scanner.Text())
 		if m == nil {
-			return nil, errDiagnosticTrace
+			return nil, diagnosticDecodeError{2}
 		}
 		pid, err := strconv.Atoi(m[1])
 		if err != nil || pid < 1 {
-			return nil, errDiagnosticTrace
+			return nil, diagnosticDecodeError{3}
 		}
 		at, err := diagnosticTimestamp(m[2])
 		if err != nil || at < last[pid] {
-			return nil, errDiagnosticTrace
+			return nil, diagnosticDecodeError{4}
 		}
 		last[pid] = at
 		body := m[3]
 		if diagnosticExit.MatchString(body) {
 			if _, found := pending[pid]; found {
-				return nil, errDiagnosticTrace
+				return nil, diagnosticDecodeError{5}
 			}
 			if item, found := active[pid]; found {
 				item.EndNS = at
@@ -156,7 +172,7 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval
 		start := at
 		if strings.HasSuffix(body, "<unfinished ...>") {
 			if _, found := pending[pid]; found {
-				return nil, errDiagnosticTrace
+				return nil, diagnosticDecodeError{6}
 			}
 			pending[pid] = partial{strings.Split(body, "<unfinished ...>")[0], at}
 			continue
@@ -164,7 +180,7 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval
 		if strings.HasPrefix(body, "<... execve resumed>") || strings.HasPrefix(body, "<... execveat resumed>") {
 			p, found := pending[pid]
 			if !found {
-				return nil, errDiagnosticTrace
+				return nil, diagnosticDecodeError{7}
 			}
 			delete(pending, pid)
 			close := strings.Index(body, ">")
@@ -172,30 +188,30 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval
 			start = p.at
 		}
 		if !strings.HasPrefix(body, "execve(") && !strings.HasPrefix(body, "execveat(") {
-			return nil, errDiagnosticTrace
+			return nil, diagnosticDecodeError{8}
 		}
 		returned := diagnosticExecReturn.FindStringSubmatch(body)
 		if returned == nil {
-			return nil, errDiagnosticTrace
+			return nil, diagnosticDecodeError{9}
 		}
 		if returned[1] == "-1" {
 			continue
 		}
 		if returned[1] != "0" {
-			return nil, errDiagnosticTrace
+			return nil, diagnosticDecodeError{10}
 		}
 		loc := diagnosticCString.FindStringIndex(body)
 		if loc == nil {
-			return nil, errDiagnosticTrace
+			return nil, diagnosticDecodeError{11}
 		}
 		program, err := strconv.Unquote(body[loc[0]:loc[1]])
 		if err != nil {
-			return nil, errDiagnosticTrace
+			return nil, diagnosticDecodeError{12}
 		}
 		tail := body[loc[1]:]
 		a, b := strings.Index(tail, "["), strings.LastIndex(tail, "]")
 		if a < 0 || b < a {
-			return nil, errDiagnosticTrace
+			return nil, diagnosticDecodeError{13}
 		}
 		list := tail[a+1 : b]
 		argv := []string{}
@@ -203,17 +219,17 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval
 			list = strings.TrimSpace(list)
 			q := diagnosticCString.FindStringIndex(list)
 			if q == nil || q[0] != 0 {
-				return nil, errDiagnosticTrace
+				return nil, diagnosticDecodeError{14}
 			}
 			value, err := strconv.Unquote(list[:q[1]])
 			if err != nil {
-				return nil, errDiagnosticTrace
+				return nil, diagnosticDecodeError{15}
 			}
 			argv = append(argv, value)
 			list = strings.TrimSpace(list[q[1]:])
 			if list != "" {
 				if list[0] != ',' {
-					return nil, errDiagnosticTrace
+					return nil, diagnosticDecodeError{16}
 				}
 				list = list[1:]
 			}
@@ -227,7 +243,7 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval
 		active[pid] = diagnosticInterval{Category: diagnosticCategory(program, argv), StartNS: start}
 	}
 	if scanner.Err() != nil || len(active) != 0 || len(pending) != 0 {
-		return nil, errDiagnosticTrace
+		return nil, diagnosticDecodeError{17}
 	}
 	return result, nil
 }

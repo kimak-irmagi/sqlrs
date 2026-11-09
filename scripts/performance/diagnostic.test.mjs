@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { parse } from 'yaml';
-import { diagnosticSelection, diagnosticSchedule, diagnosticIdentity, parseDiagnosticOutput } from './diagnostic.mjs';
+import { diagnosticSelection, diagnosticSchedule, diagnosticIdentity, parseDiagnosticOutput, diagnosticFailureKind } from './diagnostic.mjs';
 
 test('DG01: diagnostic opt-in rejects ordinary/fork/unvalidated events',()=>{
   const event={action:'labeled',label:{name:'performance:diagnostic'},pull_request:{head:{sha:'a'.repeat(40),repo:{full_name:'owner/repo'}}}};
@@ -48,6 +48,16 @@ function diagnostic(pass='uncached'){
   return {Pass:pass,Traced:true,ElapsedMS:1000,Phases:[{Category:'job',Ordinal:0,Available:true,StartMS:0,EndMS:900}],
     Trace:{CoveredMS:700,ResidualMS:300,Commands:1,Intervals:[{Category:'docker.copy',StartMS:200,EndMS:900}]}};
 }
+
+test('DG09: failure checkpoints are closed enums, never copied trace bytes',()=>{
+ for(const kind of ['process_tree','transport','journal','endpoint','clock',...Array.from({length:18},(_,i)=>`trace_${i}`)]){
+  assert.equal(diagnosticFailureKind(`P01B_DIAGNOSTIC_FAILURE ${kind}\nPRIVATE_SENTINEL`),kind);
+ }
+ for(const kind of ['trace_18','trace_99','PRIVATE_SENTINEL','journal_PRIVATE_SENTINEL','trace_2_PRIVATE_SENTINEL']){
+  assert.equal(diagnosticFailureKind(`P01B_DIAGNOSTIC_FAILURE ${kind}`),'unknown');
+ }
+ assert.equal(diagnosticFailureKind('unclassified PRIVATE_SENTINEL'),'unknown');
+});
 
 test('DG09: closed diagnostic evidence never leaks raw/private fields',()=>{
   const input=[diagnostic(),diagnostic('cached')];

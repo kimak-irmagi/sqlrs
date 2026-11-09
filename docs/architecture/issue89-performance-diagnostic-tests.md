@@ -270,3 +270,22 @@ executed `prepare.mjs` process and imported JDBC code. That is a different
 denominator, not complete preparation/JDBC coverage or proof of a real build.
 No product files/old tests changed. Next is TA06/DG11 on Actions; neither an
 exact slowdown cause nor successful diagnostic collection is claimed yet.
+
+First actual retry `42603675428` verified original hashes, API acquisition and
+strace smoke. Two plain v1/v2 members passed full oracles; member 3 (traced v1)
+failed with generic `unknown`. Collection is **incomplete**; TA06/DG11 remain open.
+The original sanitized report is
+[retained separately](issue89-diagnostic-evidence-2026-11-09/42603675428/jhipster-diagnostic.json),
+SHA256 `23f80833a0be7405535f5f8b69aa21c79b34da933b33a300f3ac9ffe1c94c366`.
+This plain pair neither replaces full cohorts nor establishes a causal explanation.
+
+Within approved DG03/DG09, closed failure output now distinguishes only fixed
+`process_tree/transport/journal/endpoint/clock` or `trace_0`–`trace_17`. Zero means
+no specific decoding checkpoint; 1–17 are fixed quota/framing/time/lifecycle/
+argument/end-of-stream checks documented beside the decoder. No trace lines,
+paths, PIDs or arguments are exported; unreviewed labels remain `unknown`.
+Additional cases within DG03/DG09 check allowed codes, rejection of foreign labels
+and no private marker; existing assertions are unchanged. Full small tests/vet
+pass: Go **499/509 (98.0%)**, Node 33 tests, five ordinary helpers **100% lines /
+95.83% branches**. No new trace-read boundary or product-change authority is
+introduced; the next retry should identify its failed check, not expose raw data.

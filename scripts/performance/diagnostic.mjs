@@ -19,6 +19,11 @@ export function diagnosticSchedule(){
   return [['plain','v1'],['plain','v2'],['trace','v1'],['trace','v2'],['trace','v2'],['trace','v1'],['plain','v2'],['plain','v1']]
     .map(([mode,route],index)=>({id:index+1,mode,route}));
 }
+// DG09: only reviewed checkpoint labels leave the private subprocess buffer.
+export function diagnosticFailureKind(output){
+  const value=output.match(/P01B_DIAGNOSTIC_FAILURE ([a-z0-9_]+)(?:\s|$)/)?.[1];
+  return /^(?:process_tree|transport|journal|endpoint|clock|trace_(?:[0-9]|1[0-7]))$/.test(value||'')?value:'unknown';
+}
 const operations=new Set(['docker.image_inspect','docker.inspect','docker.create','docker.start','docker.stop','docker.remove','docker.copy','docker.run','docker.exec','docker.step','docker.planner','host.java','host.liquibase','host.pg_control','host.pg_identity','other']);
 const phases=new Set(['job','step','plan_task','resolve_task','instance_task','other_task','image_binding','planning','session_start','invocation']);
 const number=n=>Number.isFinite(n)&&n>=0;

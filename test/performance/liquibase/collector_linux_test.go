@@ -353,6 +353,7 @@ func collect(t *testing.T) {
 	if traced {
 		trace, err = newDiagnosticTrace(root)
 		if err != nil {
+			t.Log("P01B_DIAGNOSTIC_FAILURE transport")
 			t.Fatal("private trace unavailable")
 		}
 		// collect's deferred cancellation runs before t.Cleanup. Do not let
@@ -393,16 +394,19 @@ func collect(t *testing.T) {
 			stopCancel()
 			if stopErr != nil {
 				trace.abort()
+				t.Log("P01B_DIAGNOSTIC_FAILURE process_tree")
 				t.Error("diagnostic process tree did not disappear")
 				return
 			}
 			intervals, traceErr := trace.finish(enginePID)
 			if traceErr != nil {
+				t.Logf("P01B_DIAGNOSTIC_FAILURE trace_%d", diagnosticDecodeCode(traceErr))
 				t.Error("diagnostic trace incomplete")
 			} else {
 				for i := range diagnostics {
 					summary, err := summarizeDiagnosticIntervals(intervals, diagnostics[i].start, diagnostics[i].end)
 					if err != nil {
+						t.Log("P01B_DIAGNOSTIC_FAILURE clock")
 						t.Error("diagnostic time window inconsistent")
 						break
 					}
@@ -469,6 +473,9 @@ func collect(t *testing.T) {
 		ownedEndpoint = verifyDiagnosticEndpoint("/proc", state.PID, child.Process.Pid, engine) == nil
 	}
 	if !ownedEndpoint || !strings.HasPrefix(state.Endpoint, "127.0.0.1:") {
+		if diagnostic {
+			t.Log("P01B_DIAGNOSTIC_FAILURE endpoint")
+		}
 		t.Fatal("benchmark endpoint is not the exact spawned local engine")
 	}
 	enginePID = state.PID
@@ -627,6 +634,7 @@ func collect(t *testing.T) {
 			phases, err := readDiagnosticJournal(ctx, db, accepted.JobID, start)
 			if err != nil {
 				db.Close()
+				t.Log("P01B_DIAGNOSTIC_FAILURE journal")
 				t.Fatal("diagnostic journal incomplete")
 			}
 			diagnostics = append(diagnostics, diagnosticPass{Pass: pass, Traced: traced, ElapsedMS: float64(end.Sub(start)) / 1e6, Phases: phases, start: start, end: end})
