@@ -124,8 +124,9 @@ ordinary helper lines 100%). Native CX05 is still open. No new trace format is a
 Actual CX05 `42632130376` proves context transport but remains incomplete at
 traced member 3: `trace_8 / pending_entry / other`, last phase `oracle`. Original
 report retained; no product cause established. The structural-prefix amendment is
-separately approved (recorded 2026-11-10), with reviewed PX01–PX05 awaiting approval.
-Ordinary source CI passes all regressions, only coverage red. No prefix code yet.
+separately approved (recorded 2026-11-10), with PX01–PX05 subsequently approved.
+Prefix implementation passes small Go/vet (579/589, 98.3%) and 39 Node tests
+(helper lines 100%). Native PX05 is open; syntax/product/performance gate unchanged.
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
 qualification and the agreed repeated v1 performance

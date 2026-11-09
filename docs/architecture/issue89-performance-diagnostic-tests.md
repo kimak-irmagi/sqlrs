@@ -518,13 +518,14 @@ hypothesis is not established by this evidence. Existing fixed classifiers canno
 identify the pending prefix beyond `other`; do not treat it as valid exec input.
 Ordinary CI `42632129606` passes all regression jobs; only coverage-merge is red.
 Further prefix observation is separately approved, not an implemented relaxation;
-its exact PX01–PX05 inventory still requires approval.
+its exact PX01–PX05 inventory was subsequently approved before tests/code.
 
 ## Proposed: PX01–PX05, structural prefix observation
 
 Status: explicit @evilguest component approval recorded on 2026-11-10; exact reply
-timestamp unavailable. This inventory passed critical and repeat review and awaits
-separate approval. No prefix tests or implementation written yet.
+timestamp unavailable. This inventory was subsequently explicitly approved on
+2026-11-10 before tests/code. Repeated old-test audit found no contradictions;
+the separate additive boundary preserves old exact-shape assertions.
 
 1. **PX01 — independent grammar/call matrix.** Hand-authored inputs and exact
    expected pairs cover every approved prefix: empty/whitespace, an additional
@@ -583,3 +584,14 @@ Critical review and corrections:
 Repeat review found no remaining P0–P2. Preliminary old-test audit found no
 contradiction with this additive boundary; repeat after approval. No old test
 changes are requested. New contradictions need separate user direction.
+
+### PX small execution checkpoint (2026-11-10)
+
+The first Go build and Node test failed on the absent prefix helpers/export.
+Implementation then passed the full small Go suite and Linux vet: **579/589
+statements (98.3%)**, profile `.tmp/performance/diag-px.out`; new prefix helpers
+are 100%, the same 10 other operators remain uncovered. All **39 Node tests**
+pass; five ordinary helpers cover **100% lines / 96.86% branches**. Old CX/DG/EU
+assertions and exact context-helper return shape are unchanged. No new syntax
+is accepted; ordinary success samples/product bytes remain unchanged. Actual
+PX05 and complete eight-member collection remain unfinished until remote evidence.

@@ -39,6 +39,7 @@ func diagnosticDecodeCode(err error) int {
 type diagnosticContextError struct {
 	cause           error
 	location, shape string
+	prefix          diagnosticPrefixContext
 }
 
 func (diagnosticContextError) Error() string   { return "incomplete diagnostic trace" }
@@ -230,7 +231,7 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 					// Validate the entry, not an invented successful return. A
 					// malformed unfinished line must not bypass argument checks.
 					if _, err := diagnosticExecCategory(p.text); err != nil {
-						return nil, diagnosticContextError{err, "pending_entry", diagnosticRecordShape(p.text)}
+						return nil, newDiagnosticContext(err, "pending_entry", p.text)
 					}
 					imageEnd = p.at
 				} else if cutoff <= 0 || p.at <= cutoff {
@@ -276,7 +277,7 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 			start = p.at
 		}
 		if !strings.HasPrefix(body, "execve(") && !strings.HasPrefix(body, "execveat(") {
-			return nil, diagnosticContextError{diagnosticDecodeError{8}, "record", diagnosticRecordShape(body)}
+			return nil, newDiagnosticContext(diagnosticDecodeError{8}, "record", body)
 		}
 		returned := diagnosticExecReturn.FindStringSubmatch(body)
 		if returned == nil {
@@ -290,7 +291,7 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 		}
 		category, err := diagnosticExecCategory(body)
 		if err != nil {
-			return nil, diagnosticContextError{err, "record", diagnosticRecordShape(body)}
+			return nil, newDiagnosticContext(err, "record", body)
 		}
 		if prior, found := active[pid]; found {
 			prior.EndNS = start

@@ -32,6 +32,17 @@ export function diagnosticFailureContext(output){
   const stage=output.match(/P01B_FAILURE_STAGE (identity|engine_start|configuration|uncached|cached|oracle)(?:\s|$)/);
   return {diagnosticFailure:diagnosticFailureKind(output),traceLocation:context?.[1]||'none',traceShape:context?.[2]||'none',failureStage:stage?.[1]||'collector_exit',cleanupBoundary:cleanupBoundary(output)};
 }
+// PX03/PX04: additive metadata only; old failure-context shape stays unchanged.
+// A notice/empty prefix cannot assert a call name, even if a marker claims one.
+export function diagnosticPrefixContext(output){
+  const unavailable={tracePrefix:'none',traceKnownCall:'none'};
+  const match=output.match(/P01B_DIAGNOSTIC_PREFIX (empty|numeric_header|syscall_entry|syscall_resume|pid_change|unknown_syscall|exit_notice|signal_notice|bracket_notice|other|none) (execve|execveat|exit|exit_group|restart_syscall|other|none)(?:\s|$)/);
+  if(!match)return unavailable;
+  const [,tracePrefix,traceKnownCall]=match;
+  const call=tracePrefix==='syscall_entry'||tracePrefix==='syscall_resume';
+  if(call?traceKnownCall==='none':tracePrefix==='unknown_syscall'?traceKnownCall!=='other':traceKnownCall!=='none')return unavailable;
+  return {tracePrefix,traceKnownCall};
+}
 const operations=new Set(['docker.image_inspect','docker.inspect','docker.create','docker.start','docker.stop','docker.remove','docker.copy','docker.run','docker.exec','docker.step','docker.planner','host.java','host.liquibase','host.pg_control','host.pg_identity','other','exec.unconfirmed']);
 const phases=new Set(['job','step','plan_task','resolve_task','instance_task','other_task','image_binding','planning','session_start','invocation']);
 const number=n=>Number.isFinite(n)&&n>=0;

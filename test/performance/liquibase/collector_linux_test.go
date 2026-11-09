@@ -405,6 +405,10 @@ func collect(t *testing.T) {
 				t.Logf("P01B_DIAGNOSTIC_FAILURE trace_%d", diagnosticDecodeCode(traceErr))
 				context := diagnosticErrorContext(traceErr)
 				t.Logf("P01B_DIAGNOSTIC_CONTEXT %s %s", context.Location, context.Shape)
+				if context.Shape == "other" {
+					prefix := diagnosticErrorPrefix(traceErr)
+					t.Logf("P01B_DIAGNOSTIC_PREFIX %s %s", prefix.Prefix, prefix.KnownCall)
+				}
 				t.Error("diagnostic trace incomplete")
 			} else {
 				for i := range diagnostics {

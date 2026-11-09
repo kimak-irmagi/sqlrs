@@ -249,7 +249,8 @@ product cause; the eight-member diagnostic is still incomplete.
 ## Approved: structural prefix detail for the remaining other case
 
 Status: explicit @evilguest approval recorded on 2026-11-10; exact reply timestamp
-unavailable. Separate PX01–PX05 tests require approval before implementation.
+unavailable. Separate PX01–PX05 tests subsequently approved before implementation;
+prefix metadata now passes small regressions/vet. Native PX05 remains open.
 
 The new report localises the check but the approved shape enum deliberately
 leaves `other` unexplained. Approve two additional failure-only closed fields
@@ -277,6 +278,7 @@ or add only fixed structural classes. Recommend the last. Critical review fixed
 P1 argument leakage by forbidding copied strings/lengths and matching before
 arguments; P1 inferred valid exec by preserving rejection; P2 accidental overriding
 of existing context by keeping fields independent. Repeat review found no remaining
-P0–P2. Component amendment approved, not implemented. The separately reviewed
+P0–P2. Component amendment and the separately reviewed
 [PX01–PX05 inventory](issue89-performance-diagnostic-tests.md#proposed-px01px05-structural-prefix-observation)
-awaits approval; existing strict rejection and context tests remain unchanged.
+are approved and implemented; existing strict rejection and context tests remain
+unchanged. Small evidence does not establish a product cause; actual PX05 is pending.
