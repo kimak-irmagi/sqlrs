@@ -249,4 +249,5 @@ transport: traced member 3 stops at `trace_8 / pending_entry / other`, last phas
 `oracle`. The original report is retained; this does not prove the failed workload
 passed or localise the product regression. Source CI `42632129606` passes all
 regressions, only coverage-merge red. Further structural-prefix observation is
-proposed separately; no new trace syntax or product optimisation is implemented.
+separately approved (recorded 2026-11-10); reviewed PX01–PX05 await test approval.
+No new trace syntax or product optimisation is implemented.

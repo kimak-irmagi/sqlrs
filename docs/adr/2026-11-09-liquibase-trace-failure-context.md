@@ -40,4 +40,6 @@ Prior localisation and uncertain-exec ADRs remain in force; none is superseded.
 Actual run 42632130376 reports code 8, pending_entry/other and last stage oracle;
 the [unchanged report](../architecture/issue89-diagnostic-evidence-2026-11-09/42632130376/jhipster-diagnostic.json)
 is retained. No superseded-exec input is established; no new trace syntax is
-accepted. A separate structural-prefix proposal does not alter this decision.
+accepted. The separately approved
+[structural-prefix amendment](2026-11-10-liquibase-structural-trace-prefix.md)
+does not alter this decision's old context fields or rejection policy.

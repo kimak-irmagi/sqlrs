@@ -56,8 +56,9 @@ failure-context project and separate CX01–CX05 are approved and implemented:
 small Go/vet pass at 544/554 statements (98.2%), 37 Node tests pass (ordinary
 helper lines 100%). Native CX05 run 42632130376 verifies failure-context transport
 (trace_8 / pending_entry / other, last phase oracle), but the eight-member cohort
-is incomplete. Further structural-prefix observation is proposed separately;
-no new record syntax is accepted.
+is incomplete. Further structural-prefix observation is separately approved;
+reviewed PX01–PX05 await approval before prefix tests/implementation.
+No new record syntax is accepted.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.
 Its internal samples are emitted only after oracle verification and successful

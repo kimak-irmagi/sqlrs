@@ -123,8 +123,9 @@ CX01–CX05 tests are approved; small checks pass (Go 544/554, 98.2%; 37 Node te
 ordinary helper lines 100%). Native CX05 is still open. No new trace format is accepted.
 Actual CX05 `42632130376` proves context transport but remains incomplete at
 traced member 3: `trace_8 / pending_entry / other`, last phase `oracle`. Original
-report retained; no product cause established. A structural-prefix amendment is
-proposed separately. Ordinary source CI passes all regressions, only coverage red.
+report retained; no product cause established. The structural-prefix amendment is
+separately approved (recorded 2026-11-10), with reviewed PX01–PX05 awaiting approval.
+Ordinary source CI passes all regressions, only coverage red. No prefix code yet.
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
 qualification and the agreed repeated v1 performance

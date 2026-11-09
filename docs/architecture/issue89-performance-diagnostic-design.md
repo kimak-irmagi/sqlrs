@@ -246,10 +246,13 @@ CX05 run `42632130376` has now proven failure-context transport:
 retained in the test inventory. This does not establish a specific syntax or a
 product cause; the eight-member diagnostic is still incomplete.
 
-## Proposed: structural prefix detail for the remaining other case
+## Approved: structural prefix detail for the remaining other case
+
+Status: explicit @evilguest approval recorded on 2026-11-10; exact reply timestamp
+unavailable. Separate PX01–PX05 tests require approval before implementation.
 
 The new report localises the check but the approved shape enum deliberately
-leaves `other` unexplained. Propose two additional failure-only closed fields
+leaves `other` unexplained. Approve two additional failure-only closed fields
 from the same already-read record, only when the existing shape is `other`:
 
 - `tracePrefix`: `empty`, `numeric_header`, `syscall_entry`, `syscall_resume`,
@@ -274,4 +277,6 @@ or add only fixed structural classes. Recommend the last. Critical review fixed
 P1 argument leakage by forbidding copied strings/lengths and matching before
 arguments; P1 inferred valid exec by preserving rejection; P2 accidental overriding
 of existing context by keeping fields independent. Repeat review found no remaining
-P0–P2. Proposal not approved/implemented; exact tests follow separate approval.
+P0–P2. Component amendment approved, not implemented. The separately reviewed
+[PX01–PX05 inventory](issue89-performance-diagnostic-tests.md#proposed-px01px05-structural-prefix-observation)
+awaits approval; existing strict rejection and context tests remain unchanged.

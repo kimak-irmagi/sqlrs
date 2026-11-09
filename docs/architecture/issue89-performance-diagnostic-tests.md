@@ -517,4 +517,69 @@ collection or workload success for the failed member. The superseded-exec
 hypothesis is not established by this evidence. Existing fixed classifiers cannot
 identify the pending prefix beyond `other`; do not treat it as valid exec input.
 Ordinary CI `42632129606` passes all regression jobs; only coverage-merge is red.
-Further prefix observation is a separate proposal, not an implemented relaxation.
+Further prefix observation is separately approved, not an implemented relaxation;
+its exact PX01–PX05 inventory still requires approval.
+
+## Proposed: PX01–PX05, structural prefix observation
+
+Status: explicit @evilguest component approval recorded on 2026-11-10; exact reply
+timestamp unavailable. This inventory passed critical and repeat review and awaits
+separate approval. No prefix tests or implementation written yet.
+
+1. **PX01 — independent grammar/call matrix.** Hand-authored inputs and exact
+   expected pairs cover every approved prefix: empty/whitespace, an additional
+   numeric header, entry/resume, PID-change, unknown syscall, exit/signal/bracket
+   notices and other. Cover each known call (execve, execveat, exit, exit_group,
+   restart_syscall), an unlisted name mapping to `other`, and unavailable `none`.
+   Unknown-syscall form takes precedence over generic entry; known call names
+   require the anchored entry/resume token, never substrings/quoted arguments.
+   Near-miss spelling, bad numeric framing and injected markers cannot create
+   a more specific unrelated class. No actual call name outside the fixed list,
+   raw numbers, strings, lengths, hashes or argv enter the result.
+2. **PX02 — actual error path, unchanged rejection.** Real measured-decoder
+   fixtures cover empty pending prefix, unknown syscall entry and an additional
+   header before terminal handling, plus an ordinary rejected record. Assert
+   exact original code, location/shape, new prefix pair and no partial intervals.
+   Nil/unrelated errors and known shapes have unavailable prefix metadata;
+   missing/foreign stored fields and wrapped errors preserve safe defaults and
+   original checkpoint access. Serialize contexts with private name/argument/PID
+   sentinels and prove none escape. Keep default/late-cleanup assertions intact.
+3. **PX03 — additive Node transport with safe defaults.** Decode new fixed markers
+   in a separate prefix-metadata helper; keep the existing context helper's exact
+   return shape and CX03 deep-equality assertions unchanged. Independently test
+   all allowed pairs and missing/unknown/suffixed labels; non-call classes cannot
+   assert a known call. Old-style output without new markers yields unavailable
+   values. Extra fields/private sentinels cannot leave rebuilt metadata. Existing
+   stage/code/cleanup values remain independent and unchanged.
+4. **PX04 — explicit wiring, only for other failures.** Real Go error fixtures
+   plus addressed collector/reporter wiring checks require extraction without
+   passing a raw body into the public formatter. Keep the old context marker and
+   existing helper call; add the new fields separately only on failure with shape
+   `other`. Assert no new fields on successful samples or known-shape reports,
+   and persistence before the incomplete report is returned. Pure classification
+   or source inspection alone is insufficient: PX02 and PX05 exercise real paths.
+5. **PX05 — full small checks and the same remote protocol.** Full Go/Node tests,
+   Linux vet, script/Actions syntax and per-line helper coverage (target 100%,
+   minimum 95%). Explicitly launch the pinned observer against the same executable
+   hashes, native strace smoke, eight serial members and original DB/cache/count/
+   cleanup controls. If `other` repeats, require new closed fields in the retained
+   incomplete report; unknown remains unknown, not discarded. Preserve original
+   reports, distinguish observer failure from product slowdown and retain P01b.
+   No DB/Liquibase workload on the laptop; no syntax or product fix authorised.
+
+Critical review and corrections:
+
+- P1 class/name inferred from private argv: PX01 fixes token positions and tests
+  quoted decoys; PX02/PX03 verify both serialization boundaries.
+- P1 overlapping patterns give unstable meaning: PX01 requires explicit
+  unknown-syscall precedence and independently specified expected pairs.
+- P1 old context tests silently need rewriting: PX03/PX04 require a separate
+  additive helper/marker, preserving the existing exact context shape and tests.
+- P1 valid-looking metadata admits an invalid trace: PX02 preserves real rejection,
+  old code and absence of partial intervals; PX04 adds fields only on failure.
+- P2 small tests are mistaken for actual artifact evidence: PX05 requires a real
+  retained report and keeps unexplained `other`/speed qualification limitations.
+
+Repeat review found no remaining P0–P2. Preliminary old-test audit found no
+contradiction with this additive boundary; repeat after approval. No old test
+changes are requested. New contradictions need separate user direction.
