@@ -118,8 +118,9 @@ The EU04 extra-field clarification is approved and passes unchanged field-droppi
 behaviour (35 Node tests, helper lines 100%). Actual eight-member EU06 remains open;
 these helper checks do not establish a product cause or waive the speed blocker.
 Actual EU06 run `42618850460` remains incomplete at traced member 3 (`trace_8`);
-the original report is retained. The closed failure-context amendment is approved,
-not implemented; its CX01–CX05 tests await approval. No new trace format is accepted.
+the original report is retained. The closed failure-context amendment and separate
+CX01–CX05 tests are approved; small checks pass (Go 544/554, 98.2%; 37 Node tests,
+ordinary helper lines 100%). Native CX05 is still open. No new trace format is accepted.
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
 qualification and the agreed repeated v1 performance

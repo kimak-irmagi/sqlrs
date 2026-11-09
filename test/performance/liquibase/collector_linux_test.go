@@ -403,6 +403,8 @@ func collect(t *testing.T) {
 			intervals, traceErr := trace.finishMeasured(enginePID)
 			if traceErr != nil {
 				t.Logf("P01B_DIAGNOSTIC_FAILURE trace_%d", diagnosticDecodeCode(traceErr))
+				context := diagnosticErrorContext(traceErr)
+				t.Logf("P01B_DIAGNOSTIC_CONTEXT %s %s", context.Location, context.Shape)
 				t.Error("diagnostic trace incomplete")
 			} else {
 				for i := range diagnostics {

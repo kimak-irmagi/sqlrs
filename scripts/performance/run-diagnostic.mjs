@@ -4,8 +4,8 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { diagnosticSelection, diagnosticIdentity, diagnosticSchedule, parseDiagnosticOutput, diagnosticFailureKind } from './diagnostic.mjs';
-import { parseCollectorResult, failureKind, cleanupBoundary } from './collector-output.mjs';
+import { diagnosticSelection, diagnosticIdentity, diagnosticSchedule, parseDiagnosticOutput, diagnosticFailureContext } from './diagnostic.mjs';
+import { parseCollectorResult, failureKind } from './collector-output.mjs';
 import { fixtureSpec } from './inputs.mjs';
 import { verifyBytes, baselineArchiveSHA, baselineReleaseAPI } from './control.mjs';
 import { downloadPinned } from './download.mjs';
@@ -70,7 +70,7 @@ try{
       active.on('error',()=>{launchFailed=true;});
       active.on('close',code=>{
         clearTimeout(timer);active=undefined;
-        if(code!==0||overflow||launchFailed){report.failureKind=failureKind(output);report.diagnosticFailure=diagnosticFailureKind(output);report.cleanupBoundary=cleanupBoundary(output);persist();reject(new Error('Diagnostic member failed'));}
+        if(code!==0||overflow||launchFailed){report.failureKind=failureKind(output);Object.assign(report,diagnosticFailureContext(output));persist();reject(new Error('Diagnostic member failed'));}
         else resolve(output);
       });
     });

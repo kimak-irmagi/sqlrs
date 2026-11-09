@@ -52,7 +52,9 @@ not successful launches; independent workload/CLI counts still qualify samples.
 Small checks pass at 527/537 Go statements (98.1%) and 34 Node tests (ordinary
 helper lines 100%). The EU04 field-dropping clarification is now approved and
 passes an additive test (35 Node tests, ordinary helper lines 100%). The closed
-failure-context project is approved; CX01–CX05 await separate test approval.
+failure-context project and separate CX01–CX05 are approved and implemented:
+small Go/vet pass at 544/554 statements (98.2%), 37 Node tests pass (ordinary
+helper lines 100%). Native CX05 remains open; no new record syntax is accepted.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.
 Its internal samples are emitted only after oracle verification and successful

@@ -204,8 +204,8 @@ unfinished; successful diagnostic collection and exact slowdown cause are not cl
 ## Approved: closed context for an unrecognised trace record
 
 Status: explicitly approved by @evilguest on 2026-11-09; exact reply time
-unavailable. The separate CX01–CX05 test inventory awaits approval; context
-implementation has not begun.
+unavailable. The separate CX01–CX05 inventory was subsequently approved before
+tests/implementation. Context now passes small regressions/vet; actual CX05 is open.
 
 Run `42618850460` on observer `a75316b` passed preparation, native smoke and two
 plain members, then stopped on traced v1 with `trace_8`. This code currently
@@ -236,6 +236,7 @@ The last is recommended. Critical review: P1 raw substring leakage is prevented
 by rebuilding fixed enums; P1 a shape label is mistaken for a valid record is
 prevented by retaining rejection; P2 cleanup obscures an earlier failure is
 addressed by preserving the existing phase separately. Repeat review found no
-remaining P0–P2. The project is approved, not implemented; the separately reviewed
+remaining P0–P2. The project and separately reviewed
 [CX01–CX05 inventory](issue89-performance-diagnostic-tests.md#proposed-cx01cx05-closed-failure-context)
-must be approved before its tests/code are written.
+are approved; tests and context implementation pass small checks. No new syntax
+is accepted; real failure context still needs CX05 evidence.

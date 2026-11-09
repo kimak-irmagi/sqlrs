@@ -418,14 +418,14 @@ member 3 with **trace_8**. The original sanitized incomplete report is retained
 SHA256 `b1b706b50a8b725286ecf2d34987c552c3ca9324e5cb35a226a965bdba15dc4a`.
 It does not identify which of the two record-kind checks failed. No new format
 is accepted and no exact product cause is claimed. A failure-context proposal
-was subsequently approved; the separate CX01–CX05 inventory below still needs
-approval before its tests/code are written. EU06/TA06/DG11 remain incomplete.
+was subsequently approved, followed by separate CX01–CX05 approval before tests
+and implementation. EU06/TA06/DG11 remain incomplete.
 
 ## Proposed: CX01–CX05, closed failure context
 
-Status: component amendment approved by @evilguest on 2026-11-09; exact reply
-time unavailable. This inventory passed critical and repeat review but still
-requires approval. No context tests or implementation have been written.
+Status: component amendment and, subsequently, this separately reviewed inventory
+explicitly approved by @evilguest on 2026-11-09; exact reply time unavailable.
+Post-approval old-test audit found no contradictions; old assertions are unchanged.
 
 1. **CX01 — exact record shape, not syntax acceptance.** Hand-authored fixed
    forms cover `superseded_exec` (numeric ID, never exported), `exec_entry`
@@ -493,3 +493,15 @@ EU04 clarification execution: its additive new-category nested-field control
 passes with unchanged parsing/product code. Full Node regression: **35 tests**,
 five ordinary helpers **100% lines / 96.67% branches**. Old DG09 assertions remain
 unchanged. This does not execute CX01–CX05 or finish the remote EU06 cohort.
+
+### CX small execution checkpoint
+
+First runs failed on absent Go context helpers and the missing Node export.
+Implementation then passed the full small Go suite and Linux vet: **544/554
+statements (98.2%)**, profile `.tmp/performance/diag-cx.out`. New shape/context
+helpers are 100%; 10 other operators remain uncovered. All **37 Node tests**
+pass; five ordinary helpers cover **100% lines / 96.75% branches**. Native
+collector/report orchestration is not claimed unit-covered. Context only augments
+failure evidence; old numeric codes, strict/default/late-cleanup assertions,
+successful samples and measured executable bytes are unchanged. CX05's actual
+eight-member retry remains to run; no successful collection or exact cause claimed.

@@ -34,6 +34,53 @@ func diagnosticDecodeCode(err error) int {
 	return 0
 }
 
+// diagnosticContextError keeps only closed context, never the trace body. Its
+// cause preserves the old checkpoint for errors.As (CX01–CX04 in diagnostic tests).
+type diagnosticContextError struct {
+	cause           error
+	location, shape string
+}
+
+func (diagnosticContextError) Error() string   { return "incomplete diagnostic trace" }
+func (e diagnosticContextError) Unwrap() error { return e.cause }
+
+// diagnosticFailureContext is an allowlisted observation, not permission to
+// accept a new record. See the approved diagnostic component amendment.
+type diagnosticFailureContext struct{ Location, Shape string }
+
+func diagnosticErrorContext(err error) diagnosticFailureContext {
+	result := diagnosticFailureContext{"none", "none"}
+	var value diagnosticContextError
+	if errors.As(err, &value) {
+		switch value.location {
+		case "record", "pending_entry":
+			result.Location = value.location
+		}
+		switch value.shape {
+		case "superseded_exec", "exec_entry", "exec_resume", "other":
+			result.Shape = value.shape
+		}
+	}
+	return result
+}
+
+var diagnosticSupersededShape = regexp.MustCompile(`^\+\+\+ superseded by execve in pid [1-9][0-9]* \+\+\+$`)
+
+// diagnosticRecordShape classifies only a fixed form in an already-read body.
+// Even a recognized superseded marker remains rejected by the current decoder.
+func diagnosticRecordShape(body string) string {
+	if diagnosticSupersededShape.MatchString(body) {
+		return "superseded_exec"
+	}
+	if strings.HasPrefix(body, "execve(") || strings.HasPrefix(body, "execveat(") {
+		return "exec_entry"
+	}
+	if strings.HasPrefix(body, "<... execve resumed>") || strings.HasPrefix(body, "<... execveat resumed>") {
+		return "exec_resume"
+	}
+	return "other"
+}
+
 // diagnosticInterval has no process IDs/argv. The contract is recorded in
 // docs/architecture/issue89-performance-diagnostic-design.md. DG03/DG05 retain executable
 // segments privately until they can be clipped into relative public intervals.
@@ -183,7 +230,7 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 					// Validate the entry, not an invented successful return. A
 					// malformed unfinished line must not bypass argument checks.
 					if _, err := diagnosticExecCategory(p.text); err != nil {
-						return nil, err
+						return nil, diagnosticContextError{err, "pending_entry", diagnosticRecordShape(p.text)}
 					}
 					imageEnd = p.at
 				} else if cutoff <= 0 || p.at <= cutoff {
@@ -229,7 +276,7 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 			start = p.at
 		}
 		if !strings.HasPrefix(body, "execve(") && !strings.HasPrefix(body, "execveat(") {
-			return nil, diagnosticDecodeError{8}
+			return nil, diagnosticContextError{diagnosticDecodeError{8}, "record", diagnosticRecordShape(body)}
 		}
 		returned := diagnosticExecReturn.FindStringSubmatch(body)
 		if returned == nil {
@@ -243,7 +290,7 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 		}
 		category, err := diagnosticExecCategory(body)
 		if err != nil {
-			return nil, err
+			return nil, diagnosticContextError{err, "record", diagnosticRecordShape(body)}
 		}
 		if prior, found := active[pid]; found {
 			prior.EndNS = start

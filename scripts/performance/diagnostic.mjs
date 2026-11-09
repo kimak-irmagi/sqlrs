@@ -1,6 +1,7 @@
 // DG01/DG02/DG09/DG10: closed evidence and fixed experiment identity. This
 // diagnostic never produces the acceptance verdict of a P01b cohort.
 // Contract: docs/architecture/issue89-performance-diagnostic-design.md.
+import {cleanupBoundary} from './collector-output.mjs';
 export const diagnosticPins=Object.freeze({
   revision:'668d5050ad154c1967bea4c6e40b91f3a703d5ba',
   engineHash:'1367bce9ddaa44c0aa378b07c015dfb20a4c0d29f00d2f5a893905686fae14b0',
@@ -23,6 +24,13 @@ export function diagnosticSchedule(){
 export function diagnosticFailureKind(output){
   const value=output.match(/P01B_DIAGNOSTIC_FAILURE ([a-z0-9_]+)(?:\s|$)/)?.[1];
   return /^(?:process_tree|transport|journal|endpoint|clock|trace_(?:[0-9]|1[0-7]))$/.test(value||'')?value:'unknown';
+}
+// CX03/CX04: fixed failure metadata only. The stage is the last reached phase,
+// not evidence that workload execution failed there; raw lines never escape.
+export function diagnosticFailureContext(output){
+  const context=output.match(/P01B_DIAGNOSTIC_CONTEXT (record|pending_entry|none) (superseded_exec|exec_entry|exec_resume|other|none)(?:\s|$)/);
+  const stage=output.match(/P01B_FAILURE_STAGE (identity|engine_start|configuration|uncached|cached|oracle)(?:\s|$)/);
+  return {diagnosticFailure:diagnosticFailureKind(output),traceLocation:context?.[1]||'none',traceShape:context?.[2]||'none',failureStage:stage?.[1]||'collector_exit',cleanupBoundary:cleanupBoundary(output)};
 }
 const operations=new Set(['docker.image_inspect','docker.inspect','docker.create','docker.start','docker.stop','docker.remove','docker.copy','docker.run','docker.exec','docker.step','docker.planner','host.java','host.liquibase','host.pg_control','host.pg_identity','other','exec.unconfirmed']);
 const phases=new Set(['job','step','plan_task','resolve_task','instance_task','other_task','image_binding','planning','session_start','invocation']);
