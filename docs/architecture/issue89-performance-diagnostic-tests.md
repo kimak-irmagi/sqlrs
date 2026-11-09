@@ -289,3 +289,18 @@ and no private marker; existing assertions are unchanged. Full small tests/vet
 pass: Go **499/509 (98.0%)**, Node 33 tests, five ordinary helpers **100% lines /
 95.83% branches**. No new trace-read boundary or product-change authority is
 introduced; the next retry should identify its failed check, not expose raw data.
+
+Retry `42606053245` again stopped at member 3, now with **trace_5**: a terminal
+process record arrived with a pending exec. Its
+[original incomplete report](issue89-diagnostic-evidence-2026-11-09/42606053245/jhipster-diagnostic.json)
+is retained with SHA256 `1bf2afdcb2082524da3fb31f11e3fd41ef8180bc4ca3100faa04dbd0c3c3f6af`.
+
+DG03/DG05 now separately test the final API boundary: a confirmed terminal
+record can close a pending exec only if the attempt began **strictly after**
+that boundary. It is not counted as a successful launch; the preceding confirmed
+image history remains available for clipping. In-window/unknown-boundary/missing
+terminal cases and default strict decoding still fail. The old `pending_exit`
+negative case is unchanged. This tests a cleanup hypothesis, not a claim about
+the previous measurement failure's cause. Full small Go tests/vet pass:
+**504/514 (98.1%)**; Node is unchanged. A real retry is necessary: an in-window
+trace_5 will still stop collection.

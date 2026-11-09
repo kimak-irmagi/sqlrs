@@ -61,7 +61,7 @@ func (t *diagnosticTrace) begin(group int) {
 
 // finish is called only after the owned process tree is absent. Closing a timed
 // out pipe unblocks and joins its exact reader; no detached goroutine survives.
-func (t *diagnosticTrace) finish(enginePID int) ([]diagnosticInterval, error) {
+func (t *diagnosticTrace) finish(enginePID int, observedUntil ...int64) ([]diagnosticInterval, error) {
 	if t.done == nil {
 		t.abort()
 		return nil, errDiagnosticTrace
@@ -81,7 +81,7 @@ func (t *diagnosticTrace) finish(enginePID int) ([]diagnosticInterval, error) {
 	if _, err := t.file.Seek(0, 0); err != nil {
 		return nil, errDiagnosticTrace
 	}
-	return decodeDiagnosticTrace(t.file, enginePID)
+	return decodeDiagnosticTrace(t.file, enginePID, observedUntil...)
 }
 
 func (t *diagnosticTrace) abort() {

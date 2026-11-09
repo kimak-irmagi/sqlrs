@@ -398,7 +398,11 @@ func collect(t *testing.T) {
 				t.Error("diagnostic process tree did not disappear")
 				return
 			}
-			intervals, traceErr := trace.finish(enginePID)
+			var observedUntil []int64
+			if len(diagnostics) == 2 {
+				observedUntil = []int64{diagnostics[1].end.UnixNano()}
+			}
+			intervals, traceErr := trace.finish(enginePID, observedUntil...)
 			if traceErr != nil {
 				t.Logf("P01B_DIAGNOSTIC_FAILURE trace_%d", diagnosticDecodeCode(traceErr))
 				t.Error("diagnostic trace incomplete")

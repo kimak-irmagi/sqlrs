@@ -125,7 +125,14 @@ func diagnosticTimestamp(s string) (int64, error) {
 // decodeDiagnosticTrace accepts the configured strace exec/exit format only.
 // A failed exec is not a launch; completed re-exec closes the preceding image.
 // Missing commands are never interpreted as zero overhead. DG03/DG04.
-func decodeDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval, error) {
+func decodeDiagnosticTrace(input io.Reader, enginePID int, observedUntil ...int64) ([]diagnosticInterval, error) {
+	// Only an explicit final API boundary permits ignoring a proven terminal
+	// cleanup attempt which started strictly after it. Default callers retain
+	// full-stream strictness; an absent terminal record is always incomplete.
+	var cutoff int64
+	if len(observedUntil) > 0 {
+		cutoff = observedUntil[0]
+	}
 	scanner := bufio.NewScanner(input)
 	scanner.Buffer(make([]byte, 4096), 65536)
 	active := map[int]diagnosticInterval{}
@@ -157,8 +164,11 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval
 		last[pid] = at
 		body := m[3]
 		if diagnosticExit.MatchString(body) {
-			if _, found := pending[pid]; found {
-				return nil, diagnosticDecodeError{5}
+			if p, found := pending[pid]; found {
+				if cutoff <= 0 || p.at <= cutoff {
+					return nil, diagnosticDecodeError{5}
+				}
+				delete(pending, pid)
 			}
 			if item, found := active[pid]; found {
 				item.EndNS = at
