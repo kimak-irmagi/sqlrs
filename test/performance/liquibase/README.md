@@ -31,6 +31,17 @@ validation and disposal helpers remain ordinary Go code. HC01–HC07 cover these
 helpers at 174/174 statements (100%), not the integration scenario, Node process
 adapters or product. See `docs/architecture/issue89-performance-actions-tests.md`
 for the approved boundary, profile and separate native acceptance evidence.
+
+The separate diagnostic observer now adds trace/journal/process helpers: DC01–DC03
+pass at 494/504 ordinary Go statements (98.0% overall; the original 174 remain
+100%). This does not count actual Actions orchestration or product coverage.
+Its explicit `performance:diagnostic` label schedules eight serial members on
+the original fixed binaries, not another acceptance cohort. Three attempts of
+run `42580413674` failed on release-download HTTP 504 before any measurements.
+The official-API acquisition and observer-owned preparation clarification is
+approved; TA01–TA06 await separate approval before implementation. See
+[diagnostic design](../../../docs/architecture/issue89-performance-diagnostic-design.md)
+and [tests](../../../docs/architecture/issue89-performance-diagnostic-tests.md).
 The native collector test is explicitly opted in only by the Actions scheduler.
 Its internal samples are emitted only after oracle verification and successful
 exact cleanup. The parent never publishes raw child stdout/stderr. Private

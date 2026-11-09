@@ -216,3 +216,10 @@ Linux vet passes. The native strace smoke and
 eight-member diagnostic have not run yet. Measured product bytes are unchanged. See
 [paired results and retained evidence](issue89-actions-performance-results-2026-11-08.md).
 This is a release-blocking timing failure, not a waived gate or completed #89.
+
+2026-11-09: all three attempts of diagnostic run `42580413674` stopped before
+measurement on release-archive HTTP 504. The official Releases API independently
+returned the archive with the original SHA256; its binary was not run.
+The preparation clarification is approved; TA01–TA06 await separate approval
+before tests/code. No diagnostic report or established slowdown cause exists
+yet; the product is unchanged.

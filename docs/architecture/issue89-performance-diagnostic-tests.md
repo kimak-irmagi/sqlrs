@@ -187,3 +187,75 @@ the 95% minimum; previous Go helpers remain 100%. All 26 Node tests pass, with
 orchestration is not included in those percentages. Ten uncovered statements
 are defensive SQLite stream/catalog, os.Pipe/transport, malformed time/exec
 result failures; they are not claimed tested or dead. Next is DG11 on Actions.
+
+## TA01–TA06: archive acquisition and fixed build-source root
+
+Status: awaiting inventory approval, 2026-11-09. The clarification at the end of
+[the diagnostic design](issue89-performance-diagnostic-design.md) is approved.
+No new tests or implementation for it yet. Three preparation failures in
+`42580413674` produced no measurements and do not satisfy DG11.
+
+1. **TA01 — transport ordering and identical bytes.** Small independent fixtures
+   with precomputed SHA256: primary success never calls alternatives; exhausted
+   transient Node failures call system curl once; its transport failure enables
+   the official fixed-asset API with `Accept: application/octet-stream`, without
+   Authorization/new user URL. Curl success skips API; API success returns exact
+   bytes. Observe addresses, headers, ordering and counts using per-call transport
+   facilities, not global fetch/environment replacement. Production asset/pins
+   are separately checked by TA04; a tiny fixture is not the actual release.
+2. **TA02 — failure never enables a checksum bypass.** Wrong successful bytes
+   from Node/curl/API, including HTTP-200 JSON/HTML, fail; no subsequent transport
+   follows a mismatch. Transient API/body failures retain bounded retry/request
+   deadlines; exhaustion remains preparation failure. Preserve immediate ordinary
+   non-transient rejection (e.g. 404) and the existing no-API path. Errors cannot
+   expose the private test marker or declare artifact readiness.
+3. **TA03 — product-source root separate from observer tooling.** No nonempty
+   optional root retains own-checkout selection. An explicit root accepts only an absolute
+   first-checkout path equal to GITHUB_WORKSPACE; reject relative, foreign or
+   unavailable roots and an empty GITHUB_WORKSPACE. Owned temporary directories and tiny Git fixtures
+   verify wrong HEAD/dirty checkout before dependency/build work. Never mutate
+   the real repo or build/run the product for negative cases. Exercise actual
+   root selection, not just a YAML text search.
+4. **TA04 — connected preparation/Actions provenance.** YAML and targeted script
+   wiring: setup action comes from the exact observer checkout, executes its own
+   prepare and explicitly passes the first checkout's root, still `668d505`.
+   Original Go/Java, clean HEAD, `-trimpath` commands, JDBC/archive/metadata/tag
+   and both original hashes are not substituted. Retain existing DG02 negative
+   identity controls; production API URL/asset/archive pin are fixed in the actual
+   call, not merely the stub. The original full-cohort workflow is unchanged.
+   TA06 proves the real build; script structure alone cannot do so.
+5. **TA05 — full small regressions and coverage.** All old/new Node/Go tests,
+   Linux vet, script syntax and YAML; ordinary-helper target 100%, minimum 95%,
+   with a new line report. Actual preparation/Actions and unmeasured system calls
+   are not included in small-helper percentages. No old-test changes; separately
+   resolve any new contradiction found.
+6. **TA06 — real diagnostic retry.** Explicitly run the new pinned observer on
+   the original binaries; acquire v1 via the reviewed API path and verify the
+   original archive/both executable hashes before measured requests. Then run
+   mandatory strace smoke and the same eight serial DG10/DG11 members with full
+   DB/cache/cleanup oracles. Sanitized provenance links new preparation tooling
+   to the original product; never publish raw traces/tokenized addresses. If the
+   old URL recovers, its success does not prove the API path: independently prove
+   actual API acquisition with the same hash before measurement. No laptop
+   DB/Liquibase workloads. This remains diagnostic, not speed acceptance or
+   permission to implement an optimisation.
+
+Critical review and corrections:
+
+- P1 tiny fixture pins pass despite a wrong production asset ID — TA01 separates
+  small data from TA04/TA06 actual pins.
+- P1 a broad catch converts checksum failure into fallback success — TA02 checks
+  exact call counts and final rejection after wrong bytes are received.
+- P1 only YAML is checked while builds use observer source — TA03 exercises real
+  root selection/rejection, TA06 proves actual artifacts.
+- P2 negative cases start builds/network before their intended failure — TA03
+  requires the pre-effect boundary and owned temporary data.
+- P2 an empty ordinary optional input is wrongly rejected as diagnostic mode —
+  TA03 retains own-checkout selection; TA04 requires a nonempty root to be passed
+  explicitly by diagnostics.
+- P2 ordinary success hides an untested API or replaces qualification cohorts —
+  TA06 demands actual API/original-binary proof and separate evidence.
+
+Repeat review found no remaining P0–P2. Preliminary audit of old download/inputs/
+workflow/diagnostic tests found no contradictions; no amendments are proposed.
+Repeat the audit after approval and implement tests first.

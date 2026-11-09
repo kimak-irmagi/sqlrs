@@ -37,6 +37,11 @@ observations remain diagnostics and cannot be pooled into Linux timings.
 
 ## Acquisition reliability within the approved PA02 boundary
 
+The same-browser-URL-only restriction below is partially superseded for updated
+diagnostic preparation by the explicitly approved
+[2026-11-09 API acquisition decision](2026-11-09-liquibase-pinned-release-api-transport.md).
+Original runs and all checksum/identity requirements remain unchanged.
+
 - Conversation/implementation date: 2026-11-08, Asia/Novosibirsk; exact user
   reply timestamp unavailable. This is implementation of the approved inventory,
   not a new approval attributed to the user.
