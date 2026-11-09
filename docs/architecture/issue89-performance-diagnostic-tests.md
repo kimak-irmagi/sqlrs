@@ -595,3 +595,16 @@ pass; five ordinary helpers cover **100% lines / 96.86% branches**. Old CX/DG/EU
 assertions and exact context-helper return shape are unchanged. No new syntax
 is accepted; ordinary success samples/product bytes remain unchanged. Actual
 PX05 and complete eight-member collection remain unfinished until remote evidence.
+
+Native PX05 [42665130138](https://github.com/kimak-irmagi/sqlrs/actions/runs/42665130138)
+passed setup/smoke/plain members, then failed at traced member 3. It proves actual
+prefix transport: `trace_8 / pending_entry / other`, **unknown_syscall / other**,
+last stage `oracle`, cleanup boundary `unknown`. The original incomplete report
+is retained [unchanged](issue89-diagnostic-evidence-2026-11-10/42665130138/jhipster-diagnostic.json),
+SHA256 `567adac8bc4c45991289787321227e355fb7e592cb790d6d24202fd678ea3587`.
+The collector treated an unknown-syscall-shaped unfinished record as an exec
+entry, then correctly failed its exec validation. This establishes an observer
+grammar limitation, not the exact syscall/value, workload success or a product
+regression cause. Ordinary CI `42665129132` passes all regression jobs; only the
+unchanged coverage-merge gate is red. A measured-only
+raw-syscall proposal is separate; no new syntax has been accepted yet.

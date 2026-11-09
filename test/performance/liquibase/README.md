@@ -60,6 +60,9 @@ is incomplete. Further structural-prefix observation is separately approved;
 PX01–PX05 are separately approved and implemented. Small Go/vet pass at 579/589
 statements (98.3%), with new prefix helpers 100%; all 39 Node tests pass (ordinary
 helper lines 100%). Native PX05 is open. No new record syntax is accepted.
+Native PX05 run 42665130138 identifies the pending entry as unknown_syscall/other;
+its original incomplete report is retained. A bounded raw-call grammar and
+unattributed process-time amendment is proposed separately, not implemented.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.
 Its internal samples are emitted only after oracle verification and successful

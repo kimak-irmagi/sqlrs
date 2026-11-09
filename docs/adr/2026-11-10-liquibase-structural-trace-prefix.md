@@ -34,3 +34,9 @@ Earlier closed-context/localisation decisions remain in force; none is supersede
   contradictions; preserve existing exact context fields with separate metadata.
 - Rationale: obtain finer closed evidence without raw export, accepting new syntax
   or changing the product. New tests precede implementation and native evidence.
+
+Native run 42665130138 subsequently verifies actual prefix transport:
+pending_entry/other, unknown_syscall/other. Its
+[original incomplete report](../architecture/issue89-diagnostic-evidence-2026-11-10/42665130138/jhipster-diagnostic.json)
+is retained. No numeric payload or exact syscall is inferred. The separate
+raw-call grammar proposal is not approved and does not change current rejection.

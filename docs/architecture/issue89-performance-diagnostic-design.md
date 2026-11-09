@@ -282,3 +282,58 @@ P0–P2. Component amendment and the separately reviewed
 [PX01–PX05 inventory](issue89-performance-diagnostic-tests.md#proposed-px01px05-structural-prefix-observation)
 are approved and implemented; existing strict rejection and context tests remain
 unchanged. Small evidence does not establish a product cause; actual PX05 is pending.
+
+Actual PX05 run `42665130138` reports pending_entry/other and
+**unknown_syscall/other**. The original incomplete report is linked in the test
+inventory. This is a raw-syscall-shaped entry being validated as exec, not proof
+that the requested program launched or that a specific syscall caused slowdown.
+
+## Proposed: measured raw syscall records with unattributed process time
+
+The [strace 6.8 source](https://github.com/strace/strace/blob/v6.8/src/syscall.c#L1309)
+has explicit unknown-syscall formatting: a raw fallback, a numeric syscall name
+when available, and fallback tracing qualifiers. Thus selecting execve/execveat
+does not justify assuming every unfinished record is an exec. This explains why
+the observer needs a non-exec grammar, not the original regression's exact cause.
+The remote report identifies the family, not its raw numeric payload or exact
+runtime strace version; do not infer those values from the reference source.
+See also its [raw/default tracing flags](https://github.com/strace/strace/blob/v6.8/src/defs.h#L345).
+
+Propose a measured-only extension, retaining default strict decoding:
+
+1. Add a separate bounded raw-call parser for exact unknown-call forms
+   (`syscall_0x…` or `???`), numeric raw arguments only, no dereferenced strings.
+   Define the exact Linux/amd64 grammar in the separately reviewed test inventory
+   before implementation. Cover entry, matching resume, explicit return and
+   no-result/terminal forms; validate the whole record, not the prefix classifier.
+   Mismatched names/PIDs, malformed fields, reversed time and missing required
+   completion remain failures. No arbitrary syscall identifier/line skipping.
+2. A validated unknown call does not establish an executable identity or a
+   successful exec. End any previous confirmed image at the unknown entry's start
+   and retain **process.unattributed** until the next confirmed executable image
+   or exact terminal record for that PID. Do not restart the previous category on
+   an unknown return or attribute uncertainty to Java/Docker. A pending call needs
+   a matching result or exact terminal event; EOF is not process absence. Engine
+   lifetime remains excluded. Clip/union the same API windows without double count.
+3. The new category means unattributed process time, not syscall latency or a
+   successful CLI/JVM start. Commands still counts displayed intervals. Existing
+   independent workload/CLI counts, DB/cache oracles and cleanup remain mandatory.
+   Material unattributed time limits localisation and cannot become a claimed
+   product cause. Add only the fixed category to Node's report allowlist; no raw
+   syscall number, argument, PID or input text is exported.
+4. Preserve old strict rejection and current PX02 invalid/raw-incomplete negative
+   fixtures with their original codes. Only complete validated raw grammar gains
+   a measured path; prefix metadata is never an authorisation to accept input.
+   No product/API/DB changes, new trace payloads/flags or altered eight-member
+   protocol. First require an additional tiny native Actions probe of an invalid
+   numeric syscall on the same Ubuntu tracer; no DB/Liquibase or laptop workload.
+
+Alternatives: retain the full observer rejection; drop unknown records (rejected
+because it hides uncertainty); or parse their bounded grammar and keep time
+explicitly unattributed. Recommend the last. Critical review fixed P1 prefix-only
+acceptance with full grammar; P1 false executable attribution with a distinct
+category/early previous-image boundary; P1 missing-exit acceptance with exact
+lifecycle checks; P2 weakening old negative tests with the strict/default and
+invalid-fixture controls; P2 a green observer mistaken for acceptance with the
+unchanged P01b limit. Repeat review found no remaining P0–P2. This amendment is
+not approved/implemented; exact tests require separate approval afterwards.

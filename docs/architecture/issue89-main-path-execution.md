@@ -253,3 +253,11 @@ separately approved (recorded 2026-11-10), followed by separate PX01–PX05 appr
 Prefix-only implementation passes small Go/vet (579/589, 98.3%) and 39 Node tests
 (ordinary helper lines 100%). Actual PX05 is pending. No new trace syntax or
 product optimisation is implemented.
+
+Native PX05 `42665130138` now verifies prefix transport: traced member 3 rejects
+`pending_entry / other / unknown_syscall / other` at last stage `oracle`.
+The report is retained unchanged in the diagnostic test inventory. The observer
+has treated an unknown-call-shaped record as an exec entry; the exact product
+slowdown is still unlocalised. A full numeric raw-call grammar/unattributed-time
+amendment is proposed separately, not implemented. All ordinary regression jobs
+of source CI `42665129132` pass; only unchanged coverage-merge is red.
