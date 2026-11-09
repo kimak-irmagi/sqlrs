@@ -312,15 +312,17 @@ The [original report](issue89-diagnostic-evidence-2026-11-09/42612253733/jhipste
 SHA256 `e0bacb484732934de17c0e6cc72b444273c71c9e09e09cb71a70d686b12223b1`, is retained.
 All ordinary CI `42612254604` jobs pass; only the aggregate coverage gate is red.
 The separately labelled `exec.unconfirmed` design was approved on 2026-11-09.
-It is not implemented and its new tests are not written; the separate inventory
-below still needs approval.
+The inventory below was subsequently approved, then tests and explicit measured
+mode were implemented; EU06's real diagnostic retry remains unfinished.
 TA06/DG11 and exact slowdown localisation remain unfinished; speed acceptance is blocked.
 
 ## Proposed: EU01–EU06, unconfirmed exec
 
-Status: component design approved; this inventory passed critical and repeat
-review but is not yet approved. Observer-only addition; no new tests/code written
-and no existing test changes proposed.
+Status: EU01–EU06 explicitly approved by @evilguest on 2026-11-09 after critical
+and repeat review; exact reply time unavailable. Observer-only addition.
+Post-approval audit found one EU04/DG09 conflict about dropping versus rejecting
+extra fields; a narrow clarification is requested separately. Other cases proceed
+without changing existing tests.
 
 1. **EU01 — exact interval, not a launch claim.** Independently authored execve/
    execveat entry-without-result records followed by the same PID's natural zero,
@@ -391,3 +393,19 @@ Repeat review found no remaining P0–P2 in this inventory. Preliminary audit of
 strict/late-cleanup tests indicates a separate explicit mode can preserve them
 unchanged. Repeat that audit after approval and separately agree any new conflict.
 No local Liquibase/DB workload: only small observer checks may run on the laptop.
+
+### Small execution checkpoint (2026-11-09)
+
+The first EU build failed on the missing measured decoder/finish methods; the
+first Node test rejected the new category. Implementation then passed the complete
+small Go suite and Linux vet: **527/537 statements (98.1%)**. The per-line profile
+is `.tmp/performance/diag-eu.out`; 10 operators remain uncovered, including eight
+pre-existing process/journal/clock branches. All **34 Node tests** pass; the five
+ordinary helpers cover **100% lines / 96.65% branches**. This is not product or
+Actions-orchestration coverage. Existing strict/late-cleanup tests and assertions
+are unchanged. Collector wiring changes only the explicit measured decoder call.
+The independently identified EU04 extra-field conflict is pending clarification;
+the old DG09 safe field-dropping behaviour/test is unchanged. No new assertion
+about rejecting those fields has been added. All other new cases pass.
+EU06's eight-member Actions retry is the next independent stage; no successful
+trace cohort or exact product cause is established by these small checks.

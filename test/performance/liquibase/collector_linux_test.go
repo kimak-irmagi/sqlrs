@@ -398,11 +398,9 @@ func collect(t *testing.T) {
 				t.Error("diagnostic process tree did not disappear")
 				return
 			}
-			var observedUntil []int64
-			if len(diagnostics) == 2 {
-				observedUntil = []int64{diagnostics[1].end.UnixNano()}
-			}
-			intervals, traceErr := trace.finish(enginePID, observedUntil...)
+			// EU05: retain explicitly uncertain exec time only in this measured
+			// path, after exact tree absence; default/smoke decoding stays strict.
+			intervals, traceErr := trace.finishMeasured(enginePID)
 			if traceErr != nil {
 				t.Logf("P01B_DIAGNOSTIC_FAILURE trace_%d", diagnosticDecodeCode(traceErr))
 				t.Error("diagnostic trace incomplete")

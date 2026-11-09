@@ -111,6 +111,12 @@ approval (32 Node tests, ordinary helpers 100% lines). Remote TA06/DG11 is the
 next unfinished stage. See
 [results](architecture/issue89-actions-performance-results-2026-11-08.md).
 
+EU01–EU06 and the explicit uncertain-exec boundary are separately approved.
+Observer-only measured decoding passes small regressions/vet (Go 527/537, 98.1%;
+34 Node tests, ordinary helper lines 100%). Strict decoding/old assertions remain.
+The EU04 extra-field clarification and actual eight-member EU06 retry are open;
+these helper checks do not establish a product cause or waive the speed blocker.
+
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
 qualification and the agreed repeated v1 performance
 comparison are still pending. Deferred recovery/SQLite/search work

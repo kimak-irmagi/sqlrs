@@ -165,8 +165,9 @@ remains the actual remote stage.
 ## Approved: terminal exec without a confirmed result
 
 Status: explicitly approved by @evilguest on 2026-11-09; exact reply time unavailable.
-The separate EU01–EU06 inventory linked below still needs approval before tests
-or implementation are written.
+The separate EU01–EU06 inventory linked below was subsequently approved before
+tests and implementation. The post-approval EU04 extra-field clarification is
+pending; the existing safe field-dropping behaviour remains unchanged.
 
 2026-11-09: retry `42612253733` again failed at member 3 with `trace_5`.
 Its exec attempt started no later than the final API boundary, so the narrow
@@ -196,4 +197,6 @@ from unknown execution result honestly. Critical review addressed P1 false
 success/attribution and P1 corrupt-stream acceptance with the stated limits;
 repeat review found no additional P0–P2. The decision is approved; see separate
 [EU01–EU06 tests](issue89-performance-diagnostic-tests.md#proposed-eu01eu06-unconfirmed-exec).
-This mode is not implemented and current strict checks have not been weakened.
+The explicit mode is implemented in the observer; current strict calls/tests
+are unchanged. Small Go/Node regressions and Linux vet pass. Actual EU06 remains
+unfinished; successful diagnostic collection and exact slowdown cause are not claimed.

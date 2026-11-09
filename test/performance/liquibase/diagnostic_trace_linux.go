@@ -133,6 +133,19 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int, observedUntil ...int6
 	if len(observedUntil) > 0 {
 		cutoff = observedUntil[0]
 	}
+	return decodeDiagnosticTracePolicy(input, enginePID, cutoff, false)
+}
+
+// decodeMeasuredDiagnosticTrace opts into EU01–EU05: an exact terminal record
+// may close a valid exec attempt without establishing which image actually ran.
+// Default/late-cleanup decoding remains separate and strict. No raw data escapes.
+func decodeMeasuredDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval, error) {
+	return decodeDiagnosticTracePolicy(input, enginePID, 0, true)
+}
+
+// decodeDiagnosticTracePolicy shares framing/quotas/lifecycle checks; only the
+// measured policy can retain explicitly uncertain intervals (diagnostic design).
+func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, measured bool) ([]diagnosticInterval, error) {
 	scanner := bufio.NewScanner(input)
 	scanner.Buffer(make([]byte, 4096), 65536)
 	active := map[int]diagnosticInterval{}
@@ -164,14 +177,32 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int, observedUntil ...int6
 		last[pid] = at
 		body := m[3]
 		if diagnosticExit.MatchString(body) {
+			imageEnd := at
 			if p, found := pending[pid]; found {
-				if cutoff <= 0 || p.at <= cutoff {
+				if measured {
+					// Validate the entry, not an invented successful return. A
+					// malformed unfinished line must not bypass argument checks.
+					if _, err := diagnosticExecCategory(p.text); err != nil {
+						return nil, err
+					}
+					imageEnd = p.at
+				} else if cutoff <= 0 || p.at <= cutoff {
 					return nil, diagnosticDecodeError{5}
 				}
 				delete(pending, pid)
+				if measured && pid != enginePID {
+					// Append the preceding image first, preserving chronology
+					// within one PID without merging overlapping other PIDs.
+					if item, found := active[pid]; found {
+						item.EndNS = imageEnd
+						result = append(result, item)
+						delete(active, pid)
+					}
+					result = append(result, diagnosticInterval{"exec.unconfirmed", p.at, at})
+				}
 			}
 			if item, found := active[pid]; found {
-				item.EndNS = at
+				item.EndNS = imageEnd
 				if pid != enginePID {
 					result = append(result, item)
 				}
@@ -184,7 +215,7 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int, observedUntil ...int6
 			if _, found := pending[pid]; found {
 				return nil, diagnosticDecodeError{6}
 			}
-			pending[pid] = partial{strings.Split(body, "<unfinished ...>")[0], at}
+			pending[pid] = partial{strings.TrimSuffix(body, "<unfinished ...>"), at}
 			continue
 		}
 		if strings.HasPrefix(body, "<... execve resumed>") || strings.HasPrefix(body, "<... execveat resumed>") {
@@ -210,39 +241,9 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int, observedUntil ...int6
 		if returned[1] != "0" {
 			return nil, diagnosticDecodeError{10}
 		}
-		loc := diagnosticCString.FindStringIndex(body)
-		if loc == nil {
-			return nil, diagnosticDecodeError{11}
-		}
-		program, err := strconv.Unquote(body[loc[0]:loc[1]])
+		category, err := diagnosticExecCategory(body)
 		if err != nil {
-			return nil, diagnosticDecodeError{12}
-		}
-		tail := body[loc[1]:]
-		a, b := strings.Index(tail, "["), strings.LastIndex(tail, "]")
-		if a < 0 || b < a {
-			return nil, diagnosticDecodeError{13}
-		}
-		list := tail[a+1 : b]
-		argv := []string{}
-		for strings.TrimSpace(list) != "" {
-			list = strings.TrimSpace(list)
-			q := diagnosticCString.FindStringIndex(list)
-			if q == nil || q[0] != 0 {
-				return nil, diagnosticDecodeError{14}
-			}
-			value, err := strconv.Unquote(list[:q[1]])
-			if err != nil {
-				return nil, diagnosticDecodeError{15}
-			}
-			argv = append(argv, value)
-			list = strings.TrimSpace(list[q[1]:])
-			if list != "" {
-				if list[0] != ',' {
-					return nil, diagnosticDecodeError{16}
-				}
-				list = list[1:]
-			}
+			return nil, err
 		}
 		if prior, found := active[pid]; found {
 			prior.EndNS = start
@@ -250,12 +251,56 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int, observedUntil ...int6
 				result = append(result, prior)
 			}
 		}
-		active[pid] = diagnosticInterval{Category: diagnosticCategory(program, argv), StartNS: start}
+		active[pid] = diagnosticInterval{Category: category, StartNS: start}
 	}
 	if scanner.Err() != nil || len(active) != 0 || len(pending) != 0 {
 		return nil, diagnosticDecodeError{17}
 	}
 	return result, nil
+}
+
+// diagnosticExecCategory validates the same program/argv for a completed exec
+// or an unfinished entry. It says nothing about success; the caller must have
+// a confirmed return before attributing this category to a running image.
+func diagnosticExecCategory(body string) (string, error) {
+	if !strings.HasPrefix(body, "execve(") && !strings.HasPrefix(body, "execveat(") {
+		return "", diagnosticDecodeError{8}
+	}
+	loc := diagnosticCString.FindStringIndex(body)
+	if loc == nil {
+		return "", diagnosticDecodeError{11}
+	}
+	program, err := strconv.Unquote(body[loc[0]:loc[1]])
+	if err != nil {
+		return "", diagnosticDecodeError{12}
+	}
+	tail := body[loc[1]:]
+	a, b := strings.Index(tail, "["), strings.LastIndex(tail, "]")
+	if a < 0 || b < a {
+		return "", diagnosticDecodeError{13}
+	}
+	list := tail[a+1 : b]
+	argv := []string{}
+	for strings.TrimSpace(list) != "" {
+		list = strings.TrimSpace(list)
+		q := diagnosticCString.FindStringIndex(list)
+		if q == nil || q[0] != 0 {
+			return "", diagnosticDecodeError{14}
+		}
+		value, err := strconv.Unquote(list[:q[1]])
+		if err != nil {
+			return "", diagnosticDecodeError{15}
+		}
+		argv = append(argv, value)
+		list = strings.TrimSpace(list[q[1]:])
+		if list != "" {
+			if list[0] != ',' {
+				return "", diagnosticDecodeError{16}
+			}
+			list = list[1:]
+		}
+	}
+	return diagnosticCategory(program, argv), nil
 }
 
 // summarizeDiagnosticIntervals reports clipped gross intervals and union

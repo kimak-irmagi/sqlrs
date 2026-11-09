@@ -3,6 +3,7 @@ package benchmark
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -62,6 +63,22 @@ func (t *diagnosticTrace) begin(group int) {
 // finish is called only after the owned process tree is absent. Closing a timed
 // out pipe unblocks and joins its exact reader; no detached goroutine survives.
 func (t *diagnosticTrace) finish(enginePID int, observedUntil ...int64) ([]diagnosticInterval, error) {
+	return t.finishDecode(func(input io.Reader) ([]diagnosticInterval, error) {
+		return decodeDiagnosticTrace(input, enginePID, observedUntil...)
+	})
+}
+
+// finishMeasured is the explicit EU05 collector boundary, after owned-tree
+// absence. It retains uncertain exec duration without changing default finish.
+func (t *diagnosticTrace) finishMeasured(enginePID int) ([]diagnosticInterval, error) {
+	return t.finishDecode(func(input io.Reader) ([]diagnosticInterval, error) {
+		return decodeMeasuredDiagnosticTrace(input, enginePID)
+	})
+}
+
+// finishDecode always joins the bounded reader before parsing its closed file.
+// Transport errors cannot be converted into successful uncertain intervals.
+func (t *diagnosticTrace) finishDecode(decode func(io.Reader) ([]diagnosticInterval, error)) ([]diagnosticInterval, error) {
 	if t.done == nil {
 		t.abort()
 		return nil, errDiagnosticTrace
@@ -81,7 +98,7 @@ func (t *diagnosticTrace) finish(enginePID int, observedUntil ...int64) ([]diagn
 	if _, err := t.file.Seek(0, 0); err != nil {
 		return nil, errDiagnosticTrace
 	}
-	return decodeDiagnosticTrace(t.file, enginePID, observedUntil...)
+	return decode(t.file)
 }
 
 func (t *diagnosticTrace) abort() {
