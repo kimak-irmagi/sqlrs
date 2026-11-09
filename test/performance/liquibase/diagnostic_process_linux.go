@@ -39,7 +39,10 @@ func newDiagnosticTrace(root string) (*diagnosticTrace, error) {
 // diagnosticTraceArgs records exec records plus strace's terminal markers only;
 // raw argument bytes go to the private FD, never stdout/stderr or artifacts.
 func diagnosticTraceArgs(engine string, args []string) []string {
-	prefix := []string{"-f", "-ttt", "-T", "-s", "4096", "-e", "trace=execve,execveat", "-e", "signal=none", "-o", "/proc/self/fd/3", "--", engine}
+	// Keep the tracer alive until all tracees exit when their owned group gets
+	// TERM. Explicitly select the documented -o FILE default, rather than relying
+	// on an inherited terminal changing strace's interruptibility.
+	prefix := []string{"-f", "-ttt", "-T", "-I", "3", "-s", "4096", "-e", "trace=execve,execveat", "-e", "signal=none", "-o", "/proc/self/fd/3", "--", engine}
 	return append(prefix, args...)
 }
 

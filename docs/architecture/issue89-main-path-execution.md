@@ -210,9 +210,9 @@ The four completed short-workload Actions cohorts now confirm slower v2 in
 uncached and cached passes, beyond the observed controls on both independent
 VMs. All six cohorts are now complete and retained, including both 102-change
 cohorts. The diagnostic design, DG01–DG12 and OT-DG01–OT-DG03 are approved and
-implemented in the observer only. All small tests and Linux vet pass; ordinary
-Go helpers are 91.0% (previous helpers remain 100%), Node helpers 100% lines.
-DC01–DC03 await separate coverage-iteration approval; the native strace smoke and
+implemented in the observer only. DC01–DC03 are also approved and pass: ordinary
+Go helpers cover 98.0% (494/504; previous helpers remain 100%), Node 100% lines;
+Linux vet passes. The native strace smoke and
 eight-member diagnostic have not run yet. Measured product bytes are unchanged. See
 [paired results and retained evidence](issue89-actions-performance-results-2026-11-08.md).
 This is a release-blocking timing failure, not a waived gate or completed #89.

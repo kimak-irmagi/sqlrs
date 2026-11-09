@@ -355,7 +355,10 @@ func collect(t *testing.T) {
 		if err != nil {
 			t.Fatal("private trace unavailable")
 		}
-		child = exec.CommandContext(ctx, "strace", diagnosticTraceArgs(engine, engineArgs)...)
+		// collect's deferred cancellation runs before t.Cleanup. Do not let
+		// CommandContext kill strace first and detach a still-live tracee; the
+		// exact-group cleanup below owns both normal and cancelled teardown.
+		child = exec.Command("strace", diagnosticTraceArgs(engine, engineArgs)...)
 		child.ExtraFiles = []*os.File{trace.writer}
 	}
 	child.Dir = req.WorkDir

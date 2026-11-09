@@ -104,9 +104,9 @@ The completed JHipster and 12-change MobilityData comparison/confirmation
 cohorts reproduce slower v2 beyond their noise controls. Speed acceptance is
 therefore blocked, not merely awaiting an all-green collection. The 102-change
 comparison and confirmation are also collected. The diagnostic design and
-DG01–DG12 / OT-DG01–OT-DG03 are approved. The new observer's small tests pass;
-Go helpers are 91.0%, below 95%, with DC01–DC03 awaiting approval before the next
-coverage iteration and remote diagnostic launch. See
+DG01–DG12 / OT-DG01–OT-DG03 are approved. DC01–DC03 are approved and pass:
+Go helpers cover 98.0% (494/504), Node 100% lines; Linux vet passes.
+Remote diagnostic DG11 is the next unfinished stage. See
 [results](architecture/issue89-actions-performance-results-2026-11-08.md).
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head

@@ -15,6 +15,8 @@ import (
 var errDiagnosticTrace = errors.New("incomplete diagnostic trace")
 var diagnosticTraceLine = regexp.MustCompile(`^\s*([0-9]+)\s+([0-9]+\.[0-9]+)\s+(.*)$`)
 var diagnosticCString = regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
+var diagnosticExecReturn = regexp.MustCompile(`\) = (-?[0-9]+)(?: [A-Z][A-Z0-9_]*(?: \([^\n]*\))?)?(?: <[0-9.]+>)?$`)
+var diagnosticExit = regexp.MustCompile(`^\+\+\+ (?:exited with [0-9]+|killed by SIG[A-Z0-9]+(?: \(core dumped\))?) \+\+\+$`)
 
 // diagnosticInterval has no process IDs/argv. The contract is recorded in
 // docs/architecture/issue89-performance-diagnostic-design.md. DG03/DG05 retain executable
@@ -138,7 +140,7 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval
 		}
 		last[pid] = at
 		body := m[3]
-		if strings.HasPrefix(body, "+++ exited with ") || strings.HasPrefix(body, "+++ killed by ") {
+		if diagnosticExit.MatchString(body) {
 			if _, found := pending[pid]; found {
 				return nil, errDiagnosticTrace
 			}
@@ -152,7 +154,7 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval
 			continue
 		}
 		start := at
-		if strings.Contains(body, "<unfinished ...>") {
+		if strings.HasSuffix(body, "<unfinished ...>") {
 			if _, found := pending[pid]; found {
 				return nil, errDiagnosticTrace
 			}
@@ -172,10 +174,14 @@ func decodeDiagnosticTrace(input io.Reader, enginePID int) ([]diagnosticInterval
 		if !strings.HasPrefix(body, "execve(") && !strings.HasPrefix(body, "execveat(") {
 			return nil, errDiagnosticTrace
 		}
-		if strings.Contains(body, " = -1 ") {
+		returned := diagnosticExecReturn.FindStringSubmatch(body)
+		if returned == nil {
+			return nil, errDiagnosticTrace
+		}
+		if returned[1] == "-1" {
 			continue
 		}
-		if !strings.Contains(body, " = 0") {
+		if returned[1] != "0" {
 			return nil, errDiagnosticTrace
 		}
 		loc := diagnosticCString.FindStringIndex(body)

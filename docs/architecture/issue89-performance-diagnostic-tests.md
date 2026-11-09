@@ -141,7 +141,10 @@ Repeat review found no remaining P0–P2 in this bounded diagnostic inventory.
 The post-approval audit found no additional old-test contradictions. Only the
 three named fixture amendments are authorised; implementation now follows tests.
 
-## DC01–DC03: proposed line-report follow-up
+## DC01–DC03: approved line-report follow-up
+
+Approved by @evilguest on 2026-11-09 before new tests; exact reply time unavailable.
+The repeated audit found no additional old-test contradictions or amendments.
 
 First full small-test run after implementation: Go 91.0% statements; Node 100%
 lines. Previous Go helpers remain 100% covered. Native strace and DB/Liquibase
@@ -168,4 +171,19 @@ Then repeat all small tests, vet and line coverage. DG11 remains separate real
 evidence, not a substitute for small negative tests. No new product boundaries,
 schema, old-test changes, permissions or dead-code deletion are proposed.
 Critical review excluded synthetic OS failures/global interception; repeat
-review found no P0–P2 in this bounded follow-up. Approval is required.
+review found no P0–P2 in this bounded follow-up.
+
+The first new-test run exposed marker-like argument strings being misread as
+strace syntax and missing explicit tracer signal mode. Parsing now checks the
+record's actual ending, not arbitrary substrings; `-I 3` retains the tracer until
+tracees exit when the owned group receives TERM. Cleanup review also prevented
+premature CommandContext cancellation of strace: exact t.Cleanup group shutdown
+owns it instead. These changes affect the observer, not product binaries or API.
+
+The repeated full small-test run and Linux vet pass. Profile
+`.tmp/performance/diag-dc-final.out`: **494/504 statements (98.0%)**, exceeding
+the 95% minimum; previous Go helpers remain 100%. All 26 Node tests pass, with
+100% lines / 95.73% branches in the five imported helpers. Actual Actions
+orchestration is not included in those percentages. Ten uncovered statements
+are defensive SQLite stream/catalog, os.Pipe/transport, malformed time/exec
+result failures; they are not claimed tested or dead. Next is DG11 on Actions.
