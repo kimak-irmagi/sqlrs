@@ -240,3 +240,38 @@ remaining P0–P2. The project and separately reviewed
 [CX01–CX05 inventory](issue89-performance-diagnostic-tests.md#proposed-cx01cx05-closed-failure-context)
 are approved; tests and context implementation pass small checks. No new syntax
 is accepted; real failure context still needs CX05 evidence.
+
+CX05 run `42632130376` has now proven failure-context transport:
+`trace_8 / pending_entry / other`, last-reached stage `oracle`. The report is
+retained in the test inventory. This does not establish a specific syntax or a
+product cause; the eight-member diagnostic is still incomplete.
+
+## Proposed: structural prefix detail for the remaining other case
+
+The new report localises the check but the approved shape enum deliberately
+leaves `other` unexplained. Propose two additional failure-only closed fields
+from the same already-read record, only when the existing shape is `other`:
+
+- `tracePrefix`: `empty`, `numeric_header`, `syscall_entry`, `syscall_resume`,
+  `pid_change`, `unknown_syscall`, `exit_notice`, `signal_notice`, `bracket_notice`,
+  `other`, or unavailable `none`. These are fixed anchored grammatical classes,
+  not a scrubbed/hashed/shortened copy of input. Strip framing whitespace only;
+  never inspect a quoted argument to infer the leading form.
+- `traceKnownCall`: only `execve`, `execveat`, `exit`, `exit_group`,
+  `restart_syscall`, `other`, or unavailable `none`. Match a call token only at
+  an anchored entry/resume position; an arbitrary syscall name maps to `other`,
+  never to its actual spelling. No string/number/PID/path/argv or raw length.
+
+Keep the original location/shape/code and strict failure. This adds observation,
+not syntax acceptance or a new time interval. Missing/foreign metadata defaults
+to `none`; existing reports and successful samples stay unchanged. No new read
+boundary, tracing flags, measured binary, local workload or eight-member schedule.
+The extra evidence may still be insufficient; state that limit rather than infer
+a successful command or product cause.
+
+Alternatives: keep the same ambiguous retry; export raw/redacted prefix text;
+or add only fixed structural classes. Recommend the last. Critical review fixed
+P1 argument leakage by forbidding copied strings/lengths and matching before
+arguments; P1 inferred valid exec by preserving rejection; P2 accidental overriding
+of existing context by keeping fields independent. Repeat review found no remaining
+P0–P2. Proposal not approved/implemented; exact tests follow separate approval.

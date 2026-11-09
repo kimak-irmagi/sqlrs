@@ -5,7 +5,8 @@
 - Agent: Codex / GPT-5.
 - Status: component amendment explicitly approved by the user after critical
   and repeat review. Separate CX01–CX05 inventory subsequently approved before
-  tests/implementation. Small checks pass; native CX05 remains open.
+  tests/implementation. Small checks pass; native CX05 verifies failure-context
+  transport, while the full eight-member diagnostic remains incomplete.
 - Question: incomplete diagnostic 42618850460 reports code 8, which cannot
   distinguish an unrecognised record from an invalid pending entry. How to
   improve evidence without exporting private trace bytes?
@@ -35,3 +36,8 @@ Prior localisation and uncertain-exec ADRs remain in force; none is superseded.
   or needed after the repeated audit. Tests preceded implementation.
 - Rationale: distinguish observer failure sites without accepting new syntax,
   exposing raw trace bytes or inferring a product fix from helper tests.
+
+Actual run 42632130376 reports code 8, pending_entry/other and last stage oracle;
+the [unchanged report](../architecture/issue89-diagnostic-evidence-2026-11-09/42632130376/jhipster-diagnostic.json)
+is retained. No superseded-exec input is established; no new trace syntax is
+accepted. A separate structural-prefix proposal does not alter this decision.

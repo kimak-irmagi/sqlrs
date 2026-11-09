@@ -121,6 +121,10 @@ Actual EU06 run `42618850460` remains incomplete at traced member 3 (`trace_8`);
 the original report is retained. The closed failure-context amendment and separate
 CX01–CX05 tests are approved; small checks pass (Go 544/554, 98.2%; 37 Node tests,
 ordinary helper lines 100%). Native CX05 is still open. No new trace format is accepted.
+Actual CX05 `42632130376` proves context transport but remains incomplete at
+traced member 3: `trace_8 / pending_entry / other`, last phase `oracle`. Original
+report retained; no product cause established. A structural-prefix amendment is
+proposed separately. Ordinary source CI passes all regressions, only coverage red.
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
 qualification and the agreed repeated v1 performance

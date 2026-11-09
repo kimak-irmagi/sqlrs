@@ -240,5 +240,13 @@ setup/smoke/plain members, then failed traced member 3 at `trace_8`; its incompl
 report is retained in the diagnostic test inventory. Record shape and exact
 product cause remain unknown. The failure-context project and EU04 clarification
 are now approved. EU04 passes its additive test (35 Node tests, helper lines 100%);
-the separate CX01–CX05 inventory awaits approval before context implementation.
+the separate CX01–CX05 inventory was then approved before context implementation.
 Product binaries and the performance gate remain unchanged.
+
+Observer `9fab753` passes all small Go/vet (544/554, 98.2%) and 37 Node tests
+(ordinary helper lines 100%). Native retry `42632130376` proves closed failure
+transport: traced member 3 stops at `trace_8 / pending_entry / other`, last phase
+`oracle`. The original report is retained; this does not prove the failed workload
+passed or localise the product regression. Source CI `42632129606` passes all
+regressions, only coverage-merge red. Further structural-prefix observation is
+proposed separately; no new trace syntax or product optimisation is implemented.

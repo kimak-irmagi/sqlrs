@@ -1,0 +1,631 @@
+{
+  "status": "incomplete",
+  "kind": "diagnostic_not_acceptance",
+  "host": "7196bec8-62fa-4b8c-8d6c-ba8f1216f5f1",
+  "run": "42632130376",
+  "platform": "linux/amd64",
+  "runnerImage": "20261101.360.1",
+  "cpu": "AMD EPYC 9V45 96-Core Processor",
+  "records": [
+    {
+      "id": 1,
+      "mode": "plain",
+      "route": "v1",
+      "samples": [
+        {
+          "Route": "v1",
+          "Fixture": "jhipster",
+          "Pass": "uncached",
+          "EngineSHA256": "b34c358d2d1e6e969f17d4e393641dd7cb53167870b8e4674db1381bf410bbca",
+          "SourceRevision": "cab99c4c7ced5b18f4dc43a65b002d84d8fef02d",
+          "Platform": "linux/amd64",
+          "ElapsedMS": 38909.359247,
+          "Changesets": 8,
+          "CacheHits": 0,
+          "LiquibaseCLIStarts": 9,
+          "MigrationCLIStarts": 9,
+          "ImageInspectionContainers": 0,
+          "ContainerCreates": 4,
+          "LiquibaseVersion": "5.0.3",
+          "DriverSHA256": "6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93",
+          "ImageDigest": "sha256:17f98b85e6d4c33b84ee409d055f1526227c77b55dd30e3879ec5088716a32eb",
+          "CoreSHA256": "3ccd4608829836b4c0f7fb1d23a4619bac16c68ca725d623aae0838bce734156",
+          "LauncherSHA256": "86dba6575da0c56526e9f3b284da416307dfde4eb610919977788abb2aad7f74",
+          "JVMStartsFromPinnedLauncher": 18,
+          "JavaDetails": "host runtime: openjdk version \"21.0.2\" 2024-01-16 LTS\nOpenJDK Runtime Environment Temurin-21.0.2+13 (build 21.0.2+13-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.2+13 (build 21.0.2+13-LTS, mixed mode, sharing)",
+          "OracleOK": true,
+          "CleanupOK": true,
+          "SnapshotBackend": "copy",
+          "HelperDigest": ""
+        },
+        {
+          "Route": "v1",
+          "Fixture": "jhipster",
+          "Pass": "cached",
+          "EngineSHA256": "b34c358d2d1e6e969f17d4e393641dd7cb53167870b8e4674db1381bf410bbca",
+          "SourceRevision": "cab99c4c7ced5b18f4dc43a65b002d84d8fef02d",
+          "Platform": "linux/amd64",
+          "ElapsedMS": 7623.983908,
+          "Changesets": 8,
+          "CacheHits": 8,
+          "LiquibaseCLIStarts": 1,
+          "MigrationCLIStarts": 1,
+          "ImageInspectionContainers": 0,
+          "ContainerCreates": 2,
+          "LiquibaseVersion": "5.0.3",
+          "DriverSHA256": "6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93",
+          "ImageDigest": "sha256:17f98b85e6d4c33b84ee409d055f1526227c77b55dd30e3879ec5088716a32eb",
+          "CoreSHA256": "3ccd4608829836b4c0f7fb1d23a4619bac16c68ca725d623aae0838bce734156",
+          "LauncherSHA256": "86dba6575da0c56526e9f3b284da416307dfde4eb610919977788abb2aad7f74",
+          "JVMStartsFromPinnedLauncher": 2,
+          "JavaDetails": "host runtime: openjdk version \"21.0.2\" 2024-01-16 LTS\nOpenJDK Runtime Environment Temurin-21.0.2+13 (build 21.0.2+13-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.2+13 (build 21.0.2+13-LTS, mixed mode, sharing)",
+          "OracleOK": true,
+          "CleanupOK": true,
+          "SnapshotBackend": "copy",
+          "HelperDigest": ""
+        }
+      ],
+      "diagnostics": [
+        {
+          "Pass": "uncached",
+          "Traced": false,
+          "ElapsedMS": 38909.359247,
+          "Phases": [
+            {
+              "Category": "job",
+              "Ordinal": 0,
+              "Available": true,
+              "StartMS": 1.917256,
+              "EndMS": 38829.853317
+            },
+            {
+              "Category": "plan_task",
+              "Ordinal": 0,
+              "Available": true,
+              "StartMS": 5706.901712,
+              "EndMS": 5708.535665
+            },
+            {
+              "Category": "step",
+              "Ordinal": 1,
+              "Available": true,
+              "StartMS": 5710.266028,
+              "EndMS": 9846.126099
+            },
+            {
+              "Category": "step",
+              "Ordinal": 2,
+              "Available": true,
+              "StartMS": 9848.241786,
+              "EndMS": 14046.154241
+            },
+            {
+              "Category": "step",
+              "Ordinal": 3,
+              "Available": true,
+              "StartMS": 14047.99175,
+              "EndMS": 18074.729822
+            },
+            {
+              "Category": "step",
+              "Ordinal": 4,
+              "Available": true,
+              "StartMS": 18076.536722,
+              "EndMS": 22160.983006
+            },
+            {
+              "Category": "step",
+              "Ordinal": 5,
+              "Available": true,
+              "StartMS": 22162.840607,
+              "EndMS": 26272.345346
+            },
+            {
+              "Category": "step",
+              "Ordinal": 6,
+              "Available": true,
+              "StartMS": 26274.338685,
+              "EndMS": 30464.717436
+            },
+            {
+              "Category": "step",
+              "Ordinal": 7,
+              "Available": true,
+              "StartMS": 30466.747721,
+              "EndMS": 34621.019494
+            },
+            {
+              "Category": "step",
+              "Ordinal": 8,
+              "Available": true,
+              "StartMS": 34623.275349,
+              "EndMS": 38781.617323
+            },
+            {
+              "Category": "other_task",
+              "Ordinal": 9,
+              "Available": true,
+              "StartMS": 38783.620434,
+              "EndMS": 38828.221599
+            },
+            {
+              "Category": "image_binding",
+              "Ordinal": 0,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "planning",
+              "Ordinal": 0,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "session_start",
+              "Ordinal": 0,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            }
+          ],
+          "Trace": null
+        },
+        {
+          "Pass": "cached",
+          "Traced": false,
+          "ElapsedMS": 7623.983908,
+          "Phases": [
+            {
+              "Category": "job",
+              "Ordinal": 0,
+              "Available": true,
+              "StartMS": 0.508761,
+              "EndMS": 7528.309359
+            },
+            {
+              "Category": "plan_task",
+              "Ordinal": 0,
+              "Available": true,
+              "StartMS": 4429.703431,
+              "EndMS": 4431.271002
+            },
+            {
+              "Category": "step",
+              "Ordinal": 1,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 2,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 3,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 4,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 5,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 6,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 7,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 8,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "other_task",
+              "Ordinal": 9,
+              "Available": true,
+              "StartMS": 4446.552925,
+              "EndMS": 7526.332703
+            },
+            {
+              "Category": "image_binding",
+              "Ordinal": 0,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "planning",
+              "Ordinal": 0,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "session_start",
+              "Ordinal": 0,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            }
+          ],
+          "Trace": null
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "mode": "plain",
+      "route": "v2",
+      "samples": [
+        {
+          "Route": "v2",
+          "Fixture": "jhipster",
+          "Pass": "uncached",
+          "EngineSHA256": "1367bce9ddaa44c0aa378b07c015dfb20a4c0d29f00d2f5a893905686fae14b0",
+          "SourceRevision": "668d5050ad154c1967bea4c6e40b91f3a703d5ba",
+          "Platform": "linux/amd64",
+          "ElapsedMS": 48714.521718,
+          "Changesets": 8,
+          "CacheHits": 0,
+          "LiquibaseCLIStarts": 10,
+          "MigrationCLIStarts": 9,
+          "ImageInspectionContainers": 1,
+          "ContainerCreates": 8,
+          "LiquibaseVersion": "5.0.3",
+          "DriverSHA256": "6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93",
+          "ImageDigest": "sha256:17f98b85e6d4c33b84ee409d055f1526227c77b55dd30e3879ec5088716a32eb",
+          "CoreSHA256": "3ccd4608829836b4c0f7fb1d23a4619bac16c68ca725d623aae0838bce734156",
+          "LauncherSHA256": "86dba6575da0c56526e9f3b284da416307dfde4eb610919977788abb2aad7f74",
+          "JVMStartsFromPinnedLauncher": 21,
+          "JavaDetails": "Linux image build metadata: JAVA_VERSION=jdk-21.0.11+10",
+          "OracleOK": true,
+          "CleanupOK": true,
+          "SnapshotBackend": "copy",
+          "HelperDigest": "sha256:b3c260167e08012ddcd7681525a08af72e29c013fc20f53bfdcf19d3d08866a3"
+        },
+        {
+          "Route": "v2",
+          "Fixture": "jhipster",
+          "Pass": "cached",
+          "EngineSHA256": "1367bce9ddaa44c0aa378b07c015dfb20a4c0d29f00d2f5a893905686fae14b0",
+          "SourceRevision": "668d5050ad154c1967bea4c6e40b91f3a703d5ba",
+          "Platform": "linux/amd64",
+          "ElapsedMS": 8948.65674,
+          "Changesets": 8,
+          "CacheHits": 8,
+          "LiquibaseCLIStarts": 2,
+          "MigrationCLIStarts": 1,
+          "ImageInspectionContainers": 1,
+          "ContainerCreates": 4,
+          "LiquibaseVersion": "5.0.3",
+          "DriverSHA256": "6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93",
+          "ImageDigest": "sha256:17f98b85e6d4c33b84ee409d055f1526227c77b55dd30e3879ec5088716a32eb",
+          "CoreSHA256": "3ccd4608829836b4c0f7fb1d23a4619bac16c68ca725d623aae0838bce734156",
+          "LauncherSHA256": "86dba6575da0c56526e9f3b284da416307dfde4eb610919977788abb2aad7f74",
+          "JVMStartsFromPinnedLauncher": 5,
+          "JavaDetails": "Linux image build metadata: JAVA_VERSION=jdk-21.0.11+10",
+          "OracleOK": true,
+          "CleanupOK": true,
+          "SnapshotBackend": "copy",
+          "HelperDigest": "sha256:b3c260167e08012ddcd7681525a08af72e29c013fc20f53bfdcf19d3d08866a3"
+        }
+      ],
+      "diagnostics": [
+        {
+          "Pass": "uncached",
+          "Traced": false,
+          "ElapsedMS": 48714.521718,
+          "Phases": [
+            {
+              "Category": "job",
+              "Ordinal": 0,
+              "Available": true,
+              "StartMS": 2.034674,
+              "EndMS": 48674.541328
+            },
+            {
+              "Category": "plan_task",
+              "Ordinal": 0,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 1,
+              "Available": true,
+              "StartMS": 7458.685132,
+              "EndMS": 12520.661211
+            },
+            {
+              "Category": "step",
+              "Ordinal": 2,
+              "Available": true,
+              "StartMS": 12531.4702,
+              "EndMS": 17386.033391
+            },
+            {
+              "Category": "step",
+              "Ordinal": 3,
+              "Available": true,
+              "StartMS": 17396.356725,
+              "EndMS": 22150.076023
+            },
+            {
+              "Category": "step",
+              "Ordinal": 4,
+              "Available": true,
+              "StartMS": 22161.372842,
+              "EndMS": 26868.066013
+            },
+            {
+              "Category": "step",
+              "Ordinal": 5,
+              "Available": true,
+              "StartMS": 26878.362952,
+              "EndMS": 31603.493497
+            },
+            {
+              "Category": "step",
+              "Ordinal": 6,
+              "Available": true,
+              "StartMS": 31614.0088,
+              "EndMS": 36383.818067
+            },
+            {
+              "Category": "step",
+              "Ordinal": 7,
+              "Available": true,
+              "StartMS": 36394.321352,
+              "EndMS": 41247.508612
+            },
+            {
+              "Category": "step",
+              "Ordinal": 8,
+              "Available": true,
+              "StartMS": 41258.645155,
+              "EndMS": 46063.259336
+            },
+            {
+              "Category": "other_task",
+              "Ordinal": 9,
+              "Available": true,
+              "StartMS": 46072.614719,
+              "EndMS": 48613.333996
+            },
+            {
+              "Category": "image_binding",
+              "Ordinal": 0,
+              "Available": true,
+              "StartMS": 14.751949,
+              "EndMS": 1234.053918
+            },
+            {
+              "Category": "planning",
+              "Ordinal": 0,
+              "Available": true,
+              "StartMS": 1249.290225,
+              "EndMS": 7315.986756
+            },
+            {
+              "Category": "session_start",
+              "Ordinal": 0,
+              "Available": true,
+              "StartMS": 7461.280322,
+              "EndMS": 10208.551427
+            },
+            {
+              "Category": "invocation",
+              "Ordinal": 1,
+              "Available": true,
+              "StartMS": 10306.454167,
+              "EndMS": 12230.322154
+            },
+            {
+              "Category": "invocation",
+              "Ordinal": 2,
+              "Available": true,
+              "StartMS": 14745.835168,
+              "EndMS": 17098.508895
+            },
+            {
+              "Category": "invocation",
+              "Ordinal": 3,
+              "Available": true,
+              "StartMS": 19611.07764,
+              "EndMS": 21848.707803
+            },
+            {
+              "Category": "invocation",
+              "Ordinal": 4,
+              "Available": true,
+              "StartMS": 24377.831491,
+              "EndMS": 26565.989897
+            },
+            {
+              "Category": "invocation",
+              "Ordinal": 5,
+              "Available": true,
+              "StartMS": 29089.787326,
+              "EndMS": 31303.687246
+            },
+            {
+              "Category": "invocation",
+              "Ordinal": 6,
+              "Available": true,
+              "StartMS": 33826.063926,
+              "EndMS": 36076.775837
+            },
+            {
+              "Category": "invocation",
+              "Ordinal": 7,
+              "Available": true,
+              "StartMS": 38608.167897,
+              "EndMS": 40937.347761
+            },
+            {
+              "Category": "invocation",
+              "Ordinal": 8,
+              "Available": true,
+              "StartMS": 43474.516062,
+              "EndMS": 45750.96055
+            }
+          ],
+          "Trace": null
+        },
+        {
+          "Pass": "cached",
+          "Traced": false,
+          "ElapsedMS": 8948.65674,
+          "Phases": [
+            {
+              "Category": "job",
+              "Ordinal": 0,
+              "Available": true,
+              "StartMS": 0.494262,
+              "EndMS": 8849.714729
+            },
+            {
+              "Category": "plan_task",
+              "Ordinal": 0,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 1,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 2,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 3,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 4,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 5,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 6,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 7,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "step",
+              "Ordinal": 8,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            },
+            {
+              "Category": "other_task",
+              "Ordinal": 9,
+              "Available": true,
+              "StartMS": 6167.238267,
+              "EndMS": 8837.418708
+            },
+            {
+              "Category": "image_binding",
+              "Ordinal": 0,
+              "Available": true,
+              "StartMS": 5.868573,
+              "EndMS": 965.903871
+            },
+            {
+              "Category": "planning",
+              "Ordinal": 0,
+              "Available": true,
+              "StartMS": 982.428141,
+              "EndMS": 5997.339629
+            },
+            {
+              "Category": "session_start",
+              "Ordinal": 0,
+              "Available": false,
+              "StartMS": null,
+              "EndMS": null
+            }
+          ],
+          "Trace": null
+        }
+      ]
+    }
+  ],
+  "observerRevision": "9fab753d38aa9523ceeda649d2c6b01841d4b449",
+  "revision": "668d5050ad154c1967bea4c6e40b91f3a703d5ba",
+  "engineHash": "1367bce9ddaa44c0aa378b07c015dfb20a4c0d29f00d2f5a893905686fae14b0",
+  "baselineHash": "b34c358d2d1e6e969f17d4e393641dd7cb53167870b8e4674db1381bf410bbca",
+  "observerSHA256": "d3aa844c3da75e3980894b5cc3e4d161d96789ad6bc556bc080f8f5665ee01a5",
+  "baselineAPIArchiveSHA256": "da6132c95185f2a11561628458d34b22e7cb928c574d8ecec9f06d44fc8d0f01",
+  "activeMember": {
+    "id": 3,
+    "mode": "trace",
+    "route": "v1"
+  },
+  "failureKind": "unknown",
+  "diagnosticFailure": "trace_8",
+  "traceLocation": "pending_entry",
+  "traceShape": "other",
+  "failureStage": "oracle",
+  "cleanupBoundary": "unknown",
+  "reason": "diagnostic_collection_failed"
+}

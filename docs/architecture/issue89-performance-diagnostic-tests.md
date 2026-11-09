@@ -505,3 +505,16 @@ collector/report orchestration is not claimed unit-covered. Context only augment
 failure evidence; old numeric codes, strict/default/late-cleanup assertions,
 successful samples and measured executable bytes are unchanged. CX05's actual
 eight-member retry remains to run; no successful collection or exact cause claimed.
+
+Actual CX05 retry [42632130376](https://github.com/kimak-irmagi/sqlrs/actions/runs/42632130376)
+passed setup/native smoke and both plain members; traced member 3 failed with
+`trace_8`, **pending_entry / other**, last-reached stage `oracle`, cleanup boundary
+`unknown`. The original sanitized incomplete report is retained
+[unchanged](issue89-diagnostic-evidence-2026-11-09/42632130376/jhipster-diagnostic.json),
+SHA256 `8dd2dcd447f281581d990028b0c6de8192436f523f88956a4d553e75b0ad1356`.
+This verifies actual failure-context transport, not complete eight-member
+collection or workload success for the failed member. The superseded-exec
+hypothesis is not established by this evidence. Existing fixed classifiers cannot
+identify the pending prefix beyond `other`; do not treat it as valid exec input.
+Ordinary CI `42632129606` passes all regression jobs; only coverage-merge is red.
+Further prefix observation is a separate proposal, not an implemented relaxation.
