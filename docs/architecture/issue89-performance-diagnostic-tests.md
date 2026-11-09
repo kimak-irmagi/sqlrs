@@ -304,3 +304,13 @@ negative case is unchanged. This tests a cleanup hypothesis, not a claim about
 the previous measurement failure's cause. Full small Go tests/vet pass:
 **504/514 (98.1%)**; Node is unchanged. A real retry is necessary: an in-window
 trace_5 will still stop collection.
+
+Retry `42612253733` again stopped at member 3 with `trace_5`; attempt start is
+no later than the final API boundary, otherwise the exception would apply.
+This does not yet locate it relative to both windows or identify any program.
+The [original report](issue89-diagnostic-evidence-2026-11-09/42612253733/jhipster-diagnostic.json),
+SHA256 `e0bacb484732934de17c0e6cc72b444273c71c9e09e09cb71a70d686b12223b1`, is retained.
+All ordinary CI `42612254604` jobs pass; only the aggregate coverage gate is red.
+The separately labelled `exec.unconfirmed` proposal awaits approval at the end
+of the diagnostic design. It is not implemented and its new tests are not written.
+TA06/DG11 and exact slowdown localisation remain unfinished; speed acceptance is blocked.

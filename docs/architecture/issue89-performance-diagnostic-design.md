@@ -161,3 +161,35 @@ fetch interception, source patch or expanded permission. Repeat review found no
 remaining P0–P2. Exact acquisition/root checks TA01–TA06 are approved, and the
 repeated old-test audit found no contradictions. No old test changed; TA06
 remains the actual remote stage.
+
+## Proposed: terminal exec without a confirmed result
+
+2026-11-09: retry `42612253733` again failed at member 3 with `trace_5`.
+Its exec attempt started no later than the final API boundary, so the narrow
+late-cleanup exception correctly did not apply. This does not establish that
+the record is a migration application or that any specific program was launched.
+
+Propose an explicit measured-decoding mode only:
+
+- Given an observed exec entry and exact terminal record for the same process,
+  but no exec result, retain **exec.unconfirmed** from attempt start to terminal
+  record. No program name, PID or argv is exported. The preceding confirmed
+  image ends at attempt start; its identity cannot cover the uncertain span.
+- This interval is not a successful CLI/JVM start. Existing independent CLI
+  counts, DB/cache oracles and cleanup remain mandatory. `Commands` continues
+  to count displayed intervals, not successful CLIs; the distinct category keeps
+  uncertainty explicit instead of falsely attributing it to Java/Docker.
+- Default strict decoding and old negative tests remain. Corrupt/truncated
+  streams, missing terminal records, unrelated PIDs, reversed time and unproved
+  cleanup still fail. No skipping lines or treating EOF as proof of process exit.
+- Material unexplained cost in these intervals limits analysis: it cannot be
+  named as a specific regression cause. No product/API/schema/SQL-replay authority
+  changes, new read boundary or raw-data export.
+
+Alternative: retain full rejection and separately design another observation
+method. Recommend the explicit uncertain interval: distinguish known duration
+from unknown execution result honestly. Critical review addressed P1 false
+success/attribution and P1 corrupt-stream acceptance with the stated limits;
+repeat review found no additional P0–P2. Decision is pending. A separate exact
+test inventory must follow approval; this mode is not implemented and current
+strict checks have not been weakened.
