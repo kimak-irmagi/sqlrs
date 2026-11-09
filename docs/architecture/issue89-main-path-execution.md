@@ -238,5 +238,7 @@ exec boundary, with strict tests unchanged. Small Go/vet pass at 527/537 (98.1%)
 34 Node tests pass with ordinary helper lines 100%. Actual `42618850460` passed
 setup/smoke/plain members, then failed traced member 3 at `trace_8`; its incomplete
 report is retained in the diagnostic test inventory. Record shape and exact
-product cause remain unknown. A separate failure-context project and the EU04
-extra-field clarification await approval; product binaries/performance gate remain.
+product cause remain unknown. The failure-context project and EU04 clarification
+are now approved. EU04 passes its additive test (35 Node tests, helper lines 100%);
+the separate CX01–CX05 inventory awaits approval before context implementation.
+Product binaries and the performance gate remain unchanged.

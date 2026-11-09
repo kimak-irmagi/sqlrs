@@ -5,7 +5,7 @@
 - Agent: Codex / GPT-5.
 - Status: component amendment and, subsequently, the separately reviewed
   EU01–EU06 inventory explicitly approved by the user. Small implementation passes;
-  a post-approval EU04 field-policy conflict awaits separate clarification.
+  the post-approval EU04 field-policy clarification is separately approved.
 - Question: native diagnostic run 42612253733 again rejected a terminal process
   with a pending exec whose start was no later than the final API boundary.
   Keep rejecting it entirely, pretend a successful command, or retain uncertainty?
@@ -38,5 +38,19 @@ no raw trace export and no performance waiver. No prior ADR is superseded.
 - Rationale: independently check intervals, absent evidence, windows/counts,
   private report parsing, explicit wiring and the same eight remote members.
   A subsequent audit found EU04's extra-field rejection conflicts with DG09's
-  existing safe field dropping. That subcase is separately queried, not silently
-  implemented or used to rewrite the old test. Independent cases proceed.
+  existing safe field dropping. That subcase was separately queried, not silently
+  implemented or used to rewrite the old test; its resolution is recorded below.
+
+## Preserve DG09 field dropping in EU04
+
+- Conversation date: 2026-11-09, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: EU04 requested rejection of extra fields, while existing DG09 safely
+  reconstructs output without them. Change existing behaviour or clarify EU04?
+- Alternatives: reject the report and revise DG09; or retain safe reconstruction
+  and add the same protection for the explicitly unconfirmed category.
+- Decision: user explicitly chose field dropping and clarification of EU04.
+- Rationale: retain privacy and existing behaviour without an unrelated stricter
+  report contract. Invalid categories/bounds/counts/totals still fail. The added
+  test passes; existing DG09 assertions and parser/product code are unchanged.

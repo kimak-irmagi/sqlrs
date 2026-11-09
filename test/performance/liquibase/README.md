@@ -50,8 +50,10 @@ successful JVM/CLI; previous confirmed images end at attempt start. Strict/defau
 decoding and its old tests remain unchanged. `Commands` counts displayed intervals,
 not successful launches; independent workload/CLI counts still qualify samples.
 Small checks pass at 527/537 Go statements (98.1%) and 34 Node tests (ordinary
-helper lines 100%). The EU04 extra-field clarification and complete remote EU06
-remain unfinished; no precise product cause or speed acceptance is claimed.
+helper lines 100%). The EU04 field-dropping clarification is now approved and
+passes an additive test (35 Node tests, ordinary helper lines 100%). The closed
+failure-context project is approved; CX01–CX05 await separate test approval.
+Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.
 Its internal samples are emitted only after oracle verification and successful
 exact cleanup. The parent never publishes raw child stdout/stderr. Private

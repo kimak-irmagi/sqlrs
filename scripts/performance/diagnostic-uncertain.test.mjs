@@ -24,3 +24,20 @@ test('EU04: explicitly unconfirmed intervals keep time without changing CLI coun
  const plain=rows.map(r=>({...r,Traced:false,Trace:null}));
  assert.deepEqual(parseDiagnosticOutput(encode(plain),false,samples),plain);
 });
+
+// EU04 clarification: keep DG09's safe reconstruction, not a new rejection
+// policy. Extra private fields must disappear at every nested record boundary.
+test('EU04: unconfirmed reports drop extra fields without exposing private values',()=>{
+ const clean=['uncached','cached'].map(Pass=>({Pass,Traced:true,ElapsedMS:1000,
+  Phases:[{Category:'job',Ordinal:0,Available:true,StartMS:0,EndMS:1000}],
+  Trace:{CoveredMS:300,ResidualMS:700,Commands:1,Intervals:[{Category:'exec.unconfirmed',StartMS:200,EndMS:500}]}}));
+ const input=structuredClone(clean);
+ for(const row of input){
+  row.private='PRIVATE_SENTINEL';row.Phases[0].message='PRIVATE_SENTINEL';
+  row.Trace.private='PRIVATE_SENTINEL';
+  Object.assign(row.Trace.Intervals[0],{program:'PRIVATE_SENTINEL',argv:['PRIVATE_SENTINEL'],pid:999});
+ }
+ const output=parseDiagnosticOutput(input.map(row=>`P01B_DIAGNOSTIC ${JSON.stringify(row)}`).join('\n'),true,[{ElapsedMS:1000},{ElapsedMS:1000}]);
+ assert.deepEqual(output,clean);
+ assert.ok(!JSON.stringify(output).includes('PRIVATE_SENTINEL'));
+});

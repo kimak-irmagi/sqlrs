@@ -166,8 +166,8 @@ remains the actual remote stage.
 
 Status: explicitly approved by @evilguest on 2026-11-09; exact reply time unavailable.
 The separate EU01–EU06 inventory linked below was subsequently approved before
-tests and implementation. The post-approval EU04 extra-field clarification is
-pending; the existing safe field-dropping behaviour remains unchanged.
+tests and implementation. The post-approval EU04 clarification is also approved:
+retain existing safe field dropping, not a new rejection policy.
 
 2026-11-09: retry `42612253733` again failed at member 3 with `trace_5`.
 Its exec attempt started no later than the final API boundary, so the narrow
@@ -201,7 +201,11 @@ The explicit mode is implemented in the observer; current strict calls/tests
 are unchanged. Small Go/Node regressions and Linux vet pass. Actual EU06 remains
 unfinished; successful diagnostic collection and exact slowdown cause are not claimed.
 
-## Proposed: closed context for an unrecognised trace record
+## Approved: closed context for an unrecognised trace record
+
+Status: explicitly approved by @evilguest on 2026-11-09; exact reply time
+unavailable. The separate CX01–CX05 test inventory awaits approval; context
+implementation has not begun.
 
 Run `42618850460` on observer `a75316b` passed preparation, native smoke and two
 plain members, then stopped on traced v1 with `trace_8`. This code currently
@@ -209,7 +213,7 @@ can mean either an unrecognised top-level record or an invalid pending entry
 seen at terminal handling. No trace bytes are retained in the artifact; neither
 the actual record shape nor a product cause is established by the code alone.
 
-Propose failure-only metadata from the same already-read private record:
+Approve failure-only metadata from the same already-read private record:
 
 - A closed location enum: `record`, `pending_entry`, or `none`.
 - A closed shape enum: `superseded_exec`, `exec_entry`, `exec_resume`, `other`,
@@ -220,6 +224,8 @@ Propose failure-only metadata from the same already-read private record:
   already-emitted closed `P01B_FAILURE_STAGE` using the same stage allowlist as
   the ordinary cohort reporter, so cleanup decoding cannot hide the primary
   workload phase. Missing/foreign stage values become `collector_exit`.
+  The stage records the last reached phase; it alone does not establish a
+  primary workload error (cleanup failure can follow a successful workload).
 - No acceptance of a new strace syntax, new raw-data read/export, syscall flags,
   product changes or altered eight-member protocol. Any later decoder amendment
   must be justified by the new evidence, not inferred from this proposal.
@@ -230,5 +236,6 @@ The last is recommended. Critical review: P1 raw substring leakage is prevented
 by rebuilding fixed enums; P1 a shape label is mistaken for a valid record is
 prevented by retaining rejection; P2 cleanup obscures an earlier failure is
 addressed by preserving the existing phase separately. Repeat review found no
-remaining P0–P2. This project is not approved or implemented; its exact tests
-must be separately reviewed/approved after project approval.
+remaining P0–P2. The project is approved, not implemented; the separately reviewed
+[CX01–CX05 inventory](issue89-performance-diagnostic-tests.md#proposed-cx01cx05-closed-failure-context)
+must be approved before its tests/code are written.

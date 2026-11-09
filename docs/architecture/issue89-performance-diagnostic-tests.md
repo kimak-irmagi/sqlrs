@@ -321,8 +321,8 @@ TA06/DG11 and exact slowdown localisation remain unfinished; speed acceptance is
 Status: EU01–EU06 explicitly approved by @evilguest on 2026-11-09 after critical
 and repeat review; exact reply time unavailable. Observer-only addition.
 Post-approval audit found one EU04/DG09 conflict about dropping versus rejecting
-extra fields; a narrow clarification is requested separately. Other cases proceed
-without changing existing tests.
+extra fields. The user explicitly approved retaining safe field dropping and
+clarifying EU04 on 2026-11-09. Existing tests remain unchanged.
 
 1. **EU01 — exact interval, not a launch claim.** Independently authored execve/
    execveat entry-without-result records followed by the same PID's natural zero,
@@ -352,8 +352,9 @@ without changing existing tests.
    independent Liquibase application/planning counts do not increase.
 4. **EU04 — closed report and explicit uncertainty.** Go serialization and the
    actual Node decoder accept only the exact new category in the existing
-   interval shape. Reject near-miss labels, extra fields, bad bounds, wrong
-   interval counts and forged summary totals. Program/argv sentinels appear in
+   interval shape. Drop extra fields at every nesting level, preserving DG09;
+   reject near-miss labels, bad bounds, wrong interval counts and forged summary
+   totals. Program/argv sentinels appear in
    neither JSON nor errors. Plain runs retain null Trace. The interval is not
    relabelled Java/Docker and cannot change independent counters. Material unknown
    time stays a visible limitation, not a causal finding or speed acceptance.
@@ -404,9 +405,9 @@ pre-existing process/journal/clock branches. All **34 Node tests** pass; the fiv
 ordinary helpers cover **100% lines / 96.65% branches**. This is not product or
 Actions-orchestration coverage. Existing strict/late-cleanup tests and assertions
 are unchanged. Collector wiring changes only the explicit measured decoder call.
-The independently identified EU04 extra-field conflict is pending clarification;
-the old DG09 safe field-dropping behaviour/test is unchanged. No new assertion
-about rejecting those fields has been added. All other new cases pass.
+The independently identified EU04 extra-field conflict was subsequently resolved
+by explicit user approval: preserve DG09 field dropping and add its new-category
+control. The old DG09 behaviour/test is unchanged; no new rejection policy exists.
 EU06's eight-member Actions retry is the next independent stage; no successful
 trace cohort or exact product cause is established by these small checks.
 
@@ -417,5 +418,78 @@ member 3 with **trace_8**. The original sanitized incomplete report is retained
 SHA256 `b1b706b50a8b725286ecf2d34987c552c3ca9324e5cb35a226a965bdba15dc4a`.
 It does not identify which of the two record-kind checks failed. No new format
 is accepted and no exact product cause is claimed. A failure-context proposal
-is separately presented at the end of the component design; no tests/code for
-that proposal have been written. EU06/TA06/DG11 remain incomplete.
+was subsequently approved; the separate CX01–CX05 inventory below still needs
+approval before its tests/code are written. EU06/TA06/DG11 remain incomplete.
+
+## Proposed: CX01–CX05, closed failure context
+
+Status: component amendment approved by @evilguest on 2026-11-09; exact reply
+time unavailable. This inventory passed critical and repeat review but still
+requires approval. No context tests or implementation have been written.
+
+1. **CX01 — exact record shape, not syntax acceptance.** Hand-authored fixed
+   forms cover `superseded_exec` (numeric ID, never exported), `exec_entry`
+   (execve/execveat), `exec_resume` and `other`. Require anchored matching:
+   a quoted argument containing the same marker, a malformed numeric marker,
+   trailing private text and near-miss spellings cannot become superseded exec.
+   Actual decoder failures separately prove `record` for a top-level unknown
+   record and `pending_entry` for a malformed pending entry at terminal handling.
+   Preserve exact old code 8, failure and no partial result. Classification alone
+   must not make the record valid or silently invent an execution interval.
+2. **CX02 — preserve the error and closed context.** Check direct and wrapped
+   errors through the real code extractor: the old numeric code, generic safe
+   error and errors.As/unwrap behaviour remain usable. Missing context, unrelated
+   errors, unknown location/shape and private sentinels yield only safe defaults
+   (`none`), never original text. Inspect both error and serialized context for
+   argument/path/PID sentinels. Existing strict/measured/late-cleanup tests remain
+   unchanged; code/context are independent of successful CLI/JVM counts.
+3. **CX03 — Node allowlist and the existing collector stage.** Decode explicit
+   Go-style failure markers into only the approved location/shape enums. Missing,
+   foreign and suffixed near-miss values become `none`; do not copy raw strings.
+   Preserve existing diagnostic failure code and cleanup boundary independently.
+   For stage, test every existing cohort value (`identity`, `engine_start`,
+   `configuration`, `uncached`, `cached`, `oracle`); missing/foreign values become
+   `collector_exit`. The stage means last reached phase, not proof of a workload
+   failure: an `oracle` stage plus a cleanup parser error remains incomplete.
+   Unknown extra private properties never enter the rebuilt metadata.
+4. **CX04 — real failed-decoder/report wiring.** Test the real decoder with
+   independent failing inputs and assert exact location/shape/code, then exercise
+   the actual Node helper on expected closed log markers. Addressed collector/
+   reporter wiring checks require emission of this context only on failure and
+   persistence of context plus existing stage/code before reporting incomplete.
+   Do not satisfy the requirement with pure shape tests or YAML search alone.
+   No raw-body argument can reach the public formatter; old sample parsing,
+   timers, successful report records and strict error assertions stay unchanged.
+   Real orchestration is additionally checked in CX05, not claimed unit-covered.
+5. **CX05 — regressions, coverage and an actual diagnostic retry.** Full small
+   Go/Node tests, Linux vet, script/Actions syntax and per-line helper coverage
+   (target 100%, minimum 95%). Then explicitly repeat the same eight-member
+   Actions protocol on a pinned observer and the original executable hashes,
+   with native strace smoke, DB/cache/count/cleanup controls. On a repeated
+   decoding failure require closed context in the retained incomplete report;
+   `other` remains an observation limit, not permission to skip the record.
+   If collection succeeds, keep it separate from P01b acceptance. Retain old
+   reports unchanged; no local Liquibase/DB workload and no product fix authorised.
+
+Critical review and corrections:
+
+- P1 fixed shape silently admits new syntax: CX01/CX04 require the same rejection
+  and numeric code after classification, not successful decoding.
+- P1 tests cover the classifier but cannot distinguish the failing call site:
+  CX01/CX04 require actual record versus pending-entry decoder paths.
+- P1 context wrapping loses the original code or exposes raw input: CX02 checks
+  extraction/wrapping and private sentinels, not only the display message.
+- P1 last phase is misreported as the primary workload failure: CX03 explicitly
+  preserves the phase's limited meaning and independent cleanup/decode failure.
+- P2 helpers pass while the actual artifact omits context: CX04 checks addressed
+  wiring; CX05 requires a real retained report, not inferred orchestration coverage.
+
+Repeat review found no remaining P0–P2. Preliminary audit of DG09 code allowlists,
+EU strict/late-cleanup assertions and old error construction found no requirement
+to weaken old tests. Repeat that audit after approval; separately agree any new
+contradiction. No changes to old assertions are requested by this inventory.
+
+EU04 clarification execution: its additive new-category nested-field control
+passes with unchanged parsing/product code. Full Node regression: **35 tests**,
+five ordinary helpers **100% lines / 96.67% branches**. Old DG09 assertions remain
+unchanged. This does not execute CX01–CX05 or finish the remote EU06 cohort.
