@@ -200,3 +200,35 @@ repeat review found no additional P0–P2. The decision is approved; see separat
 The explicit mode is implemented in the observer; current strict calls/tests
 are unchanged. Small Go/Node regressions and Linux vet pass. Actual EU06 remains
 unfinished; successful diagnostic collection and exact slowdown cause are not claimed.
+
+## Proposed: closed context for an unrecognised trace record
+
+Run `42618850460` on observer `a75316b` passed preparation, native smoke and two
+plain members, then stopped on traced v1 with `trace_8`. This code currently
+can mean either an unrecognised top-level record or an invalid pending entry
+seen at terminal handling. No trace bytes are retained in the artifact; neither
+the actual record shape nor a product cause is established by the code alone.
+
+Propose failure-only metadata from the same already-read private record:
+
+- A closed location enum: `record`, `pending_entry`, or `none`.
+- A closed shape enum: `superseded_exec`, `exec_entry`, `exec_resume`, `other`,
+  or `none`. Recognise only anchored fixed prefixes/forms, including the numeric
+  shape of a superseded-exec marker; never export its PID, text or arguments.
+  `other` is a limit on knowledge, not permission to discard that record.
+- Preserve the existing failure code and strict rejection. Also retain the
+  already-emitted closed `P01B_FAILURE_STAGE` using the same stage allowlist as
+  the ordinary cohort reporter, so cleanup decoding cannot hide the primary
+  workload phase. Missing/foreign stage values become `collector_exit`.
+- No acceptance of a new strace syntax, new raw-data read/export, syscall flags,
+  product changes or altered eight-member protocol. Any later decoder amendment
+  must be justified by the new evidence, not inferred from this proposal.
+
+Alternatives: keep retrying without additional evidence; publish a scrubbed raw
+line (rejected because arguments may be private); or export only fixed context.
+The last is recommended. Critical review: P1 raw substring leakage is prevented
+by rebuilding fixed enums; P1 a shape label is mistaken for a valid record is
+prevented by retaining rejection; P2 cleanup obscures an earlier failure is
+addressed by preserving the existing phase separately. Repeat review found no
+remaining P0–P2. This project is not approved or implemented; its exact tests
+must be separately reviewed/approved after project approval.

@@ -232,3 +232,11 @@ the next retry. CI `42603673967`: the first native managed-access attempt failed
 on retry after cancellation boundary 23; unchanged code/tests passed attempt 2.
 This is not claimed as a fix for that failure's cause. Only the existing aggregate
 coverage gate is red on attempt 2; the speed criterion is not waived.
+
+Observer `a75316b` implements the separately approved EU measured-only uncertain
+exec boundary, with strict tests unchanged. Small Go/vet pass at 527/537 (98.1%);
+34 Node tests pass with ordinary helper lines 100%. Actual `42618850460` passed
+setup/smoke/plain members, then failed traced member 3 at `trace_8`; its incomplete
+report is retained in the diagnostic test inventory. Record shape and exact
+product cause remain unknown. A separate failure-context project and the EU04
+extra-field clarification await approval; product binaries/performance gate remain.

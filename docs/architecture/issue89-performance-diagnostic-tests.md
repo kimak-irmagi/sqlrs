@@ -409,3 +409,13 @@ the old DG09 safe field-dropping behaviour/test is unchanged. No new assertion
 about rejecting those fields has been added. All other new cases pass.
 EU06's eight-member Actions retry is the next independent stage; no successful
 trace cohort or exact product cause is established by these small checks.
+
+Actual EU06 retry [42618850460](https://github.com/kimak-irmagi/sqlrs/actions/runs/42618850460)
+passed setup, native strace smoke and both plain members, but failed at traced
+member 3 with **trace_8**. The original sanitized incomplete report is retained
+[unchanged](issue89-diagnostic-evidence-2026-11-09/42618850460/jhipster-diagnostic.json),
+SHA256 `b1b706b50a8b725286ecf2d34987c552c3ca9324e5cb35a226a965bdba15dc4a`.
+It does not identify which of the two record-kind checks failed. No new format
+is accepted and no exact product cause is claimed. A failure-context proposal
+is separately presented at the end of the component design; no tests/code for
+that proposal have been written. EU06/TA06/DG11 remain incomplete.

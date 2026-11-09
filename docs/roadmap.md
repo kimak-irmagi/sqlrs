@@ -116,6 +116,9 @@ Observer-only measured decoding passes small regressions/vet (Go 527/537, 98.1%;
 34 Node tests, ordinary helper lines 100%). Strict decoding/old assertions remain.
 The EU04 extra-field clarification and actual eight-member EU06 retry are open;
 these helper checks do not establish a product cause or waive the speed blocker.
+Actual EU06 run `42618850460` remains incomplete at traced member 3 (`trace_8`);
+the original report is retained. A closed failure-context amendment is proposed,
+not implemented; no new trace format is silently accepted.
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
 qualification and the agreed repeated v1 performance
