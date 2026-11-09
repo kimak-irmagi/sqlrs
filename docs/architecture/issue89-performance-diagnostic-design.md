@@ -111,3 +111,48 @@ with requirement-backed tests before implementation.
 Repeat review found no remaining P0–P2 in this component boundary. No old-test
 change is authorised by this design alone. The separate reviewed test list and
 three explicit collector amendments have since been approved.
+
+## Proposed clarification: acquire the same archive through Releases API
+
+Status: awaiting approval, 2026-11-09; no code change yet. Diagnostic run
+`42580413674` failed three times before measurements: its browser download URL
+returned HTTP 504 through both Node and curl. Unchanged retries have stopped;
+strace/the eight members never ran and no diagnostic report was produced.
+The official API for the same asset `583092383` returned 16,798,404 bytes with
+exact SHA256 `da6132c95185f2a11561628458d34b22e7cb928c574d8ecec9f06d44fc8d0f01`.
+The binary was not executed. This is preparation transport failure, not diagnosis.
+
+Proposed preparation boundary only:
+
+1. `download.mjs` retains bounded retries and mandatory byte verification. After
+   the existing Node/curl transports fail, allow the official GitHub Releases API
+   with fixed asset ID and `Accept: application/octet-stream`. No user-provided
+   URL/version/token. Successful wrong bytes, including JSON/HTML, always fail;
+   checksum failure must never enable another bypass.
+2. Updated `prepare.mjs` runs from the separately pinned observer checkout but
+   accepts an explicit absolute source root. Diagnostics allow only the first
+   checkout `668d505`, equal to `GITHUB_WORKSPACE`. Clean HEAD, unchanged build
+   commands/compiler, exact old v2 SHA256, v1 archive/metadata/executable hash,
+   JDBC and release-tag checks remain mandatory. No product files are modified.
+3. Diagnostics use the same composite setup action from the observer checkout:
+   it runs its own `prepare.mjs` with that fixed source root. This replaces the
+   requirement to execute the old preparation script itself, not the measured
+   sources/binaries, and avoids a duplicate build workflow. Without an explicit
+   root, ordinary setup retains its own checkout selection. The old acceptance
+   workflow and already collected cohorts remain unchanged.
+4. Mandatory small tests/strace, eight serial members and proven cleanup follow
+   preparation. Budget, read-only token, private reports and off-laptop workload
+   restrictions remain unchanged.
+
+Alternatives: wait only for the browser URL, rebuild v1, patch the checked-out
+source, or obtain identical verified bytes through the official API. Propose
+the last. None of the three failed attempts measured anything or becomes a successful
+sample retrospectively.
+
+Critical review: P1 observer tooling substitutes the product — explicit source
+root/clean HEAD and both original executable hashes remain mandatory; P1 JSON
+or wrong bytes enable a bypass — byte verification is mandatory and final;
+P2 duplicated setup/global transport hooks — reuse the same action, with no
+fetch interception, source patch or expanded permission. Repeat review found no
+remaining P0–P2. After approval, separately review/approve exact acquisition/root
+tests and audit existing tests before implementation.
