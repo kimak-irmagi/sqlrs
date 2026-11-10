@@ -7,15 +7,30 @@ package preparecost
 type Operation string
 
 const (
-	Worker         Operation = "prepare.worker"
-	ImageInventory Operation = "runner.inventory"
-	CaptureRead    Operation = "capture.read"
-	PruneObserve   Operation = "capture.prune"
-	DockerCommand  Operation = "docker.command"
-	CaptureCopy    Operation = "docker.capture_copy"
-	Planning       Operation = "prepare.planning"
-	SessionStartup Operation = "prepare.session_startup"
-	StepExecution  Operation = "prepare.step"
+	Worker             Operation = "prepare.worker"
+	ImageInventory     Operation = "runner.inventory"
+	CaptureRead        Operation = "capture.read"
+	PruneObserve       Operation = "capture.prune"
+	DockerCommand      Operation = "docker.command"
+	CaptureCopy        Operation = "docker.capture_copy"
+	Planning           Operation = "prepare.planning"
+	SessionStartup     Operation = "prepare.session_startup"
+	StepExecution      Operation = "prepare.step"
+	Invocation         Operation = "liquibase.invoke"
+	DBPrepare          Operation = "db.prepare_snapshot"
+	DBResumeStep       Operation = "db.resume.step"
+	DBResumeResult     Operation = "db.resume.publication"
+	VerifyApplied      Operation = "db.verify.after_apply"
+	VerifyResumed      Operation = "db.verify.after_resume"
+	StateSnapshot      Operation = "state.snapshot"
+	StateSize          Operation = "state.size"
+	StateSeal          Operation = "state.seal"
+	StatePublish       Operation = "journal.state_publish"
+	InvocationPlan     Operation = "journal.invocation_plan"
+	InvocationAdmit    Operation = "journal.invocation_admit"
+	InvocationComplete Operation = "journal.invocation_complete"
+	Publication        Operation = "prepare.publication"
+	FinalCleanup       Operation = "prepare.final_cleanup"
 )
 
 // Relation describes code correspondence, not an inferred timing difference.
@@ -55,6 +70,21 @@ func Definitions() []Definition {
 		{Planning, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.planNormalContainerLiquibase"}, Location{"internal/prepare/components.go", "PrepareService.runLiquibaseUpdateSQL"}},
 		{SessionStartup, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.startNormalLiquibaseSession"}, Location{"internal/prepare/execution.go", "taskExecutor.ensureRuntime"}},
 		{StepExecution, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.executeNormalLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
+		{Invocation, Changed, Location{"internal/runtime/liquibase_step_capture.go", "DockerRuntime.InvokeTrackedLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeLiquibaseStep"}},
+		{DBPrepare, Shared, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeExecuteNormalLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
+		{DBResumeStep, Shifted, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeExecuteNormalLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
+		{DBResumeResult, Shifted, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.publishNormalLiquibaseWorkingInstance"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
+		{VerifyApplied, Shared, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeExecuteNormalLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
+		{VerifyResumed, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeExecuteNormalLiquibaseStep"}, Location{}},
+		{StateSnapshot, Shared, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeExecuteNormalLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
+		{StateSize, Shared, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeExecuteNormalLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
+		{StateSeal, Shared, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeExecuteNormalLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
+		{StatePublish, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeExecuteNormalLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
+		{InvocationPlan, Additional, Location{"internal/prepare/liquibase_session_coordinator.go", "liquibaseSessionCoordinator.invokeStep"}, Location{}},
+		{InvocationAdmit, Additional, Location{"internal/prepare/liquibase_session_coordinator.go", "liquibaseSessionCoordinator.invokeStep"}, Location{}},
+		{InvocationComplete, Additional, Location{"internal/prepare/liquibase_session_coordinator.go", "liquibaseSessionCoordinator.invokeStep"}, Location{}},
+		{Publication, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.publishNormalLiquibaseResult"}, Location{"internal/prepare/execution.go", "taskExecutor.createInstance"}},
+		{FinalCleanup, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.finishNormalLiquibase"}, Location{"internal/prepare/manager.go", "jobCoordinator.runJob"}},
 	}
 }
 

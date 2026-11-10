@@ -366,3 +366,36 @@ CI `42859166525` is not green: Windows-fast fails
 barrier; every other executed job passes, including macOS. Three unchanged local
 targeted repetitions pass (2.639 s total). This is not a demonstrated root-cause
 fix, a relaxed deadline, or a complete regression qualification.
+
+### Named host boundaries and independent arithmetic checkpoint
+
+After `2f0a280`, the closed catalog has 24 source keys. Connected additional
+boundaries distinguish actual invocation, prune observation (including bounded
+commands), three invocation journal writes, DB prepare/restart and verification
+sites, seal/snapshot/size/state publication, result publication and final cleanup.
+The resume sites are shifted v1 work; the existing pre-snapshot verification is
+shared, while the extra post-resume verification is additional. Released source
+`cab99c4` was inspected directly for these counterparts. Context phases retain
+logical step ordinals and once-per-job startup/publication/cleanup.
+
+Reached admission/plan refusal and real runtime prune command-count tests pass.
+Full ordinary prepare/runtime/preparecost tests and vet pass again: package
+coverage 77.2%/92.4%/99.6%, respectively. The broad product exception does not
+turn these into 95% package qualifications. Independent Node accounting passes
+the explicit 100 ms oracle, nesting/concurrency, safe sums and 32768-span bound:
+100% lines/functions, 97.96% branches; all 59 Node tests pass. It is not connected
+to the final cost report yet. The updated ordinary collector and Linux compile/
+vet pass as well.
+
+The new native CT12 test is being prepared, not reported green. Review found an
+overstrict new expectation requiring every intermediate Docker span to succeed:
+normal readiness polling may fail transiently while prepare succeeds. The user
+is asked asynchronously to retain the actual intermediate outcomes while still
+requiring successful worker/mandatory completed operations and unchanged data,
+counts, reuse and cleanup. That expectation has not been silently altered.
+
+Source CI `42864007891` at `2f0a280` passes every regression job. Only coverage
+merge fails its unchanged aggregate 95% gates (engine 77.1%, CLI 94.8%); the
+previously approved #89/#174 exception is recorded, not a claim that CI itself
+is fully green. Helper detail/observer overhead, final Node report, native host
+qualification and new paired speed series remain open.

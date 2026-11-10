@@ -264,18 +264,22 @@ func (c *jobCoordinator) runObservedContainerLiquibase(ctx context.Context, runn
 		}
 	}
 	ctx = preparecost.WithPhase(workerCtx, preparecost.PhasePublication, 0)
-	if working != nil {
-		if err := m.publishNormalLiquibaseWorkingInstance(ctx, q, runtime, runner, jobID, p, stateID, working); err != nil {
-			m.pauseContainerLiquibase(jobID, err)
-			return preparecost.Failed
-		}
-		return preparecost.Succeeded
-	}
-	if err := m.publishNormalLiquibaseInstance(ctx, q, runtime, runner, jobID, p, stateID); err != nil {
+	if err := m.publishNormalLiquibaseResult(ctx, q, runtime, runner, jobID, p, stateID, working); err != nil {
 		m.pauseContainerLiquibase(jobID, err)
 		return preparecost.Failed
 	}
 	return preparecost.Succeeded
+}
+
+// publishNormalLiquibaseResult observes the existing live-handoff/cache-result
+// branches without changing their resource ownership or publication protocol.
+func (m *PrepareService) publishNormalLiquibaseResult(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, runner *jobRunner, jobID string, p preparedRequest, stateID string, working *normalLiquibaseWorking) error {
+	return preparecost.ObserveCall(ctx, preparecost.Publication, func(child context.Context) error {
+		if working != nil {
+			return m.publishNormalLiquibaseWorkingInstance(child, q, runtime, runner, jobID, p, stateID, working)
+		}
+		return m.publishNormalLiquibaseInstance(child, q, runtime, runner, jobID, p, stateID)
+	})
 }
 
 // finishNormalLiquibaseCancellation does not interpret the interrupted exec
@@ -527,6 +531,12 @@ func (v normalLiquibaseAbsence) VerifyReleasedLiquibaseSession(ctx context.Conte
 func digestPlanningProjection(encoded string) string { return "sha256:" + sha256Hex(encoded) }
 
 func (m *PrepareService) finishNormalLiquibase(ctx context.Context, q normalLiquibaseJournal, intent queue.FinalizationSnapshot) error {
+	return preparecost.ObserveCall(preparecost.WithPhase(ctx, preparecost.PhaseCleanup, 0), preparecost.FinalCleanup, func(child context.Context) error {
+		return m.finishObservedNormalLiquibase(child, q, intent)
+	})
+}
+
+func (m *PrepareService) finishObservedNormalLiquibase(ctx context.Context, q normalLiquibaseJournal, intent queue.FinalizationSnapshot) error {
 	return m.withLiquibaseProjectionGate(ctx, intent.JobID, func() error {
 		owner, err := m.localLiquibaseProjectionOwner(false)
 		if err != nil {
@@ -662,10 +672,14 @@ func (m *PrepareService) observeExecuteNormalLiquibaseStep(ctx context.Context, 
 		if err := q.RequestLiquibaseSessionDBRestart(ctx, w.session); err != nil {
 			return err
 		}
-		if err := m.dbms.ResumeSnapshot(ctx, w.rt.instance); err != nil {
+		if err := preparecost.ObserveCall(ctx, preparecost.DBResumeStep, func(child context.Context) error {
+			return m.dbms.ResumeSnapshot(child, w.rt.instance)
+		}); err != nil {
 			return err
 		}
-		if err := m.verifyManagedRuntime(ctx, w.rt); err != nil {
+		if err := preparecost.ObserveCall(ctx, preparecost.VerifyResumed, func(child context.Context) error {
+			return m.verifyManagedRuntime(child, w.rt)
+		}); err != nil {
 			return err
 		}
 		if err := q.MarkLiquibaseSessionDBReady(ctx, w.session, w.clone.PlannedRuntimeName, w.rt.instance.ID); err != nil {
@@ -690,17 +704,23 @@ func (m *PrepareService) observeExecuteNormalLiquibaseStep(ctx context.Context, 
 	if capture.ExitCode != 0 {
 		return normalLiquibaseChildFailure{}
 	}
-	if err := m.verifyManagedRuntime(ctx, w.rt); err != nil {
+	if err := preparecost.ObserveCall(ctx, preparecost.VerifyApplied, func(child context.Context) error {
+		return m.verifyManagedRuntime(child, w.rt)
+	}); err != nil {
 		return err
 	}
-	if err := m.dbms.PrepareSnapshot(ctx, w.rt.instance); err != nil {
+	if err := preparecost.ObserveCall(ctx, preparecost.DBPrepare, func(child context.Context) error {
+		return m.dbms.PrepareSnapshot(child, w.rt.instance)
+	}); err != nil {
 		return err
 	}
 	quiet, err := q.RecordLiquibaseSessionDBStopped(ctx, w.session, invocation, w.clone.PlannedRuntimeName, w.rt.instance.ID, m.normalTimestamp())
 	if err != nil {
 		return err
 	}
-	if err := m.access.RecordSeal(ctx, task.OutputStateID, w.rt.operation, w.rt.instance.Binding); err != nil {
+	if err := preparecost.ObserveCall(ctx, preparecost.StateSeal, func(child context.Context) error {
+		return m.access.RecordSeal(child, task.OutputStateID, w.rt.operation, w.rt.instance.Binding)
+	}); err != nil {
 		return err
 	}
 	paths, err := resolveStatePaths(m.stateStoreRoot, p.effectiveImageID(), task.OutputStateID, m.statefs)
@@ -721,18 +741,24 @@ func (m *PrepareService) observeExecuteNormalLiquibaseStep(ctx context.Context, 
 		if stateBuildMarkerExists(paths.stateDir, kind) {
 			return fmt.Errorf("another writer published the same state; reconciliation required")
 		}
-		if err := m.statefs.Snapshot(ctx, w.rt.dataDir, paths.stateDir); err != nil {
+		if err := preparecost.ObserveCall(ctx, preparecost.StateSnapshot, func(child context.Context) error {
+			return m.statefs.Snapshot(child, w.rt.dataDir, paths.stateDir)
+		}); err != nil {
 			return err
 		}
 		if err := writeStateBuildMarker(paths.stateDir, kind); err != nil {
 			return err
 		}
-		size, err := storeUsageFn(paths.stateDir)
+		size, err := preparecost.Observe(ctx, preparecost.StateSize, func(context.Context) (int64, error) {
+			return storeUsageFn(paths.stateDir)
+		})
 		if err != nil {
 			return err
 		}
 		entry := store.StateCreate{StateID: task.OutputStateID, StateFingerprint: task.OutputStateID, ParentStateID: parentStateID(task.Input), ImageID: p.effectiveImageID(), PrepareKind: "lb", PrepareArgsNormalized: p.argsNormalized, CreatedAt: m.normalTimestamp(), SizeBytes: &size, LineageRef: p.managed.LineageRef, IdentityDigest: p.managed.IdentityDigest, LiquibaseExecutionFingerprint: p.liquibaseFingerprint}
-		if err := q.PublishLiquibaseSessionState(ctx, w.session, invocation, entry, paths.stateDir, kind, complete, quiet, m.normalTimestamp()); err != nil {
+		if err := preparecost.ObserveCall(ctx, preparecost.StatePublish, func(child context.Context) error {
+			return q.PublishLiquibaseSessionState(child, w.session, invocation, entry, paths.stateDir, kind, complete, quiet, m.normalTimestamp())
+		}); err != nil {
 			return err
 		}
 		w.rt.stateID = task.OutputStateID
@@ -836,7 +862,9 @@ func (m *PrepareService) publishNormalLiquibaseWorkingInstance(ctx context.Conte
 		if err := q.RequestLiquibaseSessionDBRestart(ctx, w.session); err != nil {
 			return err
 		}
-		if err := m.dbms.ResumeSnapshot(ctx, w.rt.instance); err != nil {
+		if err := preparecost.ObserveCall(ctx, preparecost.DBResumeResult, func(child context.Context) error {
+			return m.dbms.ResumeSnapshot(child, w.rt.instance)
+		}); err != nil {
 			return err
 		}
 		if err := m.verifyManagedRuntime(ctx, w.rt); err != nil {

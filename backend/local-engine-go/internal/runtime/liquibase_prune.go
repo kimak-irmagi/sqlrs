@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/sqlrs/engine-local/internal/preparecost"
 )
 
 // CapturePruneAuthorization is the public-identity-only projection of the
@@ -29,6 +31,12 @@ type CapturePruneAuthorization struct {
 // All commands share one deadline; exact running/idle parent is checked around
 // the fixed bounded helper command. Requirements: ownership §9, MP03.
 func (r *DockerRuntime) VerifyLiquibaseCapturePruned(ctx context.Context, name string, identity StepCaptureIdentity) error {
+	return preparecost.ObserveCall(ctx, preparecost.PruneObserve, func(ctx context.Context) error {
+		return r.verifyObservedLiquibaseCapturePruned(ctx, name, identity)
+	})
+}
+
+func (r *DockerRuntime) verifyObservedLiquibaseCapturePruned(ctx context.Context, name string, identity StepCaptureIdentity) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -53,7 +61,9 @@ func (r *DockerRuntime) VerifyLiquibaseCapturePruned(ctx context.Context, name s
 		return nil
 	}
 	bounded := func(args []string, want string) error {
-		data, err := runner.RunBounded(ctx, r.binary, args, 64, 4096)
+		data, err := preparecost.Observe(ctx, preparecost.DockerCommand, func(child context.Context) ([]byte, error) {
+			return runner.RunBounded(child, r.binary, args, 64, 4096)
+		})
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}

@@ -219,6 +219,13 @@ func (r *DockerRuntime) readObservedLiquibaseStepOutput(ctx context.Context, nam
 // returns a known child result. See N02/N03 in the reusable-container tests.
 func (r *DockerRuntime) InvokeTrackedLiquibaseStep(ctx context.Context, name, captureDir string,
 	identity StepCaptureIdentity, liquibaseArgs []string, maxStreamBytes int64) (CompleteStepCapture, error) {
+	return preparecost.Observe(ctx, preparecost.Invocation, func(ctx context.Context) (CompleteStepCapture, error) {
+		return r.invokeObservedLiquibaseStep(ctx, name, captureDir, identity, liquibaseArgs, maxStreamBytes)
+	})
+}
+
+func (r *DockerRuntime) invokeObservedLiquibaseStep(ctx context.Context, name, captureDir string,
+	identity StepCaptureIdentity, liquibaseArgs []string, maxStreamBytes int64) (CompleteStepCapture, error) {
 	if r == nil || !validStepCaptureIdentity(identity) || maxStreamBytes < 1 || maxStreamBytes > 64<<20 || len(liquibaseArgs) == 0 {
 		return CompleteStepCapture{}, fmt.Errorf("invalid tracked Liquibase invocation")
 	}

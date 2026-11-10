@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/preparecost"
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
 )
 
@@ -208,7 +209,9 @@ func (c *liquibaseSessionCoordinator) invokeStep(ctx context.Context, want queue
 	if !hasJournal || !hasRuntime {
 		return queue.LiquibaseInvocationRecord{}, engineRuntime.CompleteStepCapture{}, 0, fmt.Errorf("saved Liquibase capture pruning is unavailable")
 	}
-	invocation, err := c.journal.PlanLiquibaseSessionInvocation(ctx, session, taskID, executionDigest, plan)
+	invocation, err := preparecost.Observe(ctx, preparecost.InvocationPlan, func(child context.Context) (queue.LiquibaseInvocationRecord, error) {
+		return c.journal.PlanLiquibaseSessionInvocation(child, session, taskID, executionDigest, plan)
+	})
 	if err != nil {
 		return queue.LiquibaseInvocationRecord{}, engineRuntime.CompleteStepCapture{}, 0, err
 	}
@@ -224,7 +227,9 @@ func (c *liquibaseSessionCoordinator) invokeStep(ctx context.Context, want queue
 		authority := projectCapturePrune(*prune)
 		identity.Prune = &authority
 	}
-	if err := c.journal.RequestLiquibaseSessionExec(ctx, session, invocation, c.timestamp()); err != nil {
+	if err := preparecost.ObserveCall(ctx, preparecost.InvocationAdmit, func(child context.Context) error {
+		return c.journal.RequestLiquibaseSessionExec(child, session, invocation, c.timestamp())
+	}); err != nil {
 		return invocation, engineRuntime.CompleteStepCapture{}, 0, err
 	}
 	capture, err := c.runtime.InvokeTrackedLiquibaseStep(ctx, session.PlannedRunnerName, captureDir, identity, args, planningCaptureMaxBytes)
@@ -237,9 +242,11 @@ func (c *liquibaseSessionCoordinator) invokeStep(ctx context.Context, want queue
 			return invocation, capture, 0, err
 		}
 	}
-	proof, err := c.journal.CompleteLiquibaseSessionInvocation(ctx, session, invocation,
-		queue.LiquibaseInvocationCompletion{ExitCode: capture.ExitCode, ManifestDigest: capture.ManifestDigest,
-			ManifestBytes: capture.ManifestBytes}, c.timestamp())
+	proof, err := preparecost.Observe(ctx, preparecost.InvocationComplete, func(child context.Context) (int64, error) {
+		return c.journal.CompleteLiquibaseSessionInvocation(child, session, invocation,
+			queue.LiquibaseInvocationCompletion{ExitCode: capture.ExitCode, ManifestDigest: capture.ManifestDigest,
+				ManifestBytes: capture.ManifestBytes}, c.timestamp())
+	})
 	return invocation, capture, proof, err
 }
 

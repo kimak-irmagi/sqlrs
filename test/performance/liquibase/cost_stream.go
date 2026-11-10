@@ -161,6 +161,11 @@ func costOperation(value string) bool {
 		return true
 	case "prepare.planning", "prepare.session_startup", "prepare.step":
 		return true
+	case "liquibase.invoke", "db.prepare_snapshot", "db.resume.step", "db.resume.publication",
+		"db.verify.after_apply", "db.verify.after_resume", "state.snapshot", "state.size", "state.seal",
+		"journal.state_publish", "journal.invocation_plan", "journal.invocation_admit", "journal.invocation_complete",
+		"prepare.publication", "prepare.final_cleanup":
+		return true
 	}
 	return false
 }
