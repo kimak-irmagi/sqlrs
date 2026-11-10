@@ -101,6 +101,8 @@ type diagnosticTraceSummary struct {
 	CoveredMS, ResidualMS float64
 	Commands              int
 	Intervals             []diagnosticPublicInterval
+	// MC02: measured summaries disclose even zero; strict summaries omit it.
+	ClockDeltaNS *int64 `json:",omitempty"`
 }
 
 // diagnosticCategory returns fixed labels only. Unknown commands remain visible

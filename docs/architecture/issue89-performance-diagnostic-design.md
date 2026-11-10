@@ -580,8 +580,8 @@ unchanged retry: the rejection is now localised within the observer.
 ## Approved: bounded measured-clock alignment, strict helpers unchanged
 
 Status: component amendment explicitly approved by @evilguest on 2026-11-10
-after critical and repeat review; exact reply time unavailable. Not implemented.
-Separately reviewed MC01–MC08 tests await approval. Product/API/schema and P01b
+after critical and repeat review; exact reply time unavailable. Implemented after approved tests.
+Separately reviewed MC01–MC08 tests are approved before tests/code. Product/API/schema and P01b
 do not change. This corrects diagnostic observation, not the product regression.
 
 1. Keep API elapsed measurements on the original monotonic end.Sub(start).
@@ -637,3 +637,9 @@ label the wall-only core as monotonic; P2 old-test weakening — strict helpers
 and default report shapes stay intact; P2 observed nine ns claimed to explain
 seconds of product regression — separate observation and performance gates.
 Repeat review found no remaining P0–P2 in this bounded component proposal.
+
+Implementation passes full small Linux Go/vet (765/776 statements, 98.58%;
+new helpers 100%) and all 49 Node tests (ordinary helpers 100% lines / 97.39%
+branches). Strict helpers/default output are unchanged; measured output requires
+signed ClockDeltaNS and calendar geometry within the approved bounds. Native
+MC08 remains required; no product performance change or acceptance is claimed.

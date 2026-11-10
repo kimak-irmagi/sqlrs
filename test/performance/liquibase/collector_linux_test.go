@@ -416,7 +416,7 @@ func collect(t *testing.T) {
 				t.Error("diagnostic trace incomplete")
 			} else {
 				for i := range diagnostics {
-					summary, err := summarizeDiagnosticIntervals(intervals, diagnostics[i].start, diagnostics[i].end)
+					summary, err := summarizeMeasuredDiagnosticIntervals(intervals, diagnostics[i].start, diagnostics[i].end)
 					if err != nil {
 						t.Log("P01B_DIAGNOSTIC_FAILURE clock")
 						t.Log(diagnosticClockMarker(err))

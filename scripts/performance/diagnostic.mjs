@@ -88,7 +88,7 @@ const number=n=>Number.isFinite(n)&&n>=0;
 const invalid=()=>{throw new Error('Invalid diagnostic evidence');};
 // Deliberately rebuild every nested record: unknown private fields never reach
 // the artifact, even when a future collector accidentally emits them.
-export function parseDiagnosticOutput(output,traced,samples){
+export function parseDiagnosticOutput(output,traced,samples,requireClockAlignment=false){
   let rows;
   try{rows=[...output.matchAll(/P01B_DIAGNOSTIC (.*)/g)].map(m=>JSON.parse(m[1]));}catch{invalid();}
   if(rows.length!==2)throw new Error('Incomplete diagnostic output');
@@ -102,16 +102,26 @@ export function parseDiagnosticOutput(output,traced,samples){
     let Trace=null;
     if(traced){
       const t=row.Trace;
-      if(!t||!number(t.CoveredMS)||!number(t.ResidualMS)||Math.abs(t.CoveredMS+t.ResidualMS-row.ElapsedMS)>0.01||!Array.isArray(t.Intervals)||t.Intervals.length>250000||t.Commands!==t.Intervals.length)invalid();
+      // MC04/MC05: the explicit mode retains bounded signed uncertainty and
+      // checks geometry on the wall axis; default callers keep their old shape.
+      let windowMS=row.ElapsedMS,toleranceMS=0.01;
+      if(requireClockAlignment){
+        if(row.ElapsedMS<=0||!Number.isSafeInteger(t?.ClockDeltaNS)||Math.abs(t.ClockDeltaNS)>10000)invalid();
+        windowMS+=t.ClockDeltaNS/1e6;
+        toleranceMS=0.000001;
+        if(!Number.isFinite(windowMS)||windowMS<=0)invalid();
+      }
+      if(!t||!number(t.CoveredMS)||!number(t.ResidualMS)||Math.abs(t.CoveredMS+t.ResidualMS-windowMS)>toleranceMS||!Array.isArray(t.Intervals)||t.Intervals.length>250000||t.Commands!==t.Intervals.length)invalid();
       const Intervals=t.Intervals.map(i=>{
-        if(!operations.has(i?.Category)||!number(i.StartMS)||!number(i.EndMS)||i.EndMS<i.StartMS||i.EndMS>row.ElapsedMS+0.01)invalid();
+        if(!operations.has(i?.Category)||!number(i.StartMS)||!number(i.EndMS)||i.EndMS<i.StartMS||i.EndMS>windowMS+toleranceMS)invalid();
         return {Category:i.Category,StartMS:i.StartMS,EndMS:i.EndMS};
       });
       const ordered=[...Intervals].sort((a,b)=>a.StartMS-b.StartMS);let coverage=0,left=0,right=0;
       for(const i of ordered){if(i.StartMS>right){coverage+=right-left;left=i.StartMS;}right=Math.max(right,i.EndMS);}
       coverage+=right-left;
-      if(Math.abs(coverage-t.CoveredMS)>0.01)invalid();
+      if(Math.abs(coverage-t.CoveredMS)>toleranceMS)invalid();
       Trace={CoveredMS:t.CoveredMS,ResidualMS:t.ResidualMS,Commands:t.Commands,Intervals};
+      if(requireClockAlignment)Trace.ClockDeltaNS=t.ClockDeltaNS;
     }else if(row.Trace!==null)invalid();
     return {Pass:row.Pass,Traced:traced,ElapsedMS:row.ElapsedMS,Phases,Trace};
   });

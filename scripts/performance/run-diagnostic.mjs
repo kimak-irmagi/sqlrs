@@ -75,7 +75,7 @@ try{
       });
     });
     const samples=parseCollectorResult(0,output,{route:item.route,fixture:'jhipster',revision,engineHash});
-    const diagnostics=parseDiagnosticOutput(output,item.mode==='trace',samples);
+    const diagnostics=parseDiagnosticOutput(output,item.mode==='trace',samples,true);
     report.records.push({...item,samples,diagnostics});persist();
   }
   report.status='diagnostic_complete';delete report.activeMember;persist();

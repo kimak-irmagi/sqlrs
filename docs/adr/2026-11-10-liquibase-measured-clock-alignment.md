@@ -4,7 +4,7 @@
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.
 - Status: component amendment explicitly approved after critical and repeat
-  review. Separate MC01–MC08 tests are proposed, not approved or implemented.
+  review. Separate MC01–MC08 inventory subsequently approved before tests/code.
 - Question: native CW07 identifies a strict observer refusal for wall/elapsed
   spans 73672499931/73672499940 ns, differing by −9 ns over 73.67 s. Keep exact
   equality, change product timing, remove checks or bound diagnostic alignment?
@@ -31,3 +31,18 @@ Reviewed the localisation, clock-rejection and unavailable-entry ADRs: none is
 obsolete. The clock-rejection decision did not itself authorise a tolerance;
 this separately approved measured-only boundary does. Its strict helpers,
 error/metadata rules, old evidence and the product speed gate remain in force.
+
+## Approve MC01–MC08 before implementation
+
+- Conversation date: 2026-11-10, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: implement the separately reviewed bounded-alignment tests while
+  retaining strict helpers and default report contracts?
+- Alternatives: retain the observation blocker; or test scalar limits/overflow,
+  actual summaries, required report mode and unchanged native protocol first.
+- Decision: user explicitly approved MC01–MC08. Repeated old-test audit found
+  no required change; write new tests first. No old assertion/fixture changes
+  or product timing/performance-criterion change are authorised.
+- Rationale: make bounded observation uncertainty explicit without silently
+  converting API elapsed time or presenting a small test as native evidence.

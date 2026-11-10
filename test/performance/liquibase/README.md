@@ -92,9 +92,11 @@ no rejection, time-source or product change.
 Native CW07 42789132449 verifies actual clock metadata: duration_mismatch,
 wall/elapsed 73672499931/73672499940 ns (−9 ns). Original incomplete evidence
 retained; CI 42789081930 passes all regression jobs, only aggregate coverage red.
-Measured-only bounded alignment is approved, not implemented; reviewed
-MC01–MC08 await test approval. It does not explain the product slowdown or
-complete the original eight members.
+Measured-only bounded alignment and separate MC01–MC08 are approved and
+implemented. Full small Linux Go/vet passes at 765/776 statements (98.58%;
+new helpers 100%), all 49 Node tests pass (helper lines 100% / branches 97.39%).
+Native MC08 remains open; no product cause or complete eight-member collection
+is claimed. Strict helpers/default shapes and product timing remain unchanged.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.

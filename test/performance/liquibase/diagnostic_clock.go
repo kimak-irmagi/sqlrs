@@ -72,6 +72,42 @@ func validateDiagnosticWindow(wallStartNS, wallEndNS int64, elapsed time.Duratio
 	return nil
 }
 
+// validateMeasuredDiagnosticWindow applies only the approved measured allowance
+// (MC01): positive ordered spans and at most ten microseconds of signed drift.
+// Positive spans make their subtraction safe; overflowed wall spans never pass.
+// The original validator remains strict and supplies all rejection metadata.
+func validateMeasuredDiagnosticWindow(wallStartNS, wallEndNS int64, elapsed time.Duration) (int64, error) {
+	err := validateDiagnosticWindow(wallStartNS, wallEndNS, elapsed)
+	if err == nil {
+		return 0, nil
+	}
+	wallNS := wallEndNS - wallStartNS
+	if diagnosticErrorClock(err).Reason != "duration_mismatch" || wallNS <= 0 {
+		return 0, err
+	}
+	delta := wallNS - int64(elapsed)
+	if delta < -10000 || delta > 10000 {
+		return 0, err
+	}
+	return delta, nil
+}
+
+// summarizeMeasuredDiagnosticIntervals checks the original monotonic elapsed
+// before using wall-only endpoints for trace geometry (MC02/MC03). A wall-core
+// error retains its reason, but never mislabels that core's span as monotonic.
+func summarizeMeasuredDiagnosticIntervals(rows []diagnosticInterval, start, end time.Time) (diagnosticTraceSummary, error) {
+	delta, err := validateMeasuredDiagnosticWindow(start.UnixNano(), end.UnixNano(), end.Sub(start))
+	if err != nil {
+		return diagnosticTraceSummary{}, err
+	}
+	result, err := summarizeDiagnosticIntervals(rows, start.Round(0), end.Round(0))
+	if err != nil {
+		return diagnosticTraceSummary{}, newDiagnosticClockError(diagnosticErrorClock(err).Reason, 0, 0)
+	}
+	result.ClockDeltaNS = &delta
+	return result, nil
+}
+
 // diagnosticErrorClock exposes only normalised metadata, including wrapped
 // owned errors. It never formats or copies a caller-supplied error message.
 func diagnosticErrorClock(err error) diagnosticClockContext {

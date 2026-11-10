@@ -1294,9 +1294,9 @@ No such acceptance is implemented.
 
 ## Proposed MC01–MC08: bounded measured-clock alignment
 
-Status: components explicitly approved on 2026-11-10. This critically and
-repeatedly reviewed inventory awaits separate approval; tests/code are not
-written. No old-test changes proposed; no P01b criterion change.
+Status: components and this critically/repeatedly reviewed inventory explicitly
+approved on 2026-11-10 before tests/code. Repeated audit found no old-test change
+required. No P01b criterion change.
 
 1. **MC01 — pure measured-window boundaries.** Independent calendar endpoints
    and elapsed durations produce literal signed deltas: 0, ±1, ±9, ±9999 and
@@ -1398,3 +1398,23 @@ Repeat review found no remaining P0–P2 within this limited inventory. No old
 assertion or fixture change is proposed: strict CW functions/source guards remain,
 old summary expectations use named fields, and default Node callers keep their
 old signature/shape. Re-audit after approval; seek named approval for any conflict.
+
+### MC small execution checkpoint (2026-11-10)
+
+After approval, repeated audit found no required old-test change. New Go tests
+first failed to compile on missing measured helpers/field; all three new Node
+groups first failed on dropped/missing alignment and unselected mode. Only then
+was implementation added. Review also caught required Node mode admitting zero
+API elapsed with a positive delta: an additional positive-span negative within
+MC05 reproduced it before the fix. No old assertion or fixture was changed.
+
+Full small Linux Go/vet passes: **765/776 statements (98.58%)**, profile
+`.tmp/performance/diag-MC-full.out`. Both new alignment helpers and all 18 added
+ordinary-helper statements are **100%** covered. The same 11 old uncovered
+statements remain (journal 5, pipe/group 3, raw framing 1, timestamp 1, exec
+return 1); existing failure requirements, not proved dead code. No additional
+coverage iteration/removal was performed. All **49 Node tests** pass, ordinary
+helpers **100% lines / 97.39% branches**. Syntax/workflow/diff checks pass.
+Default output and strict CW validation remain unchanged; API elapsed still
+uses original monotonic endpoints. Native MC08, actual nonzero alignment
+transport and the product slowdown cause remain to be established in Actions.
