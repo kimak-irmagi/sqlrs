@@ -69,7 +69,8 @@ tests pass (helper lines 100%). Native UR06/UR07 remain open; the raw-syscall
 probe runs only in Actions, never on the laptop.
 Native 42761268874 subsequently passes UR06 (0.08 s) and the two plain members,
 but traced v1 member 3 still rejects an unknown pending record. Original report
-retained; full raw-rejection detail is proposed separately, not implemented.
+retained; full raw-rejection detail is separately approved (2026-11-10), not
+implemented. The reviewed RD01–RD07 test inventory awaits separate approval.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.

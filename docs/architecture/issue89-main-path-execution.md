@@ -270,4 +270,5 @@ Native `42761268874` on observer `370225f` passes UR06 (actual invalid syscall,
 at traced v1 member 3. The original report is retained in the diagnostic test
 inventory; no complete collection or product cause. CI `42761251963` passes all
 regressions, only coverage-merge red. Complete fixed raw-rejection detail is
-proposed in the diagnostic design; no further syntax/code change is authorised.
+separately approved (2026-11-10); RD01–RD07 tests await approval. No further syntax
+is authorised and the metadata is not implemented yet.

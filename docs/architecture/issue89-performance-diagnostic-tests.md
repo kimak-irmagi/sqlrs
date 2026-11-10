@@ -804,4 +804,140 @@ SHA256 `bedbd5ec577dae5afa3026b4cd4cbb4f6d51fe20af440ffee1e97bc38befdb97`.
 Source CI [42761251963](https://github.com/kimak-irmagi/sqlrs/actions/runs/42761251963)
 passes all regression jobs; only the unchanged aggregate coverage gate is red.
 No successful eight-member collection, exact product cause or speed acceptance
-is claimed. Further fixed rejection detail requires separate component/test approval.
+is claimed. At that checkpoint further detail required separate approval; the
+component amendment is now approved, with the separate inventory below pending.
+
+## Proposed RD01–RD07: fixed raw-rejection detail
+
+Status: the component amendment is explicitly approved by @evilguest on
+2026-11-10 (exact reply time unavailable). This separate inventory has undergone
+critical and repeat review and **awaits approval**. No new tests/code yet; no
+authorisation to change old tests, accepted syntax, binaries or P01b.
+
+### Closed expectations and unavailable values
+
+Use the four exact allowlists in the approved design. Name family `numeric`
+requires the bounded lowercase UR01 name, `fallback` is exactly `???`; other
+names are `other`, never copied identifiers. Known-but-invalid numeric-name
+spellings do not become valid raw calls through this observation.
+
+Count/kind pairs are exactly: `empty/none`; each of `short`, `six`, `extra`
+with `numeric` or `other`; `none/unavailable`; `none/none`. Empty means an
+unambiguously empty argument region, not unreadable evidence. Missing/ambiguous
+regions remain `none/none`, even when commas appear inside quoted/nested text.
+The exact `<unavailable>` region is not a list and has no arity. Horizontal
+formatting is allowed only where UR01 already allows it. Counts are closed
+classes, not the number of bytes/characters or a numeric syscall payload.
+
+The unavailable tuple has all four values `none`. Invalid/missing fields or an
+incompatible tuple reconstruct to that tuple, not a partly trusted stronger
+claim. Independently known shape with no precise parser stage uses `other` for
+stage; a stage is never inferred just from arity/kind. A non-none tuple requires
+an observed name family and a real failure (`name`, `framing`, `arity`, `argument`,
+`result`, `duration` or `other`). Validate the count/kind combinations on both
+sides; unavailable name/stage cannot authenticate the other fields.
+
+### Test groups
+
+1. **RD01 — independent shape matrix and real parser stages.** Hand-authored
+   expected labels for numeric/fallback/other names; empty, one and five slots,
+   six, seven and many slots; zero/max raw hex values, nonzero decimal/mixed
+   tokens, the exact unavailable marker and similar-looking strings. Cover
+   complete/unfinished forms, horizontal alignment and missing/ambiguous regions.
+   Quotes/nesting/private commas, arbitrary identifiers, oversized/uppercase
+   numeric-name spellings and embedded marker decoys never expose tokens or
+   manufacture a six-argument claim. Exercise each reachable real failure stage
+   with the actual raw parser: invalid name, frame, arity, argument, return and
+   overflow-checked duration. Assert its original code and fixed Error text;
+   invalid duration syntax remains its actual rejection stage, not a guessed
+   overflow diagnosis. Valid grammar creates no failure detail. Literal labels
+   are specified independently, not computed by the helper being tested.
+2. **RD02 — original pending error survives to the exact terminal event.** Use
+   the actual measured decoder for `???(` with empty arguments, a short numeric
+   tuple, old PX02's decimal/incomplete tuple, and unavailable/extra arguments;
+   natural/signal terminal variants. Require the original raw-failure labels,
+   exact old code 8/pending_entry/other/prefix, and no intervals. In particular,
+   arity must not turn into framing after the unfinished suffix was removed.
+   Interleave different PIDs and choose distinct failures: only the terminal
+   owner's saved metadata may be returned. Complete raw failures and malformed
+   matched resumes carry their real parser stage; orphan/wrong-PID/name resume,
+   read/quota/CR/time/missing-terminal failures do not fabricate raw-parser
+   metadata. Keep strict/default/cutoff errors and all existing UR negatives.
+3. **RD03 — Go accessor, privacy and unavailable state.** Real and wrapped
+   errors retain errors.As/code/context/prefix and the four independent labels.
+   Nil, unrelated/legacy errors, unavailable metadata, foreign enum values and
+   incompatible count/kind/name/stage tuples yield the all-none tuple. Check
+   every allowed value/pair independently, including the meaningful distinction
+   `empty/none` versus `none/none`. Fixed Error, formatted error, metadata JSON
+   and marker formatting contain no private program/argument/PID/errno/hex
+   sentinels, numeric payload, raw length, hash or source substring. The error
+   value stores only enums/cause, not a retained raw-record string. No successful
+   interval/count changes; generic errors stay private.
+   Privacy assertions on Error/formatting apply to errors created by this parser/
+   decoder. Caller-supplied foreign errors are inspected only through the safe
+   accessor; do not require rewriting an arbitrary caller's Error string.
+4. **RD04 — separate Node reconstruction and old exact shapes.** Independent
+   Go-style marker fixtures for every allowed field/pair and unavailable/default
+   tuple. Reject foreign names, enum suffixes, missing fields, embedded fake
+   markers and incompatible tuples to all-none without echoing input. Extra
+   object fields continue to be dropped under DG09, not a new rejection policy.
+   Preserve deep-equal old CX's five fields and PX's two fields with/without the
+   new marker; old reports are unchanged. New helper returns only the four new
+   fields. Include privacy sentinels and wrapped Go-style log prefixes; labels
+   are read only from the exact fixed marker, not a substring in a quoted value.
+   Conflicting duplicate markers are unavailable, not an arbitrary first match.
+5. **RD05 — real private pipe and report-boundary equivalence.** Feed bounded
+   hand-authored raw lifecycles through the actual private reader/finishMeasured
+   and inspect genuine returned metadata. Format the separate marker from those
+   enums and compare an independent literal line; RD04 separately consumes that
+   line grammar. Keep strict finish rejecting and unavailable. Malformed/read/
+   missing-exit controls return no partial intervals. Distinguish this small
+   boundary proof from the full Go-to-Node Actions transport required by RD07;
+   no fake test is presented as a native workload run.
+6. **RD06 — actual guarded wiring, no old-helper rewrite.** Go logs the new
+   marker only after a trace error with old `other` shape and `unknown_syscall`
+   prefix, using only the metadata accessor. Node adds its separate helper only
+   in the same failed unknown-raw case, before persist/reject. Preserve the
+   literal old CX/PX calls/guard and success path so old source/shape assertions
+   remain valid. Ordinary exec, other unknown record types, strict/generic
+   failures, successful samples and reports without markers gain no fabricated
+   detail. Source checks supplement RD02/RD05/RD07 rather than substitute for
+   real parsing. No new reading, flags, pins or raw-output artifact.
+7. **RD07 — full small checks and original native protocol.** Full Linux small
+   Go tests/vet, Node tests, script/workflow syntax and per-line ordinary-helper
+   coverage (target 100%, minimum 95%); any necessary coverage iteration needs
+   a separate requirement-based approval. Explicitly launch a pinned observer
+   on Actions only: preserve old smoke plus UR06, then the original eight serial
+   members and original v1/v2 binary hashes, independent DB/cache/CLI oracles
+   and exact cleanup. If raw rejection recurs, retain the unchanged incomplete
+   report with the four closed fields; missing detail is a failed observation,
+   not permission to ignore a record. Retain previous report bytes. No laptop
+   workload, changed raw-call acceptance, product fix or P01b waiver. Metadata
+   may still leave uncertainty; do not infer a product cause from it alone.
+
+### Critical and repeat review
+
+Corrections incorporated before submission:
+
+- P1 saved arity failure became a different failure after trimming: RD02 requires
+  original enum-only metadata and a case that would otherwise become framing.
+- P1 empty/unavailable/ambiguous arguments were conflated or quoted commas
+  counted: explicit count/kind pairs and RD01/RD03/RD04 negative controls.
+- P1 classification invented a validation stage or admitted a record: RD01
+  exercises real parser failures; RD02/RD05 require unchanged error/no intervals.
+- P1 enums were checked separately but combined into a false stronger claim:
+  both accessors require coherent tuples, otherwise all-none; stage is not
+  synthesised from shape and the original parser is tested independently.
+- P1 new marker leaked values or replaced old exact metadata: RD03/RD04 check
+  both serialization boundaries; RD06 retains separate helpers/old guards.
+- P1 privacy checks accidentally demanded rewriting foreign caller errors:
+  RD03 limits Error-string assertions to parser-owned errors and tests arbitrary
+  foreign errors only through the safe accessor.
+- P2 source matching or a passing synthetic probe replaced real evidence:
+  RD05 uses the private transport, RD07 requires the original native protocol and
+  distinguishes partial collection from speed acceptance.
+
+Repeat review found no remaining P0–P2 within this bounded inventory. Preliminary
+old-test audit found no necessary changes: CX/PX exact shapes and their literal
+wiring remain separate, strict DG/EU and all UR negative cases still fail as
+before. Re-run the audit after approval; ask separately about any contradiction.

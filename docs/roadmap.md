@@ -135,7 +135,8 @@ Full small Go/vet pass after the approved UR01 correction: 644/654 statements
 Native UR06/UR07 remain open; no product cause claimed.
 Subsequent native `42761268874` passes UR06 (0.08 s) and both plain members but
 UR07 still rejects an unknown pending record at traced member 3. Original report
-retained; fixed rejection-detail proposal awaits component/test approval. All
+retained; fixed rejection-detail amendment is separately approved (2026-11-10),
+with RD01–RD07 tests awaiting approval before implementation. All
 regression jobs of CI `42761251963` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

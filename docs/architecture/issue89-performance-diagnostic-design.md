@@ -347,9 +347,11 @@ amendment and the separately reviewed
 are approved. Implementation retains strict/default parsing. Native UR06 passes,
 but the eight-member collection remains incomplete. See the test checkpoint.
 
-## Proposed: complete fixed detail of raw-grammar rejection
+## Approved: complete fixed detail of raw-grammar rejection
 
-Status: reviewed proposal, not approved/implemented. Run 42761268874 proves that
+Status: explicitly approved by @evilguest on 2026-11-10; exact reply timestamp
+unavailable. Separate RD01–RD07 tests await approval; no implementation yet.
+Run 42761268874 proves that
 native numeric compatibility is insufficient: the workload's unknown pending
 record is still not accepted, and the current report cannot explain why. Do not
 broaden grammar based on that family label alone.
@@ -359,7 +361,7 @@ also has a register/argument-read failure path printing an entry before argument
 That is a possible source of a different shape, **not established by this report**.
 The next observation must distinguish shapes rather than adopt that hypothesis.
 
-Proposed component boundary, without any new accepted syntax:
+Approved component boundary, without any new accepted syntax:
 
 1. At the existing unknown-raw rejection point, derive only four fixed enums
    from the already-read private record. `rawNameFamily`: `numeric`, `fallback`,
@@ -406,5 +408,7 @@ before publication; P1 fabricated diagnosis — explicit unavailable/ambiguous
 states and preserved parser stage; P1 widening grammar — rejection unchanged;
 P2 old exact helpers silently changed — separate metadata boundary; P2 smoke
 mistaken for workload compatibility — retain independent native/eight-member
-evidence. Repeat review found no remaining P0–P2 within this proposal. This still
+evidence. Repeat review found no remaining P0–P2 within this amendment. This still
 may not establish a product cause; unsupported observations remain a blocker.
+The separately reviewed [RD01–RD07 inventory](issue89-performance-diagnostic-tests.md#proposed-rd01rd07-fixed-raw-rejection-detail)
+requires approval before tests/code.
