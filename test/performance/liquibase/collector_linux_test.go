@@ -419,6 +419,7 @@ func collect(t *testing.T) {
 					summary, err := summarizeDiagnosticIntervals(intervals, diagnostics[i].start, diagnostics[i].end)
 					if err != nil {
 						t.Log("P01B_DIAGNOSTIC_FAILURE clock")
+						t.Log(diagnosticClockMarker(err))
 						t.Error("diagnostic time window inconsistent")
 						break
 					}

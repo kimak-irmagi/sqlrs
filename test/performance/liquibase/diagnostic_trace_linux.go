@@ -446,13 +446,13 @@ func diagnosticExecCategory(body string) (string, error) {
 func summarizeDiagnosticIntervals(rows []diagnosticInterval, start, end time.Time) (diagnosticTraceSummary, error) {
 	result := diagnosticTraceSummary{Intervals: []diagnosticPublicInterval{}}
 	a, b := start.UnixNano(), end.UnixNano()
-	if b <= a || end.Sub(start) <= 0 || end.Sub(start) != time.Duration(b-a) {
-		return result, errDiagnosticTrace
+	if err := validateDiagnosticWindow(a, b, end.Sub(start)); err != nil {
+		return result, err
 	}
 	spans := [][2]int64{}
 	for _, r := range rows {
 		if r.EndNS < r.StartNS {
-			return result, errDiagnosticTrace
+			return result, newDiagnosticClockError("interval_order", b-a, int64(end.Sub(start)))
 		}
 		lo, hi := max(a, r.StartNS), min(b, r.EndNS)
 		if hi <= lo {

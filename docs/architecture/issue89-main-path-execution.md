@@ -290,4 +290,6 @@ Native UE07 `42782782114` passes trace decoding, then fails the time summary
 (`clock`) at traced member 3. Original report retained; exact clock cause remains
 unknown. All regressions in CI `42782733993` pass, only aggregate coverage red.
 Complete closed clock-rejection context is separately approved (2026-11-10),
-not implemented; reviewed CW01–CW07 await separate test approval.
+followed by separate CW01–CW07 approval. Implementation passes small Linux
+Go/vet (747/758 statements, 98.55%; new helpers 100%) and 46 Node tests (helper
+lines 100%). Native CW07 remains required; no clock acceptance/product change.

@@ -4,7 +4,7 @@
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.
 - Status: component amendment explicitly approved after critical and repeat
-  review. Separate CW01–CW07 inventory proposed; tests/code not authorised yet.
+  review. Separate CW01–CW07 inventory subsequently approved before tests/code.
 - Question: native UE07 passed trace decoding but reported only `clock` during
   summary. Guess the failing check, change clock domains, or collect complete
   closed evidence while retaining refusal?
@@ -31,3 +31,18 @@ and [proposed CW tests](../architecture/issue89-performance-diagnostic-tests.md#
 Reviewed the earlier localisation, raw-rejection and terminal-unavailable ADRs:
 none is obsolete. This extends failed-observation metadata only, not acceptance
 or P01b. Native UE07 evidence stays unchanged in its original report.
+
+## Approve CW01–CW07 before implementation
+
+- Conversation date: 2026-11-10, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: proceed with the separately reviewed inventory without weakening
+  time validation or rewriting the old summary/context tests?
+- Alternatives: retain the current observation limit; or test the actual ordered
+  scalar checks, real summary, safe metadata and native publication first.
+- Decision: user explicitly approved CW01–CW07. Repeated old-test audit found
+  no required change; write new tests before code. Retain existing checks,
+  signatures, time sources, old helper shapes and all original native members.
+- Rationale: distinguish all clock rejection reasons with bounded relative
+  evidence without guessing drift, fabricating time.Time or waiving P01b.

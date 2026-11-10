@@ -60,6 +60,28 @@ export function diagnosticRawFailureContext(output){
   }
   return result||unavailable;
 }
+// CW04: relative integer spans only; this supplements rather than changes CX/PX/RD.
+// Keep unavailable pairs explicit and reject incoherent/contradictory evidence.
+export function diagnosticClockFailureContext(output){
+  const unavailable={clockFailure:'none',clockWallDurationNS:null,clockElapsedDurationNS:null};
+  const matches=[...output.matchAll(/^(?:[ \t]*[A-Za-z0-9_./\\:-]+:[0-9]+:[ \t]*)?[ \t]*P01B_DIAGNOSTIC_CLOCK (\S+) (\S+) (\S+)[ \t]*$/gm)];
+  let result;
+  for(const match of matches){
+    const [,clockFailure,wall,elapsed]=match;
+    if(!['wall_order','elapsed_order','duration_mismatch','interval_order','none'].includes(clockFailure))return unavailable;
+    const value={clockFailure,clockWallDurationNS:null,clockElapsedDurationNS:null};
+    if(wall!=='none'||elapsed!=='none'){
+      if(!/^[0-9]+$/.test(wall)||!/^[0-9]+$/.test(elapsed))return unavailable;
+      const a=Number(wall),b=Number(elapsed);
+      if(!Number.isSafeInteger(a)||!Number.isSafeInteger(b)||a<=0||b<=0||a>720000000000||b>720000000000)return unavailable;
+      if(!(clockFailure==='duration_mismatch'&&a!==b||clockFailure==='interval_order'&&a===b))return unavailable;
+      value.clockWallDurationNS=a;value.clockElapsedDurationNS=b;
+    }
+    if(result&&Object.keys(value).some(key=>value[key]!==result[key]))return unavailable;
+    result=value;
+  }
+  return result||unavailable;
+}
 const operations=new Set(['docker.image_inspect','docker.inspect','docker.create','docker.start','docker.stop','docker.remove','docker.copy','docker.run','docker.exec','docker.step','docker.planner','host.java','host.liquibase','host.pg_control','host.pg_identity','other','exec.unconfirmed','process.unattributed']);
 const phases=new Set(['job','step','plan_task','resolve_task','instance_task','other_task','image_binding','planning','session_start','invocation']);
 const number=n=>Number.isFinite(n)&&n>=0;

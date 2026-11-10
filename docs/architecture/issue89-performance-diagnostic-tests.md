@@ -1143,9 +1143,9 @@ branches without changing rejection; UE approval does not authorise that change.
 
 ## Proposed CW01–CW07: closed clock rejection context
 
-Status: components explicitly approved on 2026-11-10; this critically and
-repeatedly reviewed test inventory awaits separate approval. No new tests/code
-or old-test changes yet. This identifies observer refusal, not a product cause.
+Status: components and this critically/repeatedly reviewed inventory explicitly
+approved on 2026-11-10 before tests/code. Repeated audit found no old-test change
+required. This identifies observer refusal, not a product cause.
 
 1. **CW01 — actual window checks and precedence.** Test the approved pure
    validateDiagnosticWindow helper with independent inputs and literal expected
@@ -1249,3 +1249,21 @@ Repeat review found no remaining P0–P2 within this bounded inventory. Prelimin
 old-test audit found no required change: existing summary tests require error,
 not identity equality; clock remains the same failure kind; exact CX/PX/RD
 shapes and source guards stay separate. Repeat this audit after test approval.
+
+### CW small execution checkpoint (2026-11-10)
+
+After approval, repeated audit found no contradictory old assertion or fixture.
+New tests were written first: Go compilation failed on missing validator/error/
+accessors and Node failed on the missing export. Only then was implementation
+added. The integration collector gained the approved failure-only marker; no
+old assertion, fixture, strict/raw grammar, trace flag or time source changed.
+
+Full small Linux Go/vet passes: **747/758 ordinary-helper statements (98.55%)**,
+profile `.tmp/performance/diag-CW-full.out`; all new clock helpers are **100%**.
+The same 11 old uncovered statements remain (journal 5, pipe/group 3, raw framing
+1, timestamp 1, exec-return rejection 1). They remain existing validation/failure
+requirements, not proved dead code; no extra iteration/removal was performed.
+All **46 Node tests** pass; the five ordinary helpers have **100% lines / 97.32%
+branches**. Syntax/workflow/diff checks pass. Native orchestration/product code
+is not included in these denominators. Actual CW07 transport and complete
+collection remain to be verified on Actions; no product cause or speed waiver.

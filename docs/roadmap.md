@@ -147,8 +147,9 @@ amendments are approved and implemented. Small Linux Go/vet pass at 98.48%,
 44 Node tests pass (helper lines 100%); native UE07 and product cause remain open.
 Native UE07 `42782782114` passes trace decoding but fails summary `clock` at
 member 3; original report retained. All CI `42782733993` regressions pass, only
-aggregate coverage red. Closed clock context is approved, not implemented;
-separately reviewed CW01–CW07 await test approval.
+aggregate coverage red. Closed clock context and CW01–CW07 are approved and
+implemented: small Linux Go/vet 98.55% (new helpers 100%), 46 Node tests
+(helper lines 100%). Native CW07 remains open; no time/product acceptance change.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

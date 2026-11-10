@@ -493,8 +493,8 @@ The exact time failure and product regression cause are not established.
 ## Approved: complete closed context for summary clock rejection
 
 Status: component amendment explicitly approved by @evilguest on 2026-11-10
-after critical and repeat review; exact reply time unavailable. Not implemented.
-The separately reviewed CW01–CW07 inventory awaits approval. Do not rerun the
+after critical and repeat review; exact reply time unavailable. Implemented after approved tests.
+The separately reviewed CW01–CW07 inventory is approved before tests/code. Do not rerun the
 unchanged observer, drop clock checks or claim the regression is localised.
 
 Current summary rejection covers four ordered checks: non-increasing wall
@@ -564,4 +564,10 @@ relative spans; P2 Node precision/partial pairs with exact integer ceiling and
 all-or-none validation; P2 breaking old exact contexts with a separate accessor/
 marker/helper; P2 false cause attribution with explicit deferred clock modelling.
 Repeat review found no remaining P0–P2 in this limited component boundary. Test
-approval is still required before tests/code; the product speed gate remains blocking.
+inventory was subsequently approved before tests/code; the product speed gate remains blocking.
+
+Implementation passes full small Linux Go/vet at 747/758 statements (98.55%;
+new clock helpers 100%), with 46 Node tests (ordinary helpers 100% lines /
+97.32% branches). The approved pure validator preserves all original checks;
+the separate marker/Node helper supplement only clock failures. Native CW07
+remains required; no tolerance, clock mapping or product change is implemented.
