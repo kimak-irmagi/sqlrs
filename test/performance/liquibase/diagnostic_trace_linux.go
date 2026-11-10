@@ -18,6 +18,10 @@ var diagnosticCString = regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
 var diagnosticExecReturn = regexp.MustCompile(`\) = (-?[0-9]+)(?: [A-Z][A-Z0-9_]*(?: \([^\n]*\))?)?(?: <[0-9.]+>)?$`)
 var diagnosticExit = regexp.MustCompile(`^\+\+\+ (?:exited with [0-9]+|killed by SIG[A-Z0-9]+(?: \(core dumped\))?) \+\+\+$`)
 
+// UE01: this exact unavailable observation is not a decoded raw syscall. Only
+// measured mode may retain it, and only with the next same-PID terminal proof.
+var diagnosticUnavailableEntry = regexp.MustCompile(`^\?\?\?\([ \t]+<unfinished \.\.\.>$`)
+
 // diagnosticDecodeError stores a fixed code only, never a copy of trace data.
 // DG03/DG09 checkpoints: 1 quota, 2 framing, 3 PID, 4 time, 5 pending exit,
 // 6 duplicate pending, 7 orphan resume, 8 record kind, 9 result syntax,
@@ -210,10 +214,11 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 	}
 	active := map[int]diagnosticInterval{}
 	type partial struct {
-		text       string
-		at         int64
-		raw        *diagnosticRawCall
-		rawFailure diagnosticRawFailure
+		text        string
+		at          int64
+		raw         *diagnosticRawCall
+		rawFailure  diagnosticRawFailure
+		unavailable bool
 	}
 	pending := map[int]partial{}
 	last := map[int]int64{}
@@ -241,7 +246,7 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 		if diagnosticExit.MatchString(body) {
 			imageEnd := at
 			if p, found := pending[pid]; found {
-				if measured && p.raw == nil {
+				if measured && p.raw == nil && !p.unavailable {
 					// Validate the entry, not an invented successful return. A
 					// malformed unfinished line must not bypass argument checks.
 					if _, err := diagnosticExecCategory(p.text); err != nil {
@@ -255,7 +260,7 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 					return nil, diagnosticDecodeError{5}
 				}
 				delete(pending, pid)
-				if measured && p.raw == nil && pid != enginePID {
+				if measured && p.raw == nil && !p.unavailable && pid != enginePID {
 					// Append the preceding image first, preserving chronology
 					// within one PID without merging overlapping other PIDs.
 					if item, found := active[pid]; found {
@@ -278,6 +283,28 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 		start := at
 		var rawFailure diagnosticRawFailure
 		if measured {
+			// UE02: no event of this PID may intervene before its exact exit.
+			// Keep the pending tag even when engine lifetime is excluded.
+			if p, found := pending[pid]; found && p.unavailable {
+				return nil, newDiagnosticContext(diagnosticDecodeError{8}, "record", body)
+			}
+			if diagnosticUnavailableEntry.MatchString(body) {
+				if _, found := pending[pid]; found {
+					return nil, diagnosticDecodeError{6}
+				}
+				// UE03: one timeline per PID. Preserve an earlier unknown start,
+				// otherwise end the known image at entry, not at its later exit.
+				// These private intervals escape only after all lifecycles close.
+				if prior, found := active[pid]; !found || prior.Category != "process.unattributed" {
+					if found && pid != enginePID {
+						prior.EndNS = at
+						result = append(result, prior)
+					}
+					active[pid] = diagnosticInterval{Category: "process.unattributed", StartNS: at}
+				}
+				pending[pid] = partial{at: at, unavailable: true}
+				continue
+			}
 			// UR02: only an exact same-PID/name raw resume can finish its
 			// pending call. No thread handoff or executable identity is inferred.
 			rawBody := body

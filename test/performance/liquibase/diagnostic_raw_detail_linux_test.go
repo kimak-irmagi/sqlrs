@@ -110,7 +110,7 @@ func assertRawDetailPrivate(t *testing.T, value diagnosticRawFailure) {
 // RD02: the first parser failure survives trimming and interleaved PID state.
 func TestDiagnosticRawDetailPending(t *testing.T) {
 	for _, row := range []struct{ body, family, count, kind string }{
-		{"???(", "fallback", "empty", "none"},
+		{"???(0", "fallback", "short", "numeric"},
 		{"syscall_0xabc(0", "numeric", "short", "numeric"},
 		{"syscall_0xabc(123456789", "numeric", "short", "other"},
 		{"???(<unavailable>", "fallback", "none", "unavailable"},
@@ -201,7 +201,7 @@ func TestDiagnosticRawDetailPrivatePipe(t *testing.T) {
 		}
 		writer := os.NewFile(uintptr(fd), "private-test-writer")
 		trace.begin(0)
-		raw := "2 100.1 ???( <unfinished ...>\n"
+		raw := "2 100.1 ???(0 <unfinished ...>\n"
 		if mode != "missing_exit" {
 			raw += rawTestExit
 		}
@@ -224,7 +224,7 @@ func TestDiagnosticRawDetailPrivatePipe(t *testing.T) {
 		line := fmt.Sprintf("P01B_DIAGNOSTIC_RAW_CONTEXT %s %s %s %s", detail.NameFamily, detail.ArgumentCount, detail.ArgumentKind, detail.RejectStage)
 		want := "P01B_DIAGNOSTIC_RAW_CONTEXT none none none none"
 		if mode == "measured" {
-			want = "P01B_DIAGNOSTIC_RAW_CONTEXT fallback empty none arity"
+			want = "P01B_DIAGNOSTIC_RAW_CONTEXT fallback short numeric arity"
 		}
 		if line != want {
 			t.Fatal("private transport/marker boundary differs")

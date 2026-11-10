@@ -281,5 +281,7 @@ incomplete report is retained in the test inventory. This establishes the
 observer's empty `???(` refusal, not the absent syscall/kernel cause or product
 slowdown. All regressions in CI `42772612811` pass; only coverage-merge red.
 A separate exact terminal-only unavailable-entry boundary is approved
-(2026-11-10), not implemented. UE01–UE07 and the two named old-test amendments
-are proposed for separate approval before tests/code; the speed gate remains.
+(2026-11-10). UE01–UE07 and the two named old-test amendments were separately
+approved before implementation. Full small Linux Go/vet now pass at 715/726
+statements (98.48%), with 44 Node tests (helper lines 100%). Native UE07 is
+still required; no product optimisation or waiver of the speed gate.

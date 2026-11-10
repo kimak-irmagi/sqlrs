@@ -423,9 +423,9 @@ Complete collection and the product's slowdown cause remain open.
 ## Approved: terminal unavailable fallback entry, measured mode only
 
 Status: explicitly approved by @evilguest on 2026-11-10 after critical and repeat
-review; exact reply time unavailable. Not implemented. This narrow observer
-boundary is authorised separately from RD metadata. The proposed UE01–UE07 tests
-and OT-UE01/OT-UE02 amendments still require separate approval before tests/code.
+review; exact reply time unavailable. Implemented after approved tests. This narrow observer
+boundary is authorised separately from RD metadata. UE01–UE07 and, separately,
+OT-UE01/OT-UE02 were explicitly approved before tests/code on the same date.
 
 The observed original parser stage `arity` plus `fallback/empty` identifies an
 unfinished `???(` with only horizontal formatting before `<unfinished ...>`.
@@ -480,3 +480,8 @@ P2 silent old-test weakening through a separate named-amendment gate. Repeat
 review found no remaining P0–P2 within this boundary. This removes the confirmed
 observer refusal only if the real sequence satisfies those conditions; it does
 not promise all eight members will pass or localise/fix the product regression.
+
+UE01–UE06 pass after the separately approved RD fixture amendments. Full small
+Linux Go/vet passes at 715/726 ordinary-helper statements (98.48%), Node at
+44 passing tests (ordinary helpers 100% lines / 97.10% branches). Native UE07
+still requires the original eight members; no product change or speed verdict.

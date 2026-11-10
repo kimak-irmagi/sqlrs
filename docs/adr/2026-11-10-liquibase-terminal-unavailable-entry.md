@@ -4,7 +4,8 @@
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.
 - Status: component design explicitly approved after critical and repeat review.
-  UE01–UE07 and named OT-UE01/OT-UE02 are proposed, not approved or implemented.
+  UE01–UE07 and, separately, named OT-UE01/OT-UE02 subsequently approved before
+  tests/code; exact reply time unavailable.
 - Question: how to handle the empty pending fallback established by actual
   run 42772724450 without inventing a syscall, successful JVM or product cause?
 - Alternatives: retain full refusal; discard the entry; invent numeric arguments
@@ -29,3 +30,19 @@ and [proposed tests](../architecture/issue89-performance-diagnostic-tests.md#pro
 Reviewed earlier raw-rejection, six-argument raw-call, exec-uncertainty and
 closed-context ADRs: none is obsolete. This is a separately tagged terminal-only
 exception, not a relaxation of the raw parser or the old metadata contract.
+
+## Approve UE tests and separately bounded RD fixture changes
+
+- Conversation date: 2026-11-10, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: implement the reviewed UE01–UE07 inventory and resolve the two RD
+  fixtures which intentionally expected refusal of the now-approved empty entry?
+- Alternatives: revise the new tests; or retain RD rejection coverage with a
+  genuinely invalid single-argument fallback and test the empty entry separately.
+- Decision: user approved UE01–UE07, and separately OT-UE01/OT-UE02. Change only
+  the first Pending table fixture and the PrivatePipe fixture/expected metadata
+  from empty to one numeric argument. Preserve direct raw-parser arity failure,
+  strict cases, other rows/assertions and native protocol. Write tests first.
+- Rationale: keep genuine rejection and private-transport coverage without
+  requiring the measured decoder to contradict its separately approved contract.

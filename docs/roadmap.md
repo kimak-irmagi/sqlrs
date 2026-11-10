@@ -142,8 +142,9 @@ small Go/vet (703/714, 98.46%; new helpers 100%) and 43 Node tests (helper lines
 regression jobs of CI `42761251963` pass, only aggregate coverage red.
 Actual RD07 `42772724450` verifies `fallback / empty / none / arity` at traced
 member 3. Original incomplete report retained; no exact product cause. A narrow
-terminal-only unavailable-entry component amendment is approved, not implemented;
-UE01–UE07 and two named old-test amendments await separate approval.
+terminal-only unavailable-entry amendment, UE01–UE07 and two named old-test
+amendments are approved and implemented. Small Linux Go/vet pass at 98.48%,
+44 Node tests pass (helper lines 100%); native UE07 and product cause remain open.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

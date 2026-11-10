@@ -983,9 +983,10 @@ RD01–RD07.
 
 ## Proposed UE01–UE07: terminal unavailable entry
 
-Status: component boundary approved on 2026-11-10; this test inventory and the
-two named old-test amendments below await separate approval. Tests/code are
-not written. No product optimisation, schema change or P01b waiver.
+Status: component boundary, this reviewed inventory and, separately, the two
+named old-test amendments explicitly approved on 2026-11-10 before tests/code.
+Repeated audit found only those two contradictions. No product optimisation,
+schema change or P01b waiver.
 
 1. **UE01 — exact form and separate raw grammar.** Measured decoding accepts
    the exact `???( <unfinished ...>` and horizontal-space/tab variants only
@@ -1093,3 +1094,24 @@ Corrections incorporated before submission:
 
 Repeat review found no remaining P0–P2 in this bounded inventory. This is a test
 proposal, not a claim that code, coverage or the native protocol already passes.
+
+### UE small execution checkpoint (2026-11-10)
+
+After both approvals, repeated audit confirmed only OT-UE01/OT-UE02 needed
+changes; their exact three-line fixture/marker diff preserves the other tests.
+Tests were written first. The first Linux run of the unchanged decoder failed
+all five new Go test groups on their positive paths (strict and negative private
+transport cases passed); the new Node report check already passed, as expected
+for the existing report category. Only then was the measured decoder changed.
+
+Full small Linux Go and vet now pass. Profile
+`.tmp/performance/diag-UE-full.out`: **715/726 statements (98.48%)**; all 12
+added ordinary-helper statements are covered. The same 11 old uncovered
+statements remain: journal read errors (5), pipe construction/group termination
+(3), direct raw-parser framing (1), timestamp (1), exec return rejection (1).
+These are existing validation/failure requirements, not demonstrated dead code;
+no further iteration or removal was undertaken. All **44 Node tests** pass,
+five ordinary helpers **100% lines / 97.10% branches**. These denominators do
+not cover native orchestration or product code. Syntax/workflow/diff checks
+pass. No product bytes, trace flags, old smoke or UR06 changed. Native UE07
+remains open; small checks do not establish workload compatibility or a cause.
