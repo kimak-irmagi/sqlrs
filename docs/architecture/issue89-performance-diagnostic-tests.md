@@ -811,8 +811,9 @@ component amendment is now approved, with the separate inventory below pending.
 
 Status: the component amendment is explicitly approved by @evilguest on
 2026-11-10 (exact reply time unavailable). This separate inventory has undergone
-critical and repeat review and **awaits approval**. No new tests/code yet; no
-authorisation to change old tests, accepted syntax, binaries or P01b.
+critical and repeat review and was explicitly approved by the subsequent user
+reply on 2026-11-10 (exact time unavailable). Repeated old-test audit found no
+contradictions. No authorisation to change old tests, accepted syntax, binaries or P01b.
 
 ### Closed expectations and unavailable values
 
@@ -941,3 +942,19 @@ Repeat review found no remaining P0–P2 within this bounded inventory. Prelimin
 old-test audit found no necessary changes: CX/PX exact shapes and their literal
 wiring remain separate, strict DG/EU and all UR negative cases still fail as
 before. Re-run the audit after approval; ask separately about any contradiction.
+
+### RD small execution checkpoint (2026-11-10)
+
+After test approval, the first Go build/Node run failed on absent detail helpers
+and export. Implementation then passed the full small Linux Go suite and vet:
+**703/714 statements (98.46%)**, profile `.tmp/performance/diag-rd-full.out`;
+all new detail helpers are **100%**. The 11 uncovered statements are the previous
+10 plus the raw-parser missing-opening-parenthesis rejection; that is a real
+framing requirement, not dead code. No further coverage iteration/removal was
+undertaken. All **43 Node tests** pass, five ordinary helpers **100% lines /
+97.08% branches**; script/workflow syntax and diff checks pass. Original
+PX02/CX/EU/UR assertions and literal old guards remain intact. The typed error
+and pending state keep only closed detail from the original failed parse;
+metadata construction never authorises raw input or creates successful intervals.
+Native RD07 remains required: small checks do not prove report transport in the
+real failing workload, complete collection or the product's regression cause.

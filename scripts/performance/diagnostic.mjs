@@ -43,6 +43,23 @@ export function diagnosticPrefixContext(output){
   if(call?traceKnownCall==='none':tracePrefix==='unknown_syscall'?traceKnownCall!=='other':traceKnownCall!=='none')return unavailable;
   return {tracePrefix,traceKnownCall};
 }
+// RD04: an anchored marker carries only the four closed fields. No old CX/PX
+// helper shape changes; incoherent/missing/conflicting evidence is unavailable.
+export function diagnosticRawFailureContext(output){
+  const unavailable={rawNameFamily:'none',rawArgumentCount:'none',rawArgumentKind:'none',rawRejectStage:'none'};
+  const matches=[...output.matchAll(/^(?:[ \t]*[A-Za-z0-9_./\\:-]+:[0-9]+:[ \t]*)?[ \t]*P01B_DIAGNOSTIC_RAW_CONTEXT (\S+) (\S+) (\S+) (\S+)[ \t]*$/gm)];
+  let result;
+  for(const match of matches){
+    const [,rawNameFamily,rawArgumentCount,rawArgumentKind,rawRejectStage]=match;
+    if(!['numeric','fallback','other'].includes(rawNameFamily)||!['name','framing','arity','argument','result','duration','other'].includes(rawRejectStage))return unavailable;
+    const coherent=rawArgumentCount==='empty'?rawArgumentKind==='none':['short','six','extra'].includes(rawArgumentCount)?['numeric','other'].includes(rawArgumentKind):rawArgumentCount==='none'&&['none','unavailable'].includes(rawArgumentKind);
+    if(!coherent)return unavailable;
+    const value={rawNameFamily,rawArgumentCount,rawArgumentKind,rawRejectStage};
+    if(result&&Object.keys(value).some(key=>value[key]!==result[key]))return unavailable;
+    result=value;
+  }
+  return result||unavailable;
+}
 const operations=new Set(['docker.image_inspect','docker.inspect','docker.create','docker.start','docker.stop','docker.remove','docker.copy','docker.run','docker.exec','docker.step','docker.planner','host.java','host.liquibase','host.pg_control','host.pg_identity','other','exec.unconfirmed','process.unattributed']);
 const phases=new Set(['job','step','plan_task','resolve_task','instance_task','other_task','image_binding','planning','session_start','invocation']);
 const number=n=>Number.isFinite(n)&&n>=0;

@@ -210,9 +210,10 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 	}
 	active := map[int]diagnosticInterval{}
 	type partial struct {
-		text string
-		at   int64
-		raw  *diagnosticRawCall
+		text       string
+		at         int64
+		raw        *diagnosticRawCall
+		rawFailure diagnosticRawFailure
 	}
 	pending := map[int]partial{}
 	last := map[int]int64{}
@@ -244,6 +245,9 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 					// Validate the entry, not an invented successful return. A
 					// malformed unfinished line must not bypass argument checks.
 					if _, err := diagnosticExecCategory(p.text); err != nil {
+						if detail := normalizeDiagnosticRawFailure(p.rawFailure); detail.RejectStage != "none" {
+							err = diagnosticRawFailureError{cause: err, detail: detail}
+						}
 						return nil, newDiagnosticContext(err, "pending_entry", p.text)
 					}
 					imageEnd = p.at
@@ -272,6 +276,7 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 			continue
 		}
 		start := at
+		var rawFailure diagnosticRawFailure
 		if measured {
 			// UR02: only an exact same-PID/name raw resume can finish its
 			// pending call. No thread handoff or executable identity is inferred.
@@ -308,6 +313,7 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 				}
 				// Preserve old PX02 malformed unfinished entries and their
 				// exact pending-entry rejection/context at the terminal event.
+				rawFailure = diagnosticErrorRaw(rawErr)
 				if resume != nil || !strings.HasSuffix(body, "<unfinished ...>") {
 					return nil, newDiagnosticContext(rawErr, "record", body)
 				}
@@ -320,7 +326,7 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 			if _, found := pending[pid]; found {
 				return nil, diagnosticDecodeError{6}
 			}
-			pending[pid] = partial{text: strings.TrimSuffix(body, "<unfinished ...>"), at: at}
+			pending[pid] = partial{text: strings.TrimSuffix(body, "<unfinished ...>"), at: at, rawFailure: rawFailure}
 			continue
 		}
 		if strings.HasPrefix(body, "<... execve resumed>") || strings.HasPrefix(body, "<... execveat resumed>") {

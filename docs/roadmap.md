@@ -136,7 +136,9 @@ Native UR06/UR07 remain open; no product cause claimed.
 Subsequent native `42761268874` passes UR06 (0.08 s) and both plain members but
 UR07 still rejects an unknown pending record at traced member 3. Original report
 retained; fixed rejection-detail amendment is separately approved (2026-11-10),
-with RD01–RD07 tests awaiting approval before implementation. All
+with separate RD01–RD07 subsequently approved. Detail implementation passes full
+small Go/vet (703/714, 98.46%; new helpers 100%) and 43 Node tests (helper lines
+100%); native RD07 remains open, old strict rejection and assertions unchanged. All
 regression jobs of CI `42761251963` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

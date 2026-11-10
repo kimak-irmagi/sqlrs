@@ -270,5 +270,7 @@ Native `42761268874` on observer `370225f` passes UR06 (actual invalid syscall,
 at traced v1 member 3. The original report is retained in the diagnostic test
 inventory; no complete collection or product cause. CI `42761251963` passes all
 regressions, only coverage-merge red. Complete fixed raw-rejection detail is
-separately approved (2026-11-10); RD01–RD07 tests await approval. No further syntax
-is authorised and the metadata is not implemented yet.
+separately approved (2026-11-10), followed by separate RD01–RD07 approval.
+Implementation passes full small Go/vet (703/714, 98.46%; new detail helpers 100%)
+and 43 Node tests (helper lines 100%). Old strict/codes/CX/PX/UR remain unchanged;
+native RD07 and exact product localisation are still open.

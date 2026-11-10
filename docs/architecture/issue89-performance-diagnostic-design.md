@@ -350,7 +350,8 @@ but the eight-member collection remains incomplete. See the test checkpoint.
 ## Approved: complete fixed detail of raw-grammar rejection
 
 Status: explicitly approved by @evilguest on 2026-11-10; exact reply timestamp
-unavailable. Separate RD01–RD07 tests await approval; no implementation yet.
+unavailable. Separate RD01–RD07 tests were subsequently approved before code.
+Implementation passes full small Go/Node/vet; native RD07 is not complete.
 Run 42761268874 proves that
 native numeric compatibility is insufficient: the workload's unknown pending
 record is still not accepted, and the current report cannot explain why. Do not
@@ -411,4 +412,4 @@ mistaken for workload compatibility — retain independent native/eight-member
 evidence. Repeat review found no remaining P0–P2 within this amendment. This still
 may not establish a product cause; unsupported observations remain a blocker.
 The separately reviewed [RD01–RD07 inventory](issue89-performance-diagnostic-tests.md#proposed-rd01rd07-fixed-raw-rejection-detail)
-requires approval before tests/code.
+is approved. Old strict grammar/codes and CX/PX helper shapes are unchanged.

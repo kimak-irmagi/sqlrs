@@ -25,19 +25,26 @@ var diagnosticRawResume = regexp.MustCompile(`^<\.\.\. (syscall_0x[0-9a-f]{1,16}
 // parseDiagnosticRaw validates a whole record, including all six raw arguments.
 // No prefix classifier authorises this grammar. Errors retain no input bytes.
 func parseDiagnosticRaw(body string) (diagnosticRawCall, error) {
+	name, _, found := strings.Cut(body, "(")
+	if !found {
+		return diagnosticRawCall{}, rejectDiagnosticRaw(body, "framing", 8)
+	}
+	if !diagnosticRawName.MatchString(name) {
+		return diagnosticRawCall{}, rejectDiagnosticRaw(body, "name", 8)
+	}
 	m := diagnosticRawRecord.FindStringSubmatch(body)
 	if m == nil {
-		return diagnosticRawCall{}, diagnosticDecodeError{8}
+		return diagnosticRawCall{}, rejectDiagnosticRaw(body, "framing", 8)
 	}
 	call := diagnosticRawCall{name: m[1], pending: strings.HasSuffix(body, "<unfinished ...>")}
 	args := strings.Split(m[2], ",")
 	if len(args) != len(call.args) {
-		return diagnosticRawCall{}, diagnosticDecodeError{8}
+		return diagnosticRawCall{}, rejectDiagnosticRaw(body, "arity", 8)
 	}
 	for i, value := range args {
 		value = strings.Trim(value, " \t")
 		if !diagnosticRawValue.MatchString(value) {
-			return diagnosticRawCall{}, diagnosticDecodeError{8}
+			return diagnosticRawCall{}, rejectDiagnosticRaw(body, "argument", 8)
 		}
 		// The anchored 1–16 hex-digit grammar proves uint64 conversion cannot
 		// overflow. No synthetic unreachable numeric-error branch is needed.
@@ -49,7 +56,7 @@ func parseDiagnosticRaw(body string) (diagnosticRawCall, error) {
 	returned := m[3]
 	if duration := diagnosticRawDuration.FindStringSubmatch(returned); duration != nil {
 		if !validDiagnosticRawDuration(duration[2]) {
-			return diagnosticRawCall{}, diagnosticDecodeError{9}
+			return diagnosticRawCall{}, rejectDiagnosticRaw(body, "duration", 9)
 		}
 		returned = duration[1]
 	}
@@ -58,7 +65,7 @@ func parseDiagnosticRaw(body string) (diagnosticRawCall, error) {
 		return call, nil
 	}
 	if !diagnosticRawValue.MatchString(returned) && !diagnosticRawError.MatchString(returned) {
-		return diagnosticRawCall{}, diagnosticDecodeError{9}
+		return diagnosticRawCall{}, rejectDiagnosticRaw(body, "result", 9)
 	}
 	return call, nil
 }

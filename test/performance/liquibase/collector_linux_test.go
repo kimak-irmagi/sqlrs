@@ -408,6 +408,10 @@ func collect(t *testing.T) {
 				if context.Shape == "other" {
 					prefix := diagnosticErrorPrefix(traceErr)
 					t.Logf("P01B_DIAGNOSTIC_PREFIX %s %s", prefix.Prefix, prefix.KnownCall)
+					if prefix.Prefix == "unknown_syscall" {
+						detail := diagnosticErrorRaw(traceErr)
+						t.Logf("P01B_DIAGNOSTIC_RAW_CONTEXT %s %s %s %s", detail.NameFamily, detail.ArgumentCount, detail.ArgumentKind, detail.RejectStage)
+					}
 				}
 				t.Error("diagnostic trace incomplete")
 			} else {
