@@ -259,5 +259,8 @@ Native PX05 `42665130138` now verifies prefix transport: traced member 3 rejects
 The report is retained unchanged in the diagnostic test inventory. The observer
 has treated an unknown-call-shaped record as an exec entry; the exact product
 slowdown is still unlocalised. A full numeric raw-call grammar/unattributed-time
-amendment is proposed separately, not implemented. All ordinary regression jobs
+amendment and separate UR01–UR07 tests are approved (2026-11-10). Local
+implementation passes full small Go/vet (644/654, 98.47%; new raw helpers 100%)
+and 41 Node tests (helper lines 100%) after the separately approved UR01 boundary
+correction. Native UR06/UR07 remain open. All ordinary regression jobs
 of source CI `42665129132` pass; only unchanged coverage-merge is red.

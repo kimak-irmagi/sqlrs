@@ -608,3 +608,180 @@ grammar limitation, not the exact syscall/value, workload success or a product
 regression cause. Ordinary CI `42665129132` passes all regression jobs; only the
 unchanged coverage-merge gate is red. A measured-only
 raw-syscall proposal is separate; no new syntax has been accepted yet.
+
+## Proposed UR01–UR07: raw syscall grammar and unattributed time
+
+Status: component amendment explicitly approved by @evilguest on 2026-11-10;
+this separate test inventory is explicitly approved by the subsequent user reply
+on 2026-11-10 (exact time unavailable). Post-approval old-test audit found no
+contradictions; existing test assertions are not authorised
+to change. This remains diagnostic work, not a product fix or a P01b waiver.
+
+### Exact bounded grammar to test (Linux/amd64, measured mode only)
+
+Reference provenance: strace 6.8
+[raw fallback and result](https://github.com/strace/strace/blob/v6.8/src/syscall.c#L817),
+[six-argument limit](https://github.com/strace/strace/blob/v6.8/src/defs.h#L73),
+[printargs](https://github.com/strace/strace/blob/v6.8/src/util.c#L1753) and
+[hex formatting](https://github.com/strace/strace/blob/v6.8/src/print_fields.h#L316).
+This defines a bounded observer subset, not a claim about the hidden numeric
+payload or exact strace version of run 42665130138. UR06 validates native output.
+
+- Name: exactly `syscall_0x` followed by 1–16 lowercase hex digits, or exactly
+  `???`. A raw argument is `0` or `0x` plus 1–16 lowercase hex digits, parsed
+  without overflow as unsigned 64-bit. Exactly six comma-separated arguments;
+  only horizontal formatting spaces/tabs around separators are allowed. No
+  nonzero decimal argument, sign, quote, symbolic token, pointer dereference,
+  truncated tuple, seventh argument or trailing text.
+- Complete: `name(args) = result`; pending: `name(args <unfinished ...>` without
+  the closing parenthesis; resume: `<... name resumed>) = result`. Allow only
+  horizontal formatting whitespace at those boundaries. Pending already has
+  all six arguments. A resume must match the exact name token and PID of that
+  pending entry; no cross-call/PID completion or inferred thread handoff.
+- A numeric result is `0` or the bounded hex form above. An error result is
+  exactly `-1 ERRNO (description)`, with a 1–32 character uppercase ASCII
+  letter/digit/underscore errno starting with a letter, and 1–256 printable ASCII
+  description characters excluding parentheses/control characters. These
+  private fields are syntax-checked, never exported. No other signed/decimal
+  numeric result or arbitrary suffix. An optional final `<seconds.fraction>`
+  duration has nonnegative, overflow-checked nanosecond range and 1–9 fractional
+  digits; it is not used to derive process duration.
+- Exact `?` or `? <unavailable>` instead of a result is explicitly unresolved,
+  not success. Such a record, or a pending entry without resume, requires an
+  exact terminal event of the same PID; EOF, another PID's exit or a later exec
+  does not substitute for the missing completion. A numeric/error result clears
+  the pending call, but never restores the old executable category. All active
+  process histories still require their terminal event. Existing quotas, timestamp
+  and terminal grammar remain in force. Grammar not listed here remains rejected.
+
+### Test groups
+
+1. **UR01 — full grammar, not prefix permission.** Hand-authored positive/negative
+   tables with independent expected results for both names, zero/max 64-bit
+   values, six arguments, horizontal alignment, complete/pending/resumed forms,
+   numeric/errno/no-result returns and optional duration. Mutate each delimiter,
+   count, numeric bound, return/description and suffix independently. Overflow,
+   17 hex digits, uppercase/nonhex/decimal tokens, quoted decoys, arbitrary names,
+   CR/newline injection and valid prefix plus junk must fail with no partial
+   intervals. Keep byte/line/row quotas and safe fixed errors. A valid complete
+   record fails in strict mode with the existing record-kind code; old PX02
+   malformed pending records keep their exact code 8/context/prefix.
+2. **UR02 — exact lifecycle association.** Real measured decoder, interleaved
+   PIDs and exact same-name resume; natural exit 0/1 and signal termination close
+   a validated pending/unresolved call without inventing its result. Wrong PID,
+   name, reversed time, duplicate pending, orphan resume, an incompatible event
+   while a call is pending, missing terminal and failing/truncated reader reject
+   the whole trace. Test missing terminal after both a completed call and a later
+   confirmed image. Engine PID remains excluded but is still validated. Keep
+   strict pending-exit code 5, old cutoff rules, existing EU and PX negatives.
+3. **UR03 — honest executable/time boundaries.** Literal expected segments for:
+   unknown call without a prior image; known Java then unknown; repeated unknown
+   calls; explicit error/zero/hex return; failed exec after unknown; confirmed
+   complete/resumed exec after a completed unknown call; and a valid unresolved
+   exec ending in a terminal event after unknown. End the preceding known image
+   at the first unknown entry, not its return. Retain `process.unattributed`
+   without restoring Java/Docker on return/failed exec; a confirmed exec starts
+   its category at its observed entry, while an unresolved exec uses the existing
+   `exec.unconfirmed` boundary. Do not double-count a PID, merge different PIDs or
+   count raw calls as successful CLI/JVM starts. Include sequential PID histories.
+4. **UR04 — windows, Node report and privacy.** Two API windows with a gap;
+   before/inside/crossing/after/zero-length intervals and overlap with confirmed
+   and exec.unconfirmed segments. Independent literal union/residual/count
+   expectations, no double accounting. Node accepts only the new fixed category
+   alongside existing labels, validates finite ordered bounds/counts/unions,
+   rejects lookalikes/bad totals and safely drops extra fields as DG09 requires.
+   Both Go and Node serialization must omit numeric syscall/name/args/PID/private
+   errno-description sentinels. Preserve exact CX helper shape and old reports;
+   `Commands` remains interval count, not successful launches. Material unattributed
+   time must stay explicitly unknown in the analysis, not relabelled as Java.
+5. **UR05 — actual private transport and explicit wiring.** Exercise the real pipe
+   and finishMeasured path with a valid raw lifecycle and a malformed/missing-exit
+   control; strict finish remains rejecting. No partial success on read/limit/
+   process-absence failure. Preserve exact tracer arguments, private bounds and
+   owned-process cleanup. Verify measured collector/report wiring without raw
+   publication and unchanged pins/eight-member order. Source checks supplement,
+   not replace, actual decoding/transport tests. Existing native smoke is unchanged.
+6. **UR06 — tiny native prerequisite, Actions only.** Add a separate opt-in test
+   before the eight members on the same Ubuntu/strace. Compile a tiny checked-in
+   fixture under testdata, make a deliberately invalid numeric syscall with six
+   explicit raw arguments, independently require ENOSYS and clean fixture exit.
+   Use the exact normal trace flags/private pipe; require at least one fully
+   validated raw record for the exact owned child with the expected fixture
+   number/six arguments, an unattributed interval and terminal evidence. Numeric
+   comparisons stay private. Otherwise fail before measurements: a filtered-out call
+   must not produce a green probe. No need to force nondeterministic unfinished
+   formatting: UR01/UR02 cover split forms. Require a finite probe deadline,
+   confirmed tree/reader completion and private-file disposal on success/failure;
+   no raw trace/command output or numeric payload artifacts. Failure is closed,
+   not a skip. No DB/Liquibase, laptop execution, new tracing flags or changed old
+   smoke test. Small tests verify opt-in and fail-fast workflow placement.
+7. **UR07 — regressions, coverage and original diagnostic members.** Run the full
+   small Linux Go suite/vet and Node tests, script/workflow syntax checks; obtain
+   per-line ordinary-helper coverage (target 100%, minimum 95%). If below target,
+   submit a requirement-based follow-up plan rather than silently iterate. With
+   a pinned observer, run UR06 then all original eight serial members using the
+   unchanged v1/v2 hashes, workload/CLI counts, DB/cache oracles and exact cleanup.
+   Retain only sanitized reports and unchanged earlier evidence. Any unsupported
+   record still fails explicitly; no causal conclusion from a significant
+   unattributed/residual interval. Native diagnostic success is not P01b acceptance;
+   a product fix and repeated speed qualification are still required separately.
+
+### Critical and repeat review
+
+Corrected before submission:
+
+- P1 prefix acceptance admitted the old malformed PX02 example: UR01 fixes the
+  full six-argument hex grammar and preserves the exact old negative/code.
+- P1 successful result restored an unproved image, or a pending call borrowed
+  another PID's completion: UR02/UR03 require exact association and keep time
+  unknown until a confirmed image/terminal event.
+- P1 elapsed syscall time was confused with process lifetime or double-counted:
+  UR03/UR04 specify literal segment/window unions, including failed exec.
+- P1 a native test could pass without observing the unknown call, or rely on a
+  nondeterministic split: UR06 requires a real validated raw record/ENOSYS, while
+  hand-authored tests independently cover pending/resume/terminal forms.
+- P2 report changes contradicted DG09 or bypassed the actual reader: UR04 keeps
+  safe field dropping; UR05 exercises the private pipe, not just source matching.
+- P2 observer success was mistaken for speed acceptance: UR07 retains the exact
+  qualification gate and explicitly limits attribution of unknown time.
+
+Repeat review found no remaining P0–P2 within this bounded inventory. Preliminary
+old-test audit found no required changes: PX02's `syscall_0xabc(123456789` is an
+invalid incomplete decimal tuple; DG strict, EU, CX, tracer flags and old smoke
+stay unchanged. Repeat that audit after approval; ask separately about any new
+contradiction. UR06 may reveal another unsupported native form; stop with closed
+evidence rather than broaden the grammar without a separately reviewed decision.
+
+### UR local checkpoint (2026-11-10, not qualified yet)
+
+Tests preceded implementation: the initial Go build failed on the absent raw
+parser; both new Node tests failed on the category/workflow. Local implementation
+then passed all **41 Node tests** (five ordinary helpers **100% lines / 96.90%
+branches**), Linux vet and a compile-only C syntax check (no native probe locally).
+The added resumed-corruption test exposed ScanLines silently dropping terminal
+CR; measured framing now rejects that control byte, leaving strict mode unchanged.
+
+The full small Go run has one failure in new UR01: its negative
+`<9223372036.0>` is actually in the approved signed-64-bit nanosecond range.
+A separate correction request proposes moving it to positives and testing exact
+maximum `<9223372036.854775807>` versus overflow `<9223372036.854775808>`.
+That expectation has **not** been changed pending approval. All other small
+regressions pass, including old DG/EU/CX/PX and the new corruption control.
+Provisional line profile `.tmp/performance/diag-ur-full.out`: **644/654 statements
+(98.47%)**, raw parser/duration helpers 100%, the same 10 other statements remain
+uncovered. This is a failing-run profile, not a successful coverage qualification.
+No old test was changed; no native UR06/UR07 launch or performance success claimed.
+
+### UR small checks after approved correction (2026-11-10)
+
+The user explicitly authorised only that UR01 boundary correction. Both valid
+9223372036.0 and exact maximum 9223372036.854775807 now pass, while
+9223372036.854775808 fails. The freshly rebuilt full small Linux Go suite and vet
+pass: **644/654 statements (98.47%)**, profile `.tmp/performance/diag-ur-full.out`;
+new raw parser/duration helpers are 100%. The same 10 other uncovered statements
+remain; no removal or further coverage iteration was undertaken. All **41 Node
+tests** pass, five ordinary helpers **100% lines / 96.90% branches**; syntax and
+compile-only C checks pass. Default strict/PX02/EU/CX assertions are unchanged.
+This qualifies the small helper boundary, not native UR06/UR07 or product speed.
+Source CI `42667271833` also passes every regression job (only the unchanged
+aggregate coverage gate is red); it predates these local observer changes.

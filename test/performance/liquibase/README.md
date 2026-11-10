@@ -62,7 +62,11 @@ statements (98.3%), with new prefix helpers 100%; all 39 Node tests pass (ordina
 helper lines 100%). Native PX05 is open. No new record syntax is accepted.
 Native PX05 run 42665130138 identifies the pending entry as unknown_syscall/other;
 its original incomplete report is retained. A bounded raw-call grammar and
-unattributed process-time amendment is proposed separately, not implemented.
+unattributed process-time amendment and separate UR01–UR07 tests are approved
+(2026-11-10). After the separately approved UR01 boundary correction, full small
+Go/vet pass at 644/654 statements (98.47%; new raw helpers 100%) and all 41 Node
+tests pass (helper lines 100%). Native UR06/UR07 remain open; the raw-syscall
+probe runs only in Actions, never on the laptop.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.
 Its internal samples are emitted only after oracle verification and successful

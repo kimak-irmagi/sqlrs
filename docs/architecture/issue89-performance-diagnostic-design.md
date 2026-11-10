@@ -288,7 +288,12 @@ Actual PX05 run `42665130138` reports pending_entry/other and
 inventory. This is a raw-syscall-shaped entry being validated as exec, not proof
 that the requested program launched or that a specific syscall caused slowdown.
 
-## Proposed: measured raw syscall records with unattributed process time
+## Approved: measured raw syscall records with unattributed process time
+
+Status: explicitly approved by @evilguest on 2026-11-10; exact reply timestamp
+unavailable. The separate UR01–UR07 inventory was subsequently approved before
+tests/code. The user separately authorised the exact UR01 duration correction.
+Full small Go/Node checks and Linux vet now pass; native UR06/UR07 remain open.
 
 The [strace 6.8 source](https://github.com/strace/strace/blob/v6.8/src/syscall.c#L1309)
 has explicit unknown-syscall formatting: a raw fallback, a numeric syscall name
@@ -299,7 +304,7 @@ The remote report identifies the family, not its raw numeric payload or exact
 runtime strace version; do not infer those values from the reference source.
 See also its [raw/default tracing flags](https://github.com/strace/strace/blob/v6.8/src/defs.h#L345).
 
-Propose a measured-only extension, retaining default strict decoding:
+Approved measured-only extension, retaining default strict decoding:
 
 1. Add a separate bounded raw-call parser for exact unknown-call forms
    (`syscall_0x…` or `???`), numeric raw arguments only, no dereferenced strings.
@@ -335,5 +340,8 @@ acceptance with full grammar; P1 false executable attribution with a distinct
 category/early previous-image boundary; P1 missing-exit acceptance with exact
 lifecycle checks; P2 weakening old negative tests with the strict/default and
 invalid-fixture controls; P2 a green observer mistaken for acceptance with the
-unchanged P01b limit. Repeat review found no remaining P0–P2. This amendment is
-not approved/implemented; exact tests require separate approval afterwards.
+unchanged P01b limit. Repeat review found no remaining P0–P2. The component
+amendment and the separately reviewed
+[UR01–UR07 inventory](issue89-performance-diagnostic-tests.md#proposed-ur01ur07-raw-syscall-grammar-and-unattributed-time)
+are approved. Local implementation retains strict/default parsing; UR06 and the
+eight remote members have not been launched with it. See the test checkpoint.

@@ -43,7 +43,7 @@ export function diagnosticPrefixContext(output){
   if(call?traceKnownCall==='none':tracePrefix==='unknown_syscall'?traceKnownCall!=='other':traceKnownCall!=='none')return unavailable;
   return {tracePrefix,traceKnownCall};
 }
-const operations=new Set(['docker.image_inspect','docker.inspect','docker.create','docker.start','docker.stop','docker.remove','docker.copy','docker.run','docker.exec','docker.step','docker.planner','host.java','host.liquibase','host.pg_control','host.pg_identity','other','exec.unconfirmed']);
+const operations=new Set(['docker.image_inspect','docker.inspect','docker.create','docker.start','docker.stop','docker.remove','docker.copy','docker.run','docker.exec','docker.step','docker.planner','host.java','host.liquibase','host.pg_control','host.pg_identity','other','exec.unconfirmed','process.unattributed']);
 const phases=new Set(['job','step','plan_task','resolve_task','instance_task','other_task','image_binding','planning','session_start','invocation']);
 const number=n=>Number.isFinite(n)&&n>=0;
 const invalid=()=>{throw new Error('Invalid diagnostic evidence');};

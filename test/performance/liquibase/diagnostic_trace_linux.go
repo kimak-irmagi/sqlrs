@@ -196,10 +196,23 @@ func decodeMeasuredDiagnosticTrace(input io.Reader, enginePID int) ([]diagnostic
 func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, measured bool) ([]diagnosticInterval, error) {
 	scanner := bufio.NewScanner(input)
 	scanner.Buffer(make([]byte, 4096), 65536)
+	if measured {
+		// UR01 rejects control-character injection. ScanLines normally drops
+		// a terminal CR, which would otherwise turn corrupt raw syntax valid.
+		// Keep default strict framing untouched, including its old tests.
+		scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
+			advance, token, err := bufio.ScanLines(data, atEOF)
+			if token != nil && advance > len(token) && data[len(token)] == '\r' {
+				return 0, nil, errDiagnosticTrace
+			}
+			return advance, token, err
+		})
+	}
 	active := map[int]diagnosticInterval{}
 	type partial struct {
 		text string
 		at   int64
+		raw  *diagnosticRawCall
 	}
 	pending := map[int]partial{}
 	last := map[int]int64{}
@@ -227,18 +240,18 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 		if diagnosticExit.MatchString(body) {
 			imageEnd := at
 			if p, found := pending[pid]; found {
-				if measured {
+				if measured && p.raw == nil {
 					// Validate the entry, not an invented successful return. A
 					// malformed unfinished line must not bypass argument checks.
 					if _, err := diagnosticExecCategory(p.text); err != nil {
 						return nil, newDiagnosticContext(err, "pending_entry", p.text)
 					}
 					imageEnd = p.at
-				} else if cutoff <= 0 || p.at <= cutoff {
+				} else if !measured && (cutoff <= 0 || p.at <= cutoff) {
 					return nil, diagnosticDecodeError{5}
 				}
 				delete(pending, pid)
-				if measured && pid != enginePID {
+				if measured && p.raw == nil && pid != enginePID {
 					// Append the preceding image first, preserving chronology
 					// within one PID without merging overlapping other PIDs.
 					if item, found := active[pid]; found {
@@ -259,11 +272,55 @@ func decodeDiagnosticTracePolicy(input io.Reader, enginePID int, cutoff int64, m
 			continue
 		}
 		start := at
+		if measured {
+			// UR02: only an exact same-PID/name raw resume can finish its
+			// pending call. No thread handoff or executable identity is inferred.
+			rawBody := body
+			resume := diagnosticRawResume.FindStringSubmatch(body)
+			if resume != nil {
+				p, found := pending[pid]
+				if !found {
+					return nil, diagnosticDecodeError{7}
+				}
+				if p.raw == nil || !p.raw.pending || p.raw.name != resume[1] {
+					return nil, diagnosticDecodeError{8}
+				}
+				rawBody, start = p.text+resume[2], p.at
+			}
+			if resume != nil || strings.HasPrefix(body, "syscall_") || strings.HasPrefix(body, "???(") {
+				call, rawErr := parseDiagnosticRaw(rawBody)
+				if rawErr == nil {
+					if _, found := pending[pid]; found && resume == nil {
+						return nil, diagnosticDecodeError{6}
+					}
+					delete(pending, pid)
+					if prior, found := active[pid]; !found || prior.Category != "process.unattributed" {
+						if found && pid != enginePID {
+							prior.EndNS = start
+							result = append(result, prior)
+						}
+						active[pid] = diagnosticInterval{Category: "process.unattributed", StartNS: start}
+					}
+					if call.pending || call.unresolved {
+						pending[pid] = partial{text: strings.TrimSuffix(rawBody, "<unfinished ...>"), at: start, raw: &call}
+					}
+					continue
+				}
+				// Preserve old PX02 malformed unfinished entries and their
+				// exact pending-entry rejection/context at the terminal event.
+				if resume != nil || !strings.HasSuffix(body, "<unfinished ...>") {
+					return nil, newDiagnosticContext(rawErr, "record", body)
+				}
+			}
+			if p, found := pending[pid]; found && p.raw != nil {
+				return nil, diagnosticDecodeError{8}
+			}
+		}
 		if strings.HasSuffix(body, "<unfinished ...>") {
 			if _, found := pending[pid]; found {
 				return nil, diagnosticDecodeError{6}
 			}
-			pending[pid] = partial{strings.TrimSuffix(body, "<unfinished ...>"), at}
+			pending[pid] = partial{text: strings.TrimSuffix(body, "<unfinished ...>"), at: at}
 			continue
 		}
 		if strings.HasPrefix(body, "<... execve resumed>") || strings.HasPrefix(body, "<... execveat resumed>") {

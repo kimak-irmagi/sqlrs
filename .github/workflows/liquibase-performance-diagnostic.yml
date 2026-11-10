@@ -47,6 +47,7 @@ jobs:
           cd test/performance/liquibase
           GOWORK=off go test -count=1 -timeout=2m ./...
           SQLRS_DIAGNOSTIC_SMOKE=1 GOWORK=off go test -run '^TestDiagnosticStraceProcessSmoke$' -v -count=1 -timeout=30s .
+          SQLRS_DIAGNOSTIC_RAW_SMOKE=1 GOWORK=off go test -run '^TestDiagnosticRawSyscallSmoke$' -v -count=1 -timeout=30s .
           GOWORK=off go vet ./...
           GOWORK=off go test -c -o "$GITHUB_WORKSPACE/.tmp/performance/prepared/collector.test" .
       - name: Eight serial diagnostic members

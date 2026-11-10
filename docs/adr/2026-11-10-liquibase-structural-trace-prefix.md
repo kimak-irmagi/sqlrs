@@ -39,4 +39,7 @@ Native run 42665130138 subsequently verifies actual prefix transport:
 pending_entry/other, unknown_syscall/other. Its
 [original incomplete report](../architecture/issue89-diagnostic-evidence-2026-11-10/42665130138/jhipster-diagnostic.json)
 is retained. No numeric payload or exact syscall is inferred. The separate
-raw-call grammar proposal is not approved and does not change current rejection.
+raw-call grammar amendment is subsequently
+[approved separately](2026-11-10-liquibase-unattributed-syscall-time.md), but its
+separate tests are subsequently approved. Local small Go/Node/vet checks pass;
+native qualification is pending. Earlier evidence/default strict rejection remain unchanged.

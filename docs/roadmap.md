@@ -129,7 +129,10 @@ Prefix implementation passes small Go/vet (579/589, 98.3%) and 39 Node tests
 (helper lines 100%). Native PX05 is open; syntax/product/performance gate unchanged.
 Actual PX05 `42665130138` remains incomplete but verifies `unknown_syscall / other`
 in the failed pending-entry path. Report retained. A measured raw-call grammar
-with unattributed time is proposed, not implemented; no product cause claimed.
+with unattributed time and separate UR01–UR07 tests are approved (2026-11-10).
+Full small Go/vet pass after the approved UR01 correction: 644/654 statements
+(98.47%; new raw helpers 100%). All 41 Node tests pass (helper lines 100%).
+Native UR06/UR07 remain open; no product cause claimed.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
