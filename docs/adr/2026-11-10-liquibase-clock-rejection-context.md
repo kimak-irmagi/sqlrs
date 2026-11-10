@@ -50,5 +50,6 @@ or P01b. Native UE07 evidence stays unchanged in its original report.
 Native CW07 42789132449 subsequently proves actual clock-context transport and
 the precise duration_mismatch (wall/elapsed 73672499931/73672499940 ns, −9 ns).
 The original incomplete artifact is retained in the test inventory. A measured-
-only bounded-alignment component proposal is separate and not approved by this
-ADR; strict helpers, existing rejection and the product gate remain in force.
+only bounded-alignment component boundary is subsequently approved in its
+[own ADR](2026-11-10-liquibase-measured-clock-alignment.md), not by this decision.
+Strict helpers, their rejection/metadata rules and the product gate stay in force.

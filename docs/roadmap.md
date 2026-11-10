@@ -152,8 +152,9 @@ implemented: small Linux Go/vet 98.55% (new helpers 100%), 46 Node tests
 (helper lines 100%). Native CW07 remains open; no time/product acceptance change.
 Native `42789132449` identifies the observer's exact refusal: duration_mismatch,
 −9 ns over 73.67 s. Original report retained; all CI `42789081930` regressions
-pass except aggregate coverage. Measured-only bounded alignment is proposed,
-not approved/implemented; complete collection and product cause remain open.
+pass except aggregate coverage. Measured-only bounded alignment is approved,
+not implemented; reviewed MC01–MC08 await test approval. Complete collection
+and product cause remain open.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

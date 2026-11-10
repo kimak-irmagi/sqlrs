@@ -298,5 +298,6 @@ Native CW07 `42789132449` verifies actual metadata transport and identifies
 duration_mismatch: wall 73672499931 ns versus elapsed 73672499940 ns (−9 ns).
 The original incomplete report is retained. This is the observer's refusal,
 not the product slowdown cause. CI `42789081930` passes all regression jobs,
-only aggregate coverage red. A measured-only bounded alignment proposal keeps
-strict helpers and product timing unchanged; it awaits component approval.
+only aggregate coverage red. Measured-only bounded alignment is separately
+approved, not implemented; reviewed MC01–MC08 await test approval. Strict
+helpers and product timing remain unchanged.

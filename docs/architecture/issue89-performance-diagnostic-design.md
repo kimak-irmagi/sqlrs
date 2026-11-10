@@ -577,11 +577,12 @@ Native CW07 `42789132449` then proves duration_mismatch with wall/elapsed
 Original report and CI evidence are retained in the test inventory. No further
 unchanged retry: the rejection is now localised within the observer.
 
-## Proposed: bounded measured-clock alignment, strict helpers unchanged
+## Approved: bounded measured-clock alignment, strict helpers unchanged
 
-Status: critically and repeatedly reviewed component proposal; not approved or
-implemented. Separate tests follow approval. Product/API/schema and P01b do not
-change. This corrects diagnostic observation, not the product regression.
+Status: component amendment explicitly approved by @evilguest on 2026-11-10
+after critical and repeat review; exact reply time unavailable. Not implemented.
+Separately reviewed MC01–MC08 tests await approval. Product/API/schema and P01b
+do not change. This corrects diagnostic observation, not the product regression.
 
 1. Keep API elapsed measurements on the original monotonic end.Sub(start).
    Trace timestamps/windows stay on the original calendar axis; do not scale

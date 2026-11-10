@@ -1289,4 +1289,112 @@ are not another acceptance cohort. All regression jobs in CI
 [42789081930](https://github.com/kimak-irmagi/sqlrs/actions/runs/42789081930)
 pass; only unchanged aggregate coverage is red. Complete CW07 collection and
 the product's P01b gate remain open. A measured-only bounded clock-alignment
-component amendment is proposed separately; no such acceptance is implemented.
+component amendment is now separately approved; MC01–MC08 await test approval.
+No such acceptance is implemented.
+
+## Proposed MC01–MC08: bounded measured-clock alignment
+
+Status: components explicitly approved on 2026-11-10. This critically and
+repeatedly reviewed inventory awaits separate approval; tests/code are not
+written. No old-test changes proposed; no P01b criterion change.
+
+1. **MC01 — pure measured-window boundaries.** Independent calendar endpoints
+   and elapsed durations produce literal signed deltas: 0, ±1, ±9, ±9999 and
+   ±10000 ns succeed; ±10001 and larger mismatches fail. Include the actual
+   73672499931/73672499940 ns pair, expecting −9 ns, without describing that
+   scalar fixture as a native run. Check equal/reversed calendar endpoints,
+   zero/negative elapsed and precedence against combined invalid conditions.
+   Both spans must be positive; reversed or overflowing subtraction/absolute
+   value must not become a small accepted delta. Test signed-int64 edges and
+   safe near-edge arithmetic. Failures preserve the actual CW reason/sentinel.
+   The strict validator still refuses every nonzero mismatch, including 1 ns.
+2. **MC02 — actual measured summary and wall-axis accounting.** Exercise the
+   actual new summary with Unix-based windows and time.Now/Add endpoints:
+   exact clipping, overlap union, displayed count, empty work, zero-length and
+   boundary-touching intervals. Assert independent literal summaries, signed
+   ClockDeltaNS=0 explicitly present, and unchanged input times/intervals. The
+   strict summary still has its exact prior output and no alignment field.
+   MC01 proves independent unequal spans; source wiring and MC08 prove that
+   the actual measured path preserves a nonzero delta rather than rescaling
+   intervals. Do not forge time.Time to force that branch in this small test.
+3. **MC03 — error priority, original clock evidence and privacy.** Actual
+   measured-summary errors for invalid windows/intervals retain CW classification
+   and errors.Is. Calendar-domain computation must not report its own elapsed
+   span as the original monotonic reading. For an accepted mismatch followed by
+   interval error, the known interval_order reason may have an unavailable pair,
+   never a fabricated equal or incoherent pair; keep the strict CW normaliser
+   tests unchanged. The existing constructor's unavailable-pair case and guarded
+   source checks supplement this rule, not a claimed synthetic unequal-clock
+   end-to-end proof. If two actual time.Now readings are used, derive expectations
+   from those inputs with no required drift/sleep precision. Check actual summary
+   JSON: measured zero is retained, strict absence is omitted, no epoch/PID/raw
+   sentinel or input timestamp is published. No successful aligned result is
+   emitted after a summarisation error.
+4. **MC04 — explicit required-alignment Node mode.** Independent literal
+   uncached/cached reports cover delta 0, ±9 and ±10000 ns. Covered/residual and
+   interval bounds follow calendar span = unchanged API ElapsedMS + delta/1e6;
+   tests must distinguish the sign and the ns→ms conversion. Include the end of
+   a calendar window slightly beyond/short of the monotonic endpoint, overlapping
+   and empty intervals. Retain the signed field and exact unchanged samples,
+   elapsed values, phases and independent CLI counts. Ordinary parsing keeps
+   the exact old shapes, treating the optional alignment as dropped extras;
+   untraced output remains Trace=null without a fabricated field.
+5. **MC05 — required-mode refusal, rounding and private extras.** Reject missing/
+   null/string/boolean/fractional/non-finite ClockDeltaNS, ±10001, unsafe integers,
+   non-positive inferred calendar span and inconsistent sign/unit reports.
+   Enforce sums, union and upper interval bounds against the inferred calendar
+   span, not merely the old 0.01 ms allowance. Genuine floating representation
+   rounding at nanosecond precision may pass; disagreement exceeding 1 ns must
+   fail and must not enlarge the exact integer ±10000 bound. Reject malformed
+   reports safely, without echoing private sentinels. Drop unrelated epoch/PID/
+   argument extras by DG09; do not silently accept a missing field in the
+   required mode or silently enable that mode for old/default callers.
+6. **MC06 — actual collector/runner selection and unchanged clocks.** Verify
+   the collector selects the measured summary only in the traced diagnostic
+   path, while API elapsed/sample creation still uses original end.Sub(start).
+   The runner explicitly enables required alignment before accepting a traced
+   record; it cannot use default parsing as fallback when evidence is missing.
+   Preserve failure-only CW and literal CX/PX/RD wiring. Source assertions
+   supplement MC01–MC05 and native MC08, not replace behavioural evidence. No
+   native product code, SQL, JVM callbacks, clock settings or trace flags change.
+7. **MC07 — all old controls and complete small verification.** Retain all
+   DG/EU/CX/PX/UR/RD/UE/CW tests, especially strict 1 ns refusal, default report
+   shapes, interval-order rejection and exact cleanup. Full small Linux Go/vet,
+   all Node tests, syntax/workflow/diff and per-line ordinary-helper coverage
+   (target 100%, minimum 95%); another coverage iteration needs its own approved
+   requirement-based plan. Preliminary audit found no old-test contradiction;
+   repeat after approval and ask separately about any additional change.
+8. **MC08 — unchanged Actions workload with visible uncertainty.** Explicit
+   pinned observer launch, same preparation/smoke/UR06 and original eight serial
+   members on both unchanged executable hashes. Every successful traced pass
+   must retain a checked integer ClockDeltaNS, including zero; no assumptions
+   about the real sign/value. Keep DB/cache/CLI oracles, owned-tree/resource
+   cleanup, budget and old artifacts byte-for-byte. Preserve a new incomplete
+   report on any blocker, without skipping events/members or unchanged retries.
+   Require all eight for complete collection and disclose observation cost/noise,
+   alignment uncertainty and residual time before attributing product costs.
+   No nine-nanosecond clock fact is a seconds-long product-cause explanation,
+   and complete diagnostic collection is not P01b acceptance or closure of #89.
+
+### Critical and repeat review
+
+Corrections incorporated before submission:
+
+- P1 one-sided/absolute delta hides the sign or accepts overflow: MC01 covers
+  both exact boundaries, signed-int64 edges and the original −9 ns pair.
+- P1 a timing fixture silently forges time.Time or assumes host drift: scalar
+  boundary coverage is separated from real summary/native integration evidence.
+- P1 wall-only error evidence is labelled monotonic: MC03 preserves known reason
+  with unavailable spans where needed; strict CW coherence remains unchanged.
+- P1 default parsing silently discards the required field or reuses old loose
+  checks: MC04–MC06 test an explicit mode, calendar-axis bounds and a ≤1 ns
+  rounding limit, not a hidden enlargement of the integer alignment allowance.
+- P1 zero omitted as unavailable or elapsed/counters rewritten: MC02/MC04 use
+  exact JSON/shape expectations and unchanged-input checks.
+- P2 source/synthetic success is presented as native evidence: MC08 requires
+  actual report transport, all members/oracles/cleanup and preserved uncertainty.
+
+Repeat review found no remaining P0–P2 within this limited inventory. No old
+assertion or fixture change is proposed: strict CW functions/source guards remain,
+old summary expectations use named fields, and default Node callers keep their
+old signature/shape. Re-audit after approval; seek named approval for any conflict.
