@@ -330,3 +330,39 @@ package passes unchanged (35.435 s); no root-cause fix/waiver is claimed. All
 other packages in that full run passed. Source CI `42854932663` passed every job
 that actually ran; macOS-fast was cancelled with no steps after waiting for a
 runner, so that run is not reported as a complete green regression qualification.
+
+### Native O4 qualification and first worker/collector connection (2026-11-11)
+
+[Run 42858997116](https://github.com/kimak-irmagi/sqlrs/actions/runs/42858997116)
+at `b7cacc92cd812a6e985b629c11a3e182c77a388f` is green. Both actual helpers pass
+their positive control and all four injected flush refusals (ten cases total,
+2.69 s). The reusable-runner test passes all three scenarios (5.28 s), including
+approved OT-CT04. GNU 9.4/image/sync hashes match the prerequisite above. Exact
+owned cleanup passes. This qualifies O4's tested command/order/exit boundaries,
+not power-loss behavior or a performance improvement.
+
+Approved OT-CT03 is now connected: the caller-owned stderr pipe drains bounded
+closed frames; the unchanged API timer stops before waiting up to ten seconds
+for its exact root. The reader is closed/waited after process teardown and
+before private-root deletion. Inherited selectors are stripped on every route;
+only explicit new-v2, untraced collection enables recording. Final stream errors
+or an extra root prevent sample publication. No raw log is retained or emitted.
+Reader helpers cover 113/114 statements (99.12%); selection/qualification helpers
+cover 20/20 (100%). All 53 Node checks and ordinary Windows collector tests/vet
+pass; Linux collector cross-compilation/vet pass. Native collection is still open.
+
+The actual constructor freezes the exact startup selector. A worker now owns
+its root and emits after registration cleanup, retaining success/failure/cancel/
+panic control-flow outcomes without another status query. New tests verify exact
+selection, two roots, disabled behavior, capability refusal and original panic
+identity/cleanup. Planning, session startup and step entry points propagate named
+scopes; reached-journal refusal tests pass. Full ordinary prepare passes (29.265 s);
+preparecost remains 99.6%. Detailed host/helper boundaries, observer overhead,
+Node reporting and before/after/off/on Actions remain unfinished; no candidate
+or new speed result is declared.
+
+CI `42859166525` is not green: Windows-fast fails
+`TestAccessUseDoesNotBlockOtherInstances` at its five-second independent-instance
+barrier; every other executed job passes, including macOS. Three unchanged local
+targeted repetitions pass (2.639 s total). This is not a demonstrated root-cause
+fix, a relaxed deadline, or a complete regression qualification.

@@ -13,6 +13,9 @@ const (
 	PruneObserve   Operation = "capture.prune"
 	DockerCommand  Operation = "docker.command"
 	CaptureCopy    Operation = "docker.capture_copy"
+	Planning       Operation = "prepare.planning"
+	SessionStartup Operation = "prepare.session_startup"
+	StepExecution  Operation = "prepare.step"
 )
 
 // Relation describes code correspondence, not an inferred timing difference.
@@ -49,6 +52,9 @@ func Definitions() []Definition {
 		{PruneObserve, Additional, Location{"internal/runtime/liquibase_prune.go", "DockerRuntime.VerifyLiquibaseCapturePruned"}, Location{}},
 		{DockerCommand, Shared, Location{"internal/runtime/docker.go", "DockerRuntime.run"}, Location{"internal/runtime/docker.go", "DockerRuntime.run"}},
 		{CaptureCopy, Additional, Location{"internal/runtime/session_capture_bundle.go", "DockerRuntime.readSessionCaptureBundle"}, Location{}},
+		{Planning, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.planNormalContainerLiquibase"}, Location{"internal/prepare/components.go", "PrepareService.runLiquibaseUpdateSQL"}},
+		{SessionStartup, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.startNormalLiquibaseSession"}, Location{"internal/prepare/execution.go", "taskExecutor.ensureRuntime"}},
+		{StepExecution, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.executeNormalLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
 	}
 }
 

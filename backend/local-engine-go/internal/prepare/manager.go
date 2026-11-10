@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sqlrs/engine-local/internal/config"
@@ -19,6 +20,7 @@ import (
 	"github.com/sqlrs/engine-local/internal/instanceaccess"
 	"github.com/sqlrs/engine-local/internal/managedidentity"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/preparecost"
 	"github.com/sqlrs/engine-local/internal/runtime"
 	"github.com/sqlrs/engine-local/internal/statefs"
 	"github.com/sqlrs/engine-local/internal/store"
@@ -53,9 +55,13 @@ type Options struct {
 }
 
 type PrepareService struct {
-	access      *instanceaccess.Service
-	managedMu   sync.Mutex
-	managedRoot string
+	// Private startup-only diagnostics; nil means no recorder allocation or I/O.
+	// No request, debug level or execution binding can enable this observer.
+	costEmitter  *preparecost.Emitter
+	costSequence atomic.Uint64
+	access       *instanceaccess.Service
+	managedMu    sync.Mutex
+	managedRoot  string
 	// Populated by the coordinated managed-store startup integration.
 	identity           *managedidentity.Owner
 	store              store.Store
@@ -197,6 +203,9 @@ func NewPrepareService(opts Options) (*PrepareService, error) {
 		running:            map[string]*jobRunner{},
 		events:             newEventBus(),
 		beats:              map[string]*heartbeatState{},
+	}
+	if preparecost.Enabled(os.Getenv("SQLRS_PREPARE_COST")) {
+		m.costEmitter = preparecost.NewEmitter(os.Stderr)
 	}
 	m.snapshot = &snapshotOrchestrator{m: m}
 	m.executor = &taskExecutor{m: m, snapshot: m.snapshot}

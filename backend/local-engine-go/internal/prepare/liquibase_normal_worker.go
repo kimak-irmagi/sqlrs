@@ -16,6 +16,7 @@ import (
 	"github.com/sqlrs/engine-local/internal/prepare/finalizationcodec"
 	"github.com/sqlrs/engine-local/internal/prepare/planningcodec"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/preparecost"
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
 	"github.com/sqlrs/engine-local/internal/store"
 )
@@ -95,33 +96,43 @@ func (m *PrepareService) normalTimestamp() string { return m.now().UTC().Format(
 func (c *jobCoordinator) runContainerLiquibase(p preparedRequest, jobID string) {
 	m := c.m
 	ctx, cancel := context.WithCancel(context.Background())
+	ctx, finish := m.beginPrepareCost(ctx)
+	outcome := preparecost.Panicked
+	defer func() { finish(outcome) }()
 	runner := m.registerRunner(jobID, cancel)
 	defer func() { cancel(); close(runner.done); m.unregisterRunner(jobID) }()
+	outcome = c.runObservedContainerLiquibase(ctx, runner, p, jobID)
+}
+
+// runObservedContainerLiquibase reports the existing control-flow outcome only;
+// it does not read terminal state again or grant retries for diagnostics.
+func (c *jobCoordinator) runObservedContainerLiquibase(ctx context.Context, runner *jobRunner, p preparedRequest, jobID string) preparecost.Outcome {
+	m := c.m
 	q, ok := m.queue.(normalLiquibaseJournal)
 	runtime, runtimeOK := m.runtime.(normalLiquibaseRuntime)
 	if !ok || !runtimeOK || m.access == nil || p.managed.Validate() != nil {
 		m.pauseContainerLiquibase(jobID, fmt.Errorf("normal container capabilities unavailable"))
-		return
+		return preparecost.Failed
 	}
 	if err := m.validateStore(m.stateStoreRoot); err != nil {
 		m.pauseContainerLiquibase(jobID, err)
-		return
+		return preparecost.Failed
 	}
 	if err := q.UpdateJob(ctx, jobID, queue.JobUpdate{Status: strPtr(StatusRunning), StartedAt: strPtr(m.normalTimestamp())}); err != nil {
 		m.pauseContainerLiquibase(jobID, err)
-		return
+		return preparecost.Failed
 	}
 	_ = m.appendEvent(jobID, Event{Type: "status", Status: StatusRunning, Ts: m.normalTimestamp()})
-	bound, _, err := m.bindContainerLiquibase(ctx, jobID, p)
+	bound, _, err := m.bindContainerLiquibase(preparecost.WithPhase(ctx, preparecost.PhaseStartup, 0), jobID, p)
 	if err != nil {
 		m.pauseContainerLiquibase(jobID, err)
-		return
+		return preparecost.Failed
 	}
 	p = bound
-	plan, err := m.planNormalContainerLiquibase(ctx, q, runtime, jobID, p)
+	plan, err := m.planNormalContainerLiquibase(preparecost.WithPhase(ctx, preparecost.PhasePlanning, 0), q, runtime, jobID, p)
 	if err != nil {
 		m.pauseContainerLiquibase(jobID, err)
-		return
+		return preparecost.Failed
 	}
 	p.liquibasePlan = make([]LiquibaseChangeset, len(plan.Changesets))
 	for i, item := range plan.Changesets {
@@ -130,38 +141,39 @@ func (c *jobCoordinator) runContainerLiquibase(p preparedRequest, jobID string) 
 	tasks, stateID, problem := c.buildPlanLiquibase(ctx, jobID, p)
 	if problem != nil {
 		m.pauseContainerLiquibase(jobID, fmt.Errorf("normal plan projection unavailable: %s", problem.Code))
-		return
+		return preparecost.Failed
 	}
 	signature, signatureError := m.computeJobSignatureFromPlan(p, tasks)
 	if signatureError != nil {
 		m.pauseContainerLiquibase(jobID, fmt.Errorf("job signature unavailable: %s", signatureError.Code))
-		return
+		return preparecost.Failed
 	}
 	if err := q.UpdateJob(ctx, jobID, queue.JobUpdate{Signature: &signature}); err != nil {
 		m.pauseContainerLiquibase(jobID, err)
-		return
+		return preparecost.Failed
 	}
 	view, err := m.containerJobView(jobID)
 	if err != nil {
 		m.pauseContainerLiquibase(jobID, err)
-		return
+		return preparecost.Failed
 	}
 	if view.Purpose == "cache_explain" {
 		if err := m.finishNormalLiquibaseExplanation(ctx, q, jobID, p, plan, tasks, stateID); err != nil {
 			m.pauseContainerLiquibase(jobID, err)
+			return preparecost.Failed
 		}
-		return
+		return preparecost.Succeeded
 	}
 	if p.request.PlanOnly {
 		encoded, _ := json.Marshal(tasks)
 		if err := q.SavePlanningProjection(ctx, jobID, string(encoded), m.normalTimestamp()); err != nil {
 			m.pauseContainerLiquibase(jobID, err)
-			return
+			return preparecost.Failed
 		}
 		projection, found, err := q.LoadPlanningProjection(ctx, jobID)
 		if err != nil || !found {
 			m.pauseContainerLiquibase(jobID, fmt.Errorf("saved plan projection unavailable"))
-			return
+			return preparecost.Failed
 		}
 		intent, err := q.BeginFinalization(ctx, jobID, finalizationcodec.Outcome{Kind: finalizationcodec.PlanSuccess, EventProfile: finalizationcodec.Status, Plan: &finalizationcodec.PlanReference{PlanDigest: plan.PlanDigest, ProjectionDigest: digestPlanningProjection(projection)}}, m.normalTimestamp())
 		if err == nil {
@@ -169,61 +181,66 @@ func (c *jobCoordinator) runContainerLiquibase(p preparedRequest, jobID string) 
 		}
 		if err != nil {
 			m.pauseContainerLiquibase(jobID, err)
+			return preparecost.Failed
 		}
-		return
+		return preparecost.Succeeded
 	}
 	if err := q.AppendPlanningSuffix(ctx, jobID, taskRecordsFromPlan(jobID, tasks)); err != nil {
 		m.pauseContainerLiquibase(jobID, err)
-		return
+		return preparecost.Failed
 	}
 	record, found, err := q.GetLiquibaseExecutionForJob(ctx, jobID)
 	if err != nil || !found {
 		m.pauseContainerLiquibase(jobID, fmt.Errorf("pinned execution disappeared"))
-		return
+		return preparecost.Failed
 	}
 	var working *normalLiquibaseWorking
+	workerCtx := ctx
+	ordinal := 0
 	for position, task := range taskStatesFromPlan(tasks) {
 		if task.Type == "plan" {
 			continue
 		}
 		if ctx.Err() != nil {
 			m.pauseContainerLiquibase(jobID, ctx.Err())
-			return
+			return preparecost.Failed
 		}
 		if task.Type == "resolve_image" {
 			if err := m.updateTaskStatus(ctx, jobID, task.TaskID, StatusSucceeded, nil, strPtr(m.normalTimestamp()), nil); err != nil {
 				m.pauseContainerLiquibase(jobID, err)
-				return
+				return preparecost.Failed
 			}
 			continue
 		}
 		if task.Type != "state_execute" {
 			continue
 		}
+		ordinal++
+		ctx = preparecost.WithPhase(workerCtx, preparecost.PhaseStep, ordinal)
 		binding, err := queue.ProjectLiquibaseStepBinding(record, p.argsNormalized, task.TaskHash, task.ChangesetID, task.ChangesetAuthor, task.ChangesetPath, task.OutputStateID)
 		if err == nil {
 			err = q.BindStep(ctx, jobID, task.TaskID, binding, m.normalTimestamp())
 		}
 		if err != nil {
 			m.pauseContainerLiquibase(jobID, err)
-			return
+			return preparecost.Failed
 		}
 		if working == nil && task.Cached != nil && *task.Cached {
 			if err := m.updateTaskStatus(ctx, jobID, task.TaskID, StatusSucceeded, nil, strPtr(m.normalTimestamp()), nil); err != nil {
 				m.pauseContainerLiquibase(jobID, err)
-				return
+				return preparecost.Failed
 			}
 			continue
 		}
 		if err := m.updateTaskStatus(ctx, jobID, task.TaskID, StatusRunning, strPtr(m.normalTimestamp()), nil, nil); err != nil {
 			m.pauseContainerLiquibase(jobID, err)
-			return
+			return preparecost.Failed
 		}
 		if working == nil {
-			working, err = m.startNormalLiquibaseSession(ctx, q, runtime, jobID, p, task, position, binding)
+			working, err = m.startNormalLiquibaseSession(preparecost.WithPhase(workerCtx, preparecost.PhaseStartup, 0), q, runtime, jobID, p, task, position, binding)
 			if err != nil {
 				m.pauseContainerLiquibase(jobID, err)
-				return
+				return preparecost.Failed
 			}
 			runner.setRuntime(working.rt)
 		}
@@ -231,29 +248,34 @@ func (c *jobCoordinator) runContainerLiquibase(p preparedRequest, jobID string) 
 			if ctx.Err() != nil && working.invocation.Attempt.JobID == jobID {
 				if cleanupErr := m.finishNormalLiquibaseCancellation(ctx, q, runtime, working); cleanupErr != nil {
 					m.pauseContainerLiquibase(jobID, cleanupErr)
+					return preparecost.Failed
 				}
-				return
+				return preparecost.Cancelled
 			}
 			var known normalLiquibaseChildFailure
 			if errors.As(err, &known) {
 				if cleanupErr := m.finishNormalLiquibaseFailure(ctx, q, runtime, working); cleanupErr != nil {
 					m.pauseContainerLiquibase(jobID, cleanupErr)
 				}
-				return
+				return preparecost.Failed
 			}
 			m.pauseContainerLiquibase(jobID, err)
-			return
+			return preparecost.Failed
 		}
 	}
+	ctx = preparecost.WithPhase(workerCtx, preparecost.PhasePublication, 0)
 	if working != nil {
 		if err := m.publishNormalLiquibaseWorkingInstance(ctx, q, runtime, runner, jobID, p, stateID, working); err != nil {
 			m.pauseContainerLiquibase(jobID, err)
+			return preparecost.Failed
 		}
-		return
+		return preparecost.Succeeded
 	}
 	if err := m.publishNormalLiquibaseInstance(ctx, q, runtime, runner, jobID, p, stateID); err != nil {
 		m.pauseContainerLiquibase(jobID, err)
+		return preparecost.Failed
 	}
+	return preparecost.Succeeded
 }
 
 // finishNormalLiquibaseCancellation does not interpret the interrupted exec
@@ -368,6 +390,12 @@ func (m *PrepareService) pauseContainerLiquibase(jobID string, cause error) {
 }
 
 func (m *PrepareService) planNormalContainerLiquibase(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest) (queue.PlanningResult, error) {
+	return preparecost.Observe(ctx, preparecost.Planning, func(ctx context.Context) (queue.PlanningResult, error) {
+		return m.observePlanNormalContainerLiquibase(ctx, q, runtime, jobID, p)
+	})
+}
+
+func (m *PrepareService) observePlanNormalContainerLiquibase(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest) (queue.PlanningResult, error) {
 	record, found, err := q.GetLiquibaseExecutionForJob(ctx, jobID)
 	if err != nil || !found {
 		return queue.PlanningResult{}, queue.ErrLiquibaseBinding
@@ -521,6 +549,12 @@ func (m *PrepareService) finishNormalLiquibase(ctx context.Context, q normalLiqu
 }
 
 func (m *PrepareService) startNormalLiquibaseSession(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest, task taskState, position int, binding queue.ExecutionBinding) (*normalLiquibaseWorking, error) {
+	return preparecost.Observe(ctx, preparecost.SessionStartup, func(ctx context.Context) (*normalLiquibaseWorking, error) {
+		return m.observeStartNormalLiquibaseSession(ctx, q, runtime, jobID, p, task, position, binding)
+	})
+}
+
+func (m *PrepareService) observeStartNormalLiquibaseSession(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest, task taskState, position int, binding queue.ExecutionBinding) (*normalLiquibaseWorking, error) {
 	id, err := randomHex(12)
 	if err != nil {
 		return nil, err
@@ -613,6 +647,12 @@ func (v normalReadinessObserver) VerifyLiquibaseSessionReady(ctx context.Context
 }
 
 func (m *PrepareService) executeNormalLiquibaseStep(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, p preparedRequest, task taskState, binding queue.ExecutionBinding, w *normalLiquibaseWorking) error {
+	return preparecost.ObserveCall(ctx, preparecost.StepExecution, func(ctx context.Context) error {
+		return m.observeExecuteNormalLiquibaseStep(ctx, q, runtime, p, task, binding, w)
+	})
+}
+
+func (m *PrepareService) observeExecuteNormalLiquibaseStep(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, p preparedRequest, task taskState, binding queue.ExecutionBinding, w *normalLiquibaseWorking) error {
 	var err error
 	w.session, _, err = q.ReadLiquibaseSession(ctx, w.session.SessionID)
 	if err != nil {

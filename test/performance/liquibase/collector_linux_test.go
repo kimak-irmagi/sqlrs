@@ -43,6 +43,14 @@ type releasedBenchmarkSample struct {
 	SnapshotBackend                               string
 }
 
+// collectedCost contains only the closed receiver's numeric/enum evidence.
+// ObserverWaitNS is the wait after API timing, not total recorder overhead.
+type collectedCost struct {
+	Pass                             string
+	PrepareElapsedNS, ObserverWaitNS int64
+	Root                             costRoot
+}
+
 // barrier drains every create preceding an out-of-interval marker. It avoids
 // interpreting a delayed scanner as a low container count (PA06).
 func (r *benchmarkDockerCreates) barrier(t *testing.T, ctx context.Context, image string) {
@@ -123,8 +131,10 @@ func collect(t *testing.T) {
 	}
 	var samples []releasedBenchmarkSample
 	diagnostic := os.Getenv("SQLRS_BENCH_DIAGNOSTIC") == "1"
+	costEnabled := os.Getenv("SQLRS_BENCH_COST") == "1"
 	traced := diagnostic && os.Getenv("SQLRS_BENCH_TRACE") == "1"
 	var diagnostics []diagnosticPass
+	var costs []collectedCost
 	stage := "identity"
 	t.Cleanup(func() {
 		if t.Failed() {
@@ -141,6 +151,10 @@ func collect(t *testing.T) {
 			for _, observation := range diagnostics {
 				data, _ := json.Marshal(observation)
 				t.Logf("P01B_DIAGNOSTIC %s", data)
+			}
+			for _, observation := range costs {
+				data, _ := json.Marshal(observation)
+				t.Logf("P01B_COST %s", data)
 			}
 		}
 	})
@@ -183,6 +197,9 @@ func collect(t *testing.T) {
 	}
 	if expected := os.Getenv("SQLRS_BENCH_ENGINE_SHA256"); expected == "" || expected != engineSHA {
 		t.Fatal("benchmark artifact differs from the collector's pinned checksum")
+	}
+	if validateCostSelection(route, revision, costEnabled, diagnostic) != nil {
+		t.Fatal("cost recording requires the explicit new untraced v2 member")
 	}
 	jar := filepath.Join(repo, "dist", "deps", "postgresql-42.7.13.jar")
 	jarBytes, err := os.ReadFile(jar)
@@ -373,9 +390,27 @@ func collect(t *testing.T) {
 		child.Env = append(child.Env, entry)
 	}
 	child.Env = append(child.Env, "SQLRS_STATE_STORE="+storeRoot, "SQLRS_STATE_DB="+dbPath, "SQLRS_CONTAINER_RUNTIME=docker", "JAVA_HOME="+javaHome)
+	child.Env = costEngineEnvironment(child.Env, costEnabled)
 	child.Stdout, child.Stderr = io.Discard, io.Discard
+	var costPipe, costWriter *os.File
+	var costReader *costStream
+	var costDone chan error
+	if costEnabled {
+		// Caller-owned descriptors avoid Cmd.Wait closing StderrPipe before
+		// the reader drains a late end frame (CT10 / limited OT-CT03).
+		costPipe, costWriter, err = os.Pipe()
+		if err != nil {
+			t.Fatal("private cost transport unavailable")
+		}
+		costReader, costDone = newCostStream(), make(chan error, 1)
+		child.Stderr = costWriter
+	}
 	child.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := child.Start(); err != nil {
+		if costEnabled {
+			_ = costWriter.Close()
+			_ = costPipe.Close()
+		}
 		if trace != nil {
 			trace.abort()
 		}
@@ -383,6 +418,9 @@ func collect(t *testing.T) {
 	}
 	if trace != nil {
 		trace.begin(child.Process.Pid)
+	}
+	if costEnabled {
+		go func() { costDone <- costReader.consume(costPipe) }()
 	}
 	wait := make(chan struct{})
 	go func() { _ = child.Wait(); close(wait) }()
@@ -445,6 +483,30 @@ func collect(t *testing.T) {
 				}
 			}
 		}
+		if costEnabled {
+			_ = costWriter.Close()
+			select {
+			case readErr := <-costDone:
+				if readErr != nil {
+					t.Error("private cost evidence incomplete")
+				}
+			case <-time.After(10 * time.Second):
+				_ = costPipe.Close()
+				select {
+				case <-costDone:
+				case <-time.After(2 * time.Second):
+					t.Error("private cost reader did not stop")
+				}
+				t.Error("private cost reader did not reach EOF")
+			}
+			_ = costPipe.Close()
+			costReader.mu.Lock()
+			observedRoots := len(costReader.roots)
+			costReader.mu.Unlock()
+			if !t.Failed() && observedRoots != len(costs) {
+				t.Error("private cost root count differs from public workload")
+			}
+		}
 		clean, cleanCancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cleanCancel()
 		if err := cleanupDockerE2EContainers(clean, root, runDockerE2ECommand); err != nil {
@@ -460,6 +522,13 @@ func collect(t *testing.T) {
 			t.Error("cleanup changed foreign control")
 		}
 	})
+	if costEnabled {
+		// The spawned child owns its duplicate; retaining this writer here
+		// would suppress EOF after the child's exact process teardown.
+		if err := costWriter.Close(); err != nil {
+			t.Fatal("private cost writer ownership failed")
+		}
+	}
 	var state struct {
 		Endpoint  string `json:"endpoint"`
 		AuthToken string `json:"authToken"`
@@ -541,8 +610,10 @@ func collect(t *testing.T) {
 	creates := startBenchmarkDockerCreates(t, ctx)
 	creates.barrier(t, ctx, req.ImageID)
 	workingHelper := ""
+	var costOrdinal uint64
 	for _, pass := range []string{"uncached", "cached"} {
 		stage = pass
+		costOrdinal++
 		start := time.Now()
 		// RC7 rejects unknown request fields; construct each actual contract,
 		// rather than relying on compatibility support excluded from #89.
@@ -582,6 +653,16 @@ func collect(t *testing.T) {
 			time.Sleep(100 * time.Millisecond)
 		}
 		end := time.Now()
+		if costEnabled {
+			waitStarted := time.Now()
+			observationCtx, stop := context.WithTimeout(ctx, 10*time.Second)
+			observation, err := costReader.await(observationCtx, costOrdinal)
+			stop()
+			if err != nil || qualifyCostPass(observation, costOrdinal, end.Sub(start).Nanoseconds(), expectedChanges) != nil {
+				t.Fatal("private cost evidence does not qualify the public pass")
+			}
+			costs = append(costs, collectedCost{Pass: pass, PrepareElapsedNS: end.Sub(start).Nanoseconds(), ObserverWaitNS: time.Since(waitStarted).Nanoseconds(), Root: observation})
+		}
 		stage = "oracle"
 		creates.barrier(t, ctx, req.ImageID)
 		if status.Result == nil || status.Result.DSN == "" {
