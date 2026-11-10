@@ -112,3 +112,31 @@ in-process monotonic operation durations to calendar time.
   922337203686 as the negative case and retain the exact maximum as positive.
 - Decision: user replied “Исправить точные границы CT09”.
 - Rationale: preserve the full int64 nanosecond domain and overflow protection.
+
+## Approve limited OT-CT03 collector integration
+
+- Conversation date: 2026-11-10, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: keep discarding all stderr in the existing collector or connect the
+  new explicit cost mode without moving API timing or weakening its oracles?
+- Alternatives: duplicate native orchestration; or extend only collect's cost
+  branch, environment filtering and owned-reader cleanup as described in OT-CT03.
+- Decision: user replied “Разрешить ограниченный OT-CT03”. Binary pins, requests,
+  API timer, strace, workload/cache/count checks and private-log rules remain.
+- Rationale: reuse independently verified orchestration while collecting bounded
+  complete observations after, not inside, the existing API timing boundary.
+
+## Approve limited OT-CT04 native incomplete-archive expectation
+
+- Conversation date: 2026-11-10, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: preserve the obsolete manifest-reader error text or observe O3's
+  earlier rejection of the missing-manifest archive in the same native case?
+- Alternatives: misclassify product archive failures as manifest-only errors;
+  or change the named expectation and add independent live-parent/stream proofs.
+- Decision: user replied “Разрешить ограниченный OT-CT04”. All three existing
+  scenarios, negative refusal, hashes, runner reuse and exact cleanup remain.
+- Rationale: retain the semantic protection and its precise new refusal boundary,
+  without changing product errors to make an old fixture pass for a wrong reason.

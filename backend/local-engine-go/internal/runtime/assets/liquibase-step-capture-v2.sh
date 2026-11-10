@@ -274,7 +274,9 @@ stderr_status=$?
 set -e
 [ "$stdout_status" -eq 0 ] && [ "$stderr_status" -eq 0 ] || die
 rm "$stdout_fifo" "$stderr_fifo" || die
-sync -f "$stdout_partial" "$stderr_partial" || die
+# O4: both streams and this directory share a filesystem. Preserve this phase
+# barrier with one syncfs, not one identical filesystem flush per stream.
+sync -f "$capture" || die
 stdout_hash=$(sha256sum "$stdout_partial") || die
 stdout_hash=${stdout_hash%% *}
 stderr_hash=$(sha256sum "$stderr_partial") || die
@@ -286,7 +288,7 @@ stderr_bytes=$(printf '%s' "$stderr_bytes" | tr -d ' ')
 [ "$stdout_bytes" -le "$SQLRS_CAPTURE_MAX_BYTES" ] && [ "$stderr_bytes" -le "$SQLRS_CAPTURE_MAX_BYTES" ] || die
 mv "$stdout_partial" "$capture/stdout.complete" || die
 mv "$stderr_partial" "$capture/stderr.complete" || die
-sync -f "$capture/stdout.complete" "$capture/stderr.complete" || die
+sync -f "$capture" || die
 printf '{"protocol":"lb-step-capture-v2","job_id":"%s","task_id":"%s","session_id":"%s","invocation_ref":"%s","attempt_no":%s,"worker_generation":%s,"runner_id":"%s","execution_digest":"%s","helper_digest":"%s","child_exit_code":%s,"stdout_eof":true,"stderr_eof":true,"stdout_bytes":%s,"stdout_sha256":"%s","stderr_bytes":%s,"stderr_sha256":"%s","prior_retirement_ref":%s}\n' \
   "$SQLRS_JOB_ID" "$SQLRS_TASK_ID" "$SQLRS_SESSION_ID" "$SQLRS_INVOCATION_REF" \
   "$SQLRS_ATTEMPT_NO" "$SQLRS_WORKER_GENERATION" "$SQLRS_RUNNER_ID" "$SQLRS_EXECUTION_DIGEST" "$SQLRS_HELPER_DIGEST" \

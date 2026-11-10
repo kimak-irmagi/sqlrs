@@ -286,3 +286,47 @@ public image is acquired, no database/JDBC/strace/acceptance cohort is involved;
 there is no raw-log artifact. Native exact-ID cleanup remains mandatory. A green
 probe permits implementing O4; it does not qualify durability under power loss,
 the four-flush failure matrix or the subsequent unchanged speed gate.
+
+### Native prerequisite and O4 implementation checkpoint
+
+Foundation commit `8ef7704b5b7eb25b7832f1b9d8fef0bb4e77efb0` is pushed to draft
+PR #175. [Native prerequisite run 42854975079](https://github.com/kimak-irmagi/sqlrs/actions/runs/42854975079)
+passes the real GNU check (0.41 s): image
+`sha256:a93be6d6c4fb12016d4bce092b11d4ed25f2f3d6165431215c7f24bf02539c67`,
+coreutils 9.4, sync binary SHA256
+`5c395b95d52686ad295045ccb2272ec8858359df6bdc9655d3feffe650790969`.
+The existing three-JVM/single-runner and surviving-child cases pass too. The run
+as a whole is **not green**: its old incomplete-manifest error expectation
+conflicts with earlier O3 archive rejection; separately proposed OT-CT04 must
+preserve the negative refusal and independent parent/stream controls.
+
+After this real prerequisite, the two embedded helpers now use one containing
+directory argument at each of the first two terminal flush boundaries. All four
+phase boundaries remain. New tests first failed on the old paired arguments;
+the actual embedded-byte/order checks now pass. Readiness/prune flushes remain
+unchanged; the content-addressed helper digest changes automatically with bytes,
+not the helper protocol or database schema.
+
+New `TestCostHelperFlushBoundariesDocker` is ready for the next Actions run:
+both real helpers, positive control plus each of four independently injected
+flush failures. Its root-private recording shim checks exact files/arguments/
+order and delegates to real `/usr/bin/sync`; it is absent from speed samples.
+Helper nonzero exits and unchanged complete stream hashes remain required. The
+last failing flush is not incorrectly required to erase an already renamed
+manifest. These ten native cases have **not run yet**; ordinary tests/vet and the
+workflow checks do not replace them. The workflow runs the GNU prerequisite first.
+Worker/collector/helper-timer wiring and the new before/after/off/on series remain
+open. OT-CT03 for the existing collector is pending; it is not changed implicitly.
+
+The user subsequently approved limited OT-CT03/OT-CT04. The named native
+incomplete-manifest case now checks the O3 archive refusal and independently
+confirms the unchanged live parent and both private streams first. Collector
+orchestration is still unchanged while its new ordinary receiver is built first.
+O4 runtime/preparecost tests and vet pass (preparecost 99.6%); all 51 Node checks
+pass. The later full Windows run has a separate intermittent HTTP failure:
+`TestPrepareJobsDeleteBlockedWithoutForce` reports repeated SQLITE_BUSY and a
+status lookup failure. Its isolated retry passes (1.37 s), then the entire HTTP
+package passes unchanged (35.435 s); no root-cause fix/waiver is claimed. All
+other packages in that full run passed. Source CI `42854932663` passed every job
+that actually ran; macOS-fast was cancelled with no steps after waiting for a
+runner, so that run is not reported as a complete green regression qualification.

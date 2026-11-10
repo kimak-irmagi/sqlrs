@@ -3,6 +3,7 @@ package runtime
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -165,9 +166,19 @@ func TestLiquibaseStepCaptureReusableRunnerDocker(t *testing.T) {
 						"/bin/rm", "/sqlrs/capture/" + identity.InvocationRef + "/manifest.complete"}}); err != nil {
 						t.Fatal(err)
 					}
+					view, found, err := rt.InspectNamedContainer(ctx, name)
+					if err != nil || !found || view.ID != id || view.Status != "running" {
+						t.Fatal("incomplete-manifest fixture lost its exact live parent")
+					}
+					for file, expected := range map[string][]byte{"stdout.complete": capture.Stdout, "stderr.complete": capture.Stderr} {
+						stream, err := rt.readPrivateCaptureFile(ctx, id, identity.InvocationRef, file, 1<<20)
+						if err != nil || !bytes.Equal(stream, expected) {
+							t.Fatal("incomplete-manifest fixture lost an unchanged private stream")
+						}
+					}
 					if _, err := rt.ReadCompleteLiquibaseStepOutput(ctx, name, id, "", identity, 1<<20); err == nil ||
-						err.Error() != "complete step manifest unavailable" {
-						t.Fatalf("partial capture did not reach manifest refusal: %v", err)
+						!errors.Is(err, errCaptureArtifactRead) {
+						t.Fatalf("partial capture did not reach archive refusal: %v", err)
 					}
 				}
 				previous, previousCapture = identity, capture

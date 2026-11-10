@@ -46,4 +46,6 @@ jobs:
         env:
           SQLRS_COST_NATIVE_PROBE: '1'
           SQLRS_LIQUIBASE_DOCKER_E2E: '1'
-        run: go test ./internal/runtime -run '^(TestCostSyncImplementationDocker|TestLiquibaseStepCaptureReusableRunnerDocker)$' -v -count=1 -timeout=8m
+        run: |
+          go test ./internal/runtime -run '^TestCostSyncImplementationDocker$' -v -count=1 -timeout=8m
+          go test ./internal/runtime -run '^(TestCostHelperFlushBoundariesDocker|TestLiquibaseStepCaptureReusableRunnerDocker)$' -v -count=1 -timeout=8m

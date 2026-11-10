@@ -236,3 +236,35 @@ retain the overflow guard.
 
 All three approved corrections are applied. The full ordinary runtime and
 preparecost tests pass; the latter is 99.6% covered before worker/collector wiring.
+
+### OT-CT03: connect cost observations in collect (approved)
+
+The existing Linux `TestReleasedEngine/collect` discards stderr and can inherit
+`SQLRS_PREPARE_COST`. Its oracles/timer/process ownership must remain authoritative.
+The user approved only an explicitly selected cost branch: remove inherited measurement
+flags for every route; enable them only for the selected new-v2 measured route;
+attach a bounded private stderr reader there; after the existing API timer stops,
+await the matching complete root with a bounded deadline; retain only validated
+numeric/enum evidence and observer-wait duration. Extend existing owned-process
+cleanup to close/wait that reader before deleting its root and exposing samples.
+No trace branch change, extra prepare requests, timing-boundary move, relaxed
+artifact identity, oracle/counter/event/cleanup assertion or raw-log output.
+Before/after source selection and the unchanged API time remain independent.
+
+Critical/repeat review: missing/late frames must fail the measured sample, not
+extend API time; cancellation/read/byte failures must use the existing exact
+process cleanup; off/v1/old-v2 cannot inherit measurements. Existing collect
+code was unchanged before this named approval. New receiver tests may proceed.
+
+### Native finding OT-CT04 (approved)
+
+Actions `42854975079` confirms GNU coreutils 9.4 and the same-filesystem directory
+sync prerequisite. In the existing real reusable-runner test, three JVMs in one
+runner and the surviving-child case pass. Only `incomplete manifest` fails its
+old exact error text: O3 rejects the two-file archive before the old manifest
+reader. The user approved changing only that expected refusal to `errCaptureArtifactRead`
+and independently confirming the exact running parent and both unchanged private
+streams after deleting only manifest.complete. Retain all three scenarios,
+exact-ID cleanup, exit/hash/reuse/prune assertions and the negative refusal.
+Do not map unrelated archive errors to a fabricated manifest-specific error in
+product code just to satisfy the obsolete expectation. Other old assertions stay.
