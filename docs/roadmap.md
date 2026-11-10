@@ -161,6 +161,15 @@ Ordinary v2 regression persists. Route-dependent tracing overhead prevents
 equating traced totals with acceptance; exact whole-regression cause/fix remain
 open. All CI `42802317646` regressions pass, only aggregate coverage red. Strict
 helpers/product timing and the speed gate are unchanged.
+
+After discussing the complete evidence, the user selected evidenced duplicate-work
+removal, source-level operation costs and a rerun rather than another strace-only
+classification first. The [reviewed component proposal](architecture/issue89-cost-attribution-and-trimming.md)
+defines O1–O4, default-off recording and before/after/off/on controls. Components
+are explicitly approved; the separately reviewed
+[CT01–CT14 inventory](architecture/issue89-cost-attribution-and-trimming-tests.md)
+awaits approval. No implementation or speed
+acceptance is claimed for this next step.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

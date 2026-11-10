@@ -312,3 +312,12 @@ not a speed verdict. Extra image probing and Docker round trips are identified
 in source, but complete low-level attribution remains open. All regressions in
 CI `42802317646` pass; only approved-exception aggregate coverage fails. No
 product optimisation, speed waiver or merge readiness is claimed.
+
+2026-11-10: after discussing the complete evidence, @evilguest selected removal
+of evidenced redundant work plus source-level per-step cost accounting and a
+rerun, instead of further strace-only classification first. The
+[reviewed component proposal](issue89-cost-attribution-and-trimming.md) covers
+O1–O4 and default-off recording. Components are now explicitly approved;
+the [CT01–CT14 inventory](issue89-cost-attribution-and-trimming-tests.md) awaits
+separate approval after critical and repeat review.
+No product/test code changed for this proposal; the speed criterion remains.

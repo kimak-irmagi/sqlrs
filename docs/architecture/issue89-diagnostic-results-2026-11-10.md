@@ -114,3 +114,9 @@ tests require separate approvals before code. Candidate fixes to evaluate
 after attribution are reuse of verified immutable image inventory and reducing
 redundant Docker round trips while preserving exact identity, private-output
 integrity and disposal authority. Neither is approved or claimed sufficient.
+
+Subsequent decision (2026-11-10): after discussing these limits, @evilguest chose
+to remove demonstrated redundant work and add source-level cost attribution,
+not require another strace-refinement cohort first. See the
+[new component proposal](issue89-cost-attribution-and-trimming.md). The historical
+numbers/limits above stand; do not retroactively claim exact causal attribution.

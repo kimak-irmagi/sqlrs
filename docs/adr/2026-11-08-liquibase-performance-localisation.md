@@ -26,6 +26,11 @@ diagnostic implementation follows its separately approved test inventory below.
 
 ## Observe fixed executables externally, not through product hooks
 
+Historical boundary, completed by Actions `42802379397`. **Superseded for the
+next campaign only** by the [2026-11-10 trimming/cost-attribution decision](2026-11-10-liquibase-cost-attribution-and-trimming.md)
+and its separately approved components. Do not relabel the old measured binaries
+or invalidate the original reports; privacy/oracle/cleanup/P01b rules persist.
+
 - Conversation date: 2026-11-08, Asia/Novosibirsk; exact reply time unavailable.
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.

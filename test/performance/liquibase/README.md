@@ -102,6 +102,12 @@ are retained. Ordinary regression persists; route-dependent tracer overhead and
 residual time preclude complete causal attribution. Strict helpers/default
 shapes, product timing and the acceptance gate remain unchanged. Earlier open
 native checkpoints above describe history, superseded by this complete cohort.
+After discussion, the user selected source-level cost attribution plus evidenced
+duplicate-work removal and a rerun, not further strace-only classification first.
+The [new components](../../../docs/architecture/issue89-cost-attribution-and-trimming.md)
+are now explicitly approved; the separately reviewed CT01–CT14 tests await
+approval before tests/code. Old fixed-binary evidence and
+strict parsers stay intact; a new candidate must have a new pinned identity.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.

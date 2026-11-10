@@ -650,7 +650,10 @@ MC08 `42802379397` completes all eight members/16 passes. See the
 [retained evidence and reviewed analysis](issue89-diagnostic-results-2026-11-10.md).
 Clock observation is unblocked; product speed acceptance is not.
 
-**Proposed, not approved/implemented.** Refine roles of already captured exec
+**Not selected; no implementation.** The user first requested discussion and then
+chose [removal plus operation-level costs](issue89-cost-attribution-and-trimming.md).
+The proposal below is retained as history, not the current next step.
+Refine roles of already captured exec
 arguments. No new trace syntax, syscalls, payloads, product hooks or changed
 binary. Keep strict/default classification and old report shapes unchanged.
 
