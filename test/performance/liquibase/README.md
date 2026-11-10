@@ -76,7 +76,8 @@ still open; strict/codes/CX/PX/UR assertions are unchanged.
 Actual RD07 run 42772724450 verifies fallback/empty/none/arity at traced member 3;
 the incomplete report is retained. This establishes the empty-entry observer
 refusal, not the product cause. A separate terminal-only unavailable-entry
-proposal is not approved/implemented. Source CI 42772612811 passes all ordinary
+component boundary is approved, not implemented; UE01–UE07 and two named
+old-test amendments await separate approval. Source CI 42772612811 passes all ordinary
 regressions, only aggregate coverage red.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.

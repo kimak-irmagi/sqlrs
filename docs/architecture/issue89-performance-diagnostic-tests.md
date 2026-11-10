@@ -977,5 +977,119 @@ SHA256 `6b3962a8a3648c9fdd37313a6c9322a812612cc86c5130f3ca45d187c01d944c`.
 CI [42772612811](https://github.com/kimak-irmagi/sqlrs/actions/runs/42772612811)
 passes all regression jobs, only unchanged aggregate coverage red. This verifies
 real Go→Node→artifact metadata transport, not complete diagnostic collection or
-product speed acceptance. A narrow unavailable-entry rule is proposed separately;
-no new acceptance or old-test change is implemented under RD01–RD07.
+product speed acceptance. A narrow unavailable-entry component rule is now
+separately approved; no new acceptance or old-test change is implemented under
+RD01–RD07.
+
+## Proposed UE01–UE07: terminal unavailable entry
+
+Status: component boundary approved on 2026-11-10; this test inventory and the
+two named old-test amendments below await separate approval. Tests/code are
+not written. No product optimisation, schema change or P01b waiver.
+
+1. **UE01 — exact form and separate raw grammar.** Measured decoding accepts
+   the exact `???( <unfinished ...>` and horizontal-space/tab variants only
+   with a valid terminal. Reject no separating whitespace, numeric/other name,
+   arguments (including a single zero), `<unavailable>`, closing parenthesis,
+   result, extra prefix/suffix, newline/control-character injection and CR.
+   Exercise rejection through the decoder, not just a pattern helper. Keep
+   parseDiagnosticRaw rejecting the same empty entry with its existing arity
+   code/detail: recognition is a separate pending kind, not a zero-argument call.
+2. **UE02 — exact next same-PID terminal.** Independently specified histories
+   accept natural exit 0/nonzero and signal/core-dump terminal forms already
+   permitted by the decoder. Different PIDs may interleave, including another
+   unavailable entry with its own exit. Another PID's exit alone cannot complete
+   this entry. Reject each same-PID intermediate event: another unavailable
+   entry, valid raw call, exec, resume, result or unknown marker, even if followed
+   by an exact exit. An already pending raw/exec attempt must also reject a new
+   unavailable entry. Reject malformed terminal, reverse time, missing exit,
+   read failure, line/record quota and unfinished EOF. Each failure returns no
+   partial intervals, including when an earlier independent PID already closed.
+3. **UE03 — independent literal timeline expectations.** Check no previous
+   image; previous confirmed Java/Docker image ending at unavailable entry;
+   previous unattributed time retaining its earlier start without a duplicate;
+   engine PID excluded but invalid engine history still rejected; zero duration;
+   and a later lifecycle reusing a PID without inheriting a pending tag/image.
+   Assert exact category/start/end interval lists, not only total time. The
+   unavailable segment never becomes host.java, exec.unconfirmed or a decoded
+   syscall latency. PID time ordering and old known-exec accounting remain.
+4. **UE04 — API windows, union, counts and report privacy.** Feed UE03's decoded
+   intervals through the actual Go summary into independent expected windows:
+   before/inside/after boundaries, clipping, overlap of different PIDs and zero
+   length. Check exact covered/residual time and displayed-interval Commands
+   semantics, not an inferred successful JVM count. Separately parse a literal
+   valid Node report with the existing process.unattributed category; independent
+   CLI-start counters are unchanged. Reject wrong totals/bounds/category/count;
+   drop injected private extras under unchanged DG09. No new report field or
+   metadata marker is needed on success, and no raw text/PID/argument escapes.
+5. **UE05 — actual private transport and incomplete reads.** Hand-authored
+   histories use the real pipe reader and finishMeasured: valid exact entry/exit
+   yields UE03's literal interval; missing exit, intermediate same-PID event,
+   reader failure and quotas yield no partial result. Check reader termination,
+   descriptor closure at the existing finish/abort ownership boundary and
+   private-file removal by the owning root cleanup, not a mock successful read.
+   Do not require finish itself to unlink its retained private file.
+   The same valid fixture through strict
+   finish still fails with its old code and unavailable metadata. Preserve the
+   bounded transport/lifecycle tests; do not create a real strace workload locally.
+6. **UE06 — old guards and bounded scope.** Run all existing DG/EU/CX/PX/UR/RD
+   controls, including strict/default/cutoff tests, numeric parser negatives and
+   the empty direct-parser failure. Only OT-UE01/OT-UE02 below may change after
+   separate approval. Check measured wiring remains explicit, trace flags/pins,
+   native smoke and UR06 unchanged; source assertions supplement behavioural
+   UE01–UE05, not replace them. Re-audit contradictions after approval and ask
+   separately about any additional change. No nondeterministic native generation
+   of a register-read failure is required or advertised as proved by a unit test.
+7. **UE07 — complete small verification and unchanged native protocol.** Run
+   full small Linux Go/vet, all Node tests, script/workflow syntax and diff checks;
+   measure ordinary helpers per line (target 100%, minimum 95%). A further
+   coverage iteration requires its own requirement-based plan/approval. Then
+   explicitly launch the pinned observer in Actions only: unchanged smoke/UR06,
+   all eight original serial members, fixed product hashes, DB/cache/CLI oracles
+   and exact group/resource cleanup. Retain all earlier reports byte-for-byte.
+   Preserve any new incomplete report; do not skip unsupported events to finish.
+   Acceptance requires all eight members and disclosed observation cost/noise;
+   materially unattributed time prevents an unsupported precise product-cause
+   claim. Observer success alone never qualifies product speed or closes #89.
+
+### Separately proposed old-test amendments
+
+Only `test/performance/liquibase/diagnostic_raw_detail_linux_test.go`:
+
+- **OT-UE01:** in TestDiagnosticRawDetailPending, replace only the first table
+  row `{"???(", "fallback", "empty", "none"}` with
+  `{"???(0", "fallback", "short", "numeric"}`. Keep arity failure code/context,
+  all three terminal variants, strict code 5, every other row and assertions.
+  UE01–UE03 provide the separately specified positive empty-entry controls.
+- **OT-UE02:** in TestDiagnosticRawDetailPrivatePipe, replace only its shared
+  `???( <unfinished ...>` fixture with `???(0 <unfinished ...>` and measured
+  marker expectation `fallback empty none arity` with
+  `fallback short numeric arity`. Keep measured failure, strict/missing-exit,
+  actual pipe and all marker/privacy assertions. UE05 separately tests successful
+  transport of the exact empty entry; RD05 remains a real rejection test.
+
+Do not alter TestDiagnosticRawDetailParserStages, Shape, interleaved numeric
+failure, EOF/CR/time/quota controls, Node metadata fixtures or UR/PX negatives.
+Pure shape/metadata tests may still legitimately describe fallback/empty/arity;
+they do not authorise decoder acceptance. Existing RD01–RD07 execution evidence
+is historical, not retroactively declared passing under a new observer.
+
+### Critical and repeat review
+
+Corrections incorporated before submission:
+
+- P1 accepting a broad empty call: UE01 tests full-body near-misses through the
+  decoder and keeps direct numeric parsing rejected.
+- P1 another PID's exit or intervening event silently closes the entry: UE02
+  covers both directions of pending-kind collisions and each same-PID event.
+- P1 duplicate time or a fabricated successful JVM: literal UE03 intervals,
+  independently calculated UE04 union/windows and separate CLI-start counters.
+- P1 incomplete streams leak earlier results: failures after a closed independent
+  lifecycle still return no partial intervals; UE05 checks the real transport.
+- P2 synthetic/native evidence conflation: UE06 explicitly avoids requiring a
+  nondeterministic native read failure; UE07 retains the unchanged workload gate.
+- P2 silently weakened RD controls: only two named fixtures change, separately
+  approved; direct raw parsing and other old negative controls remain intact.
+
+Repeat review found no remaining P0–P2 in this bounded inventory. This is a test
+proposal, not a claim that code, coverage or the native protocol already passes.

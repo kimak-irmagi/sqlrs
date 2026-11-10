@@ -280,5 +280,6 @@ Native RD07 `42772724450` verifies actual detail transport: member 3 reports
 incomplete report is retained in the test inventory. This establishes the
 observer's empty `???(` refusal, not the absent syscall/kernel cause or product
 slowdown. All regressions in CI `42772612811` pass; only coverage-merge red.
-A separate exact terminal-only unavailable-entry boundary is proposed, not
-implemented; it requires component and named test approvals before acceptance.
+A separate exact terminal-only unavailable-entry boundary is approved
+(2026-11-10), not implemented. UE01–UE07 and the two named old-test amendments
+are proposed for separate approval before tests/code; the speed gate remains.

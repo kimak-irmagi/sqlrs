@@ -420,11 +420,12 @@ test inventory. This is now an observed empty fallback entry, not a hypothesis
 that an otherwise complete six-argument raw call had a malformed numeric token.
 Complete collection and the product's slowdown cause remain open.
 
-## Proposed: terminal unavailable fallback entry, measured mode only
+## Approved: terminal unavailable fallback entry, measured mode only
 
-Status: critically and repeatedly reviewed, not approved/implemented. This is
-a narrow new observer-acceptance boundary; RD metadata approval does not authorise
-it. Tests and any named old-test amendments require separate approval afterwards.
+Status: explicitly approved by @evilguest on 2026-11-10 after critical and repeat
+review; exact reply time unavailable. Not implemented. This narrow observer
+boundary is authorised separately from RD metadata. The proposed UE01–UE07 tests
+and OT-UE01/OT-UE02 amendments still require separate approval before tests/code.
 
 The observed original parser stage `arity` plus `fallback/empty` identifies an
 unfinished `???(` with only horizontal formatting before `<unfinished ...>`.
@@ -434,7 +435,7 @@ before arguments; its [fallback entry](https://github.com/strace/strace/blob/v6.
 is named `???`. That is consistent with unavailable observation, not evidence of
 which ptrace/kernel failure occurred in this run or which syscall executed.
 
-Proposed measured-only boundary:
+Approved measured-only boundary:
 
 1. Recognise exactly `???(`, at least one horizontal space/tab, and
    `<unfinished ...>`, anchored over the whole body. No arguments, closing

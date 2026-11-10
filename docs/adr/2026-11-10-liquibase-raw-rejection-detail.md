@@ -45,5 +45,6 @@ Native run 42772724450 subsequently verifies the four fields through the real
 Go/Node/artifact path: fallback/empty/none/arity on traced member 3. The
 [original incomplete report](../architecture/issue89-diagnostic-evidence-2026-11-10/42772724450/jhipster-diagnostic.json)
 is retained. Numeric/raw acceptance and old tests were not changed. The observed
-empty fallback entry motivates a separate proposed terminal-only unavailable
-boundary; that proposal is not authorised by this ADR and is not implemented.
+empty fallback entry motivates a separate terminal-only unavailable boundary,
+now approved in its [own ADR](2026-11-10-liquibase-terminal-unavailable-entry.md).
+It is not authorised by the metadata decision here and is not implemented.
