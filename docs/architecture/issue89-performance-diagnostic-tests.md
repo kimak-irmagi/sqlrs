@@ -1115,3 +1115,28 @@ five ordinary helpers **100% lines / 97.10% branches**. These denominators do
 not cover native orchestration or product code. Syntax/workflow/diff checks
 pass. No product bytes, trace flags, old smoke or UR06 changed. Native UE07
 remains open; small checks do not establish workload compatibility or a cause.
+
+### Native UE07: trace accepted, time summary refused
+
+Run [42782782114](https://github.com/kimak-irmagi/sqlrs/actions/runs/42782782114)
+uses observer `39756f766d07335caed9e3db3f4e17a343a36393`. Preparation, both
+native probes and two plain members pass. Traced v1 member 3 fails with
+`diagnosticFailure=clock`, `traceLocation=none`, `traceShape=none`, last stage
+`oracle`, cleanup evidence unavailable. Unlike the prior trace_8, this marker
+is emitted only after finishMeasured returned no trace error. Thus this run
+passed decoding but failed interval summarisation; no successful traced sample,
+complete cohort, successful cleanup or product cause is claimed.
+
+The original [incomplete report](issue89-diagnostic-evidence-2026-11-10/42782782114/jhipster-diagnostic.json)
+is retained byte-for-byte, SHA256
+`383a8bd5e016defacd01ee63c349ffd7b65c15c5e5f16b48ae9928097bcd3d9f`.
+Both fixed product hashes are unchanged. Plain uncached/cached elapsed values
+are v1 50084.888471/8680.393956 ms and v2 60853.474780/10813.360001 ms;
+these diagnostic members are not a new acceptance cohort. All regression jobs
+of CI [42782733993](https://github.com/kimak-irmagi/sqlrs/actions/runs/42782733993)
+pass; only unchanged aggregate coverage is red. UE07 remains incomplete.
+
+The summary's clock error currently conflates wall/elapsed ordering, unequal
+wall and monotonic spans, and reversed decoded intervals. Current evidence
+cannot distinguish them. A separate component proposal records all these
+branches without changing rejection; UE approval does not authorise that change.

@@ -81,6 +81,10 @@ implemented. Small Linux Go/vet pass at 715/726 statements (98.48%), all 44 Node
 tests pass (helper lines 100% / branches 97.10%). Native UE07 still requires the
 original eight members; no product change or speed verdict. Source CI 42772612811 passes all ordinary
 regressions, only aggregate coverage red.
+Native UE07 run 42782782114 passes trace decoding, then fails summary `clock`
+at member 3. Original report retained; no exact clock/product cause established.
+All regressions in CI 42782733993 pass, only aggregate coverage red. A separate
+closed clock-context component proposal awaits approval; rejection is unchanged.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.

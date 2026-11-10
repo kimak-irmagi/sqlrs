@@ -145,6 +145,9 @@ member 3. Original incomplete report retained; no exact product cause. A narrow
 terminal-only unavailable-entry amendment, UE01–UE07 and two named old-test
 amendments are approved and implemented. Small Linux Go/vet pass at 98.48%,
 44 Node tests pass (helper lines 100%); native UE07 and product cause remain open.
+Native UE07 `42782782114` passes trace decoding but fails summary `clock` at
+member 3; original report retained. All CI `42782733993` regressions pass, only
+aggregate coverage red. Closed clock context is proposed, not implemented.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

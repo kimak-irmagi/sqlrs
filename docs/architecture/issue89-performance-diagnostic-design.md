@@ -485,3 +485,82 @@ UE01–UE06 pass after the separately approved RD fixture amendments. Full small
 Linux Go/vet passes at 715/726 ordinary-helper statements (98.48%), Node at
 44 passing tests (ordinary helpers 100% lines / 97.10% branches). Native UE07
 still requires the original eight members; no product change or speed verdict.
+
+Native UE07 `42782782114` then passed trace decoding but failed summary with
+the existing `clock` marker. Original evidence is retained in the test inventory.
+The exact time failure and product regression cause are not established.
+
+## Proposed: complete closed context for summary clock rejection
+
+Status: critically and repeatedly reviewed component proposal, not approved or
+implemented. A separate test inventory follows approval. Do not rerun the
+unchanged observer, drop clock checks or claim the regression is localised.
+
+Current summary rejection covers four ordered checks: non-increasing wall
+endpoints; non-positive elapsed duration; wall span not exactly equal to elapsed
+duration; reversed decoded interval. The marker conflates them. The collector
+uses time.Now endpoints; Go documents that Sub uses monotonic readings when
+both values contain them, while UnixNano exposes calendar time. See the
+[pinned Go documentation](https://pkg.go.dev/time@go1.25.5#hdr-Monotonic_Clocks).
+That makes mismatch plausible, not proved by the present report. Do not infer
+NTP, a kernel cause or a permissible tolerance from that hypothesis.
+
+Proposed boundary, only in the external observer:
+
+1. At each existing rejection return, retain a private typed error containing
+   only reason `wall_order`, `elapsed_order`, `duration_mismatch`,
+   `interval_order` or unavailable `none`, and an optional pair of relative
+   durations. Preserve the checks, their order, original fixed Error and
+   errors.Is(err, errDiagnosticTrace). No successful result, clipping, union,
+   time source or product measurement changes. Never store source timestamps,
+   interval endpoints, PID, raw text, time.Time objects or arbitrary messages
+   in this error. Existing callers/signatures are unchanged. A private pure
+   validateDiagnosticWindow(wallStartNS, wallEndNS int64, elapsed time.Duration)
+   helper owns exactly the first three existing checks in their original order;
+   summarizeDiagnosticIntervals supplies its already-computed values. This
+   explicit internal boundary allows independent inputs without manipulating
+   time.Time representation. Reversed-interval rejection remains at its own
+   existing loop boundary. The private clock error/accessor live in an ordinary
+   diagnostic_clock.go helper, with no product import or persistent state.
+2. A separate Go accessor normalises metadata. Publish wall/elapsed duration
+   in integer nanoseconds only when both are positive and at most 12 minutes
+   (the existing collector test ceiling); otherwise both unavailable. Integers
+   within that ceiling are exact in Node. The ceiling limits metadata only,
+   never accepts/rejects a sample or suggests tolerated drift. On an initial
+   duration_mismatch, a present pair must differ; other incompatible/foreign
+   metadata becomes unavailable. No epoch readings or derived absolute offsets.
+3. The collector adds a fixed `P01B_DIAGNOSTIC_CLOCK` marker with reason and
+   the bounded pair/explicit unavailable tokens only on its existing summary
+   failure. Keep `P01B_DIAGNOSTIC_FAILURE clock` and the other old logs unchanged.
+   A separate Node helper reconstructs `clockFailure`, `clockWallDurationNS`
+   and `clockElapsedDurationNS` only on that failed clock path; absent/invalid/
+   conflicting metadata is unavailable, never source text. Keep old CX/PX/RD
+   helper shapes and successful report shapes. The existing runner persists
+   these safe fields before refusing the incomplete cohort.
+4. Cover all actual summary rejection branches, safe/wrapped/unavailable
+   metadata, both publication boundaries and exact guarded wiring in a separate
+   reviewed test inventory. No new global hook, artificial time.Time layout,
+   unsafe clock manipulation, host-clock changes or local workload. If real
+   time.Now values are used in a small test, no assumed drift or tight sleep
+   timing is required; reason must follow the actual inputs. The pure window
+   helper above supplies the independent wall/elapsed combinations for branch
+   tests; do not invent an unsafe or unreachable time.Time fixture. Any other
+   new boundary needs separate approval. Old tests cannot be altered without
+   named approval.
+5. After those tests/code pass and helper coverage meets the minimum, repeat
+   the original eight Actions members with unchanged binaries, smoke/UR06,
+   trace flags, oracles and cleanup. Retain this and prior evidence unchanged.
+   A verified duration mismatch still needs a separately designed time-domain
+   solution; no automatic tolerance, affine mapping or stripping monotonic
+   time is authorised. Material time uncertainty still blocks causal claims.
+
+Alternatives: guess which branch fired and relax it; change time domains now;
+or retain refusal while obtaining all bounded clock facts in one observation.
+Recommend the last. Critical review fixes P1 silently accepting clock drift
+by preserving all checks; P1 ambiguous reason by covering every existing
+return in order; P1 epoch/private-data leakage with enum-only reason and bounded
+relative spans; P2 Node precision/partial pairs with exact integer ceiling and
+all-or-none validation; P2 breaking old exact contexts with a separate accessor/
+marker/helper; P2 false cause attribution with explicit deferred clock modelling.
+Repeat review found no remaining P0–P2 in this limited proposal. No test or code
+change is authorised yet; the product speed gate remains blocking.

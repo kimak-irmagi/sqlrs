@@ -285,3 +285,8 @@ A separate exact terminal-only unavailable-entry boundary is approved
 approved before implementation. Full small Linux Go/vet now pass at 715/726
 statements (98.48%), with 44 Node tests (helper lines 100%). Native UE07 is
 still required; no product optimisation or waiver of the speed gate.
+
+Native UE07 `42782782114` passes trace decoding, then fails the time summary
+(`clock`) at traced member 3. Original report retained; exact clock cause remains
+unknown. All regressions in CI `42782733993` pass, only aggregate coverage red.
+Complete closed clock-rejection context is proposed separately, not implemented.
