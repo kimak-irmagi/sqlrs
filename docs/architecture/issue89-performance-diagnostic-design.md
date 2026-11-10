@@ -490,10 +490,11 @@ Native UE07 `42782782114` then passed trace decoding but failed summary with
 the existing `clock` marker. Original evidence is retained in the test inventory.
 The exact time failure and product regression cause are not established.
 
-## Proposed: complete closed context for summary clock rejection
+## Approved: complete closed context for summary clock rejection
 
-Status: critically and repeatedly reviewed component proposal, not approved or
-implemented. A separate test inventory follows approval. Do not rerun the
+Status: component amendment explicitly approved by @evilguest on 2026-11-10
+after critical and repeat review; exact reply time unavailable. Not implemented.
+The separately reviewed CW01–CW07 inventory awaits approval. Do not rerun the
 unchanged observer, drop clock checks or claim the regression is localised.
 
 Current summary rejection covers four ordered checks: non-increasing wall
@@ -505,7 +506,7 @@ both values contain them, while UnixNano exposes calendar time. See the
 That makes mismatch plausible, not proved by the present report. Do not infer
 NTP, a kernel cause or a permissible tolerance from that hypothesis.
 
-Proposed boundary, only in the external observer:
+Approved boundary, only in the external observer:
 
 1. At each existing rejection return, retain a private typed error containing
    only reason `wall_order`, `elapsed_order`, `duration_mismatch`,
@@ -562,5 +563,5 @@ return in order; P1 epoch/private-data leakage with enum-only reason and bounded
 relative spans; P2 Node precision/partial pairs with exact integer ceiling and
 all-or-none validation; P2 breaking old exact contexts with a separate accessor/
 marker/helper; P2 false cause attribution with explicit deferred clock modelling.
-Repeat review found no remaining P0–P2 in this limited proposal. No test or code
-change is authorised yet; the product speed gate remains blocking.
+Repeat review found no remaining P0–P2 in this limited component boundary. Test
+approval is still required before tests/code; the product speed gate remains blocking.

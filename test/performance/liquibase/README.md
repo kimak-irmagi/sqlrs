@@ -84,7 +84,8 @@ regressions, only aggregate coverage red.
 Native UE07 run 42782782114 passes trace decoding, then fails summary `clock`
 at member 3. Original report retained; no exact clock/product cause established.
 All regressions in CI 42782733993 pass, only aggregate coverage red. A separate
-closed clock-context component proposal awaits approval; rejection is unchanged.
+closed clock-context component amendment is approved; the separately reviewed
+CW01–CW07 inventory awaits approval. No implementation or changed rejection yet.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.

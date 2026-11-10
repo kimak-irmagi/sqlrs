@@ -289,4 +289,5 @@ still required; no product optimisation or waiver of the speed gate.
 Native UE07 `42782782114` passes trace decoding, then fails the time summary
 (`clock`) at traced member 3. Original report retained; exact clock cause remains
 unknown. All regressions in CI `42782733993` pass, only aggregate coverage red.
-Complete closed clock-rejection context is proposed separately, not implemented.
+Complete closed clock-rejection context is separately approved (2026-11-10),
+not implemented; reviewed CW01–CW07 await separate test approval.

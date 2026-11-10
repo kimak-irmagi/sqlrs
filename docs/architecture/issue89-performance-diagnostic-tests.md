@@ -1140,3 +1140,112 @@ The summary's clock error currently conflates wall/elapsed ordering, unequal
 wall and monotonic spans, and reversed decoded intervals. Current evidence
 cannot distinguish them. A separate component proposal records all these
 branches without changing rejection; UE approval does not authorise that change.
+
+## Proposed CW01–CW07: closed clock rejection context
+
+Status: components explicitly approved on 2026-11-10; this critically and
+repeatedly reviewed test inventory awaits separate approval. No new tests/code
+or old-test changes yet. This identifies observer refusal, not a product cause.
+
+1. **CW01 — actual window checks and precedence.** Test the approved pure
+   validateDiagnosticWindow helper with independent inputs and literal expected
+   reasons: equal/reversed wall endpoints → wall_order; increasing wall with
+   zero/negative elapsed → elapsed_order; positive unequal spans in either
+   direction, including a one-nanosecond difference → duration_mismatch;
+   exact positive equality → success. Combine invalid conditions to assert the
+   original short-circuit precedence. Check errors.Is(err, errDiagnosticTrace)
+   and the unchanged fixed Error. Equal positive spans above 12 minutes still
+   succeed: the metadata ceiling must not become a new acceptance limit.
+2. **CW02 — real summary integration and preserved outcomes.** Exercise actual
+   summarizeDiagnosticIntervals with Unix-based windows: equal/reversed window,
+   reversed decoded interval after a valid window and simultaneous bad window/
+   bad interval. Assert the independently expected reason and precedence. Valid
+   clipped/overlapping, empty and zero-length work retains exact old covered/
+   residual/Commands results, with no failure metadata. A time.Now value and
+   its Add-derived endpoint exercise the actual public boundary without assuming
+   host drift or sleep timing; no unsafe/fabricated time.Time layout. CW01 proves
+   independent elapsed/mismatch branches; source wiring plus these real calls
+   checks their integration, not an impossible forced wall/monotonic fixture.
+   Summary errors remain errors and cannot produce a publishable success.
+3. **CW03 — Go metadata, bounds and privacy.** Inspect real CW01/CW02 errors,
+   errors wrapped with %w and errors.As/Is. Assert valid reason and exact relative
+   spans; wall_order/elapsed_order have unavailable pairs, duration_mismatch has
+   differing positive spans, interval_order has equal positive spans. Test one
+   nanosecond, exact ceiling 720000000000 ns and above-ceiling spans. For genuine
+   errors whose spans cannot be published, retain the known reason and withhold
+   both values. Nil/legacy/foreign errors give none plus an unavailable pair;
+   invented reasons and incoherent metadata must not be trusted. Never expose a
+   half pair, non-positive/out-of-range/overflowing number, mismatch with equal
+   spans or interval_order with unequal spans. Error/format/JSON/marker tests
+   use independent privacy sentinels and bounded expected values; the owned
+   error stores no calendar endpoint, interval/PID, time.Time or raw text.
+   Do not require rewriting arbitrary foreign errors' Error strings: inspect
+   them only through the safe accessor, as in RD03.
+4. **CW04 — separate Node parsing and unchanged old shapes.** Independently
+   specified fixed marker lines cover all four reasons, unavailable pair, exact
+   integer ceiling and coherent present pairs. Parse only full marker lines,
+   including the normal Go file:line prefix. Missing/unknown reasons, missing
+   tokens, half pair, fractions/NaN/infinity/negative/too-large integers,
+   inconsistent reason/pair, quoted embedded markers and extra source tokens
+   yield unavailable metadata without echoing input. Identical duplicate lines
+   may agree; conflicting lines must not pick an arbitrary first result. Compare
+   literal three-field output with null unavailable durations. Existing CX's
+   five fields, PX's two and RD's four are deep-equal with/without the new line;
+   successful report reconstruction and DG09 field dropping remain unchanged.
+5. **CW05 — real error-to-marker boundary and guarded publication.** Format
+   actual CW01/CW02 error metadata into the fixed Go marker and compare literal
+   reason/span or unavailable lines; CW04 consumes independent literals of the
+   same grammar. Preserve the old clock marker. Check the collector obtains
+   metadata only from the summary error, and the Node runner calls its separate
+   helper only when diagnosticFailure is clock, before persist/reject. Existing
+   CX/PX/RD literal wiring stays intact. Successful summaries, trace/journal/
+   transport errors and reports without the marker gain no fabricated clock
+   reason or durations. No raw buffer, timestamps or interval values are copied
+   into the report. Source guards supplement actual errors and native CW07;
+   they do not alone prove native transport or successful cleanup.
+6. **CW06 — old regressions and complete small verification.** Preserve all
+   DG/EU/CX/PX/UR/RD/UE checks, default/strict/cutoff behaviour, time sources,
+   fixed binaries/trace flags, real smoke/UR06 and eight-member schedule. Full
+   small Linux Go/vet, all Node tests, syntax/workflow/diff checks; per-line
+   coverage of ordinary helpers, target 100%, minimum 95%. If another coverage
+   iteration is needed, obtain a requirement-based plan/approval first. No old
+   test changes are proposed; re-audit after approval and ask separately about
+   any contradiction. No product workload or clock manipulation on the laptop.
+7. **CW07 — unchanged native attempt and retained evidence.** Explicitly launch
+   the approved observer in Actions: setup/smoke/UR06, then the original eight
+   serial members on both original executable hashes with independent DB/cache/
+   CLI oracles and exact cleanup. If clock recurs, the original incomplete
+   artifact must carry the actual known reason and coherent bounded pair or
+   explicit unavailability; no missing fields may be called proof of a cause.
+   If it does not recur, do not claim native failure transport was demonstrated;
+   require all eight and disclose observer cost/noise for complete collection.
+   Retain old and new original artifacts byte-for-byte. Do not retry unchanged
+   instrumentation after a proved new blocker, skip members or relax refusal.
+   Any clock mapping/fix needs separate design; product P01b remains blocking.
+
+### Critical and repeat review
+
+Corrections incorporated before submission:
+
+- P1 testing only an accessor/fabricated error misses a real rejection: CW01
+  exercises the actual pure validator; CW02 covers the real summary loop and
+  precedence; CW05/CW07 distinguish small publication from native transport.
+- P1 independently forced time.Time layouts or assumed host drift make the
+  suite unsafe/flaky: use the approved scalar boundary and deterministic Add,
+  with no sleep threshold, layout trick or host-clock modification.
+- P1 metadata bounds silently change acceptance: CW01 explicitly succeeds
+  beyond the ceiling; CW03 tests reason retained while the pair is withheld.
+- P1 two individually valid durations imply an impossible branch: CW03/CW04
+  check reason/pair coherence, all-or-none values and exact integer bounds.
+- P1 numeric evidence leaks original readings or arbitrary error text: relative
+  spans only, private sentinels at both boundaries and foreign-error inspection
+  limited to the safe accessor; fixed error cause/semantics preserved.
+- P2 additive metadata breaks old exact contexts: CW04 deep-equal old shapes,
+  CW05 separate helpers/guards, no proposed old-test rewrites.
+- P2 a nonrecurring clock error is reported as demonstrated transport or a
+  complete series as a product fix: CW07 states both evidence limits explicitly.
+
+Repeat review found no remaining P0–P2 within this bounded inventory. Preliminary
+old-test audit found no required change: existing summary tests require error,
+not identity equality; clock remains the same failure kind; exact CX/PX/RD
+shapes and source guards stay separate. Repeat this audit after test approval.
