@@ -293,7 +293,8 @@ that the requested program launched or that a specific syscall caused slowdown.
 Status: explicitly approved by @evilguest on 2026-11-10; exact reply timestamp
 unavailable. The separate UR01–UR07 inventory was subsequently approved before
 tests/code. The user separately authorised the exact UR01 duration correction.
-Full small Go/Node checks and Linux vet now pass; native UR06/UR07 remain open.
+Full small Go/Node checks and Linux vet now pass; native UR06 passes in
+42761268874, but UR07 still rejects an unknown pending record at member 3.
 
 The [strace 6.8 source](https://github.com/strace/strace/blob/v6.8/src/syscall.c#L1309)
 has explicit unknown-syscall formatting: a raw fallback, a numeric syscall name
@@ -343,5 +344,67 @@ invalid-fixture controls; P2 a green observer mistaken for acceptance with the
 unchanged P01b limit. Repeat review found no remaining P0–P2. The component
 amendment and the separately reviewed
 [UR01–UR07 inventory](issue89-performance-diagnostic-tests.md#proposed-ur01ur07-raw-syscall-grammar-and-unattributed-time)
-are approved. Local implementation retains strict/default parsing; UR06 and the
-eight remote members have not been launched with it. See the test checkpoint.
+are approved. Implementation retains strict/default parsing. Native UR06 passes,
+but the eight-member collection remains incomplete. See the test checkpoint.
+
+## Proposed: complete fixed detail of raw-grammar rejection
+
+Status: reviewed proposal, not approved/implemented. Run 42761268874 proves that
+native numeric compatibility is insufficient: the workload's unknown pending
+record is still not accepted, and the current report cannot explain why. Do not
+broaden grammar based on that family label alone.
+
+For context only, [strace's entry decoder](https://github.com/strace/strace/blob/v6.8/src/syscall.c#L546)
+also has a register/argument-read failure path printing an entry before arguments.
+That is a possible source of a different shape, **not established by this report**.
+The next observation must distinguish shapes rather than adopt that hypothesis.
+
+Proposed component boundary, without any new accepted syntax:
+
+1. At the existing unknown-raw rejection point, derive only four fixed enums
+   from the already-read private record. `rawNameFamily`: `numeric`, `fallback`,
+   `other`, `none`; `rawArgumentCount`: `empty`, `short`, `six`, `extra`, `none`
+   (closed arity classes, not raw lengths/counts); `rawArgumentKind`: `numeric`,
+   `unavailable`, `other`, `none`; `rawRejectStage`: `name`, `framing`, `arity`,
+   `argument`, `result`, `duration`, `other`, `none`. Each has unavailable `none`.
+   `short` means 1–5 comma-separated slots, `extra` more than six; classify slots
+   only within an anchored argument region. `numeric` requires the existing raw
+   token grammar; `unavailable` only the exact `<unavailable>` marker occupying
+   that region; otherwise `other`. Unlocatable/ambiguous regions give `none`.
+   Empty arguments have kind `none`; the unavailable marker is not an argument
+   list and has count `none`. Nonempty slot classes permit only numeric/other
+   kinds. Do not split quoted/nested ambiguous text to manufacture a slot count.
+2. Keep the raw parser's real rejection stage when available; otherwise report
+   `other`, never an invented more precise stage. An unfinished entry at terminal
+   keeps the original pending-entry context: its missing return is not a reason
+   to pretend successful exec. Derive metadata from that entry, not exit text.
+   Preserve original error code, wrapped-error inspection, prefix and old context.
+   Store only enums in errors; no body, syscall number, PID, tokens, errno text,
+   raw length, hash or scrubbed substring. No extra reading or trace flags.
+   Ownership stays in the standalone Go benchmark module: the raw parser creates
+   a private enum-only failure value; pending state retains that value from the
+   original parse, not a guessed stage from re-parsing a trimmed fragment. The
+   existing error wrapper/accessor exposes only that value. Nothing is persisted.
+3. A separate Go metadata accessor/marker and separate Node reconstruction add
+   these fields only on an actual failed unknown-syscall record. Do not change
+   the exact old CX/PX helper shapes, successful records, interval totals or field
+   dropping. Validate enum values/combinations on both sides; foreign/missing
+   values become `none`, never copied strings. A raw diagnostic failure retains
+   the same report rejection, last-reached stage and cleanup evidence.
+   Use a separate fixed `P01B_DIAGNOSTIC_RAW_CONTEXT` marker and Node helper in
+   diagnostic.mjs; run-diagnostic.mjs remains the sanitized report owner. No new
+   public API, DB table, product package or observer success path is introduced.
+4. Keep all strict/default and malformed PX02/UR negatives, UR06 prerequisite,
+   original binaries and eight serial members. Do not accept a previously rejected
+   record, infer a successful syscall/JVM, discard a trace, export raw data or
+   optimise the product. Test inventory is separate after component approval.
+
+Alternatives: continue guessing grammar; retain the observer failure and choose
+a different observer; or expose complete fixed rejection structure at once.
+Recommend the last. Critical review: P1 token leakage — enum-only construction
+before publication; P1 fabricated diagnosis — explicit unavailable/ambiguous
+states and preserved parser stage; P1 widening grammar — rejection unchanged;
+P2 old exact helpers silently changed — separate metadata boundary; P2 smoke
+mistaken for workload compatibility — retain independent native/eight-member
+evidence. Repeat review found no remaining P0–P2 within this proposal. This still
+may not establish a product cause; unsupported observations remain a blocker.

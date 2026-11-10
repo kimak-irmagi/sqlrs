@@ -785,3 +785,23 @@ compile-only C checks pass. Default strict/PX02/EU/CX assertions are unchanged.
 This qualifies the small helper boundary, not native UR06/UR07 or product speed.
 Source CI `42667271833` also passes every regression job (only the unchanged
 aggregate coverage gate is red); it predates these local observer changes.
+
+### Native UR06 passed; UR07 remains incomplete (2026-11-10)
+
+Run [42761268874](https://github.com/kimak-irmagi/sqlrs/actions/runs/42761268874)
+uses exact observer `370225fc7759f899b3e46f0ac367f68fe1b59f8e`. Native
+`TestDiagnosticRawSyscallSmoke` passes (0.08 s): actual filtered raw output, exact
+child/arguments, independent ENOSYS, measured decoding and private disposal.
+The two ordinary members pass their full DB/cache/cleanup oracles. Traced member
+3 (v1) still rejects `trace_8 / pending_entry / other / unknown_syscall / other`,
+last stage `oracle`, cleanup boundary `unknown`. Native positive compatibility
+does not prove the workload's failing record matches the six-numeric-argument
+subset; its argument shape/value is not in this report. No new grammar is inferred.
+
+The original incomplete JSON is retained
+[unchanged](issue89-diagnostic-evidence-2026-11-10/42761268874/jhipster-diagnostic.json),
+SHA256 `bedbd5ec577dae5afa3026b4cd4cbb4f6d51fe20af440ffee1e97bc38befdb97`.
+Source CI [42761251963](https://github.com/kimak-irmagi/sqlrs/actions/runs/42761251963)
+passes all regression jobs; only the unchanged aggregate coverage gate is red.
+No successful eight-member collection, exact product cause or speed acceptance
+is claimed. Further fixed rejection detail requires separate component/test approval.

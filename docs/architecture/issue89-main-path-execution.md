@@ -264,3 +264,10 @@ implementation passes full small Go/vet (644/654, 98.47%; new raw helpers 100%)
 and 41 Node tests (helper lines 100%) after the separately approved UR01 boundary
 correction. Native UR06/UR07 remain open. All ordinary regression jobs
 of source CI `42665129132` pass; only unchanged coverage-merge is red.
+
+Native `42761268874` on observer `370225f` passes UR06 (actual invalid syscall,
+0.08 s) and both ordinary members, then again rejects the unknown pending record
+at traced v1 member 3. The original report is retained in the diagnostic test
+inventory; no complete collection or product cause. CI `42761251963` passes all
+regressions, only coverage-merge red. Complete fixed raw-rejection detail is
+proposed in the diagnostic design; no further syntax/code change is authorised.

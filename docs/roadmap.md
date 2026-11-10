@@ -133,6 +133,10 @@ with unattributed time and separate UR01–UR07 tests are approved (2026-11-10).
 Full small Go/vet pass after the approved UR01 correction: 644/654 statements
 (98.47%; new raw helpers 100%). All 41 Node tests pass (helper lines 100%).
 Native UR06/UR07 remain open; no product cause claimed.
+Subsequent native `42761268874` passes UR06 (0.08 s) and both plain members but
+UR07 still rejects an unknown pending record at traced member 3. Original report
+retained; fixed rejection-detail proposal awaits component/test approval. All
+regression jobs of CI `42761251963` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head

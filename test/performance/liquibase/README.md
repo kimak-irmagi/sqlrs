@@ -67,6 +67,10 @@ unattributed process-time amendment and separate UR01–UR07 tests are approved
 Go/vet pass at 644/654 statements (98.47%; new raw helpers 100%) and all 41 Node
 tests pass (helper lines 100%). Native UR06/UR07 remain open; the raw-syscall
 probe runs only in Actions, never on the laptop.
+Native 42761268874 subsequently passes UR06 (0.08 s) and the two plain members,
+but traced v1 member 3 still rejects an unknown pending record. Original report
+retained; full raw-rejection detail is proposed separately, not implemented.
+All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.
 Its internal samples are emitted only after oracle verification and successful
