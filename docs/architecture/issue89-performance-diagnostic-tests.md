@@ -1418,3 +1418,16 @@ helpers **100% lines / 97.39% branches**. Syntax/workflow/diff checks pass.
 Default output and strict CW validation remain unchanged; API elapsed still
 uses original monotonic endpoints. Native MC08, actual nonzero alignment
 transport and the product slowdown cause remain to be established in Actions.
+
+### Native MC08 complete (2026-11-10)
+
+Actions `42802379397`, observer `81cc3a1`, completed all eight members and all
+16 passes against the original executable hashes. Database/cache/CLI oracles
+and exact cleanup passed. All eight traced summaries carry signed ClockDeltaNS:
+`-10, -10, 0, -10, -10, 0, -10, -9`. The original report is retained unchanged,
+SHA256 `3e9bfe734748626f2b0f274bcfbc74ef3c8ccac980ea89f81e5efd3eda72af7d`.
+See [results and attribution limits](issue89-diagnostic-results-2026-11-10.md).
+MC08/original diagnostic collection is complete; exact whole-regression cause,
+a product fix and unchanged performance acceptance remain open. Source CI
+`42802317646` passes all regression jobs, only aggregate coverage is red under
+the approved #89 exception. No additional coverage iteration or product change.

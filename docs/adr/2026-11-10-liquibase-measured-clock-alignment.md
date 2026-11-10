@@ -46,3 +46,11 @@ error/metadata rules, old evidence and the product speed gate remain in force.
   or product timing/performance-criterion change are authorised.
 - Rationale: make bounded observation uncertainty explicit without silently
   converting API elapsed time or presenting a small test as native evidence.
+
+## Verification, 2026-11-10
+
+Native MC08 Actions `42802379397`, observer `81cc3a1`, completes all eight
+members/16 passes with original binaries, all workload oracles and exact cleanup.
+The eight traced deltas are -10/-9/0 ns, all explicitly retained. See the
+[unchanged report and attribution limits](../architecture/issue89-diagnostic-results-2026-11-10.md).
+This verifies the observation boundary, not a product optimisation or speed waiver.

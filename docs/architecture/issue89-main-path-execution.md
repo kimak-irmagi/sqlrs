@@ -302,3 +302,13 @@ only aggregate coverage red. Measured-only bounded alignment is separately
 approved with separate MC01–MC08 approval and implemented. Full small Linux
 Go/vet passes at 98.58% (new helpers 100%), all 49 Node tests pass (helper lines
 100%). Native MC08 remains open; strict helpers and product timing unchanged.
+
+Update: native MC08 `42802379397` on observer `81cc3a1` completes the original
+eight-member/16-pass diagnostic cohort, including all oracles and exact cleanup.
+The [retained report and analysis](issue89-diagnostic-results-2026-11-10.md)
+reproduce ordinary fresh v2 delays of 6.757–9.897 s and cached delays of
+1.319–1.920 s. Tracer overhead differs strongly by route; total traced time is
+not a speed verdict. Extra image probing and Docker round trips are identified
+in source, but complete low-level attribution remains open. All regressions in
+CI `42802317646` pass; only approved-exception aggregate coverage fails. No
+product optimisation, speed waiver or merge readiness is claimed.

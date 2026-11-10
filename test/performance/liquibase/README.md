@@ -95,8 +95,13 @@ retained; CI 42789081930 passes all regression jobs, only aggregate coverage red
 Measured-only bounded alignment and separate MC01–MC08 are approved and
 implemented. Full small Linux Go/vet passes at 765/776 statements (98.58%;
 new helpers 100%), all 49 Node tests pass (helper lines 100% / branches 97.39%).
-Native MC08 remains open; no product cause or complete eight-member collection
-is claimed. Strict helpers/default shapes and product timing remain unchanged.
+Native MC08 `42802379397` now completes all eight members and 16 passes; every
+oracle and exact cleanup passed. Signed clock deltas are -10/-9/0 ns. The original
+report and [analysis](../../../docs/architecture/issue89-diagnostic-results-2026-11-10.md)
+are retained. Ordinary regression persists; route-dependent tracer overhead and
+residual time preclude complete causal attribution. Strict helpers/default
+shapes, product timing and the acceptance gate remain unchanged. Earlier open
+native checkpoints above describe history, superseded by this complete cohort.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.

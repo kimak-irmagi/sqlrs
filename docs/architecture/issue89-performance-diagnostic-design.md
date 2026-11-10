@@ -643,3 +643,48 @@ new helpers 100%) and all 49 Node tests (ordinary helpers 100% lines / 97.39%
 branches). Strict helpers/default output are unchanged; measured output requires
 signed ClockDeltaNS and calendar geometry within the approved bounds. Native
 MC08 remains required; no product performance change or acceptance is claimed.
+
+## Native completion and proposed command-role refinement (2026-11-10)
+
+MC08 `42802379397` completes all eight members/16 passes. See the
+[retained evidence and reviewed analysis](issue89-diagnostic-results-2026-11-10.md).
+Clock observation is unblocked; product speed acceptance is not.
+
+**Proposed, not approved/implemented.** Refine roles of already captured exec
+arguments. No new trace syntax, syscalls, payloads, product hooks or changed
+binary. Keep strict/default classification and old report shapes unchanged.
+
+1. Add a measured-role classifier for Docker container listing, offline image
+   inventory, PostgreSQL start/stop/status and permission commands, helper apply
+   versus probe-prune, and the fixed idle probe. These remain synchronous client
+   intervals, not container-internal Java telemetry or successful SQL evidence.
+2. Parse supported Docker option positions before selecting container/program.
+   Match exact command structure, never secret/SQL/env substrings. Recognise
+   shell probes only by exact fixed-source script bytes/digest, not interpretation
+   of arbitrary shell. Unknown forms retain generic categories, not failure or
+   a guessed specific role. No argv/script/ID is exposed.
+3. Add only fixed category values in an explicit measured-role report path with
+   a required role-revision marker. Go/Node use the same allowlist; the runner
+   cannot silently fall back. Preserve every interval's count, endpoints,
+   clipping, union, clock delta and residual. Old artifacts remain byte-unchanged.
+   Keep independent workload/CLI counters; helper probes are not JVM launches.
+4. After separate test approval and small verification, repeat the original eight
+   Actions members against the same pinned binaries. Deleted private traces
+   cannot be retrospectively reclassified from sanitized reports. No laptop run,
+   unchanged retry or replacement acceptance cohort. Retain route-dependent
+   observation overhead and residual limits in all conclusions.
+
+Alternatives: optimise from coarse counts; add product instrumentation, changing
+the measured binary; or refine existing observation. Recommend the last as the
+smallest measurement change. It does **not** promise to resolve SQLite versus
+FS/CPU time in the residual. A significant unexplained remainder still prevents
+an exact whole-regression claim. Product fixes, persistent JVM, #104 and recovery
+matrices are not authorised.
+
+Critical review fixed P1 false recognition through arbitrary argv values by
+requiring option/command positions and exact scripts; P1 silent fallback by a
+required revision; P1 fictitious migration counts by preserving independent
+counters; P1 invented savings by retaining overhead/residual limits; P2 old-test
+changes by a separate mode; P2 rewritten history by fresh evidence. Repeat review
+found no remaining P0–P2 in this bounded proposal. Obtain component approval
+first; present a reviewed test inventory separately before tests/code.

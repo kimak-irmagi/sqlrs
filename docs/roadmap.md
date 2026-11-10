@@ -154,8 +154,13 @@ Native `42789132449` identifies the observer's exact refusal: duration_mismatch,
 −9 ns over 73.67 s. Original report retained; all CI `42789081930` regressions
 pass except aggregate coverage. Measured-only bounded alignment and separate
 MC01–MC08 are approved and implemented: small Linux Go/vet 98.58% (new helpers
-100%), 49 Node tests (helper lines 100%). Native MC08/complete collection and
-product cause remain open; strict helpers/product timing are unchanged.
+100%), 49 Node tests (helper lines 100%). Native MC08 `42802379397` completes all
+eight members/16 passes with all oracles/cleanup successful; the original report
+and [analysis](architecture/issue89-diagnostic-results-2026-11-10.md) are retained.
+Ordinary v2 regression persists. Route-dependent tracing overhead prevents
+equating traced totals with acceptance; exact whole-regression cause/fix remain
+open. All CI `42802317646` regressions pass, only aggregate coverage red. Strict
+helpers/product timing and the speed gate are unchanged.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 
