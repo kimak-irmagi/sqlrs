@@ -274,3 +274,11 @@ separately approved (2026-11-10), followed by separate RD01–RD07 approval.
 Implementation passes full small Go/vet (703/714, 98.46%; new detail helpers 100%)
 and 43 Node tests (helper lines 100%). Old strict/codes/CX/PX/UR remain unchanged;
 native RD07 and exact product localisation are still open.
+
+Native RD07 `42772724450` verifies actual detail transport: member 3 reports
+`fallback / empty / none / arity` for a terminal pending entry. The original
+incomplete report is retained in the test inventory. This establishes the
+observer's empty `???(` refusal, not the absent syscall/kernel cause or product
+slowdown. All regressions in CI `42772612811` pass; only coverage-merge red.
+A separate exact terminal-only unavailable-entry boundary is proposed, not
+implemented; it requires component and named test approvals before acceptance.

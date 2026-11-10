@@ -958,3 +958,24 @@ and pending state keep only closed detail from the original failed parse;
 metadata construction never authorises raw input or creates successful intervals.
 Native RD07 remains required: small checks do not prove report transport in the
 real failing workload, complete collection or the product's regression cause.
+
+### Native RD07 proves the rejected shape, collection still incomplete
+
+Run [42772724450](https://github.com/kimak-irmagi/sqlrs/actions/runs/42772724450)
+uses exact observer `c8643b7d3a8a21ed76f4d71b611a73b1041be3a4`. Setup, both
+native probes and the two plain members pass. Traced v1 member 3 rejects the
+same pending entry, now with actual closed detail:
+`fallback / empty / none / arity`. Thus the failed raw parse saw `???(` with
+an empty argument region, not six decoded numeric arguments. Its original arity
+failure survived to the same PID's terminal record. The metadata does not prove
+the absent syscall number, the kernel cause, a successful JVM, the absence of
+intervening same-PID events or successful oracles for the failed traced member.
+
+The original incomplete report is retained
+[unchanged](issue89-diagnostic-evidence-2026-11-10/42772724450/jhipster-diagnostic.json),
+SHA256 `6b3962a8a3648c9fdd37313a6c9322a812612cc86c5130f3ca45d187c01d944c`.
+CI [42772612811](https://github.com/kimak-irmagi/sqlrs/actions/runs/42772612811)
+passes all regression jobs, only unchanged aggregate coverage red. This verifies
+real Go→Node→artifact metadata transport, not complete diagnostic collection or
+product speed acceptance. A narrow unavailable-entry rule is proposed separately;
+no new acceptance or old-test change is implemented under RD01–RD07.

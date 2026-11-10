@@ -413,3 +413,69 @@ evidence. Repeat review found no remaining P0–P2 within this amendment. This s
 may not establish a product cause; unsupported observations remain a blocker.
 The separately reviewed [RD01–RD07 inventory](issue89-performance-diagnostic-tests.md#proposed-rd01rd07-fixed-raw-rejection-detail)
 is approved. Old strict grammar/codes and CX/PX helper shapes are unchanged.
+
+Native RD07 `42772724450` subsequently establishes the actual rejected structure:
+`fallback / empty / none / arity`. Original metadata/report are retained in the
+test inventory. This is now an observed empty fallback entry, not a hypothesis
+that an otherwise complete six-argument raw call had a malformed numeric token.
+Complete collection and the product's slowdown cause remain open.
+
+## Proposed: terminal unavailable fallback entry, measured mode only
+
+Status: critically and repeatedly reviewed, not approved/implemented. This is
+a narrow new observer-acceptance boundary; RD metadata approval does not authorise
+it. Tests and any named old-test amendments require separate approval afterwards.
+
+The observed original parser stage `arity` plus `fallback/empty` identifies an
+unfinished `???(` with only horizontal formatting before `<unfinished ...>`.
+The [strace entry decoder](https://github.com/strace/strace/blob/v6.8/src/syscall.c#L546)
+has a register/argument acquisition failure path that prints a syscall prefix
+before arguments; its [fallback entry](https://github.com/strace/strace/blob/v6.8/src/syscall.c#L1309)
+is named `???`. That is consistent with unavailable observation, not evidence of
+which ptrace/kernel failure occurred in this run or which syscall executed.
+
+Proposed measured-only boundary:
+
+1. Recognise exactly `???(`, at least one horizontal space/tab, and
+   `<unfinished ...>`, anchored over the whole body. No arguments, closing
+   parenthesis, result, text, number, unavailable marker or other name. Model
+   this separately from a decoded raw call; parseDiagnosticRaw still requires
+   six arguments and still rejects this entry. No generic zero-argument grammar.
+2. Keep a private in-memory unavailable-entry tag/start time in the existing
+   per-PID pending state of the standalone benchmark module. Its only permitted
+   next event for that PID is the existing exact terminal marker (natural or
+   signal). Other PIDs may interleave independently. Duplicate pending, resume,
+   numeric result, another exec/call, reversed time, EOF, quota or reader failure
+   remain incomplete/error. Another PID's exit cannot close this pending entry;
+   it still needs its own terminal. Never infer a thread/PID handoff.
+   Do not consume or reinterpret any extra same-PID events to reach a terminal.
+3. After that exact terminal proof, retain only `process.unattributed` time from
+   the unavailable entry to exit. End a prior confirmed image at entry; if this
+   PID already has unattributed time, preserve its earlier start without overlap
+   or duplicate intervals. No prior image is needed. Exclude engine lifetime
+   while still validating it. Preserve existing API clipping/union/zero-duration
+   rules. This is not decoded syscall latency, successful exec or JVM/CLI start;
+   independent workload counts, DB/cache oracles and exact group cleanup remain.
+4. The default strict decoder/cutoff policy, numeric/raw parser, every other
+   malformed PX02/UR form and fixed metadata privacy stay unchanged. Existing
+   `process.unattributed` is reused, with no new public report fields/category,
+   API, table, product code, trace flags or retry authority. Missing completion
+   remains a failure; important unattributed time still limits causal claims.
+5. Future tests must distinguish the new unavailable entry from numeric/raw
+   parse failure and exact invalid near-misses. Old RD tests intentionally treat
+   the observed empty entry as an error; no expectation is silently rewritten.
+   After component approval, inventory the precise contradictory subcases and
+   request named amendments separately. Keep old native smoke/UR06 and the
+   original eight serial Actions members, unchanged product bytes and P01b.
+
+Alternatives: retain full rejection; discard the placeholder (rejected: hides
+uncertainty); invent six arguments/known executable (rejected); or retain only
+terminal-proved unattributed process time. Recommend the last. Critical review
+fixed P1 accidental arbitrary empty-call acceptance with the exact anchored
+placeholder; P1 false success/image with a separate pending tag and no known
+category; P1 accepting EOF/extra events with an exact same-PID terminal-only
+transition; P1 overlap with earlier unattributed time through one PID timeline;
+P2 silent old-test weakening through a separate named-amendment gate. Repeat
+review found no remaining P0–P2 within this boundary. This removes the confirmed
+observer refusal only if the real sequence satisfies those conditions; it does
+not promise all eight members will pass or localise/fix the product regression.

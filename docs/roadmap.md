@@ -140,6 +140,10 @@ with separate RD01–RD07 subsequently approved. Detail implementation passes fu
 small Go/vet (703/714, 98.46%; new helpers 100%) and 43 Node tests (helper lines
 100%); native RD07 remains open, old strict rejection and assertions unchanged. All
 regression jobs of CI `42761251963` pass, only aggregate coverage red.
+Actual RD07 `42772724450` verifies `fallback / empty / none / arity` at traced
+member 3. Original incomplete report retained; no exact product cause. A narrow
+terminal-only unavailable-entry amendment awaits approval, not implemented.
+All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
