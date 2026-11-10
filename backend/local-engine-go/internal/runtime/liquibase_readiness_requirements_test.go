@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -31,8 +32,8 @@ func readinessRequirementsRunner(t *testing.T, want SessionReadinessIdentity, da
 	runner := &captureFilesRequirementsRunner{archives: map[string][]byte{
 		want.RunnerID + ":/sqlrs/capture/ready.complete": artifactRequirementsTar(t, "ready.complete", data, tar.TypeReg, false),
 	}}
-	runner.responses = append(accessInspection(want.RunnerID, "sqlrs-lb-session-ready", "running", 0),
-		accessInspection(want.RunnerID, "sqlrs-lb-session-ready", "running", 0)...)
+	runner.responses = append(presentInspection(want.RunnerID, "sqlrs-lb-session-ready", "running", 0),
+		presentInspection(want.RunnerID, "sqlrs-lb-session-ready", "running", 0)...)
 	return runner
 }
 
@@ -89,17 +90,17 @@ func TestLiquibasePrivateReadinessExactObservation(t *testing.T) {
 			case "oversize":
 				data = append(data, []byte(strings.Repeat(" ", 8193))...)
 			case "before_id":
-				runner.responses = accessInspection(strings.Repeat("f", 64), "sqlrs-lb-session-ready", "running", 0)
+				runner.responses = presentInspection(strings.Repeat("f", 64), "sqlrs-lb-session-ready", "running", 0)
 			case "before_exited":
-				runner.responses = accessInspection(want.RunnerID, "sqlrs-lb-session-ready", "exited", 0)
+				runner.responses = presentInspection(want.RunnerID, "sqlrs-lb-session-ready", "exited", 0)
 			case "before_paused":
-				runner.responses = accessInspection(want.RunnerID, "sqlrs-lb-session-ready", "paused", 0)
+				runner.responses = presentInspection(want.RunnerID, "sqlrs-lb-session-ready", "paused", 0)
 			case "after_id":
-				runner.responses = append(accessInspection(want.RunnerID, "sqlrs-lb-session-ready", "running", 0), accessInspection(strings.Repeat("f", 64), "sqlrs-lb-session-ready", "running", 0)...)
+				runner.responses = append(presentInspection(want.RunnerID, "sqlrs-lb-session-ready", "running", 0), presentInspection(strings.Repeat("f", 64), "sqlrs-lb-session-ready", "running", 0)...)
 			case "after_exited":
-				runner.responses = append(accessInspection(want.RunnerID, "sqlrs-lb-session-ready", "running", 0), accessInspection(want.RunnerID, "sqlrs-lb-session-ready", "exited", 0)...)
+				runner.responses = append(presentInspection(want.RunnerID, "sqlrs-lb-session-ready", "running", 0), presentInspection(want.RunnerID, "sqlrs-lb-session-ready", "exited", 0)...)
 			case "after_absent":
-				runner.responses = accessInspection(want.RunnerID, "sqlrs-lb-session-ready", "running", 0)
+				runner.responses = append(presentInspection(want.RunnerID, "sqlrs-lb-session-ready", "running", 0), runResponse{err: errors.New("container absent")})
 			}
 			key := want.RunnerID + ":/sqlrs/capture/ready.complete"
 			file, kind := "ready.complete", byte(tar.TypeReg)
@@ -116,7 +117,7 @@ func TestLiquibasePrivateReadinessExactObservation(t *testing.T) {
 			}
 			got, err := NewDocker(Options{Binary: "configured-docker", Runner: runner}).ReadLiquibaseSessionReadiness(context.Background(), "sqlrs-lb-session-ready", want)
 			if variant == "control" {
-				if err != nil || got.ReadyDigest != captureDigest(data) || got.ReadyBytes != int64(len(data)) || len(runner.copies) != 1 || len(runner.calls) != 4 {
+				if err != nil || got.ReadyDigest != captureDigest(data) || got.ReadyBytes != int64(len(data)) || len(runner.copies) != 1 || len(runner.calls) != 2 {
 					t.Fatalf("exact ready marker was not independently verified: err=%v digest_ok=%t bytes=%d/%d copies=%d inspections=%d", err, got.ReadyDigest == captureDigest(data), got.ReadyBytes, len(data), len(runner.copies), len(runner.calls))
 				}
 				if runner.deadlines[0].IsZero() {
@@ -181,7 +182,7 @@ func TestLiquibasePrivateReadinessDeadlineAndCancellation(t *testing.T) {
 			}
 			if variant == "cancel_after_inspection" {
 				runner.afterText = func(calls int) {
-					if calls == 4 {
+					if calls == 2 {
 						cancel()
 					}
 				}

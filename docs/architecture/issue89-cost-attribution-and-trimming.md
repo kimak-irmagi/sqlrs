@@ -2,7 +2,7 @@
 
 Status, 2026-11-10: @evilguest approved the direction and then explicitly approved
 the reviewed component details below. Exact reply timestamp unavailable.
-**The separate test inventory is pending; no code/tests changed.**
+**CT01–CT14 are separately approved; implementation is starting tests-first.**
 This replaces the unapproved proposal to refine strace command roles first.
 No public CLI syntax, API, database schema or SQL-replay policy changes.
 
@@ -214,5 +214,75 @@ the candidate without recording new identity; omitting the observer-off control.
 
 Repeat review found no remaining P0–P2 in this bounded design. No speed saving
 is promised in advance. Components are now approved; the
-[reviewed test inventory](issue89-cost-attribution-and-trimming-tests.md) and
-named old-test contradictions require separate approval before tests/code.
+[reviewed test inventory](issue89-cost-attribution-and-trimming-tests.md) is
+separately approved. Named old-test contradictions still require their own approval.
+
+## 7. Implementation checkpoint (2026-11-10, not acceptance)
+
+- CT01–CT14 and limited OT-CT01 are approved. New inspect/archive tests first
+  failed for absent implementations; updated old fixtures failed on the old
+  list+inspect path before the consumer cutover. Fresh O2 tests reproduced
+  `ensure, inventory, ensure` rather than the required single ensure.
+- O1 now uses the saved full ID directly at invocation, output pre/post,
+  readiness pre/post and prune pre/post. Discovery/absence remain unchanged.
+  O3 is connected only for session output: one bounded directory archive, the
+  same completion verifier, and unchanged idle/pre/post proofs. O2 fresh/saved/
+  moved-tag/refused ensure/refused inventory/refused real SQLite binding tests
+  pass; no inventory/tag cache or implicit retry was introduced.
+- Focused connected runtime tests pass, including exact command/copy order,
+  binary stream bytes/hashes, foreign/renamed/changed parent, idle refusal,
+  incomplete archive and cancellation. Ordinary runtime full run has two
+  failures in the unamended `TestPrivateStepRuntimeLiveAndStopped` fixture;
+  limited OT-CT02 is requested separately, not silently applied.
+- First line-level measurements: O1 inspect/shared decoder 100%; new archive
+  reader 84/87 statements (96.55%; decoder function 95.2%). The three uncovered
+  statements are USTAR prefix joining, legacy regular-header normalization,
+  and the final standard-reader EOF refusal. They are not declared dead code.
+  Package-wide selected-test coverage is not a full-runtime/feature verdict.
+- Preliminary `preparecost` owns a closed initial source catalog, recorder,
+  pure union/self/exclusive accounting and helper-local detail decoder. Exact
+  numeric overlap and quota cases pass. It is **not** connected to the worker,
+  helper scripts, private stderr transport, collector, Node or Actions yet.
+  The recorder run exposes one allocation in its own reflect-based assertion;
+  the helper decoder run exposes an incorrect negative overflow example.
+  Narrow new-test corrections are awaiting approval; neither failed run is
+  reported as a green coverage qualification.
+- Focused prepare binding tests and `go vet ./internal/preparecost
+  ./internal/runtime` pass. O4 remains gated on the pinned image's actual sync
+  semantics in Actions. No native workload/benchmark ran on the laptop, no new
+  candidate was frozen, and no performance improvement is claimed. The old
+  diagnostic artifact SHA256 remains
+  `3e9bfe734748626f2b0f274bcfbc74ef3c8ccac980ea89f81e5efd3eda72af7d`.
+
+### Approved corrections and green ordinary checkpoint
+
+The user approved OT-CT02 and both new-test corrections; they are applied without
+other old-test changes. Full ordinary engine `go test ./... -count=1 -timeout=12m`
+passes on Windows, including prepare, queue and managedstore. Native opt-ins were
+checked to be off; this is not native Docker evidence. `go vet` of preparecost,
+runtime and prepare passes. All 51 Node performance-helper/workflow tests pass.
+
+New ordinary preparecost helpers measure 99.6% overall; the encoder, helper-detail
+decoder and outcome-preserving Observe/ObserveCall boundaries are individually
+100%. Real runtime read/inventory tests now verify the actual nested Docker/copy
+spans, phase/step, counts and unchanged failure results. Docker command spans are
+shared-purpose v1 counterparts, not a claim that every command is additional.
+The v1 `DockerRuntime.run` and `hostLiquibaseRunner.Run` symbols were inspected
+directly at the pinned released source `cab99c4c7ced5b18f4dc43a65b002d84d8fef02d`.
+
+The new private emitter has closed begin/span/end frames, validates complete
+evidence before output, and serializes concurrent roots. It is not connected to
+the worker/collector yet; no full transport/attribution qualification is claimed.
+The initial source catalog remains deliberately partial until further named
+boundaries are tested and connected.
+
+The separate `.github/workflows/liquibase-cost-probe.yml` runs only on the explicit
+`performance:cost-probe` label of this repository's own PR, on Ubuntu 24.04 with
+read-only permissions and a 20-minute bound. Its new reviewed Node checks pass.
+It runs `TestCostSyncImplementationDocker` (actual GNU utility/version/hash and
+same filesystem, before O4 changes) and the unchanged real reusable-runner test
+(three JVM calls, incomplete manifest and surviving-child refusal). Only the
+public image is acquired, no database/JDBC/strace/acceptance cohort is involved;
+there is no raw-log artifact. Native exact-ID cleanup remains mandatory. A green
+probe permits implementing O4; it does not qualify durability under power loss,
+the four-flush failure matrix or the subsequent unchanged speed gate.

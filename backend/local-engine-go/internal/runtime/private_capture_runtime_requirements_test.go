@@ -164,17 +164,17 @@ func TestPrivateStepRuntimeLiveAndStopped(t *testing.T) {
 			manifest["child_exit_code"] = 7
 			writeStepCaptureFixture(t, dir, manifest, nil, nil)
 			name := "sqlrs-lb-private-step"
-			runner := &captureFilesRequirementsRunner{archives: privateCaptureArchives(t, dir, identity.RunnerID, identity.InvocationRef)}
-			runner.responses = accessInspection(identity.RunnerID, name, phase, 23)
+			runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
+			runner.responses = presentInspection(identity.RunnerID, name, phase, 23)
 			if phase == "running" {
 				runner.responses = append(runner.responses, runResponse{output: "sqlrs-step-idle-v1\n"})
 			}
-			runner.responses = append(runner.responses, accessInspection(identity.RunnerID, name, phase, 23)...)
+			runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, phase, 23)...)
 			got, err := NewDocker(Options{Runner: runner}).ReadCompleteLiquibaseStepOutput(context.Background(), name, identity.RunnerID, dir, identity, 1024)
 			if err != nil || got.ExitCode != 7 {
 				t.Fatalf("complete child result rejected: phase=%s failed=%t exit=%d", phase, err != nil, got.ExitCode)
 			}
-			if len(runner.copies) != 3 {
+			if len(runner.copies) != 1 {
 				t.Fatal("step did not use private artifact transport")
 			}
 			probes := 0

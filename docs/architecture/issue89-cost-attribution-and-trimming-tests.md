@@ -2,9 +2,10 @@
 
 Status, 2026-11-10: [components approved](issue89-cost-attribution-and-trimming.md)
 by @evilguest. CT01–CT14 below have undergone critical and repeat review and are
-**proposed for separate approval**, not implemented. No old test change is
-authorised. After approval, audit existing tests for contradictions and seek
-named fixture/assertion amendments; preserve all other controls.
+**explicitly approved before implementation**; exact reply timestamp unavailable.
+CT approval itself does not authorise old test changes. The post-approval audit
+below records separately approved OT-CT01/OT-CT02 and new-test corrections; preserve all
+other controls.
 
 ## Inventory and independent expectations
 
@@ -177,3 +178,61 @@ named fixture/assertion amendments; preserve all other controls.
 Repeat review found no remaining P0–P2 within this inventory. This is not a
 coverage-only expansion, a new P01b statistical rule, or approval of old-test
 rewrites. After inventory approval audit old tests, then write new tests first.
+
+## Post-approval audit: OT-CT01 (approved)
+
+Nine existing runtime tests encode the old list+inspect response sequence and,
+where applicable, three file copies. Their semantic checks remain required:
+
+- `TestDockerReadLiquibaseStepOutputRequiresIdleExactRunner`;
+- `TestInvokeTrackedLiquibaseStepRequiresCapturedResult`;
+- `TestLiquibasePrivatePruneInvocationBinding`;
+- `TestCaptureAccessSessionPostReadProof`;
+- `TestLiquibasePrivateReadinessExactObservation`;
+- `TestLiquibasePrivateReadinessRejectsInvalidBinding`;
+- `TestLiquibasePrivateReadinessDeadlineAndCancellation`;
+- `TestMainPathCapturePruneProbe`;
+- `TestMainPathCapturePruneEmptyAuthorityOverridesEnvironment`.
+
+The user approved limited permission to supply exact-ID JSON responses instead of list+JSON
+only in these tests/their readinessRequirementsRunner; for session reads provide
+a one-copy three-file archive through a new fixture helper. Keep global
+`accessInspection` and `privateCaptureArchives` unchanged for planning/discovery.
+Update corresponding command/copy counts and indices, cancellation barrier 4→2
+for final readiness inspection; model absent exact inspection with an explicit
+Docker refusal, not successful empty JSON. Preserve every case, exit/EOF/hash/
+binding/idle/privacy/deadline/cancellation assertion and precise failure boundary.
+Native tests and all other old fixtures are unchanged. Any later contradiction
+requires a separate named amendment. CT tests/independent implementation may
+proceed; these nine old tests must not be weakened or rewritten beyond this permission.
+
+### Additional full-runtime finding: OT-CT02 (approved)
+
+`TestPrivateStepRuntimeLiveAndStopped` also supplies list+inspect and three copies.
+The user approved changing only its fixture to `presentInspection`/`sessionBundleFixture`
+and its copy count 3→1. Both running/exited cases, child exit 7 versus parent exit
+23, and exactly one idle probe only for the running branch remain required.
+No planning fixture change. The initial full ordinary runtime run failed these
+two positive cases; after the approved amendment the full runtime passes.
+This is not a native Docker result.
+
+### New disabled-recorder test correction (approved)
+
+`TestRecorderExplicitSelectionAndDisabledPath` puts a `reflect.DeepEqual` on two
+Report values inside `AllocsPerRun`. That assertion itself boxes a slice-bearing
+struct and adds one allocation. The user approved moving only the nil-recorder Report
+comparison outside the allocation measurement; keep the zero-allocation test
+for disabled WithRecorder/WithPhase/Start/end and both semantic assertions.
+Do not misclassify test assertion overhead as production recording overhead.
+
+### Exact boundary in new CT09 (approved)
+
+The negative overflow example in
+`TestHelperCostDetailRejectsIncompleteOrPrivateInput` uses 922337203685
+centiseconds, which is still representable as int64 nanoseconds. The user approved replacing
+only this negative value with 922337203686 and adding an exact-maximum positive
+check. Do not narrow the product's valid range to satisfy a mistaken expectation;
+retain the overflow guard.
+
+All three approved corrections are applied. The full ordinary runtime and
+preparecost tests pass; the latter is 99.6% covered before worker/collector wiring.

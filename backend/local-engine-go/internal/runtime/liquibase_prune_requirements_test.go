@@ -47,11 +47,11 @@ func TestLiquibasePrivatePruneInvocationBinding(t *testing.T) {
 				identity.Prune.PriorManifestDigest = "private-invalid-value"
 			}
 			name := "sqlrs-lb-prune-binding"
-			runner := &captureFilesRequirementsRunner{archives: privateCaptureArchives(t, dir, identity.RunnerID, identity.InvocationRef)}
-			runner.responses = append(accessInspection(identity.RunnerID, name, "running", 0), runResponse{})
-			runner.responses = append(runner.responses, accessInspection(identity.RunnerID, name, "running", 0)...)
+			runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
+			runner.responses = append(presentInspection(identity.RunnerID, name, "running", 0), runResponse{})
+			runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
 			runner.responses = append(runner.responses, runResponse{output: "sqlrs-step-idle-v1\n"})
-			runner.responses = append(runner.responses, accessInspection(identity.RunnerID, name, "running", 0)...)
+			runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
 			capture, err := NewDocker(Options{Binary: "configured-docker", Runner: runner}).InvokeTrackedLiquibaseStep(context.Background(), name, "", identity, []string{"update-count", "--count", "1"}, 1024)
 			if variant != "control" {
 				if err == nil || !reflect.DeepEqual(capture, CompleteStepCapture{}) || len(runner.calls) != 0 || len(runner.copies) != 0 {
@@ -59,10 +59,10 @@ func TestLiquibasePrivatePruneInvocationBinding(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || capture.ExitCode != 0 || len(runner.calls) != 8 || len(runner.copies) != 3 {
+			if err != nil || capture.ExitCode != 0 || len(runner.calls) != 5 || len(runner.copies) != 1 {
 				t.Fatal("prune added a separate command or failed normal capture")
 			}
-			args := runner.calls[2].args
+			args := runner.calls[1].args
 			count := 0
 			for i, arg := range args {
 				if !strings.HasPrefix(arg, "SQLRS_CAPTURE_PRUNE_AUTHORIZATION=") {

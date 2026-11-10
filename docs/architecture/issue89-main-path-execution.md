@@ -317,7 +317,10 @@ product optimisation, speed waiver or merge readiness is claimed.
 of evidenced redundant work plus source-level per-step cost accounting and a
 rerun, instead of further strace-only classification first. The
 [reviewed component proposal](issue89-cost-attribution-and-trimming.md) covers
-O1–O4 and default-off recording. Components are now explicitly approved;
-the [CT01–CT14 inventory](issue89-cost-attribution-and-trimming-tests.md) awaits
-separate approval after critical and repeat review.
-No product/test code changed for this proposal; the speed criterion remains.
+O1–O4 and default-off recording. Components and the separately reviewed
+[CT01–CT14 inventory](issue89-cost-attribution-and-trimming-tests.md) are explicitly
+approved. Tests-first implementation has started; OT-CT01 separately authorises
+only nine named fixtures. O1/O3 consumers and O2 are connected; the preliminary
+recorder/accounting/helper-detail code is not yet wired into the worker or Actions.
+See the component document's checkpoint for passing focused tests and pending
+full-run/test-amendment findings. No speed acceptance is claimed.

@@ -1,0 +1,49 @@
+name: Liquibase cost prerequisites (explicit opt-in, not acceptance)
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: liquibase-cost-probe-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.label.name == 'performance:cost-probe'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.25.5'
+          cache: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Verify workflow and ordinary helpers
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.26.2 --activate
+          pnpm install --frozen-lockfile
+          node --test scripts/performance/*.test.mjs
+          cd backend/local-engine-go
+          go test ./internal/preparecost ./internal/runtime -count=1 -timeout=4m
+          go vet ./internal/preparecost ./internal/runtime
+      - name: Acquire public native fixture
+        run: docker pull liquibase/liquibase:5.0.4
+      - name: Qualify sync and actual session acquisition
+        working-directory: backend/local-engine-go
+        env:
+          SQLRS_COST_NATIVE_PROBE: '1'
+          SQLRS_LIQUIBASE_DOCKER_E2E: '1'
+        run: go test ./internal/runtime -run '^(TestCostSyncImplementationDocker|TestLiquibaseStepCaptureReusableRunnerDocker)$' -v -count=1 -timeout=8m

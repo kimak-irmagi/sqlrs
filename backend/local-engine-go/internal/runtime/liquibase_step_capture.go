@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
+	"github.com/sqlrs/engine-local/internal/preparecost"
 )
 
 const LiquibaseStepCaptureProtocol = "lb-step-capture-v2"
@@ -157,6 +159,15 @@ printf 'sqlrs-step-idle-v1\n'`
 // deadline. See liquibase-private-capture-ownership.md live/stopped read rules.
 func (r *DockerRuntime) ReadCompleteLiquibaseStepOutput(ctx context.Context, name, id, _ string,
 	identity StepCaptureIdentity, maxStreamBytes int64) (CompleteStepCapture, error) {
+	return preparecost.Observe(ctx, preparecost.CaptureRead, func(child context.Context) (CompleteStepCapture, error) {
+		return r.readObservedLiquibaseStepOutput(child, name, id, identity, maxStreamBytes)
+	})
+}
+
+// readObservedLiquibaseStepOutput owns the unchanged completion/idle proofs;
+// its observer only measures the actual work and preserves its exact result.
+func (r *DockerRuntime) readObservedLiquibaseStepOutput(ctx context.Context, name, id string,
+	identity StepCaptureIdentity, maxStreamBytes int64) (CompleteStepCapture, error) {
 	if r == nil || id != identity.RunnerID || !validStepCaptureIdentity(identity) {
 		return CompleteStepCapture{}, fmt.Errorf("invalid exact Liquibase session runner")
 	}
@@ -165,8 +176,8 @@ func (r *DockerRuntime) ReadCompleteLiquibaseStepOutput(ctx context.Context, nam
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		view, found, err := r.InspectNamedContainer(ctx, name)
-		if err != nil || !found || view.ID != id || (view.Status != "running" && view.Status != "exited") || (phase != "" && view.Status != phase) {
+		view, err := r.inspectPresentContainer(ctx, name, id)
+		if err != nil || view.ID != id || (view.Status != "running" && view.Status != "exited") || (phase != "" && view.Status != phase) {
 			return fmt.Errorf("exact Liquibase session runner state is not stable")
 		}
 		phase = view.Status
@@ -177,7 +188,13 @@ func (r *DockerRuntime) ReadCompleteLiquibaseStepOutput(ctx context.Context, nam
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	capture, err := readCompleteLiquibaseStepCapture(containerCaptureFiles{ctx: ctx, runtime: r, id: id, invocation: identity.InvocationRef}, identity, maxStreamBytes)
+	// O3 changes acquisition, not completion authority: one bounded archive is
+	// still checked by the same manifest/identity/EOF/length/hash verifier.
+	files, err := r.readSessionCaptureBundle(ctx, id, identity.InvocationRef, maxStreamBytes)
+	if err != nil {
+		return CompleteStepCapture{}, err
+	}
+	capture, err := readCompleteLiquibaseStepCapture(files, identity, maxStreamBytes)
 	if err != nil {
 		return CompleteStepCapture{}, err
 	}
@@ -209,8 +226,8 @@ func (r *DockerRuntime) InvokeTrackedLiquibaseStep(ctx context.Context, name, ca
 	if err != nil {
 		return CompleteStepCapture{}, err
 	}
-	view, found, err := r.InspectNamedContainer(ctx, name)
-	if err != nil || !found || view.ID != identity.RunnerID || view.Status != "running" {
+	view, err := r.inspectPresentContainer(ctx, name, identity.RunnerID)
+	if err != nil || view.ID != identity.RunnerID || view.Status != "running" {
 		return CompleteStepCapture{}, fmt.Errorf("exact Liquibase session runner is not running")
 	}
 	args := stepCaptureExecEnvironment(identity, maxStreamBytes, prune)

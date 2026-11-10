@@ -60,6 +60,34 @@ func (r *DockerRuntime) inspectExactNamedContainer(ctx context.Context, name str
 	if err != nil {
 		return ContainerInspection{}, false, fmt.Errorf("docker container inspect failed: %w", err)
 	}
+	inspection, err := decodeContainerInspection(output, id, name)
+	return inspection, err == nil, err
+}
+
+// inspectPresentContainer observes an already attributed allocation in one
+// command. Unlike name discovery it never treats an error as absence. Callers
+// still check their required phase before/after each protected operation.
+// O1/CT02: docs/architecture/issue89-cost-attribution-and-trimming.md §2.
+func (r *DockerRuntime) inspectPresentContainer(ctx context.Context, name, id string) (ContainerInspection, error) {
+	if r == nil || !plannedContainerName.MatchString(name) || !createdContainerID.MatchString(id) {
+		return ContainerInspection{}, fmt.Errorf("invalid saved container identity")
+	}
+	if err := ctx.Err(); err != nil {
+		return ContainerInspection{}, err
+	}
+	output, err := r.run(ctx, []string{"container", "inspect", "--format", "{{json .}}", id}, nil)
+	if contextErr := ctx.Err(); contextErr != nil {
+		return ContainerInspection{}, contextErr
+	}
+	if err != nil {
+		return ContainerInspection{}, fmt.Errorf("docker container inspect failed: %w", err)
+	}
+	return decodeContainerInspection(output, id, name)
+}
+
+// decodeContainerInspection keeps discovery and known-ID observations on the
+// same native identity/label decoder. No cached view grants a later authority.
+func decodeContainerInspection(output, id, name string) (ContainerInspection, error) {
 	var details struct {
 		ID     string `json:"Id"`
 		Name   string `json:"Name"`
@@ -72,14 +100,14 @@ func (r *DockerRuntime) inspectExactNamedContainer(ctx context.Context, name str
 		} `json:"State"`
 	}
 	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &details); err != nil {
-		return ContainerInspection{}, false, fmt.Errorf("docker container inspect returned invalid JSON: %w", err)
+		return ContainerInspection{}, fmt.Errorf("docker container inspect returned invalid JSON: %w", err)
 	}
 	if details.ID != id || details.Name != "/"+name || details.State.Status == "" {
-		return ContainerInspection{}, false, fmt.Errorf("docker container identity or state does not match saved attempt")
+		return ContainerInspection{}, fmt.Errorf("docker container identity or state does not match saved attempt")
 	}
 	return ContainerInspection{ID: id, Status: details.State.Status, ExitCode: details.State.ExitCode,
 		SessionID: details.Config.Labels["sqlrs.liquibase.session"], RunnerConfigDigest: details.Config.Labels["sqlrs.liquibase.config"],
-		WorkerGeneration: details.Config.Labels["sqlrs.liquibase.generation"], CaptureHelperDigest: details.Config.Labels["sqlrs.liquibase.helper"]}, true, nil
+		WorkerGeneration: details.Config.Labels["sqlrs.liquibase.generation"], CaptureHelperDigest: details.Config.Labels["sqlrs.liquibase.helper"]}, nil
 }
 
 // CreateContainer creates, but never starts, a named container. Its returned

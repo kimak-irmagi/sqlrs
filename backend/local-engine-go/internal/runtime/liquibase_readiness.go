@@ -47,8 +47,8 @@ func (r *DockerRuntime) ReadLiquibaseSessionReadiness(ctx context.Context, name 
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		view, found, err := r.InspectNamedContainer(ctx, name)
-		if err != nil || !found || view.ID != identity.RunnerID || view.Status != "running" {
+		view, err := r.inspectPresentContainer(ctx, name, identity.RunnerID)
+		if err != nil || view.ID != identity.RunnerID || view.Status != "running" {
 			return fmt.Errorf("exact Liquibase readiness parent is not running")
 		}
 		return nil

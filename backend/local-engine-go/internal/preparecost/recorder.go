@@ -1,0 +1,167 @@
+package preparecost
+
+import (
+	"context"
+	"sync"
+	"time"
+)
+
+// Enabled is the exact private startup selector. The default debug level does
+// not enable timing or make untrusted child environment a measurement authority.
+func Enabled(value string) bool { return value == "1" }
+
+// Report is a caller-owned snapshot. Complete=false never qualifies attribution;
+// it is diagnostic state, not a replacement for the transformation's outcome.
+type Report struct {
+	Version   int
+	Root      uint64
+	ElapsedNS int64
+	Complete  bool
+	Spans     []Span
+}
+
+// Recorder holds at most MaxSpans for one prepare. It uses monotonic elapsed
+// time and no per-operation I/O. It owns neither SQL nor cleanup permissions.
+// CT06/CT07: docs/architecture/issue89-cost-attribution-and-trimming.md §3.
+type Recorder struct {
+	mu       sync.Mutex
+	root     uint64
+	origin   time.Time
+	spans    []Span
+	ended    []bool
+	lastEnd  int64
+	finished bool
+	invalid  bool
+}
+
+type scopeKey struct{}
+type scope struct {
+	recorder *Recorder
+	parent   int
+	phase    Phase
+	step     int
+}
+
+// NewRecorder is allocation-free when disabled. Sequence zero is unqualified;
+// the caller assigns positive process-local sequences, never job/container IDs.
+func NewRecorder(enabled bool, sequence uint64) *Recorder {
+	if !enabled {
+		return nil
+	}
+	return &Recorder{root: sequence, origin: time.Now(), invalid: sequence == 0}
+}
+
+// WithRecorder attaches an observer without replacing context cancellation.
+// Crossing existing roots is a diagnostic error, not a reparenting capability.
+func WithRecorder(ctx context.Context, r *Recorder) context.Context {
+	if r == nil {
+		return ctx
+	}
+	if previous, ok := ctx.Value(scopeKey{}).(scope); ok {
+		if previous.recorder == r {
+			return ctx
+		}
+		r.invalidate()
+	}
+	return context.WithValue(ctx, scopeKey{}, scope{recorder: r, phase: PhaseWorker})
+}
+
+// IsRecording describes the context's explicit selection, not report validity.
+// No arbitrary environment value is forwarded to the protected helper.
+func IsRecording(ctx context.Context) bool {
+	current, ok := ctx.Value(scopeKey{}).(scope)
+	return ok && current.recorder != nil
+}
+
+// WithPhase separates step ordinals from once-per-job work. Invalid phase data
+// never enters a report; it invalidates qualification without changing ctx.Err.
+func WithPhase(ctx context.Context, phase Phase, step int) context.Context {
+	current, ok := ctx.Value(scopeKey{}).(scope)
+	if !ok || current.recorder == nil {
+		return ctx
+	}
+	if !validPhase(phase, step) {
+		current.recorder.invalidate()
+		return ctx
+	}
+	current.phase, current.step = phase, step
+	return context.WithValue(ctx, scopeKey{}, current)
+}
+
+// Start opens a closed-catalog operation. Its finish function only observes:
+// it never recovers a panic, returns a work error or repeats any external action.
+// Disabled calls preserve the exact context and allocate no scope/closure.
+func Start(ctx context.Context, operation Operation) (context.Context, func(Outcome)) {
+	current, ok := ctx.Value(scopeKey{}).(scope)
+	if !ok || current.recorder == nil {
+		return ctx, finishNoop
+	}
+	r := current.recorder
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	_, known := Describe(operation)
+	if r.finished || r.root == 0 || r.origin.IsZero() || !known || !validPhase(current.phase, current.step) || len(r.spans) >= MaxSpans {
+		r.invalid = true
+		return ctx, finishNoop
+	}
+	if current.parent != 0 {
+		parent := r.spans[current.parent-1]
+		if r.ended[current.parent-1] || parent.Step > 0 && (parent.Step != current.step || parent.Phase != current.phase) {
+			r.invalid = true
+			return ctx, finishNoop
+		}
+	}
+	index := len(r.spans)
+	r.spans = append(r.spans, Span{ID: index + 1, Parent: current.parent, Operation: operation,
+		Phase: current.phase, Step: current.step, StartNS: time.Since(r.origin).Nanoseconds()})
+	r.ended = append(r.ended, false)
+	current.parent = index + 1
+	child := context.WithValue(ctx, scopeKey{}, current)
+	return child, func(outcome Outcome) { r.end(index, outcome) }
+}
+
+func finishNoop(Outcome) {}
+
+func (r *Recorder) invalidate() {
+	r.mu.Lock()
+	r.invalid = true
+	r.mu.Unlock()
+}
+
+func (r *Recorder) end(index int, outcome Outcome) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.finished || r.ended[index] || !validOutcome(outcome) {
+		r.invalid = true
+		return
+	}
+	span := &r.spans[index]
+	span.EndNS, span.Outcome = time.Since(r.origin).Nanoseconds(), outcome
+	r.ended[index] = true
+	r.lastEnd = max(r.lastEnd, span.EndNS)
+	if span.Parent != 0 {
+		parent := r.spans[span.Parent-1]
+		if r.ended[span.Parent-1] && span.EndNS > parent.EndNS {
+			r.invalid = true
+		}
+	}
+}
+
+// Finish freezes observations and copies them without timing serialization/I/O
+// as work. Repeated snapshots do not alias; rejected late writes can mark a later
+// snapshot incomplete but cannot mutate a previously returned report's bytes.
+func (r *Recorder) Finish() Report {
+	if r == nil {
+		return Report{}
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.finished = true
+	for _, ended := range r.ended {
+		if !ended {
+			r.invalid = true
+		}
+	}
+	return Report{Version: 1, Root: r.root, ElapsedNS: r.lastEnd,
+		Complete: !r.invalid && r.root != 0, Spans: append([]Span(nil), r.spans...)}
+}

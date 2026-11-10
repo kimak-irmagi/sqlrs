@@ -46,8 +46,8 @@ func (r *DockerRuntime) VerifyLiquibaseCapturePruned(ctx context.Context, name s
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	inspect := func() error {
-		view, found, err := r.InspectNamedContainer(ctx, name)
-		if err != nil || !found || view.ID != identity.RunnerID || view.Status != "running" {
+		view, err := r.inspectPresentContainer(ctx, name, identity.RunnerID)
+		if err != nil || view.ID != identity.RunnerID || view.Status != "running" {
 			return fmt.Errorf("exact Liquibase prune parent is not running")
 		}
 		return nil

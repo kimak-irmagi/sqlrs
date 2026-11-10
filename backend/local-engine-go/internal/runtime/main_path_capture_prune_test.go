@@ -72,7 +72,7 @@ func TestMainPathCapturePruneProbe(t *testing.T) {
 				cancel()
 				ctx = cancelled
 			}
-			runner.responses = append(accessInspection(beforeID, name, phase, 0), accessInspection(afterID, name, "running", 0)...)
+			runner.responses = append(presentInspection(beforeID, name, phase, 0), presentInspection(afterID, name, "running", 0)...)
 			err := NewDocker(Options{Binary: "configured-docker", Runner: runner}).VerifyLiquibaseCapturePruned(ctx, name, identity)
 			if variant != "control" {
 				if err == nil || strings.Contains(err.Error(), "private diagnostic sentinel") {
@@ -89,7 +89,7 @@ func TestMainPathCapturePruneProbe(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || len(runner.bounded) != 3 || len(runner.calls) != 4 {
+			if err != nil || len(runner.bounded) != 3 || len(runner.calls) != 2 {
 				t.Fatal("exact bounded probe not reached", len(runner.bounded), len(runner.calls), err)
 			}
 			probe := runner.bounded[1]
@@ -113,17 +113,17 @@ func TestMainPathCapturePruneEmptyAuthorityOverridesEnvironment(t *testing.T) {
 	dir, identity, manifest := stepCaptureFixture(t)
 	writeStepCaptureFixture(t, dir, manifest, nil, nil)
 	name := "sqlrs-lb-main-path-first"
-	runner := &captureFilesRequirementsRunner{archives: privateCaptureArchives(t, dir, identity.RunnerID, identity.InvocationRef)}
-	runner.responses = append(accessInspection(identity.RunnerID, name, "running", 0), runResponse{})
-	runner.responses = append(runner.responses, accessInspection(identity.RunnerID, name, "running", 0)...)
+	runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
+	runner.responses = append(presentInspection(identity.RunnerID, name, "running", 0), runResponse{})
+	runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
 	runner.responses = append(runner.responses, runResponse{output: "sqlrs-step-idle-v1\n"})
-	runner.responses = append(runner.responses, accessInspection(identity.RunnerID, name, "running", 0)...)
+	runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
 	_, err := NewDocker(Options{Binary: "configured-docker", Runner: runner}).InvokeTrackedLiquibaseStep(t.Context(), name, "", identity, []string{"update-count", "--count", "1"}, 1024)
 	if err != nil {
 		t.Fatal(err)
 	}
 	count := 0
-	for _, arg := range runner.calls[2].args {
+	for _, arg := range runner.calls[1].args {
 		if strings.HasPrefix(arg, "SQLRS_CAPTURE_PRUNE_AUTHORIZATION=") {
 			count++
 			if arg != "SQLRS_CAPTURE_PRUNE_AUTHORIZATION=" {

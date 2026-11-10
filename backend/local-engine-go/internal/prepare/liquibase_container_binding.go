@@ -209,8 +209,13 @@ func (m *PrepareService) bindFreshContainerLiquibase(ctx context.Context, jobID 
 		return p, cleanup, queue.ErrLiquibaseBinding
 	}
 	image := engineRuntime.RunnerImageBinding{RequestedTag: record.RequestedTag, Platform: platform, IndexDigest: record.ImageIndexDigest, ManifestDigest: record.ImageManifestDigest, DigestRef: "liquibase/liquibase@" + record.ImageManifestDigest}
-	if _, err := deps.Runtime.EnsureRunnerImage(ctx, image); err != nil {
-		return p, cleanup, err
+	// O2/CT03: the fresh branch already ensured this exact digest before its
+	// inventory. Only a saved-binding entry needs the availability check here;
+	// this is not a tag/inventory cache or permission to retry external effects.
+	if alreadyBound {
+		if _, err := deps.Runtime.EnsureRunnerImage(ctx, image); err != nil {
+			return p, cleanup, err
+		}
 	}
 	for i := range p.liquibaseMounts {
 		logical := strings.TrimPrefix(p.liquibaseMounts[i].ContainerPath, "/sqlrs/mnt/")

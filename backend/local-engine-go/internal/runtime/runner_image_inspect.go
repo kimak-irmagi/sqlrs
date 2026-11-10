@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/sqlrs/engine-local/internal/preparecost"
 )
 
 var runnerJavaVersion = regexp.MustCompile(`(?m)^(?:openjdk|java) version "([0-9]+)(?:\.([0-9]+))?[^"\r\n]*"`)
@@ -30,6 +32,14 @@ type RunnerImageInspection struct {
 // digest. The image's own CLI reports its version, while sha256sum hashes any
 // conventional PostgreSQL JAR in its two Liquibase classpath directories.
 func (r *DockerRuntime) InspectRunnerImage(ctx context.Context, binding RunnerImageBinding) (RunnerImageInspection, error) {
+	return preparecost.Observe(ctx, preparecost.ImageInventory, func(child context.Context) (RunnerImageInspection, error) {
+		return r.inspectObservedRunnerImage(child, binding)
+	})
+}
+
+// inspectObservedRunnerImage keeps inventory execution/parsing separate from
+// its closed operation observer; no tag or result is cached by measurement.
+func (r *DockerRuntime) inspectObservedRunnerImage(ctx context.Context, binding RunnerImageBinding) (RunnerImageInspection, error) {
 	if r == nil || !runnerDigestPattern.MatchString(binding.ManifestDigest) || binding.DigestRef != liquibaseRepository+"@"+binding.ManifestDigest {
 		return RunnerImageInspection{}, fmt.Errorf("invalid trusted Liquibase image binding")
 	}

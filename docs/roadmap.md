@@ -166,10 +166,12 @@ After discussing the complete evidence, the user selected evidenced duplicate-wo
 removal, source-level operation costs and a rerun rather than another strace-only
 classification first. The [reviewed component proposal](architecture/issue89-cost-attribution-and-trimming.md)
 defines O1–O4, default-off recording and before/after/off/on controls. Components
-are explicitly approved; the separately reviewed
+and the separately reviewed
 [CT01–CT14 inventory](architecture/issue89-cost-attribution-and-trimming-tests.md)
-awaits approval. No implementation or speed
-acceptance is claimed for this next step.
+are explicitly approved. Tests-first implementation has started: O1/O3 consumers
+and O2 are connected; cost recording/report wiring, O4 qualification and Actions
+reruns remain open. Focused checks pass, but full qualification is not complete.
+No speed acceptance is claimed.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

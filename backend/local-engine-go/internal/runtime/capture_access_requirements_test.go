@@ -205,7 +205,7 @@ func TestCaptureAccessSessionPostReadProof(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			dir, identity, _ := stepCaptureFixture(t)
 			name := "sqlrs-lb-session-capture-access"
-			responses := accessInspection(identity.RunnerID, name, "running", 0)
+			responses := presentInspection(identity.RunnerID, name, "running", 0)
 			probe := runResponse{output: "sqlrs-step-idle-v1\n"}
 			if kind == "idle_error" {
 				probe.err = errors.New("probe unavailable")
@@ -221,8 +221,8 @@ func TestCaptureAccessSessionPostReadProof(t *testing.T) {
 			if kind == "parent_replaced" {
 				finalID = strings.Repeat("d", 64)
 			}
-			responses = append(responses, accessInspection(finalID, name, status, 0)...)
-			runner := &captureFilesRequirementsRunner{archives: privateCaptureArchives(t, dir, identity.RunnerID, identity.InvocationRef)}
+			responses = append(responses, presentInspection(finalID, name, status, 0)...)
+			runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
 			runner.responses = responses
 			got, err := NewDocker(Options{Runner: runner}).ReadCompleteLiquibaseStepOutput(context.Background(), name, identity.RunnerID, dir, identity, 1024)
 			if kind == "control" {
@@ -232,14 +232,14 @@ func TestCaptureAccessSessionPostReadProof(t *testing.T) {
 			} else if err == nil || !reflect.DeepEqual(got, CompleteStepCapture{}) {
 				t.Fatal("unproved step returned a result")
 			}
-			wantCalls := 5
+			wantCalls := 3
 			if kind == "idle_error" || kind == "idle_unknown" {
-				wantCalls = 3
+				wantCalls = 2
 			}
 			if len(runner.calls) != wantCalls {
 				t.Fatalf("calls=%d want=%d", len(runner.calls), wantCalls)
 			}
-			if !reflect.DeepEqual(runner.calls[2].args, []string{"exec", "-u", "0", identity.RunnerID, "/bin/sh", "-c", stepIdleProbe}) {
+			if !reflect.DeepEqual(runner.calls[1].args, []string{"exec", "-u", "0", identity.RunnerID, "/bin/sh", "-c", stepIdleProbe}) {
 				t.Fatal("idle proof changed or runner was signalled")
 			}
 		})

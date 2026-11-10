@@ -129,12 +129,12 @@ func TestDockerReadLiquibaseStepOutputRequiresIdleExactRunner(t *testing.T) {
 			dir, identity, _ := stepCaptureFixture(t)
 			name := "sqlrs-lb-session-1"
 			inspection := `{"Id":"` + identity.RunnerID + `","Name":"/` + name + `","State":{"Status":"` + tc.status + `","ExitCode":0}}`
-			runner := &captureFilesRequirementsRunner{archives: privateCaptureArchives(t, dir, identity.RunnerID, identity.InvocationRef)}
-			runner.responses = []runResponse{{output: identity.RunnerID}, {output: inspection}}
+			runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
+			runner.responses = []runResponse{{output: inspection}}
 			if tc.status == "running" {
 				runner.responses = append(runner.responses, runResponse{output: tc.idle, err: tc.probeErr})
 			}
-			runner.responses = append(runner.responses, runResponse{output: identity.RunnerID}, runResponse{output: inspection})
+			runner.responses = append(runner.responses, runResponse{output: inspection})
 			rt := NewDocker(Options{Binary: "docker", Runner: runner})
 			_, err := rt.ReadCompleteLiquibaseStepOutput(context.Background(), name, identity.RunnerID, dir, identity, 1024)
 			if (err == nil) != tc.wantOK {
@@ -175,17 +175,17 @@ func TestInvokeTrackedLiquibaseStepRequiresCapturedResult(t *testing.T) {
 			}
 			name := "sqlrs-lb-session-1"
 			inspection := `{"Id":"` + identity.RunnerID + `","Name":"/` + name + `","State":{"Status":"running","ExitCode":0}}`
-			runner := &captureFilesRequirementsRunner{archives: privateCaptureArchives(t, dir, identity.RunnerID, identity.InvocationRef)}
-			runner.responses = []runResponse{{output: identity.RunnerID}, {output: inspection},
-				{err: tc.execErr}, {output: identity.RunnerID}, {output: inspection},
-				{output: "sqlrs-step-idle-v1\n"}, {output: identity.RunnerID}, {output: inspection}}
+			runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
+			runner.responses = []runResponse{{output: inspection},
+				{err: tc.execErr}, {output: inspection},
+				{output: "sqlrs-step-idle-v1\n"}, {output: inspection}}
 			rt := NewDocker(Options{Binary: "docker", Runner: runner})
 			capture, err := rt.InvokeTrackedLiquibaseStep(context.Background(), name, dir, identity,
 				[]string{"update-count", "--count", "1"}, 1024)
 			if (err == nil) != tc.wantOK || tc.wantOK && capture.ExitCode != tc.childExit {
 				t.Fatalf("capture=%+v err=%v wantOK=%t", capture, err, tc.wantOK)
 			}
-			args := runner.calls[2].args
+			args := runner.calls[1].args
 			if len(args) == 0 || args[0] != "exec" || !containsArg(args, "-u", "0") ||
 				!containsArg(args, "-e", "SQLRS_INVOCATION_REF="+identity.InvocationRef) ||
 				!strings.Contains(strings.Join(args, " "), identity.RunnerID+" /bin/sh /sqlrs/helper/step-capture.sh liquibase update-count --count 1") {
