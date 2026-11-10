@@ -1267,3 +1267,26 @@ All **46 Node tests** pass; the five ordinary helpers have **100% lines / 97.32%
 branches**. Syntax/workflow/diff checks pass. Native orchestration/product code
 is not included in these denominators. Actual CW07 transport and complete
 collection remain to be verified on Actions; no product cause or speed waiver.
+
+### Native CW07: exact mismatch is nine nanoseconds
+
+Run [42789132449](https://github.com/kimak-irmagi/sqlrs/actions/runs/42789132449)
+uses observer `756347b4cebe23ee0353063b3916dc98cdc27d26`. Preparation, both
+native probes and two plain members pass. Traced v1 member 3 passes decoding
+then fails with actual `clock / duration_mismatch` metadata:
+wall duration **73672499931 ns**, elapsed duration **73672499940 ns**;
+wall minus elapsed is **−9 ns** over about 73.67 seconds. Context is none/none,
+last stage oracle, cleanup evidence unavailable. The new fields crossed the
+actual Go→Node→artifact boundary. This establishes the exact observer rejection,
+not why the clocks differ, successful traced oracles/cleanup or a product cause.
+
+The original [incomplete artifact](issue89-diagnostic-evidence-2026-11-10/42789132449/jhipster-diagnostic.json)
+is retained byte-for-byte, SHA256
+`0baec1c7f80f5e834e1e4945a3eee7688061f6c86dd6d9802f28c29a91d8424c`.
+Fixed product hashes are unchanged. Plain v1 uncached/cached values are
+48825.166031/8340.134058 ms; v2 58905.788315/10167.907583 ms. These members
+are not another acceptance cohort. All regression jobs in CI
+[42789081930](https://github.com/kimak-irmagi/sqlrs/actions/runs/42789081930)
+pass; only unchanged aggregate coverage is red. Complete CW07 collection and
+the product's P01b gate remain open. A measured-only bounded clock-alignment
+component amendment is proposed separately; no such acceptance is implemented.

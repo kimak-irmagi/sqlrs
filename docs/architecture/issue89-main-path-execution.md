@@ -293,3 +293,10 @@ Complete closed clock-rejection context is separately approved (2026-11-10),
 followed by separate CW01–CW07 approval. Implementation passes small Linux
 Go/vet (747/758 statements, 98.55%; new helpers 100%) and 46 Node tests (helper
 lines 100%). Native CW07 remains required; no clock acceptance/product change.
+
+Native CW07 `42789132449` verifies actual metadata transport and identifies
+duration_mismatch: wall 73672499931 ns versus elapsed 73672499940 ns (−9 ns).
+The original incomplete report is retained. This is the observer's refusal,
+not the product slowdown cause. CI `42789081930` passes all regression jobs,
+only aggregate coverage red. A measured-only bounded alignment proposal keeps
+strict helpers and product timing unchanged; it awaits component approval.

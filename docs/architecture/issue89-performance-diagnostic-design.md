@@ -571,3 +571,68 @@ new clock helpers 100%), with 46 Node tests (ordinary helpers 100% lines /
 97.32% branches). The approved pure validator preserves all original checks;
 the separate marker/Node helper supplement only clock failures. Native CW07
 remains required; no tolerance, clock mapping or product change is implemented.
+
+Native CW07 `42789132449` then proves duration_mismatch with wall/elapsed
+73672499931/73672499940 ns: a −9 ns difference, not an interval-order failure.
+Original report and CI evidence are retained in the test inventory. No further
+unchanged retry: the rejection is now localised within the observer.
+
+## Proposed: bounded measured-clock alignment, strict helpers unchanged
+
+Status: critically and repeatedly reviewed component proposal; not approved or
+implemented. Separate tests follow approval. Product/API/schema and P01b do not
+change. This corrects diagnostic observation, not the product regression.
+
+1. Keep API elapsed measurements on the original monotonic end.Sub(start).
+   Trace timestamps/windows stay on the original calendar axis; do not scale
+   intervals or relabel one clock as the other. The exact equality of two clocks
+   is not a useful condition for the observed nine-nanosecond difference.
+2. Add an explicitly measured summary path, summarizeMeasuredDiagnosticIntervals,
+   and a pure private validateMeasuredDiagnosticWindow with independent calendar
+   endpoints/elapsed input. It may accept a duration_mismatch only when calendar
+   order and both spans are positive and abs(wallSpan−elapsed) ≤ **10000 ns**.
+   This is the existing Node report consistency allowance of 0.01 ms, not a new
+   product speed budget or an unrestricted clock-reset allowance. Other failures
+   and larger differences remain errors with the existing CW classification.
+   Arithmetic must not overflow into an accepted small delta.
+3. Keep validateDiagnosticWindow and summarizeDiagnosticIntervals strict,
+   including the one-nanosecond refusal controls. The measured path validates
+   alignment first, then reuses the strict wall-domain summarisation using
+   endpoints with monotonic readings explicitly removed. Interval order/clipping/
+   union remain unchanged. A summary error keeps its exact reason; do not report
+   a wall-only core span as if it were the original monotonic elapsed span.
+   Where the old interval_order metadata cannot express unequal original spans,
+   return that known reason with both optional spans unavailable, not invented
+   equality or an incoherent pair. No CW normaliser rule is relaxed.
+4. Extend the private summary with optional ClockDeltaNS: signed wall-minus-
+   elapsed nanoseconds, always present for a successful measured summary,
+   including zero, and bounded to ±10000. The strict/default summary omits it.
+   The external collector alone selects the new measured path. No calendar
+   endpoints, PID or raw data leave the process; no persistent/new product state.
+5. Node's report helper gains an explicit required-alignment mode for this
+   observer. It requires/retains the bounded integer ClockDeltaNS on traced
+   summaries, checks covered+residual and interval bounds against calendar span
+   inferred from unchanged API ElapsedMS plus delta, allowing only nanosecond
+   floating representation rounding. Default parsing/old exact output shapes
+   stay unchanged. Missing alignment must not silently pass in the new runner;
+   successful samples explicitly disclose this observation uncertainty.
+6. Tests are separately reviewed before implementation: exact ±10000 boundaries,
+   ±10001 refusal, positive/order/overflow checks, strict controls, measured
+   integration/report/privacy and unchanged native protocol. No old test change
+   is authorised by this proposal; any contradiction needs named approval.
+   Preserve all original artifacts. After verification repeat the same eight
+   Actions members, unchanged binaries/probes/oracles/cleanup. The signed delta
+   must accompany any attribution; significant unexplained time still prevents
+   a precise product-cause claim. No P01b acceptance data are rewritten.
+
+Alternatives: keep exact refusal; change product timing to calendar time; drop
+all consistency checks; or make the existing 10 μs diagnostic allowance explicit
+and retain its actual signed uncertainty. Recommend the last. Critical review:
+P1 silent time-source/acceptance change — explicit measured-only boundary and
+unchanged API elapsed; P1 unbounded clock jumps — exact two-sided limit/order/
+overflow checks; P1 hidden adjustment — signed delta required by the runner;
+P1 false interval-error pair — withhold incompatible original spans rather than
+label the wall-only core as monotonic; P2 old-test weakening — strict helpers
+and default report shapes stay intact; P2 observed nine ns claimed to explain
+seconds of product regression — separate observation and performance gates.
+Repeat review found no remaining P0–P2 in this bounded component proposal.

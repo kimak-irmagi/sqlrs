@@ -46,3 +46,9 @@ or P01b. Native UE07 evidence stays unchanged in its original report.
   signatures, time sources, old helper shapes and all original native members.
 - Rationale: distinguish all clock rejection reasons with bounded relative
   evidence without guessing drift, fabricating time.Time or waiving P01b.
+
+Native CW07 42789132449 subsequently proves actual clock-context transport and
+the precise duration_mismatch (wall/elapsed 73672499931/73672499940 ns, −9 ns).
+The original incomplete artifact is retained in the test inventory. A measured-
+only bounded-alignment component proposal is separate and not approved by this
+ADR; strict helpers, existing rejection and the product gate remain in force.
