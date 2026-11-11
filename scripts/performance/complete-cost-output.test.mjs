@@ -96,3 +96,29 @@ test('TL01/TL03: real recorder setup need not coincide with the request start', 
   assert.equal(reports[0].RequestElapsedNS, 80*ms-1);
   assert.equal(reports[0].SourceSpans[0].StartNS, ms+1);
 });
+
+test('LC03: request, worker and observer tails remain exact without extending the API ledger', () => {
+  const f = fixture();
+  for (const cost of f.costs) {
+    cost.Root.ElapsedNS = 149*ms;
+    cost.Root.Spans[0].EndNS = 149*ms;
+    cost.Root.Spans[2].EndNS = 149*ms;
+    cost.Root.ObserverWindow = { StartNS: 250*ms, EndNS: 251*ms };
+  }
+  for (const report of parseCompleteCostOutput(0, output(f), expected)) {
+    assert.equal(report.PrepareElapsedNS, 100*ms);
+    assert.equal(report.RequestElapsedNS, 149*ms);
+    assert.equal(report.WorkerElapsedNS, 148*ms);
+    assert.equal(report.Timeline.ElapsedNS, 100*ms);
+    assert.equal(report.Timeline.Segments.reduce((sum, s) => sum+s.DurationNS, 0), 100*ms);
+    assert.equal(report.Additive.reduce((sum, s) => sum+s.DurationNS, 0), 100*ms);
+    assert.equal(report.Timeline.Segments.at(-1).EndNS, 100*ms);
+    assert.deepEqual(report.Timeline.Outside.map(s => ({ Kind: s.Kind, StartNS: s.StartNS, EndNS: s.EndNS,
+      ID: s.Owner?.ID ?? null, Parent: s.Owner?.Parent ?? null, Operation: s.Owner?.Operation ?? null })), [
+      { Kind: 'engine', StartNS: 100*ms, EndNS: 150*ms, ID: 1, Parent: 0, Operation: 'prepare.request' },
+      { Kind: 'engine', StartNS: 100*ms, EndNS: 150*ms, ID: 3, Parent: 1, Operation: 'prepare.worker' },
+      { Kind: 'observer', StartNS: 150*ms, EndNS: 151*ms, ID: null, Parent: null, Operation: null },
+    ]);
+    assert.ok(report.Timeline.Outside.filter(s => s.Owner).every(s => s.Owner.Source.Current.Symbol));
+  }
+});

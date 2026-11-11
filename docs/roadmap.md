@@ -205,6 +205,14 @@ reuse differs from v1; the next-scope choice is pending, with no new code author
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 
+The approved [complete timeline](architecture/issue89-complete-timeline.md)
+now connects real admission/worker, both DB lifetimes, steps and publication to
+the independently sampled API window. Hosted probe `43058276396` on `08b3816`
+passes the native Linux prepare and old regressions. Portable collector helpers
+reach 100% statements; 96 Node tests pass, with new report/partition helpers at
+100% lines/functions. The unchanged CT13 repeat is next; exact accounting does
+not by itself classify all source-local self time or satisfy the speed gate.
+
 This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
 qualification and the agreed repeated v1 performance
 comparison are still pending. Deferred recovery/SQLite/search work

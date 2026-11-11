@@ -120,3 +120,16 @@ connection or regressions still requires separate approval before editing it.
 - Decision: user replied “Утвердить LC01–LC03”.
 - Rationale: test rejection of partial evidence and preservation of exact tails
   without new product boundaries, kernel-failure hooks or old-test changes.
+
+## Correct the new LC03 tail-kind names
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: correct the two new LC03 expected tail kinds from `source` to the
+  existing closed-format `engine`, with exact owners/parents/bounds retained?
+- Alternatives: keep the mistaken new expectation; or correct only those two
+  labels without changing implementation, sums or historical tests.
+- Decision: user replied “Да, исправить два имени типа”.
+- Rationale: these are diagnostic classifications, not additional prepare work;
+  every outside interval remains preserved separately from the additive window.

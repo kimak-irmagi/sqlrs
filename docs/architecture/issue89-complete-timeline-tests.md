@@ -242,3 +242,12 @@ finite quotas and the distinction between clip-only accounting and preserving
 inclusive tails. Repeat review tied all five uncovered statement blocks to
 approved requirements and kept real Linux/native tests separate. No remaining
 P0–P2 issue in this limited follow-up. The user approved: “Утвердить LC01–LC03”.
+
+LC01–LC03 are implemented. The user separately approved correcting two new LC03
+tail-kind expectations (`source` → existing `engine`), without changing owners,
+parents or bounds. Full collector tests/vet pass; portable collection/timer
+helpers reach 100% statements. All 96 Node tests pass; complete-report and
+partition helpers both reach 100% lines/functions (branches 93.58% / 99.02%).
+Hosted probe [43058276396](https://github.com/kimak-irmagi/sqlrs/actions/runs/43058276396)
+passed on `08b3816`, including the actual Linux complete-timeline prepare and
+previous native regressions. The subsequent LC03 change is test-only.

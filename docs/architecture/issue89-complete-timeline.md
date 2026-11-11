@@ -236,10 +236,11 @@ collector tests and vet pass. New Node partition/report helpers have 100% lines;
 LC01/LC02 now pass the full ordinary collector and vet: all portable helpers in
 `timeline_collection.go` and the timer helper have 100% statement coverage
 (`.tmp/timeline-lc-collector-windows.out`; module aggregate 66.9%, not a new-helper
-claim). LC03's new tail-vector check awaits a separately requested correction
-of two type names; exact owners, parents and boundaries already agree. No
-LC03 qualification is claimed yet. Linux-only native qualification is connected but not
-yet executed for this working-tree revision; cross-compilation is not execution.
+claim). LC03 passes after the separately approved correction of two expected
+kind names. All 96 Node tests pass; both new partition/report helpers have 100%
+lines/functions. Hosted probe 43058276396 on `08b3816` passed real Linux clocks,
+the actual complete-timeline prepare and previous native regressions. The later
+LC03 change is test-only; this is not a new speed result or complete attribution.
 
 For `70b224d`, hosted probe 43042345344 passed real Linux clock/recorder tests and
 the previous native regressions. CI 43042250918 passed its functional jobs but
