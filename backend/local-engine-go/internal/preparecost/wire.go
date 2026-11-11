@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 )
 
 const (
@@ -24,13 +25,22 @@ func EncodeReport(report Report) ([]byte, error) {
 	}
 	complete := 0
 	spans := report.Spans
+	helpers := report.Helpers
 	if report.Complete {
 		if _, err := Summarize(spans, max(1, report.ElapsedNS)); err != nil {
 			return nil, errEvidence
 		}
 		complete = 1
+		seen := make(map[int]bool, len(helpers))
+		for _, helper := range helpers {
+			if helper.Owner <= 0 || helper.Owner > len(spans) || seen[helper.Owner] || !validHelper(helper, spans[helper.Owner-1]) {
+				return nil, errEvidence
+			}
+			seen[helper.Owner] = true
+		}
 	} else {
 		spans = nil
+		helpers = nil
 	}
 	var output bytes.Buffer
 	fmt.Fprintf(&output, "%sbegin %d %d %d %d\n", WirePrefix, report.Root, len(spans), report.ElapsedNS, complete)
@@ -38,6 +48,16 @@ func EncodeReport(report Report) ([]byte, error) {
 		fmt.Fprintf(&output, "%sspan %d %d %d %s %s %d %d %d %s\n", WirePrefix,
 			report.Root, span.ID, span.Parent, span.Operation, span.Phase, span.Step,
 			span.StartNS, span.EndNS, span.Outcome)
+	}
+	for _, helper := range helpers {
+		if !helper.Available {
+			fmt.Fprintf(&output, "%shelper %d %d unavailable %d\n", WirePrefix, report.Root, helper.Owner, helper.HostElapsedNS)
+			continue
+		}
+		for _, region := range helper.Detail.Regions {
+			fmt.Fprintf(&output, "%shelper %d %d %s %d %d %d\n", WirePrefix, report.Root,
+				helper.Owner, region.Phase, region.StartCS, region.EndCS, helper.HostElapsedNS)
+		}
 	}
 	fmt.Fprintf(&output, "%send %d %d\n", WirePrefix, report.Root, len(spans))
 	return output.Bytes(), nil
@@ -57,17 +77,29 @@ func NewEmitter(output io.Writer) *Emitter { return &Emitter{output: output} }
 // frames without interleaving another emission. Errors are closed diagnostics,
 // never arbitrary writer text. A short write is not confirmed delivery.
 func (e *Emitter) Emit(report Report) error {
+	encodingStart := time.Now()
 	data, err := EncodeReport(report)
 	if err != nil {
 		return err
 	}
+	encodingNS := time.Since(encodingStart).Nanoseconds()
+	lockStart := time.Now()
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	lockWaitNS := time.Since(lockStart).Nanoseconds()
 	if e.output == nil {
 		return errEvidence
 	}
+	writeStart := time.Now()
 	count, err := e.output.Write(data)
+	writeNS := time.Since(writeStart).Nanoseconds()
 	if err != nil || count != len(data) {
+		return errEvidence
+	}
+	// This marker cannot measure its own construction/write or Report copying.
+	// It is separate, non-additive evidence, not total observer overhead (DT04).
+	marker := fmt.Appendf(nil, "%sobserver %d %d %d %d\n", WirePrefix, report.Root, encodingNS, lockWaitNS, writeNS)
+	if count, err := e.output.Write(marker); err != nil || count != len(marker) {
 		return errEvidence
 	}
 	return nil

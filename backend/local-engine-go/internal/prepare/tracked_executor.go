@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/preparecost"
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
 )
 
@@ -39,6 +40,21 @@ type trackedExecutorResult struct {
 // replay nor clean its credential then.
 // See A01-A03/I02-I04 in the recovery test design.
 func runTrackedExecutor(ctx context.Context, journal trackedAttemptJournal, runtime trackedContainerRuntime,
+	attempt queue.AttemptRecord, request engineRuntime.RunRequest, now func() string) (trackedExecutorResult, error) {
+	if attempt.TaskID != "plan" || !preparecost.IsRecording(ctx) {
+		return runObservedTrackedExecutor(ctx, journal, runtime, attempt, request, now)
+	}
+	return preparecost.Observe(ctx, preparecost.PlanningInvocation, func(child context.Context) (trackedExecutorResult, error) {
+		started := time.Now()
+		result, err := runObservedTrackedExecutor(child, journal, runtime, attempt, request, now)
+		preparecost.RecordHelper(child, []byte(result.Output), time.Since(started).Nanoseconds())
+		return result, err
+	})
+}
+
+// runObservedTrackedExecutor preserves the exact effect/journal ordering; only
+// its caller owns the optional helper-cost scope. DT06 does not permit retries.
+func runObservedTrackedExecutor(ctx context.Context, journal trackedAttemptJournal, runtime trackedContainerRuntime,
 	attempt queue.AttemptRecord, request engineRuntime.RunRequest, now func() string) (trackedExecutorResult, error) {
 	if journal == nil || runtime == nil || now == nil || attempt.JobID == "" ||
 		attempt.TaskID == "" || attempt.CloneID == "" || attempt.ExecutionDigest == "" ||

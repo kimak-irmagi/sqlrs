@@ -4,6 +4,42 @@
 set -eu
 umask 077
 die() { exit 90; }
+# cost-clock-begin
+# DT02: private coarse-clock detail only. Failures disable diagnostics, never
+# execution. All clock operations are shell builtins; off performs no reads.
+cost_read() {
+  IFS=' ' read -r cost_value cost_unused 2>/dev/null < /proc/uptime || return 1
+  case "$cost_value" in *.*) ;; *) return 1 ;; esac
+  cost_whole=${cost_value%.*}; cost_fraction=${cost_value#*.}
+  case "$cost_whole" in ''|*[!0-9]*|0[0-9]*) return 1 ;; esac
+  [ "${#cost_whole}" -le 10 ] || return 1
+  case "$cost_fraction" in [0-9][0-9]) ;; *) return 1 ;; esac
+  cost_tens=${cost_fraction%?}; cost_ones=${cost_fraction#?}
+  cost_tick=$((cost_whole * 100 + cost_tens * 10 + cost_ones))
+  [ "$cost_tick" -le 922337203685 ]
+}
+cost_init() {
+  cost_on=0; cost_records=; cost_previous=0
+  [ "${SQLRS_CAPTURE_COST:-}" = 1 ] || return 0
+  if cost_read; then cost_on=1; cost_origin=$cost_tick; fi
+  return 0
+}
+cost_mark() {
+  [ "$cost_on" = 1 ] || return 0
+  if ! cost_read || [ "$cost_tick" -lt "$cost_origin" ]; then cost_on=0; return 0; fi
+  cost_end=$((cost_tick - cost_origin))
+  if [ "$cost_end" -lt "$cost_previous" ]; then cost_on=0; return 0; fi
+  cost_records="${cost_records}sqlrs-lb-cost-v1 $1 $cost_previous $cost_end
+"
+  cost_previous=$cost_end
+  return 0
+}
+cost_emit() {
+  if [ "$cost_on" = 1 ]; then printf '%s' "$cost_records" || :; fi
+  return 0
+}
+# cost-clock-end
+cost_init
 trusted_parent() {
   [ ! -L "$1" ] && [ -d "$1" ] || return 1
   [ "$(stat -c '%u' "$1")" = 0 ] || return 1
@@ -66,9 +102,11 @@ capture_stream "$stdout_fifo" "$stdout_partial" &
 stdout_reader=$!
 capture_stream "$stderr_fifo" "$stderr_partial" &
 stderr_reader=$!
+cost_mark preflight
 set +e
 setpriv --reuid=1001 --regid=1001 --clear-groups --no-new-privs "$@" > "$stdout_fifo" 2> "$stderr_fifo"
 child_exit=$?
+cost_mark cli
 wait "$stdout_reader"
 stdout_status=$?
 wait "$stderr_reader"
@@ -76,8 +114,10 @@ stderr_status=$?
 set -e
 [ "$stdout_status" -eq 0 ] && [ "$stderr_status" -eq 0 ] || die
 rm "$stdout_fifo" "$stderr_fifo" || die
+cost_mark drain
 # O4: one filesystem flush at the same stream-completion phase boundary.
 sync -f "$capture" || die
+cost_mark stream_flush
 stdout_hash=$(sha256sum "$stdout_partial") || die
 stdout_hash=${stdout_hash%% *}
 stderr_hash=$(sha256sum "$stderr_partial") || die
@@ -89,12 +129,17 @@ stderr_bytes=$(printf '%s' "$stderr_bytes" | tr -d ' ')
 [ "$stdout_bytes" -le "$SQLRS_CAPTURE_MAX_BYTES" ] && [ "$stderr_bytes" -le "$SQLRS_CAPTURE_MAX_BYTES" ] || die
 mv "$stdout_partial" "$capture/stdout.complete" || die
 mv "$stderr_partial" "$capture/stderr.complete" || die
+cost_mark hash_rename
 sync -f "$capture" || die
+cost_mark renamed_flush
 printf '{"protocol":"lb-capture-v2","job_id":"%s","task_id":"plan","attempt_no":%s,"execution_digest":"%s","helper_digest":"%s","child_exit_code":%s,"stdout_eof":true,"stderr_eof":true,"stdout_bytes":%s,"stdout_sha256":"%s","stderr_bytes":%s,"stderr_sha256":"%s"}\n' \
   "$SQLRS_JOB_ID" "$SQLRS_ATTEMPT_NO" "$SQLRS_EXECUTION_DIGEST" "$SQLRS_HELPER_DIGEST" \
   "$child_exit" "$stdout_bytes" "$stdout_hash" "$stderr_bytes" "$stderr_hash" > "$manifest_partial" || die
 [ "$(wc -c < "$manifest_partial")" -le 8192 ] || die
 sync -f "$manifest_partial" || die
+cost_mark manifest_flush
 mv "$manifest_partial" "$capture/manifest.complete" || die
 sync -f "$capture" || die
+cost_mark final_flush
+cost_emit
 exit "$child_exit"

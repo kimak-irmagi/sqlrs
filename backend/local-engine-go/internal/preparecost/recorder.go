@@ -18,6 +18,7 @@ type Report struct {
 	ElapsedNS int64
 	Complete  bool
 	Spans     []Span
+	Helpers   []HelperObservation
 }
 
 // Recorder holds at most MaxSpans for one prepare. It uses monotonic elapsed
@@ -32,6 +33,7 @@ type Recorder struct {
 	lastEnd  int64
 	finished bool
 	invalid  bool
+	helpers  map[int]HelperObservation
 }
 
 type scopeKey struct{}
@@ -162,6 +164,18 @@ func (r *Recorder) Finish() Report {
 			r.invalid = true
 		}
 	}
+	var helpers []HelperObservation
+	// Span order makes snapshots deterministic even when branches finish in a
+	// different order. All slices are owned by the returned snapshot (DT01).
+	for _, span := range r.spans {
+		if observation, found := r.helpers[span.ID]; found {
+			if observation.HostElapsedNS > span.EndNS-span.StartNS {
+				observation = HelperObservation{Owner: span.ID}
+			}
+			observation.Detail.Regions = append([]HelperRegion(nil), observation.Detail.Regions...)
+			helpers = append(helpers, observation)
+		}
+	}
 	return Report{Version: 1, Root: r.root, ElapsedNS: r.lastEnd,
-		Complete: !r.invalid && r.root != 0, Spans: append([]Span(nil), r.spans...)}
+		Complete: !r.invalid && r.root != 0, Spans: append([]Span(nil), r.spans...), Helpers: helpers}
 }

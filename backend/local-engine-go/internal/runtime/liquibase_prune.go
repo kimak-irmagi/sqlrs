@@ -80,6 +80,7 @@ func (r *DockerRuntime) verifyObservedLiquibaseCapturePruned(ctx context.Context
 		return err
 	}
 	args := stepCaptureExecEnvironment(identity, 1, prune)
+	args = append(args, "-e", "SQLRS_CAPTURE_COST=0")
 	args = append(args, identity.RunnerID, "/bin/sh", "/sqlrs/helper/step-capture.sh", "probe-prune")
 	if err := bounded(args, "sqlrs-capture-prune-absent-v1\n"); err != nil {
 		return err

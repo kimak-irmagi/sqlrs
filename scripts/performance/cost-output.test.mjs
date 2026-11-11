@@ -5,6 +5,12 @@ import { fixtureSpec } from './inputs.mjs';
 
 const revision = 'a'.repeat(40), engineHash = 'b'.repeat(64), ms = 1e6;
 const expected = { route: 'v2', fixture: 'jhipster', revision, engineHash };
+function helperObservation(Owner) {
+  return { Owner, HostElapsedNS: 0, Available: true, Detail: { ResolutionNS: 10 * ms,
+    CumulativeUncertaintyNS: 80 * ms, TotalNS: 0,
+    Regions: ['preflight', 'cli', 'drain', 'stream_flush', 'hash_rename', 'renamed_flush', 'manifest_flush', 'final_flush']
+      .map(Phase => ({ Phase, StartCS: 0, EndCS: 0, DurationNS: 0 })) } };
+}
 function fixture() {
   const spec = fixtureSpec('jhipster');
   const samples = ['uncached', 'cached'].map((Pass, index) => ({ Route: 'v2', Fixture: 'jhipster', Pass,
@@ -25,8 +31,12 @@ function fixture() {
       Spans.push({ ID: parent + 1, Parent: parent, Operation: 'liquibase.invoke', Phase: 'step', Step: step,
         StartNS: (step - 1) * 10 * ms, EndNS: step * 10 * ms, Outcome: 'succeeded' });
     }
+    Spans.push({ ID: Spans.length + 1, Parent: 1, Operation: 'liquibase.plan_invoke', Phase: 'planning', Step: 0,
+      StartNS: 0, EndNS: ms, Outcome: 'succeeded' });
+    const Helpers = Spans.filter(span => ['liquibase.invoke', 'liquibase.plan_invoke'].includes(span.Operation)).map(span => helperObservation(span.ID));
     return { Pass: sample.Pass, PrepareElapsedNS: 100 * ms, ObserverWaitNS: 1,
-      Root: { Root: index + 1, ElapsedNS: 80 * ms, Declared: Spans.length, Complete: true, Ended: true, Spans } };
+      Root: { Root: index + 1, ElapsedNS: 80 * ms, Declared: Spans.length, Complete: true, Ended: true, Spans,
+        Helpers, Observer: { EncodeNS: 1, LockWaitNS: 2, WriteNS: 3 } } };
   });
   return { samples, costs };
 }
@@ -82,7 +92,7 @@ test('CT10: process/oracle failure, old/v1 selection, missing/duplicate/reordere
 
 test('CT11/CT10: private extras are dropped; actual intermediate failures remain measured, not erased', () => {
   const f = fixture(), root = f.costs[0].Root;
-  root.Spans.push({ ID: 18, Parent: 1, Operation: 'docker.command', Phase: 'startup', Step: 0,
+  root.Spans.push({ ID: root.Spans.length + 1, Parent: 1, Operation: 'docker.command', Phase: 'startup', Step: 0,
     StartNS: 0, EndNS: ms, Outcome: 'failed', Arguments: 'PRIVATE_MARKER' });
   root.Declared++;
   f.costs[0].Private = 'PRIVATE_MARKER';
@@ -101,7 +111,7 @@ test('CT08/CT11: per-step apply intervals must agree with independent CLI/cache 
     assert.throws(() => parseCostOutput(0, output(f), expected), /Invalid cost collector evidence/);
   }
   const f = fixture();
-  f.costs[1].Root.Spans.push({ ID: 2, Parent: 1, Operation: 'liquibase.invoke', Phase: 'step', Step: 1,
+  f.costs[1].Root.Spans.push({ ID: f.costs[1].Root.Spans.length + 1, Parent: 1, Operation: 'liquibase.invoke', Phase: 'step', Step: 1,
     StartNS: 1, EndNS: 2, Outcome: 'succeeded' });
   f.costs[1].Root.Declared++;
   assert.throws(() => parseCostOutput(0, output(f), expected), /Invalid cost collector evidence/);

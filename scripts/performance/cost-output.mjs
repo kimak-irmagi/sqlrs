@@ -1,6 +1,7 @@
 import { parseCollectorResult } from './collector-output.mjs';
 import { summarizeHostCosts } from './cost-accounting.mjs';
 import { costDefinition } from './cost-catalog.mjs';
+import { qualifyCostDetails } from './cost-detail.mjs';
 
 const natural = value => Number.isSafeInteger(value) && value >= 0;
 const invalid = () => { throw new Error('Invalid cost collector evidence'); };
@@ -56,7 +57,7 @@ export function parseCostOutput(code, output, expected) {
       return { Pass: sample.Pass, Fixture: sample.Fixture, SourceRevision: sample.SourceRevision,
         EngineSHA256: sample.EngineSHA256, PrepareElapsedNS: cost.PrepareElapsedNS, WorkerElapsedNS: root.ElapsedNS,
         ObserverWaitNS: cost.ObserverWaitNS, Accounting: { ...accounting, Rows: accounting.Rows.map(scoped) },
-        OverallNonAdditive: true, Overall: overall, Steps: steps };
+        OverallNonAdditive: true, Overall: overall, Steps: steps, ...qualifyCostDetails(root) };
     });
   } catch {
     // Even JSON/lookup/shape errors may contain private source text. Retain no

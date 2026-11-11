@@ -178,3 +178,17 @@ in-process monotonic operation durations to calendar time.
   or total observer overhead. No API, DB, capture or cleanup authority changes.
 - Relationship: refines CT06–CT11/CT14 above; does not supersede the optimisation,
   source-correspondence, privacy, regression or unchanged speed requirements.
+
+## Approve DT01–DT08 and limited OT-CT05–OT-CT08
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: approve the reviewed concrete helper/observer tests and adapt only
+  four named conflicting old preparations, or revisit their design first?
+- Alternatives: discuss the inventory; or write approved tests first while
+  preserving the old semantic assertions and their exact refusal boundaries.
+- Decision: user separately replied “Утвердить DT01–DT08” and
+  “Разрешить OT-CT05–OT-CT08”. No other old-test changes are authorised.
+- Rationale: qualify owned timing, complete private delivery and independent
+  accounting without changing product outcomes or the blocking speed criterion.

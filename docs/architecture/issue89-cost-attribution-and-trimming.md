@@ -192,8 +192,8 @@ CT06–CT11/CT14 cover its requirements; exact codec cases and named conflicting
 old-fixture changes are proposed in DT01–DT08 / OT-CT05–OT-CT08 in the
 [test inventory](issue89-cost-attribution-and-trimming-tests.md). @evilguest
 approved the component refinement with “Утвердить уточнение передачи”; the exact
-reply time is unavailable. Those supplemental tests/amendments await separate
-approval. No helper/observer transport code has been changed for this refinement.
+reply time is unavailable. DT01–DT08 and OT-CT05–OT-CT08 were subsequently
+separately approved/permitted; tests-first implementation is in progress.
 
 ## 4. Accounting and requested report
 
@@ -464,3 +464,27 @@ wrong roots/windows, missing applies and private extras are refused/dropped as
 specified. This output decoder is not connected to a new Actions comparison
 driver yet. Helper phase transport, emission-cost connection and full speed
 acceptance remain open; no new measured JHipster cost values are claimed.
+
+### Helper/observer implementation checkpoint (2026-11-11)
+
+Approved DT01–DT08 / limited OT-CT05–OT-CT08 are being implemented. The recorder
+now owns copied helper observations; both helpers emit their eight fixed local
+phases only when explicitly enabled. Serve/readiness/prune are off. A separate
+observer marker follows the full framed write under the same lock; collection
+waits for both terminal markers after the original API timer. Node independently
+qualifies/sanitizes both kinds of detail and keeps them non-additive. The narrow
+`liquibase.plan_invoke` key maps `runTrackedExecutor` to v1's
+`PrepareService.runLiquibaseUpdateSQL`, not the whole preview database lifetime.
+
+Tests first reproduced missing APIs/metadata and a real runtime-log-sink escape
+for helper stdout. The helper call now suppresses that sink without removing its
+cost context; capture/CLI outcomes remain authoritative. Full ordinary runtime
+and prepare passed (92.4% / 77.1%, covered by the aggregate exception); recorder
+99.7%, with new helper-observation/encoder/emitter functions each 100%. All 73
+Node tests pass, including new detail helper at 100% lines/functions/branches.
+Collector Linux compile/vet passes. Its new detail decoder still needs an
+approved, line-mapped coverage iteration for four refusal operators; incomplete
+phase-at-end refusal is also included in the proposed iteration. No dead code
+removal is proposed. Native timer on/off controls and complete host detail are
+prepared for the existing Actions probe, not yet qualified. New comparison-driver
+hookup, before/after/off/on collection and unchanged full P01b remain open.

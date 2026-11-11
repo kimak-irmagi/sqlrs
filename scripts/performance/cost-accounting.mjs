@@ -3,7 +3,7 @@
 // Requirements: issue89-cost-attribution-and-trimming.md §4.
 const operations = new Set([
   'prepare.worker', 'runner.inventory', 'capture.read', 'capture.prune', 'docker.command', 'docker.capture_copy',
-  'prepare.planning', 'prepare.session_startup', 'prepare.step', 'liquibase.invoke',
+  'prepare.planning', 'prepare.session_startup', 'prepare.step', 'liquibase.invoke', 'liquibase.plan_invoke',
   'db.prepare_snapshot', 'db.resume.step', 'db.resume.publication', 'db.verify.after_apply', 'db.verify.after_resume',
   'state.snapshot', 'state.size', 'state.seal', 'journal.state_publish',
   'journal.invocation_plan', 'journal.invocation_admit', 'journal.invocation_complete',

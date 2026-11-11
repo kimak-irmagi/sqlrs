@@ -33,6 +33,9 @@ type costRoot struct {
 	Declared        int
 	Complete, Ended bool
 	Spans           []costSpan
+	Helpers         []costHelperObservation
+	Observer        *costObserver
+	helperIndex     map[int]int
 }
 
 // costStream drains one engine's private stderr through bounded fragments.
@@ -111,7 +114,7 @@ func (s *costStream) accept(line string) error {
 		}
 		s.roots[id] = &costRoot{Root: id, Declared: int(count), ElapsedNS: int64(elapsed), Complete: fields[4] == "1"}
 	case "span":
-		if !exists || root.Ended || len(fields) != 10 || len(root.Spans) >= root.Declared {
+		if !exists || root.Ended || len(root.Helpers) > 0 || len(fields) != 10 || len(root.Spans) >= root.Declared {
 			return errCostStream
 		}
 		spanID, validID := costUnsigned(fields[2], 63)
@@ -131,6 +134,24 @@ func (s *costStream) accept(line string) error {
 			}
 		}
 		root.Spans = append(root.Spans, span)
+	case "helper":
+		if !exists || root.Ended || len(root.Spans) != root.Declared || !root.Complete {
+			return errCostStream
+		}
+		if err := root.acceptHelper(fields); err != nil {
+			return err
+		}
+	case "observer":
+		if !exists || !root.Ended || root.Observer != nil || len(fields) != 5 {
+			return errCostStream
+		}
+		encode, okEncode := costUnsigned(fields[2], 63)
+		wait, okWait := costUnsigned(fields[3], 63)
+		write, okWrite := costUnsigned(fields[4], 63)
+		if !okEncode || !okWait || !okWrite {
+			return errCostStream
+		}
+		root.Observer = &costObserver{EncodeNS: int64(encode), LockWaitNS: int64(wait), WriteNS: int64(write)}
 	case "end":
 		if !exists || root.Ended || len(fields) != 3 {
 			return errCostStream
@@ -138,6 +159,11 @@ func (s *costStream) accept(line string) error {
 		count, valid := costUnsigned(fields[2], 63)
 		if !valid || count != uint64(root.Declared) || len(root.Spans) != root.Declared {
 			return errCostStream
+		}
+		for _, helper := range root.Helpers {
+			if helper.Available && len(helper.Detail.Regions) != len(costHelperPhases) {
+				return errCostStream
+			}
 		}
 		root.Ended = true
 	default:
@@ -161,7 +187,7 @@ func costOperation(value string) bool {
 		return true
 	case "prepare.planning", "prepare.session_startup", "prepare.step":
 		return true
-	case "liquibase.invoke", "db.prepare_snapshot", "db.resume.step", "db.resume.publication",
+	case "liquibase.invoke", "liquibase.plan_invoke", "db.prepare_snapshot", "db.resume.step", "db.resume.publication",
 		"db.verify.after_apply", "db.verify.after_resume", "state.snapshot", "state.size", "state.seal",
 		"journal.state_publish", "journal.invocation_plan", "journal.invocation_admit", "journal.invocation_complete",
 		"prepare.publication", "prepare.final_cleanup":
@@ -211,6 +237,16 @@ func (s *costStream) finish(cause error) error {
 // await returns an independent closed snapshot. The caller owns its deadline
 // and must also observe the consumer's final error during process teardown.
 func (s *costStream) await(ctx context.Context, id uint64) (costRoot, error) {
+	return s.awaitState(ctx, id, false)
+}
+
+// awaitMeasured requires the emission marker as well as end. The same caller
+// deadline covers both waits after the unchanged API timer (DT05).
+func (s *costStream) awaitMeasured(ctx context.Context, id uint64) (costRoot, error) {
+	return s.awaitState(ctx, id, true)
+}
+
+func (s *costStream) awaitState(ctx context.Context, id uint64, measured bool) (costRoot, error) {
 	for {
 		if err := ctx.Err(); err != nil {
 			return costRoot{}, err
@@ -221,13 +257,22 @@ func (s *costStream) await(ctx context.Context, id uint64) (costRoot, error) {
 			return costRoot{}, errCostStream
 		}
 		root, found := s.roots[id]
-		if found && root.Ended {
+		if found && root.Ended && (!measured || root.Observer != nil) {
 			if !root.Complete {
 				s.mu.Unlock()
 				return costRoot{}, errCostStream
 			}
 			copy := *root
 			copy.Spans = append([]costSpan(nil), root.Spans...)
+			copy.Helpers = append([]costHelperObservation(nil), root.Helpers...)
+			for index := range copy.Helpers {
+				copy.Helpers[index].Detail.Regions = append([]costHelperRegion(nil), root.Helpers[index].Detail.Regions...)
+			}
+			copy.helperIndex = nil
+			if root.Observer != nil {
+				observer := *root.Observer
+				copy.Observer = &observer
+			}
 			s.mu.Unlock()
 			return copy, nil
 		}

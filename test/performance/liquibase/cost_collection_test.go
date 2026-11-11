@@ -41,7 +41,7 @@ func TestCostCollectionSelectionAndEnvironment(t *testing.T) {
 
 func TestCostCollectionQualifiesActualWorkerAndAPIWindow(t *testing.T) {
 	stream := newCostStream()
-	if err := stream.consume(strings.NewReader(costStreamExample(1))); err != nil {
+	if err := stream.consume(strings.NewReader(costDetailStreamExample(1))); err != nil {
 		t.Fatal(err)
 	}
 	root, err := stream.await(t.Context(), 1)

@@ -52,6 +52,7 @@ jobs:
         run: |
           go test ./internal/runtime -run '^TestCostSyncImplementationDocker$' -v -count=1 -timeout=8m
           go test ./internal/runtime -run '^(TestCostHelperFlushBoundariesDocker|TestLiquibaseStepCaptureReusableRunnerDocker)$' -v -count=1 -timeout=8m
+          go test ./internal/runtime -run '^TestCostHelperTimersDocker$' -v -count=1 -timeout=6m
       - name: Qualify native host attribution and unchanged prepare
         working-directory: backend/local-engine-go
         env:

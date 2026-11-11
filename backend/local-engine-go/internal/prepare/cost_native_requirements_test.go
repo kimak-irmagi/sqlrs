@@ -45,7 +45,9 @@ func TestCostMainPathNamedAttributionDocker(t *testing.T) {
 		mainPathAssertRows(t, f.ctx, status.Result.DSN, 3, 2)
 		observed := map[string]int{}
 		stepCalls := map[int]int{}
-		begins, ends := 0, 0
+		begins, ends, observers := 0, 0, 0
+		helperOwners := map[string]int{}
+		ownerOperations := map[string]string{}
 		for _, line := range strings.Split(strings.TrimSpace(output.String()), "\n") {
 			fields := strings.Fields(line)
 			if len(fields) < 3 || fields[0] != preparecost.WirePrefix[:len(preparecost.WirePrefix)-1] || fields[2] != strconv.Itoa(pass+1) {
@@ -73,12 +75,33 @@ func TestCostMainPathNamedAttributionDocker(t *testing.T) {
 					t.Fatal("native mandatory completed operation failed")
 				}
 				observed[fields[5]]++
+				ownerOperations[fields[3]] = fields[5]
 				if fields[5] == "prepare.step" {
 					ordinal, err := strconv.Atoi(fields[7])
 					if err != nil || fields[6] != "step" {
 						t.Fatal("native apply has no logical step")
 					}
 					stepCalls[ordinal]++
+				}
+			case "helper":
+				if len(fields) != 8 || (ownerOperations[fields[3]] != "liquibase.plan_invoke" && ownerOperations[fields[3]] != "liquibase.invoke") {
+					t.Fatal("native helper lacks exact invocation owner or complete phase")
+				}
+				phases := []string{"preflight", "cli", "drain", "stream_flush", "hash_rename", "renamed_flush", "manifest_flush", "final_flush"}
+				index := helperOwners[fields[3]]
+				if index >= len(phases) || fields[4] != phases[index] {
+					t.Fatal("native helper phase order differs")
+				}
+				helperOwners[fields[3]]++
+			case "observer":
+				observers++
+				if len(fields) != 6 || ends != 1 {
+					t.Fatal("native observer does not follow complete report")
+				}
+				for _, value := range fields[3:] {
+					if n, err := strconv.ParseInt(value, 10, 64); err != nil || n < 0 {
+						t.Fatal("invalid native observer duration")
+					}
 				}
 			case "end":
 				ends++
@@ -88,6 +111,18 @@ func TestCostMainPathNamedAttributionDocker(t *testing.T) {
 		}
 		if begins != 1 || ends != 1 || observed["prepare.worker"] != 1 || observed["docker.command"] == 0 {
 			t.Fatal("native report lacks a complete worker/command tree")
+		}
+		wantOwners := 4
+		if pass == 1 {
+			wantOwners = 1
+		}
+		if observers != 1 || len(helperOwners) != wantOwners || observed["liquibase.plan_invoke"] != 1 {
+			t.Fatal("native helper/observer owner counts differ")
+		}
+		for _, count := range helperOwners {
+			if count != 8 {
+				t.Fatal("native helper detail incomplete")
+			}
 		}
 		for operation, count := range counts[pass] {
 			if observed[operation] != count {

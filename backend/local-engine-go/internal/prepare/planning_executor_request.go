@@ -11,6 +11,7 @@ import (
 	"github.com/sqlrs/engine-local/internal/prepare/effectiveconfig"
 	"github.com/sqlrs/engine-local/internal/prepare/inputbundle"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/preparecost"
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
 )
 
@@ -91,6 +92,10 @@ func (m *PrepareService) buildPlanningExecutorRequest(ctx context.Context,
 		"SQLRS_ATTEMPT_NO":        strconv.Itoa(saved.Attempt.AttemptNo),
 		"SQLRS_EXECUTION_DIGEST":  saved.Attempt.ExecutionDigest,
 		"SQLRS_HELPER_DIGEST":     saved.Capture.HelperDigest,
+		"SQLRS_CAPTURE_COST":      "0",
+	}
+	if preparecost.IsRecording(ctx) {
+		env["SQLRS_CAPTURE_COST"] = "1"
 	}
 	for key, value := range request.Env {
 		if _, reserved := env[key]; reserved || strings.TrimSpace(key) == "" {

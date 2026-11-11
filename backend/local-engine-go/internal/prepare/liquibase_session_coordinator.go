@@ -120,6 +120,7 @@ func (c *liquibaseSessionCoordinator) launchRunner(ctx context.Context, want que
 	env["SQLRS_WORKER_GENERATION"] = strconv.Itoa(session.WorkerGeneration)
 	env["SQLRS_RUNNER_CONFIG_DIGEST"] = session.RunnerConfigDigest
 	env["SQLRS_HELPER_DIGEST"] = session.CaptureHelperDigest
+	env["SQLRS_CAPTURE_COST"] = "0"
 	request.Env = env
 	request.Args = []string{"/sqlrs/helper/step-capture.sh", "serve"}
 	id, err := c.runtime.CreateContainer(ctx, request)

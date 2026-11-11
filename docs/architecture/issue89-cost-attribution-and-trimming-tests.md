@@ -278,7 +278,7 @@ mandatory completed named operations. Preserve exact database data, cache/step
 counts, parent/database reuse and cleanup-before-fallback assertions. Do not
 change product retry behavior or turn a terminal prepare failure into success.
 
-## Detail transport DT01–DT08 (awaiting approval, 2026-11-11)
+## Detail transport DT01–DT08 (approved, 2026-11-11)
 
 Concrete cases for the approved [§3 refinement](issue89-cost-attribution-and-trimming.md),
 within CT06–CT11/CT14. No new recovery matrix or speed criterion. After approval,
@@ -357,7 +357,7 @@ production injection interfaces.
    measure ordinary helpers (target 100%, minimum 95%). Functional qualification
    does not replace approved before/after/off/on runs or the full P01b gate.
 
-### Named old-test conflicts (OT-CT05–OT-CT08; separate permission pending)
+### Named old-test conflicts (OT-CT05–OT-CT08; separately permitted)
 
 - **OT-CT05:** only `TestCostWireWriterAndConcurrentRoots`: four lines per root
   become five (observer after the same end). Preserve 16 roots, root/end checks,
@@ -395,6 +395,7 @@ Further contradictions require named approval.
   scheduler duration or native clock mutation. Old negatives must reach their
   own fault after fixture expansion, not pass due to missing metadata.
 
-Repeat review found no remaining P0–P2 in this bounded supplement. New tests,
-implementation and named amendments await approval; no new runtime transport,
-helper timers or speed result are claimed.
+Repeat review found no remaining P0–P2 in this bounded supplement. @evilguest
+separately approved DT01–DT08 and permitted OT-CT05–OT-CT08; exact reply time
+unavailable. Tests-first implementation may proceed. Approval is not a runtime
+qualification or a speed result.

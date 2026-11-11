@@ -238,10 +238,23 @@ func (r *DockerRuntime) invokeObservedLiquibaseStep(ctx context.Context, name, c
 		return CompleteStepCapture{}, fmt.Errorf("exact Liquibase session runner is not running")
 	}
 	args := stepCaptureExecEnvironment(identity, maxStreamBytes, prune)
+	flag := "0"
+	if preparecost.IsRecording(ctx) {
+		flag = "1"
+	}
+	// Explicit override prevents an image's environment enabling diagnostics.
+	args = append(args, "-e", "SQLRS_CAPTURE_COST="+flag)
 	args = append(args, identity.RunnerID, "/bin/sh", "/sqlrs/helper/step-capture.sh", "liquibase")
 	args = append(args, liquibaseArgs...)
 	// Do not surface either Docker output or its arbitrary error text. The
 	// protected streams and manifest carry the recoverable child result.
-	_, _ = r.run(ctx, args, nil)
+	helperContext := WithoutLogSink(ctx)
+	if preparecost.IsRecording(ctx) {
+		started := time.Now()
+		output, _ := r.run(helperContext, args, nil)
+		preparecost.RecordHelper(ctx, []byte(output), time.Since(started).Nanoseconds())
+	} else {
+		_, _ = r.run(helperContext, args, nil)
+	}
 	return r.ReadCompleteLiquibaseStepOutput(ctx, name, identity.RunnerID, captureDir, identity, maxStreamBytes)
 }

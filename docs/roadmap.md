@@ -173,8 +173,10 @@ native flush/reuse checks, recorded three-step/cache counts/data/cleanup and the
 unchanged full normal prepare. Worker roots/private collection are connected;
 new source-catalog/accounting/output helpers pass 69 Node tests with 100% lines
 in those helpers. The final helper-phase/emission-cost transport refinement is
-approved; supplemental DT01–DT08 tests and named old-fixture amendments await
-approval before implementation. Comparison-driver hookup and before/after/off/on/full Actions
+approved, as are DT01–DT08 and limited OT-CT05–OT-CT08. Helper/observer recording,
+private collection and independent report qualification are implemented; ordinary
+tests pass, native Actions qualification and a small collector-coverage iteration
+remain open. Comparison-driver hookup and before/after/off/on/full Actions
 series remain open. No new speed result or acceptance is claimed.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.

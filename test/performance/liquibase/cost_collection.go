@@ -47,5 +47,5 @@ func qualifyCostPass(root costRoot, expectedRoot uint64, apiElapsedNS int64, cha
 			return errCostStream
 		}
 	}
-	return nil
+	return qualifyDetails(root)
 }

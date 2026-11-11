@@ -14,6 +14,7 @@ const (
 	DockerCommand      Operation = "docker.command"
 	CaptureCopy        Operation = "docker.capture_copy"
 	Planning           Operation = "prepare.planning"
+	PlanningInvocation Operation = "liquibase.plan_invoke"
 	SessionStartup     Operation = "prepare.session_startup"
 	StepExecution      Operation = "prepare.step"
 	Invocation         Operation = "liquibase.invoke"
@@ -68,6 +69,7 @@ func Definitions() []Definition {
 		{DockerCommand, Shared, Location{"internal/runtime/docker.go", "DockerRuntime.run"}, Location{"internal/runtime/docker.go", "DockerRuntime.run"}},
 		{CaptureCopy, Additional, Location{"internal/runtime/session_capture_bundle.go", "DockerRuntime.readSessionCaptureBundle"}, Location{}},
 		{Planning, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.planNormalContainerLiquibase"}, Location{"internal/prepare/components.go", "PrepareService.runLiquibaseUpdateSQL"}},
+		{PlanningInvocation, Changed, Location{"internal/prepare/tracked_executor.go", "runTrackedExecutor"}, Location{"internal/prepare/components.go", "PrepareService.runLiquibaseUpdateSQL"}},
 		{SessionStartup, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.startNormalLiquibaseSession"}, Location{"internal/prepare/execution.go", "taskExecutor.ensureRuntime"}},
 		{StepExecution, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.executeNormalLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
 		{Invocation, Changed, Location{"internal/runtime/liquibase_step_capture.go", "DockerRuntime.InvokeTrackedLiquibaseStep"}, Location{"internal/prepare/execution.go", "taskExecutor.executeLiquibaseStep"}},

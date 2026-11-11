@@ -657,6 +657,9 @@ func collect(t *testing.T) {
 			waitStarted := time.Now()
 			observationCtx, stop := context.WithTimeout(ctx, 10*time.Second)
 			observation, err := costReader.await(observationCtx, costOrdinal)
+			if err == nil {
+				observation, err = costReader.awaitMeasured(observationCtx, costOrdinal)
+			}
 			stop()
 			if err != nil || qualifyCostPass(observation, costOrdinal, end.Sub(start).Nanoseconds(), expectedChanges) != nil {
 				t.Fatal("private cost evidence does not qualify the public pass")

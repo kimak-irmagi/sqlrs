@@ -115,13 +115,17 @@ func TestCostWireWriterAndConcurrentRoots(t *testing.T) {
 	}
 	workers.Wait()
 	lines := strings.Split(strings.TrimSuffix(buffer.String(), "\n"), "\n")
-	if len(lines) != 16*4 {
+	if len(lines) != 16*5 {
 		t.Fatal("concurrent roots lost or interleaved frame bytes")
 	}
-	for index := 0; index < len(lines); index += 4 {
+	for index := 0; index < len(lines); index += 5 {
 		begin, end := strings.Split(lines[index], " "), strings.Split(lines[index+3], " ")
 		if begin[1] != "begin" || end[1] != "end" || begin[2] != end[2] {
 			t.Fatal("one emission crossed another root's frames")
+		}
+		observer := strings.Split(lines[index+4], " ")
+		if len(observer) != 6 || observer[1] != "observer" || observer[2] != begin[2] {
+			t.Fatal("observer write crossed another root's frames")
 		}
 	}
 	before := buffer.String()
