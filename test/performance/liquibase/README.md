@@ -115,6 +115,14 @@ line-mapped DT-C1 iteration was separately approved and raises the detail decode
 from 50/54 to 54/54 statements (100%); full ordinary Windows tests/vet pass.
 Old fixed-binary evidence and
 strict parsers stay intact; a new candidate must have a new pinned identity.
+
+The separate `performance:cost-attribution` label now selects one same-repository
+Ubuntu job: exact old v2 is prepared/retained, new v2 prepared once, then eight
+serial JHipster members alternate released v1 / old v2 / new off / new on and
+the reversed order. Setup/warm-up/native 5.0.3 image qualification are outside API
+timing. Only closed `.tmp/performance/cost-reports/*.json` is uploaded; these are
+not the unchanged full P01b acceptance reports. Pure campaign helpers are 100%
+covered, all 82 Node tests pass. Actual campaign execution is still required.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.

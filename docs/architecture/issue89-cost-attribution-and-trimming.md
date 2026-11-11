@@ -242,6 +242,19 @@ noise-control and independent-confirmation protocol for all three public example
 against the new pinned candidate. It remains blocking; no performance waiver,
 privately sourced izess input, JVM callbacks, #104 or #170–#174 scope expansion.
 
+CT13 keeps the existing preparation-root restriction: build pinned old v2 in the
+hosted workspace, retain its exact verified engine/JDBC bundle in an ignored
+private directory, verify the tracked checkout is clean, then check out the
+selected new head in that same workspace without deleting the retained artifact.
+Build new v2 once for off/on. The final observer/collector comes from the new
+head; no build/checkout runs during measurement. One serial parent owns eight
+members and bounded private output, checks hashes before every launch and exports
+only sanitized samples/costs. Strict `preparationCheckout`/old tests are unchanged.
+The explicit read-only `performance:cost-attribution` workflow uses one Ubuntu VM,
+60-minute job/50-minute collection budget from before setup, plus cleanup reserve.
+Pinned JHipster image prerequisites/warm-up precede API timing. Reports are
+separate from historical diagnostics and P01b acceptance artifacts.
+
 ## 6. Critical and repeat review
 
 Corrected before presentation: treating shared-purpose operations as identical
@@ -505,3 +518,17 @@ DT-C1 was subsequently approved and implemented: the repeat ordinary profile
 covers the new detail decoder at 54/54 statements (100%); full module tests/vet
 pass on Windows. Its whole-module 58.9% is not a Linux helper/integration result.
 No old assertion or product boundary changed in this iteration.
+
+### CT13 campaign hookup (2026-11-11)
+
+The explicit `liquibase-cost-attribution.yml` and integration-only `run-cost.mjs`
+now connect the existing preparation, public JHipster warm-up, collector/oracles
+and qualified report decoder. Pure selection/identity/schedule/environment
+helpers have 100% lines/functions/branches; all 82 Node tests pass. Workflow/source
+guards preserve one VM, exact old hashes, serial reversed members, same new
+helper for off/on, original API timer, cleanup and private bounded transport.
+Actual native image prerequisites must pass (not skip/match zero tests); a new
+test qualifies JHipster's pinned 5.0.3 GNU sync/coarse clock outside timing.
+Its execution and the complete eight-member cohort are still required in Actions.
+The parent retains incomplete stage/member evidence on failure, never raw output.
+No old tests, preparation-root policy, product/API/schema or P01b rule changed.

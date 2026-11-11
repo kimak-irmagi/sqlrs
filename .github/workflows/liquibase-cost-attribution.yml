@@ -1,0 +1,64 @@
+name: Liquibase cost attribution (explicit opt-in, not acceptance)
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: liquibase-cost-attribution-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  campaign:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.label.name == 'performance:cost-attribution'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Start hosted budget
+        run: node -e 'require("fs").appendFileSync(process.env.GITHUB_ENV, "PERFORMANCE_JOB_STARTED_MS=" + Date.now() + "\n")'
+      - uses: actions/checkout@v7
+        with:
+          ref: 668d5050ad154c1967bea4c6e40b91f3a703d5ba
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: .tmp/performance-observer
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Build exact old v2
+        uses: ./.tmp/performance-observer/.github/actions/liquibase-perf-setup
+        with:
+          source_root: ${{ github.workspace }}
+          candidate_sha: 668d5050ad154c1967bea4c6e40b91f3a703d5ba
+          expected_engine_sha: 1367bce9ddaa44c0aa378b07c015dfb20a4c0d29f00d2f5a893905686fae14b0
+      - name: Retain verified old artifact
+        run: |
+          node .tmp/performance-observer/scripts/performance/run-cost.mjs preserve-before
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+          clean: false
+      - name: Build selected new v2
+        uses: ./.github/actions/liquibase-perf-setup
+        with:
+          candidate_sha: ${{ github.event.pull_request.head.sha }}
+      - name: Eight serial before after off on members
+        run: node scripts/performance/run-cost.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: liquibase-cost-${{ github.event.pull_request.head.sha }}
+          path: .tmp/performance/cost-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14

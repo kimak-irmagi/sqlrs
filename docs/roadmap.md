@@ -178,7 +178,8 @@ private collection and independent report qualification are implemented; ordinar
 tests pass. Native `42964091822` qualifies both helper timers and complete
 three-step/cache detail, reuse/data/cleanup and unchanged full normal prepare.
 Approved DT-C1 raises its new detail decoder from 50/54 to 54/54 statements
-(100%); ordinary tests/vet pass. Comparison-driver hookup and before/after/off/on/full Actions
+(100%); ordinary tests/vet pass. The four-route comparison driver is connected,
+with 100% pure-helper coverage and 82 passing Node tests; actual before/after/off/on/full Actions
 series remain open. No new speed result or acceptance is claimed.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.

@@ -206,3 +206,22 @@ in-process monotonic operation durations to calendar time.
   boundary changes, new injection capability or dead-code removal authorised.
 - Rationale: verify existing safe-refusal requirements and reach the helper
   coverage target without changing execution or performance acceptance.
+
+## Implement approved CT13 without widening preparation roots
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; implementation under the
+  previously explicit CT01–CT14 approval, not a new user reply.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: how to prepare both fixed versions on one VM while keeping the
+  existing strict hosted-workspace-only preparation boundary?
+- Alternatives: introduce multi-root preparation permissions; or prepare old v2
+  in the hosted root, retain its verified executable/JDBC privately, then switch
+  the clean root to the selected new revision and prepare new v2 once.
+- Decision: agent implementation uses serial clean root checkouts and retained
+  exact old bytes. Source/build transitions finish before all eight measurements;
+  new off/on use the same executable/helper. Existing preparation tests and root
+  policy remain unchanged. A separate explicit read-only label starts this cohort;
+  historical diagnostic/full-P01b workflows and evidence remain separate.
+- Rationale: implement the approved same-VM experiment with existing authority,
+  preserving independent hashes and controls rather than expanding permissions.
