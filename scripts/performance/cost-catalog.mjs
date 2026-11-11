@@ -31,6 +31,55 @@ const definitions = [
   {"Operation":"prepare.final_cleanup","Relation":"changed","Current":{"File":"internal/prepare/liquibase_normal_worker.go","Symbol":"PrepareService.finishNormalLiquibase"},"Released":{"File":"internal/prepare/manager.go","Symbol":"jobCoordinator.runJob","Revision":"cab99c4c7ced5b18f4dc43a65b002d84d8fef02d"}},
 ];
 
+// TL04–TL07: exact call-site correspondence. These rows identify code; their
+// inclusive time is not added to child operations or asserted equal to v1 time.
+const timelineSites = [
+  ['plan.release', 'liquibase_normal_worker.go', 'PrepareService.observePlanNormalContainerLiquibase'],
+  ['db.source_prepare', 'managed_execution.go', 'taskExecutor.observeStartManagedRuntimeWithPlan', 'shared', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],
+  ['session.plan', 'liquibase_normal_worker.go', 'PrepareService.observeStartNormalLiquibaseSession'],
+  ['session.input_prepare', 'liquibase_normal_worker.go', 'PrepareService.observeStartNormalLiquibaseSession'],
+  ['step.status', 'liquibase_normal_worker.go', 'jobCoordinator.runObservedContainerLiquibase', 'changed', 'execution.go', 'taskExecutor.executeStateTask'],
+  ['runner.stop', 'liquibase_session_coordinator.go', 'liquibaseSessionCoordinator.stopRunner'],
+  ['admission.inputs', 'manager.go', 'PrepareService.submitObservedForPurpose', 'changed', 'manager.go', 'PrepareService.Submit'],
+  ['admission.image', 'manager.go', 'PrepareService.submitObservedForPurpose', 'changed', 'manager.go', 'PrepareService.Submit'],
+  ['admission.identity', 'manager.go', 'PrepareService.submitObservedForPurpose', 'shared', 'manager.go', 'PrepareService.Submit'],
+  ['admission.commit', 'liquibase_container_binding.go', 'PrepareService.admitContainerLiquibase', 'changed', 'manager.go', 'PrepareService.Submit'],
+  ['db.assign', 'managed_execution.go', 'taskExecutor.observeStartManagedRuntimeWithPlan', 'shared', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],
+  ['publication.activate', 'liquibase_normal_worker.go', 'PrepareService.publishNormalLiquibaseWorkingInstance', 'changed', 'execution.go', 'taskExecutor.createInstance'],
+  ['publication.commit', 'liquibase_normal_worker.go', 'PrepareService.publishNormalLiquibaseWorkingInstance', 'changed', 'execution.go', 'taskExecutor.createInstance'],
+  ['private.dispose', 'liquibase_normal_worker.go', 'PrepareService.publishNormalLiquibaseWorkingInstance'],
+  ['binding.prepare', 'liquibase_container_binding.go', 'PrepareService.bindContainerLiquibase'],
+  ['projection.wait', 'liquibase_projection_gate.go', 'PrepareService.withLiquibaseProjectionGate'],
+  ['input.publish', 'liquibase_container_binding.go', 'PrepareService.admitContainerLiquibase'],
+  ['input.materialize', 'liquibase_container_binding.go', 'PrepareService.bindFreshContainerLiquibase'],
+  ['runner.resolve', 'liquibase_container_binding.go', 'PrepareService.bindFreshContainerLiquibase'],
+  ['runner.ensure', 'liquibase_container_binding.go', 'PrepareService.bindFreshContainerLiquibase'],
+  ['driver.materialize', 'liquibase_container_binding.go', 'PrepareService.bindFreshContainerLiquibase'],
+  ['binding.commit', 'liquibase_container_binding.go', 'PrepareService.bindFreshContainerLiquibase'],
+  ['plan.launch_prepare', 'liquibase_normal_worker.go', 'PrepareService.observePlanNormalContainerLiquibase'],
+  ['plan.input_prepare', 'planning_executor_request.go', 'PrepareService.buildPlanningExecutorRequest'],
+  ['plan.capture_reconcile', 'liquibase_normal_worker.go', 'PrepareService.observePlanNormalContainerLiquibase'],
+  ['plan.dispose', 'liquibase_normal_worker.go', 'PrepareService.observePlanNormalContainerLiquibase', 'changed', 'execution.go', 'PrepareService.cleanupRuntime'],
+  ['plan.suffix', 'liquibase_normal_worker.go', 'jobCoordinator.runObservedContainerLiquibase', 'changed', 'manager.go', 'jobCoordinator.buildPlanLiquibase'],
+  ['db.startup', 'managed_execution.go', 'taskExecutor.startManagedRuntimeWithPlan', 'changed', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],
+  ['db.lock_wait', 'managed_execution.go', 'taskExecutor.observeStartManagedRuntimeWithPlan', 'shared', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],
+  ['db.base_init', 'managed_execution.go', 'taskExecutor.observeStartManagedRuntimeWithPlan', 'shared', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],
+  ['db.clone', 'managed_execution.go', 'taskExecutor.observeStartManagedRuntimeWithPlan', 'shared', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],
+  ['db.start', 'managed_execution.go', 'taskExecutor.observeStartManagedRuntimeWithPlan', 'changed', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],
+  ['db.attach', 'managed_execution.go', 'taskExecutor.observeStartManagedRuntimeWithPlan', 'shared', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],
+  ['db.verify.startup', 'managed_execution.go', 'taskExecutor.observeStartManagedRuntimeWithPlan', 'shared', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],
+  ['session.runner_start', 'liquibase_normal_worker.go', 'PrepareService.observeStartNormalLiquibaseSession', 'changed', 'execution.go', 'taskExecutor.executeLiquibaseStep'],
+  ['session.readiness', 'liquibase_normal_worker.go', 'PrepareService.observeStartNormalLiquibaseSession'],
+  ['step.bind', 'liquibase_normal_worker.go', 'jobCoordinator.runObservedContainerLiquibase'],
+  ['projection.cleanup', 'liquibase_normal_worker.go', 'PrepareService.finishObservedNormalLiquibase'],
+  ['finalization.confirm', 'liquibase_normal_worker.go', 'PrepareService.finishObservedNormalLiquibase'],
+  ['finalization.commit', 'liquibase_normal_worker.go', 'PrepareService.finishObservedNormalLiquibase', 'changed', 'manager.go', 'jobCoordinator.runJob'],
+];
+for (const [Operation, file, Symbol, relation, releasedFile, releasedSymbol] of timelineSites) {
+  definitions.push({ Operation, Relation: relation ?? 'additional', Current: { File: `internal/prepare/${file}`, Symbol },
+    Released: releasedFile ? { File: `internal/prepare/${releasedFile}`, Symbol: releasedSymbol, Revision: 'cab99c4c7ced5b18f4dc43a65b002d84d8fef02d' } : null });
+}
+
 /** Every caller owns its catalog, including nested source-coordinate objects. */
 export function costCatalog() { return structuredClone(definitions); }
 

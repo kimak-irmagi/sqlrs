@@ -223,7 +223,7 @@ func timelineAuxKind(kind string) bool {
 // underlying cause. Finer observed leaf calls can classify it in later reports.
 func timelineStructural(operation Operation) bool {
 	switch operation {
-	case Request, Admission, Worker, Planning, SessionStartup, StepExecution, Publication, FinalCleanup:
+	case Request, Admission, Worker, Binding, DBStartup, Planning, SessionStartup, StepExecution, Publication, FinalCleanup:
 		return true
 	}
 	return false

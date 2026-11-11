@@ -167,6 +167,8 @@ begun; the implementation checkpoint below supersedes that historical status.
 
 ## 6. Implementation checkpoint, not measurement acceptance
 
+Historical checkpoint at `70b224d`; §7 supersedes its pending-work statuses.
+
 TL01–TL14 and the narrow new-oracle correction (seven outside-window intervals,
 not six, with their exact owners/bounds) are explicitly approved. Tests first
 failed for missing Go/Node timeline helpers, shared clock types, wire frames,
@@ -200,3 +202,43 @@ The later full ordinary Windows prepare package passes (44.819 s), the full
 ordinary collector module passes, and all 88 Node tests pass. Old tests have not
 been edited. OT-TL01 is separately requested for the existing Linux workload
 collector; it is not covered by the new-test approval and is not yet applied.
+
+## 7. Collector/source integration checkpoint
+
+OT-TL01 is approved and applied only to the named collector. The old `time.Now`
+start/end remain unchanged. Shared-clock brackets, original elapsed, signed
+delta and actual POST/status/poll intervals are separate closed data. Inherited
+selectors/references are stripped on every member; only the two new-on members
+select the complete mode. Original serial CT13 order and artifact/oracle/cleanup
+checks remain unchanged. OT-TL02 separately requests changing one old static
+parser-name expectation; it has not been applied without approval.
+
+Actual source calls now have detailed keys for admission, immutable input/image
+binding, launch/input preparation, preview disposal/capture/release, both managed
+DB startup routes (lock, source/base, assignment, clone, start, attach, proof),
+session preparation/readiness, step binding/status, publication and final cleanup.
+These are diagnostic scopes only; runtime/SQL/transaction ownership/order are not
+changed. Catalog source correspondence is static. A second audit of pinned v1
+found its managed path in `managed_execution.go`: admission identity, source/
+base setup, global lock, assignment, clone, attachment and startup access proof
+already exist there. They are **shared**, not wholly additional v2 costs; startup
+with tracked clone/name remains changed. Repeated calls are a separate question.
+
+The independent complete report retains source spans/parents, both real timers,
+exact chronological segments/tails, additive phase/ordinal totals and explicitly
+non-additive host/helper details. A separate campaign guard rejects missing
+required source boundaries; a balanced ledger alone is insufficient. Structural
+binding/DB-startup self still remains unresolved, never invented SQL/JVM cost.
+
+New actual binding/refusal, DB-base failure, cancelled-start and runner-stop tests
+were written before their implementations. Ordinary Windows prepare/preparecost,
+collector tests and vet pass. New Node partition/report helpers have 100% lines;
+portable collector qualification is still below 95% and needs the reviewed
+coverage follow-up. Linux-only native qualification is written/connected but not
+yet executed for this working-tree revision; cross-compilation is not execution.
+
+For `70b224d`, hosted probe 43042345344 passed real Linux clock/recorder tests and
+the previous native regressions. CI 43042250918 passed its functional jobs but
+failed the unchanged aggregate coverage gate (engine 77.6%, CLI 94.8%). The #89
+aggregate exception/#174 remains separate; no gate or acceptance criterion has
+been weakened. No new complete-timeline CT13 result or #89 completion is claimed.

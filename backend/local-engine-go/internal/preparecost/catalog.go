@@ -7,33 +7,73 @@ package preparecost
 type Operation string
 
 const (
-	Request            Operation = "prepare.request"
-	Admission          Operation = "prepare.admission"
-	Worker             Operation = "prepare.worker"
-	ImageInventory     Operation = "runner.inventory"
-	CaptureRead        Operation = "capture.read"
-	PruneObserve       Operation = "capture.prune"
-	DockerCommand      Operation = "docker.command"
-	CaptureCopy        Operation = "docker.capture_copy"
-	Planning           Operation = "prepare.planning"
-	PlanningInvocation Operation = "liquibase.plan_invoke"
-	SessionStartup     Operation = "prepare.session_startup"
-	StepExecution      Operation = "prepare.step"
-	Invocation         Operation = "liquibase.invoke"
-	DBPrepare          Operation = "db.prepare_snapshot"
-	DBResumeStep       Operation = "db.resume.step"
-	DBResumeResult     Operation = "db.resume.publication"
-	VerifyApplied      Operation = "db.verify.after_apply"
-	VerifyResumed      Operation = "db.verify.after_resume"
-	StateSnapshot      Operation = "state.snapshot"
-	StateSize          Operation = "state.size"
-	StateSeal          Operation = "state.seal"
-	StatePublish       Operation = "journal.state_publish"
-	InvocationPlan     Operation = "journal.invocation_plan"
-	InvocationAdmit    Operation = "journal.invocation_admit"
-	InvocationComplete Operation = "journal.invocation_complete"
-	Publication        Operation = "prepare.publication"
-	FinalCleanup       Operation = "prepare.final_cleanup"
+	Request             Operation = "prepare.request"
+	Admission           Operation = "prepare.admission"
+	Worker              Operation = "prepare.worker"
+	ImageInventory      Operation = "runner.inventory"
+	CaptureRead         Operation = "capture.read"
+	PruneObserve        Operation = "capture.prune"
+	DockerCommand       Operation = "docker.command"
+	CaptureCopy         Operation = "docker.capture_copy"
+	Planning            Operation = "prepare.planning"
+	PlanningInvocation  Operation = "liquibase.plan_invoke"
+	SessionStartup      Operation = "prepare.session_startup"
+	StepExecution       Operation = "prepare.step"
+	Invocation          Operation = "liquibase.invoke"
+	DBPrepare           Operation = "db.prepare_snapshot"
+	DBResumeStep        Operation = "db.resume.step"
+	DBResumeResult      Operation = "db.resume.publication"
+	VerifyApplied       Operation = "db.verify.after_apply"
+	VerifyResumed       Operation = "db.verify.after_resume"
+	StateSnapshot       Operation = "state.snapshot"
+	StateSize           Operation = "state.size"
+	StateSeal           Operation = "state.seal"
+	StatePublish        Operation = "journal.state_publish"
+	InvocationPlan      Operation = "journal.invocation_plan"
+	InvocationAdmit     Operation = "journal.invocation_admit"
+	InvocationComplete  Operation = "journal.invocation_complete"
+	Publication         Operation = "prepare.publication"
+	FinalCleanup        Operation = "prepare.final_cleanup"
+	Binding             Operation = "binding.prepare"
+	ProjectionWait      Operation = "projection.wait"
+	InputPublish        Operation = "input.publish"
+	InputMaterialize    Operation = "input.materialize"
+	RunnerResolve       Operation = "runner.resolve"
+	RunnerEnsure        Operation = "runner.ensure"
+	DriverMaterialize   Operation = "driver.materialize"
+	BindingCommit       Operation = "binding.commit"
+	PlanLaunch          Operation = "plan.launch_prepare"
+	PlanInput           Operation = "plan.input_prepare"
+	PlanCapture         Operation = "plan.capture_reconcile"
+	PlanDispose         Operation = "plan.dispose"
+	PlanSuffix          Operation = "plan.suffix"
+	DBStartup           Operation = "db.startup"
+	DBLockWait          Operation = "db.lock_wait"
+	DBBaseInit          Operation = "db.base_init"
+	DBClone             Operation = "db.clone"
+	DBStart             Operation = "db.start"
+	DBAttach            Operation = "db.attach"
+	DBVerifyStartup     Operation = "db.verify.startup"
+	SessionRunner       Operation = "session.runner_start"
+	SessionReadiness    Operation = "session.readiness"
+	StepBind            Operation = "step.bind"
+	ProjectionCleanup   Operation = "projection.cleanup"
+	FinalConfirm        Operation = "finalization.confirm"
+	FinalCommit         Operation = "finalization.commit"
+	AdmissionInputs     Operation = "admission.inputs"
+	AdmissionImage      Operation = "admission.image"
+	AdmissionIdentity   Operation = "admission.identity"
+	AdmissionCommit     Operation = "admission.commit"
+	DBAssign            Operation = "db.assign"
+	PublicationActivate Operation = "publication.activate"
+	PublicationCommit   Operation = "publication.commit"
+	PrivateDispose      Operation = "private.dispose"
+	PlanRelease         Operation = "plan.release"
+	DBSource            Operation = "db.source_prepare"
+	SessionPlan         Operation = "session.plan"
+	SessionInput        Operation = "session.input_prepare"
+	StepStatus          Operation = "step.status"
+	RunnerStop          Operation = "runner.stop"
 )
 
 // Relation describes code correspondence, not an inferred timing difference.
@@ -63,7 +103,7 @@ type Definition struct {
 // Definitions returns caller-owned values. The catalog grows only alongside
 // tested instrumentation sites; no caller can extend it with private data.
 func Definitions() []Definition {
-	return []Definition{
+	return append([]Definition{
 		{Request, Changed, Location{"internal/prepare/manager.go", "PrepareService.submitForPurpose"}, Location{"internal/prepare/manager.go", "PrepareService.Submit"}},
 		{Admission, Changed, Location{"internal/prepare/manager.go", "PrepareService.submitForPurpose"}, Location{"internal/prepare/manager.go", "PrepareService.Submit"}},
 		{Worker, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "jobCoordinator.runContainerLiquibase"}, Location{"internal/prepare/manager.go", "jobCoordinator.runJob"}},
@@ -91,7 +131,7 @@ func Definitions() []Definition {
 		{InvocationComplete, Additional, Location{"internal/prepare/liquibase_session_coordinator.go", "liquibaseSessionCoordinator.invokeStep"}, Location{}},
 		{Publication, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.publishNormalLiquibaseResult"}, Location{"internal/prepare/execution.go", "taskExecutor.createInstance"}},
 		{FinalCleanup, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.finishNormalLiquibase"}, Location{"internal/prepare/manager.go", "jobCoordinator.runJob"}},
-	}
+	}, timelineDefinitions()...)
 }
 
 // Describe refuses unknown keys rather than echoing arbitrary input in a report.

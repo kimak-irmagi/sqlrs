@@ -79,3 +79,18 @@ connection or regressions still requires separate approval before editing it.
 - Decision: user replied “Исправить эталон на семь точных участков”.
 - Rationale: preserve all tails (two parent, two child, three client), without
   changing product behavior, weakening preservation or editing old tests.
+
+## Approve the limited OT-TL01 collector branch
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: authorise the explicit complete-timeline branch of the existing
+  TestReleasedEngine/collect, or leave the existing workload test unchanged?
+- Alternatives: keep only synthetic/parser evidence; or add shared-clock
+  brackets and client intervals to the actual workload without replacing its
+  original API timer, requests, deadlines, or oracles.
+- Decision: user replied “Разрешить ограниченный OT-TL01”. Only this old
+  collector test and its closed result receive the reviewed opt-in branch.
+- Rationale: actual admission/worker alignment needs the same host clock and
+  original workload; a mathematically balanced synthetic ledger is insufficient.

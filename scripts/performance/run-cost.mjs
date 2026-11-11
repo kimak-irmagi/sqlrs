@@ -6,7 +6,8 @@ import { spawn, execFileSync } from 'node:child_process';
 import { costCampaignSelection, costCampaignIdentity, costCampaignSchedule, costCampaignEnvironment, costBeforeRevision, costBeforeEngineSHA } from './cost-campaign.mjs';
 import { verifyBytes } from './control.mjs';
 import { parseCollectorResult, failureKind, cleanupBoundary } from './collector-output.mjs';
-import { parseCostOutput } from './cost-output.mjs';
+import { parseCompleteCostOutput } from './complete-cost-output.mjs';
+import { qualifyCompleteCostBoundaries } from './complete-cost-boundaries.mjs';
 import { fixtureSpec } from './inputs.mjs';
 import { installJdbcDriver } from '../jdbc-driver-bundle.mjs';
 import { warm } from './warm.mjs';
@@ -95,7 +96,8 @@ try {
       report.stage = 'qualify_samples'; persist();
       const samples = parseCollectorResult(0, output, expected);
       report.stage = 'qualify_costs'; persist();
-      const costs = item.Record ? parseCostOutput(0, output, expected) : null;
+      const costs = item.Record ? parseCompleteCostOutput(0, output, expected) : null;
+      if (costs) for (const [index, cost] of costs.entries()) qualifyCompleteCostBoundaries(cost, samples[index].Changesets);
       if (!item.Record && output.includes('P01B_COST ')) throw new Error('Disabled member emitted measurements');
       report.records.push({ ...item, samples, costs }); persist();
     }

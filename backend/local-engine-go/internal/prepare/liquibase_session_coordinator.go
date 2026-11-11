@@ -255,6 +255,12 @@ func (c *liquibaseSessionCoordinator) invokeStep(ctx context.Context, want queue
 // stopped inspection boundaries. It retains the parent's private output: parent
 // removal additionally requires saved disposal and durable DB absence (PC12).
 func (c *liquibaseSessionCoordinator) stopRunner(ctx context.Context, want queue.LiquibaseSessionRecord) error {
+	return preparecost.ObserveCall(ctx, preparecost.RunnerStop, func(child context.Context) error { return c.observeStopRunner(child, want) })
+}
+
+// observeStopRunner keeps all durable/physical stop ordering intact. Timing
+// cannot grant disposal authority (complete-timeline.md §3).
+func (c *liquibaseSessionCoordinator) observeStopRunner(ctx context.Context, want queue.LiquibaseSessionRecord) error {
 	session, err := c.readSession(ctx, want)
 	if err != nil {
 		return err

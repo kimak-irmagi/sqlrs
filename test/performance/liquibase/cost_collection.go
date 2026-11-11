@@ -18,7 +18,8 @@ func costEngineEnvironment(input []string, enabled bool) []string {
 	var result []string
 	for _, entry := range input {
 		name, _, _ := strings.Cut(entry, "=")
-		if !strings.EqualFold(name, "SQLRS_PREPARE_COST") {
+		if !strings.EqualFold(name, "SQLRS_PREPARE_COST") && !strings.EqualFold(name, "SQLRS_PREPARE_TIMELINE") &&
+			!strings.EqualFold(name, "SQLRS_PREPARE_TIMELINE_REFERENCE") {
 			result = append(result, entry)
 		}
 	}

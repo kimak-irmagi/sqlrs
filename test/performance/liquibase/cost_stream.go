@@ -220,6 +220,15 @@ func costOperation(value string) bool {
 	switch value {
 	case "prepare.request", "prepare.admission":
 		return true
+	case "plan.release", "db.source_prepare", "session.plan", "session.input_prepare", "step.status", "runner.stop":
+		return true
+	case "admission.inputs", "admission.image", "admission.identity", "admission.commit", "db.assign", "publication.activate", "publication.commit", "private.dispose":
+		return true
+	case "binding.prepare", "projection.wait", "input.publish", "input.materialize", "runner.resolve", "runner.ensure", "driver.materialize", "binding.commit",
+		"plan.launch_prepare", "plan.input_prepare", "plan.capture_reconcile", "plan.dispose", "plan.suffix",
+		"db.startup", "db.lock_wait", "db.base_init", "db.clone", "db.start", "db.attach", "db.verify.startup",
+		"session.runner_start", "session.readiness", "step.bind", "projection.cleanup", "finalization.confirm", "finalization.commit":
+		return true
 	case "prepare.worker", "runner.inventory", "capture.read", "capture.prune", "docker.command", "docker.capture_copy":
 		return true
 	case "prepare.planning", "prepare.session_startup", "prepare.step":

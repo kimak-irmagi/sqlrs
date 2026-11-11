@@ -280,7 +280,7 @@ func (m *PrepareService) submitForPurpose(ctx context.Context, req Request, purp
 // submitObservedForPurpose keeps the original admission/effect sequence intact;
 // the optional pointer carries measurements only, not request cancellation.
 func (m *PrepareService) submitObservedForPurpose(ctx context.Context, req Request, purpose string, cost *submissionCost) (Accepted, error) {
-	prepared, err := m.prepareRequest(req)
+	prepared, err := preparecost.Observe(ctx, preparecost.AdmissionInputs, func(context.Context) (preparedRequest, error) { return m.prepareRequest(req) })
 	if err != nil {
 		return Accepted{}, err
 	}
@@ -290,10 +290,15 @@ func (m *PrepareService) submitObservedForPurpose(ctx context.Context, req Reque
 		return Accepted{}, err
 	}
 	if m.identity != nil {
-		if errResp := m.ensureResolvedImageID(ctx, jobID, &prepared, nil); errResp != nil {
-			return Accepted{}, errorFromExplainResponse(errResp)
+		if err := preparecost.ObserveCall(ctx, preparecost.AdmissionImage, func(child context.Context) error {
+			if errResp := m.ensureResolvedImageID(child, jobID, &prepared, nil); errResp != nil {
+				return errorFromExplainResponse(errResp)
+			}
+			return nil
+		}); err != nil {
+			return Accepted{}, err
 		}
-		if err := m.bindManagedRequest(ctx, &prepared, nil); err != nil {
+		if err := preparecost.ObserveCall(ctx, preparecost.AdmissionIdentity, func(child context.Context) error { return m.bindManagedRequest(child, &prepared, nil) }); err != nil {
 			return Accepted{}, err
 		}
 	}

@@ -49,6 +49,15 @@ type collectedCost struct {
 	Pass                             string
 	PrepareElapsedNS, ObserverWaitNS int64
 	Root                             costRoot
+	Timeline                         *collectedTimeline `json:",omitempty"`
+}
+
+// collectedTimeline keeps both timers and the closed client lane independent
+// from engine span-relative coordinates (TL08, limited OT-TL01).
+type collectedTimeline struct {
+	Timer        costTimelineTimer
+	ClockDeltaNS int64
+	Client       []costTimelineAux
 }
 
 // barrier drains every create preceding an out-of-interval marker. It avoids
@@ -132,6 +141,7 @@ func collect(t *testing.T) {
 	var samples []releasedBenchmarkSample
 	diagnostic := os.Getenv("SQLRS_BENCH_DIAGNOSTIC") == "1"
 	costEnabled := os.Getenv("SQLRS_BENCH_COST") == "1"
+	timelineEnabled := os.Getenv("SQLRS_BENCH_TIMELINE") == "1"
 	traced := diagnostic && os.Getenv("SQLRS_BENCH_TRACE") == "1"
 	var diagnostics []diagnosticPass
 	var costs []collectedCost
@@ -200,6 +210,9 @@ func collect(t *testing.T) {
 	}
 	if validateCostSelection(route, revision, costEnabled, diagnostic) != nil {
 		t.Fatal("cost recording requires the explicit new untraced v2 member")
+	}
+	if validateTimelineSelection(costEnabled, timelineEnabled) != nil {
+		t.Fatal("complete timeline requires explicit cost recording")
 	}
 	jar := filepath.Join(repo, "dist", "deps", "postgresql-42.7.13.jar")
 	jarBytes, err := os.ReadFile(jar)
@@ -391,6 +404,15 @@ func collect(t *testing.T) {
 	}
 	child.Env = append(child.Env, "SQLRS_STATE_STORE="+storeRoot, "SQLRS_STATE_DB="+dbPath, "SQLRS_CONTAINER_RUNTIME=docker", "JAVA_HOME="+javaHome)
 	child.Env = costEngineEnvironment(child.Env, costEnabled)
+	var timelineRead func() (int64, error)
+	if timelineEnabled {
+		reference, err := costTimelineNow()
+		if err != nil || reference <= 0 {
+			t.Fatal("common timeline clock unavailable")
+		}
+		timelineRead = costTimelineReader(reference)
+		child.Env = costTimelineEnvironment(child.Env, true, reference)
+	}
 	child.Stdout, child.Stderr = io.Discard, io.Discard
 	var costPipe, costWriter *os.File
 	var costReader *costStream
@@ -562,8 +584,16 @@ func collect(t *testing.T) {
 	}
 	enginePID = state.PID
 	client := &http.Client{Timeout: 30 * time.Second}
+	var timelineCapture *costTimelineCapture
 	call := func(method, path string, body any, target any) int {
 		t.Helper()
+		if timelineCapture != nil {
+			kind := "client.status"
+			if method == http.MethodPost {
+				kind = "client.post"
+			}
+			defer timelineCapture.begin(kind)()
+		}
 		var encoded []byte
 		if body != nil {
 			var err error
@@ -614,7 +644,23 @@ func collect(t *testing.T) {
 	for _, pass := range []string{"uncached", "cached"} {
 		stage = pass
 		costOrdinal++
+		var timer costTimelineTimer
+		readTimeline := func() int64 {
+			value, err := timelineRead()
+			if err != nil {
+				t.Fatal("common timeline clock read failed")
+			}
+			return value
+		}
+		if timelineEnabled {
+			timelineCapture = &costTimelineCapture{read: timelineRead}
+			timer.StartBracket.StartNS = readTimeline()
+		}
 		start := time.Now()
+		if timelineEnabled {
+			timer.StartBracket.EndNS = readTimeline()
+			timer.Window.StartNS = timer.StartBracket.EndNS
+		}
 		// RC7 rejects unknown request fields; construct each actual contract,
 		// rather than relying on compatibility support excluded from #89.
 		payload := map[string]any{"prepare_kind": req.PrepareKind, "image_id": req.ImageID, "work_dir": req.WorkDir, "liquibase_args": req.LiquibaseArgs}
@@ -650,21 +696,46 @@ func collect(t *testing.T) {
 			if ctx.Err() != nil {
 				t.Fatal(ctx.Err())
 			}
+			endPoll := timelineCapture.begin("client.poll")
 			time.Sleep(100 * time.Millisecond)
+			endPoll()
+		}
+		if timelineEnabled {
+			timer.EndBracket.StartNS = readTimeline()
 		}
 		end := time.Now()
+		var completeTimeline *collectedTimeline
+		if timelineEnabled {
+			timer.EndBracket.EndNS = readTimeline()
+			timer.Window.EndNS = timer.EndBracket.StartNS
+			timer.APIElapsedNS = end.Sub(start).Nanoseconds()
+			delta, err := qualifyTimelineTimer(timer)
+			if err != nil || timelineCapture.err != nil {
+				t.Fatal("complete timeline client clock evidence invalid")
+			}
+			completeTimeline = &collectedTimeline{Timer: timer, ClockDeltaNS: delta, Client: timelineCapture.intervals}
+			timelineCapture = nil
+		}
 		if costEnabled {
 			waitStarted := time.Now()
 			observationCtx, stop := context.WithTimeout(ctx, 10*time.Second)
 			observation, err := costReader.await(observationCtx, costOrdinal)
-			if err == nil {
+			if err == nil && timelineEnabled {
+				observation, err = costReader.awaitTimeline(observationCtx, costOrdinal)
+			} else if err == nil {
 				observation, err = costReader.awaitMeasured(observationCtx, costOrdinal)
 			}
 			stop()
-			if err != nil || qualifyCostPass(observation, costOrdinal, end.Sub(start).Nanoseconds(), expectedChanges) != nil {
+			qualification := err
+			if qualification == nil && timelineEnabled {
+				qualification = qualifyTimelinePass(observation, costOrdinal, timer, completeTimeline.Client, expectedChanges)
+			} else if qualification == nil {
+				qualification = qualifyCostPass(observation, costOrdinal, end.Sub(start).Nanoseconds(), expectedChanges)
+			}
+			if qualification != nil {
 				t.Fatal("private cost evidence does not qualify the public pass")
 			}
-			costs = append(costs, collectedCost{Pass: pass, PrepareElapsedNS: end.Sub(start).Nanoseconds(), ObserverWaitNS: time.Since(waitStarted).Nanoseconds(), Root: observation})
+			costs = append(costs, collectedCost{Pass: pass, PrepareElapsedNS: end.Sub(start).Nanoseconds(), ObserverWaitNS: time.Since(waitStarted).Nanoseconds(), Root: observation, Timeline: completeTimeline})
 		}
 		stage = "oracle"
 		creates.barrier(t, ctx, req.ImageID)

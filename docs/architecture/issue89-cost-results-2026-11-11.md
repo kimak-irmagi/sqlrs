@@ -350,3 +350,17 @@ unresolved regions. Their sum must equal the selected window's wall time;
 nested/helper durations must not be added twice. Both DB creation/disposal
 boundaries need actual timings, not renamed parent timers. Historical reports,
 hashes and the speed gate remain unchanged; workloads run only in Actions.
+
+### Pinned-source correspondence correction before the next campaign
+
+Direct inspection of `cab99c4c7ced5b18f4dc43a65b002d84d8fef02d` found the
+released managed startup in `internal/prepare/managed_execution.go`, not only
+the generic `execution.go` wrapper. That path already has `managedMu`, source/
+base setup, `access.Assign`, StateFS clone, runtime start, `access.Attach` and
+full startup access verification. Released `Submit` also binds managed identity.
+The new diagnostic catalog therefore marks those unchanged mechanisms as shared
+and links the actual managed symbol. Tracked clone/name startup is changed;
+its entire duration is not automatically additional. The number of startups
+and their individual costs must be measured separately. Historical measurements
+and the extra after-resume check are unchanged. No nonexistent v1 zero costs
+or subtraction of different passes are introduced by this source correction.

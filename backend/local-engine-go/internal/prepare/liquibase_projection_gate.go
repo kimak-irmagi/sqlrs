@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/preparecost"
 )
 
 // liquibaseProjectionGate serializes one job's short allocation/finalization
@@ -74,12 +75,18 @@ func (m *PrepareService) withLiquibaseProjectionGate(ctx context.Context, jobID 
 		}
 		m.projectionMu.Unlock()
 	}()
-	select {
-	case gate.turn <- struct{}{}:
-		defer func() { <-gate.turn }()
-	case <-ctx.Done():
-		return ctx.Err()
+	// Only acquisition is wait time, never the enclosed filesystem/SQL work.
+	if err := preparecost.ObserveCall(ctx, preparecost.ProjectionWait, func(child context.Context) error {
+		select {
+		case gate.turn <- struct{}{}:
+			return nil
+		case <-child.Done():
+			return child.Err()
+		}
+	}); err != nil {
+		return err
 	}
+	defer func() { <-gate.turn }()
 	if err := ctx.Err(); err != nil {
 		return err
 	}

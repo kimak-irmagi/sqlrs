@@ -5,7 +5,7 @@ const maxOwnerReferences = 4 * 32768;
 const natural = value => Number.isSafeInteger(value) && value >= 0;
 const interval = (start, end) => natural(start) && natural(end) && end >= start;
 const auxiliaryKinds = new Set(['client.post', 'client.status', 'client.poll', 'observer']);
-const structural = new Set(['prepare.request', 'prepare.admission', 'prepare.worker', 'prepare.planning', 'prepare.session_startup',
+const structural = new Set(['prepare.request', 'prepare.admission', 'prepare.worker', 'binding.prepare', 'db.startup', 'prepare.planning', 'prepare.session_startup',
   'prepare.step', 'prepare.publication', 'prepare.final_cleanup']);
 const invalid = () => { throw new Error('Invalid complete timeline evidence'); };
 

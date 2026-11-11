@@ -168,7 +168,7 @@ frame failures, privacy/quotas, timer and helper-clock separation, native-data/
 cleanup proof and unchanged full repeat. No remaining P0–P2 inconsistency found
 in this inventory. This is a reviewed plan, not evidence of passing tests.
 
-## OT-TL01: addressable existing collector change, awaiting approval
+## OT-TL01: addressable existing collector change, approved
 
 The post-approval old-test audit found that real collection lives in
 `TestReleasedEngine/collect` in `test/performance/liquibase/collector_linux_test.go`.
@@ -191,5 +191,54 @@ Critical/repeat review checked selector/reference stripping, unknown clock
 refusal, cancelled/partial reader evidence, failed calls, timer comparison,
 unmeasured payload/self gaps and terminal/report races. Those remain explicit
 measurement failures or source-local unknowns, not valid zero-cost samples.
-No remaining P0–P2 inconsistency found in this limited amendment. Until separately
-approved, the existing collector test body is unchanged.
+No remaining P0–P2 inconsistency found in this limited amendment. The user
+explicitly approved this limited change: “Разрешить ограниченный OT-TL01”.
+
+## OT-TL02: current parser name in orchestration audit, proposed
+
+The unchanged `CT13: actual parent verifies identities, owns bounded private
+output and uses unchanged collector` in `cost-campaign-workflow.test.mjs`
+checks for a literal call named `parseCostOutput`. The new explicitly selected
+timeline must use `parseCompleteCostOutput`, since the old parser deliberately
+requires a worker-only root. Proposed change: only that one parser name in the
+test's symbol list. Preserve every artifact/private-output/budget/cleanup and
+unchanged workload assertion, and all old parser behavior tests unmodified.
+
+Critical review rejected keeping an unreachable old-parser call just to satisfy
+the source-string assertion, or weakening old root validation. Repeat review
+verified the new parser has actual positive/negative timing/source/oracle tests
+and the explicit selection is tested separately. No remaining P0–P2 finding in
+this limited proposal. The old test remains unchanged pending approval.
+
+## LC01–LC03: line-report-driven helper coverage follow-up, proposed
+
+The full ordinary Windows collector profile is retained locally as
+`.tmp/timeline-current-collector-windows.out`. It reports `begin` 94.1% and
+`qualifyTimelinePass` 89.5%; timer/selection/environment/client-kind helpers are
+100%. Five positive-statement zero-count blocks remain in `timeline_collection.go`
+(41, 71, 91, 103, 131 at this revision). This is not whole-module qualification:
+Linux clock execution is separate, and aggregate #89 coverage stays in #174.
+
+1. **LC01:** reject further intervals after poisoned evidence and at the finite
+   client quota; assert no extra clock call or appended interval. Requirement:
+   TL01/TL08/TL10 reject partial/quota evidence, not implementation-only detail.
+2. **LC02:** exact independent failures for an unqualified timer, malformed span
+   range/parent containment, wrong admission phase and duplicate POST/missing
+   final status. Retain a positive request/worker/helper control, original timer,
+   unchanged safe error and no partial result. Requirements: TL02/TL08/TL11.
+3. **LC03:** positive Node report with request/worker/observer tails beyond API
+   end, preserving exact owners/parents and original elapsed; independently check
+   clipping and tails. This exercises the report's unused outside-owner callback
+   (new report has 100% lines / 95.45% functions). Requirements: TL10/TL11.
+
+Order starts with the largest portable gap (`qualifyTimelinePass`), then `begin`,
+then the single Node callback. Repeat full ordinary collector tests/vet and new
+Go per-line/Node line reports; Linux qualification remains mandatory separately.
+Target 100%, minimum 95%; no promised gain before measurement, no new product
+boundary, dead-code deletion, synthetic kernel failure or old-test change.
+
+Critical review checked original timer/closed errors, phase/root independence,
+finite quotas and the distinction between clip-only accounting and preserving
+inclusive tails. Repeat review tied all five uncovered statement blocks to
+approved requirements and kept real Linux/native tests separate. No remaining
+P0–P2 issue in this limited follow-up. Await approval before adding these cases.

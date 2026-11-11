@@ -16,6 +16,7 @@ import (
 	"github.com/sqlrs/engine-local/internal/prepare/effectiveconfig"
 	"github.com/sqlrs/engine-local/internal/prepare/inputbundle"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/preparecost"
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
 )
 
@@ -79,7 +80,9 @@ func (m *PrepareService) admitContainerLiquibase(ctx context.Context, job queue.
 		roots = append(roots, inputbundle.MountedRoot{Path: logical, Source: mount.HostPath})
 		snapshot.Mounts = append(snapshot.Mounts, mount.ContainerPath)
 	}
-	ref, err := m.containerLiquibase.Sources.PublishRoots(ctx, roots)
+	ref, err := preparecost.Observe(ctx, preparecost.InputPublish, func(child context.Context) (inputbundle.BundleRef, error) {
+		return m.containerLiquibase.Sources.PublishRoots(child, roots)
+	})
 	if err != nil {
 		return err
 	}
@@ -88,7 +91,9 @@ func (m *PrepareService) admitContainerLiquibase(ctx context.Context, job queue.
 		return err
 	}
 	job.RequestJSON = strPtr(string(encoded))
-	if err := q.AdmitLiquibaseJob(ctx, job, p.request.LiquibaseVersion, ref.ManifestDigest); err != nil {
+	if err := preparecost.ObserveCall(ctx, preparecost.AdmissionCommit, func(child context.Context) error {
+		return q.AdmitLiquibaseJob(child, job, p.request.LiquibaseVersion, ref.ManifestDigest)
+	}); err != nil {
 		confirmed, readErr := q.ConfirmLiquibaseAdmission(ctx, job, p.request.LiquibaseVersion, ref.ManifestDigest)
 		if readErr != nil {
 			return errors.Join(err, readErr)
@@ -103,10 +108,12 @@ func (m *PrepareService) admitContainerLiquibase(ctx context.Context, job queue.
 // bindContainerLiquibase materializes only CAS bytes and pins the exact trusted
 // image/driver/config tuple before planning. It never launches a command.
 func (m *PrepareService) bindContainerLiquibase(ctx context.Context, jobID string, p preparedRequest) (bound preparedRequest, cleanup func() error, returned error) {
-	returned = m.withLiquibaseProjectionGate(ctx, jobID, func() error {
-		var err error
-		bound, cleanup, err = m.bindFreshContainerLiquibase(ctx, jobID, p)
-		return err
+	returned = preparecost.ObserveCall(ctx, preparecost.Binding, func(ctx context.Context) error {
+		return m.withLiquibaseProjectionGate(ctx, jobID, func() error {
+			var err error
+			bound, cleanup, err = m.bindFreshContainerLiquibase(ctx, jobID, p)
+			return err
+		})
 	})
 	return
 }
@@ -143,7 +150,9 @@ func (m *PrepareService) bindFreshContainerLiquibase(ctx context.Context, jobID 
 		return p, cleanup, err
 	}
 	destination := filepath.Join(copy.Sources, "bundle")
-	if err := deps.Sources.Materialize(ctx, inputbundle.BundleRef{ManifestDigest: admitted.BundleManifestDigest}, destination); err != nil {
+	if err := preparecost.ObserveCall(ctx, preparecost.InputMaterialize, func(child context.Context) error {
+		return deps.Sources.Materialize(child, inputbundle.BundleRef{ManifestDigest: admitted.BundleManifestDigest}, destination)
+	}); err != nil {
 		return p, cleanup, err
 	}
 	properties, effective, err := readAdmittedLiquibaseSettings(destination, p)
@@ -161,14 +170,18 @@ func (m *PrepareService) bindFreshContainerLiquibase(ctx context.Context, jobID 
 		return p, cleanup, err
 	}
 	if !alreadyBound {
-		image, err := deps.Images.Resolve(ctx, admitted.RequestedTag, platform)
+		image, err := preparecost.Observe(ctx, preparecost.RunnerResolve, func(child context.Context) (engineRuntime.RunnerImageBinding, error) {
+			return deps.Images.Resolve(child, admitted.RequestedTag, platform)
+		})
 		if err != nil {
 			return p, cleanup, err
 		}
 		if image.Platform != platform || image.RequestedTag != admitted.RequestedTag || !canonicalSHA256.MatchString(image.ManifestDigest) || image.DigestRef != "liquibase/liquibase@"+image.ManifestDigest {
 			return p, cleanup, queue.ErrLiquibaseBinding
 		}
-		if _, err := deps.Runtime.EnsureRunnerImage(ctx, image); err != nil {
+		if _, err := preparecost.Observe(ctx, preparecost.RunnerEnsure, func(child context.Context) (string, error) {
+			return deps.Runtime.EnsureRunnerImage(child, image)
+		}); err != nil {
 			return p, cleanup, err
 		}
 		inventory, err := deps.Runtime.InspectRunnerImage(ctx, image)
@@ -201,7 +214,9 @@ func (m *PrepareService) bindFreshContainerLiquibase(ctx context.Context, jobID 
 			return p, cleanup, err
 		}
 		record = queue.LiquibaseExecutionRecord{ExecutionFingerprint: fingerprint, DeclarationDigest: declaration, RequestedTag: admitted.RequestedTag, TargetIdentityDigest: target, PlatformOS: platform.OS, PlatformArch: platform.Architecture, PlatformVariant: platform.Variant, ImageIndexDigest: image.IndexDigest, ImageManifestDigest: image.ManifestDigest, DriverMode: driver.Mode, DriverDigest: driver.Digest, DriverArtifactRef: driver.ArtifactRef, BundleManifestDigest: admitted.BundleManifestDigest, EffectiveConfigDigest: effective, PolicyRevision: liquibaseContainerFingerprintDomain, CreatedAt: m.now().UTC().Format(time.RFC3339Nano)}
-		if err := q.BindLiquibaseExecution(ctx, jobID, record); err != nil {
+		if err := preparecost.ObserveCall(ctx, preparecost.BindingCommit, func(child context.Context) error {
+			return q.BindLiquibaseExecution(child, jobID, record)
+		}); err != nil {
 			return p, cleanup, err
 		}
 	}
@@ -213,7 +228,9 @@ func (m *PrepareService) bindFreshContainerLiquibase(ctx context.Context, jobID 
 	// inventory. Only a saved-binding entry needs the availability check here;
 	// this is not a tag/inventory cache or permission to retry external effects.
 	if alreadyBound {
-		if _, err := deps.Runtime.EnsureRunnerImage(ctx, image); err != nil {
+		if _, err := preparecost.Observe(ctx, preparecost.RunnerEnsure, func(child context.Context) (string, error) {
+			return deps.Runtime.EnsureRunnerImage(child, image)
+		}); err != nil {
 			return p, cleanup, err
 		}
 	}
@@ -225,7 +242,9 @@ func (m *PrepareService) bindFreshContainerLiquibase(ctx context.Context, jobID 
 		if deps.Drivers == nil {
 			return p, cleanup, fmt.Errorf("saved JDBC artifact unavailable")
 		}
-		driver, err := deps.Drivers.Materialize(ctx, driverbundle.Binding{Mode: record.DriverMode, Digest: record.DriverDigest, ArtifactRef: record.DriverArtifactRef}, filepath.Join(copy.Driver, "files"))
+		driver, err := preparecost.Observe(ctx, preparecost.DriverMaterialize, func(child context.Context) (*driverbundle.Materialized, error) {
+			return deps.Drivers.Materialize(child, driverbundle.Binding{Mode: record.DriverMode, Digest: record.DriverDigest, ArtifactRef: record.DriverArtifactRef}, filepath.Join(copy.Driver, "files"))
+		})
 		if err != nil {
 			return p, cleanup, err
 		}

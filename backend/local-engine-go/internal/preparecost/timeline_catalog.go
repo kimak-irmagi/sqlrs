@@ -1,0 +1,48 @@
+package preparecost
+
+// Detailed, engine-owned source boundaries from complete-timeline.md §3.
+// Group names describe the enclosed code, never an inferred SQL/Docker cause.
+func timelineDefinitions() []Definition {
+	return []Definition{
+		{PlanRelease, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observePlanNormalContainerLiquibase"}, Location{}},
+		{DBSource, Shared, Location{"internal/prepare/managed_execution.go", "taskExecutor.observeStartManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},
+		{SessionPlan, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeStartNormalLiquibaseSession"}, Location{}},
+		{SessionInput, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeStartNormalLiquibaseSession"}, Location{}},
+		{StepStatus, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "jobCoordinator.runObservedContainerLiquibase"}, Location{"internal/prepare/execution.go", "taskExecutor.executeStateTask"}},
+		{RunnerStop, Additional, Location{"internal/prepare/liquibase_session_coordinator.go", "liquibaseSessionCoordinator.stopRunner"}, Location{}},
+		{AdmissionInputs, Changed, Location{"internal/prepare/manager.go", "PrepareService.submitObservedForPurpose"}, Location{"internal/prepare/manager.go", "PrepareService.Submit"}},
+		{AdmissionImage, Changed, Location{"internal/prepare/manager.go", "PrepareService.submitObservedForPurpose"}, Location{"internal/prepare/manager.go", "PrepareService.Submit"}},
+		{AdmissionIdentity, Shared, Location{"internal/prepare/manager.go", "PrepareService.submitObservedForPurpose"}, Location{"internal/prepare/manager.go", "PrepareService.Submit"}},
+		{AdmissionCommit, Changed, Location{"internal/prepare/liquibase_container_binding.go", "PrepareService.admitContainerLiquibase"}, Location{"internal/prepare/manager.go", "PrepareService.Submit"}},
+		{DBAssign, Shared, Location{"internal/prepare/managed_execution.go", "taskExecutor.observeStartManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},
+		{PublicationActivate, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.publishNormalLiquibaseWorkingInstance"}, Location{"internal/prepare/execution.go", "taskExecutor.createInstance"}},
+		{PublicationCommit, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.publishNormalLiquibaseWorkingInstance"}, Location{"internal/prepare/execution.go", "taskExecutor.createInstance"}},
+		{PrivateDispose, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.publishNormalLiquibaseWorkingInstance"}, Location{}},
+		{Binding, Additional, Location{"internal/prepare/liquibase_container_binding.go", "PrepareService.bindContainerLiquibase"}, Location{}},
+		{ProjectionWait, Additional, Location{"internal/prepare/liquibase_projection_gate.go", "PrepareService.withLiquibaseProjectionGate"}, Location{}},
+		{InputPublish, Additional, Location{"internal/prepare/liquibase_container_binding.go", "PrepareService.admitContainerLiquibase"}, Location{}},
+		{InputMaterialize, Additional, Location{"internal/prepare/liquibase_container_binding.go", "PrepareService.bindFreshContainerLiquibase"}, Location{}},
+		{RunnerResolve, Additional, Location{"internal/prepare/liquibase_container_binding.go", "PrepareService.bindFreshContainerLiquibase"}, Location{}},
+		{RunnerEnsure, Additional, Location{"internal/prepare/liquibase_container_binding.go", "PrepareService.bindFreshContainerLiquibase"}, Location{}},
+		{DriverMaterialize, Additional, Location{"internal/prepare/liquibase_container_binding.go", "PrepareService.bindFreshContainerLiquibase"}, Location{}},
+		{BindingCommit, Additional, Location{"internal/prepare/liquibase_container_binding.go", "PrepareService.bindFreshContainerLiquibase"}, Location{}},
+		{PlanLaunch, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observePlanNormalContainerLiquibase"}, Location{}},
+		{PlanInput, Additional, Location{"internal/prepare/planning_executor_request.go", "PrepareService.buildPlanningExecutorRequest"}, Location{}},
+		{PlanCapture, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observePlanNormalContainerLiquibase"}, Location{}},
+		{PlanDispose, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observePlanNormalContainerLiquibase"}, Location{"internal/prepare/execution.go", "PrepareService.cleanupRuntime"}},
+		{PlanSuffix, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "jobCoordinator.runObservedContainerLiquibase"}, Location{"internal/prepare/manager.go", "jobCoordinator.buildPlanLiquibase"}},
+		{DBStartup, Changed, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},
+		{DBLockWait, Shared, Location{"internal/prepare/managed_execution.go", "taskExecutor.observeStartManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},
+		{DBBaseInit, Shared, Location{"internal/prepare/managed_execution.go", "taskExecutor.observeStartManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},
+		{DBClone, Shared, Location{"internal/prepare/managed_execution.go", "taskExecutor.observeStartManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},
+		{DBStart, Changed, Location{"internal/prepare/managed_execution.go", "taskExecutor.observeStartManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},
+		{DBAttach, Shared, Location{"internal/prepare/managed_execution.go", "taskExecutor.observeStartManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},
+		{DBVerifyStartup, Shared, Location{"internal/prepare/managed_execution.go", "taskExecutor.observeStartManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},
+		{SessionRunner, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeStartNormalLiquibaseSession"}, Location{"internal/prepare/execution.go", "taskExecutor.executeLiquibaseStep"}},
+		{SessionReadiness, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeStartNormalLiquibaseSession"}, Location{}},
+		{StepBind, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "jobCoordinator.runObservedContainerLiquibase"}, Location{}},
+		{ProjectionCleanup, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.finishObservedNormalLiquibase"}, Location{}},
+		{FinalConfirm, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.finishObservedNormalLiquibase"}, Location{}},
+		{FinalCommit, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.finishObservedNormalLiquibase"}, Location{"internal/prepare/manager.go", "jobCoordinator.runJob"}},
+	}
+}

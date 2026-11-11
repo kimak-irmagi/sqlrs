@@ -138,11 +138,14 @@ func (c *jobCoordinator) runObservedContainerLiquibase(ctx context.Context, runn
 	for i, item := range plan.Changesets {
 		p.liquibasePlan[i] = LiquibaseChangeset{ID: item.ID, Author: item.Author, Path: item.Path, SQLHash: item.SQLHash, Checksum: item.Checksum}
 	}
-	tasks, stateID, problem := c.buildPlanLiquibase(ctx, jobID, p)
+	projectionCtx, projectionEnd := preparecost.Start(ctx, preparecost.PlanSuffix)
+	tasks, stateID, problem := c.buildPlanLiquibase(projectionCtx, jobID, p)
 	if problem != nil {
+		projectionEnd(preparecost.Failed)
 		m.pauseContainerLiquibase(jobID, fmt.Errorf("normal plan projection unavailable: %s", problem.Code))
 		return preparecost.Failed
 	}
+	projectionEnd(preparecost.Succeeded)
 	signature, signatureError := m.computeJobSignatureFromPlan(p, tasks)
 	if signatureError != nil {
 		m.pauseContainerLiquibase(jobID, fmt.Errorf("job signature unavailable: %s", signatureError.Code))
@@ -219,20 +222,26 @@ func (c *jobCoordinator) runObservedContainerLiquibase(ctx context.Context, runn
 		ctx = preparecost.WithPhase(workerCtx, preparecost.PhaseStep, ordinal)
 		binding, err := queue.ProjectLiquibaseStepBinding(record, p.argsNormalized, task.TaskHash, task.ChangesetID, task.ChangesetAuthor, task.ChangesetPath, task.OutputStateID)
 		if err == nil {
-			err = q.BindStep(ctx, jobID, task.TaskID, binding, m.normalTimestamp())
+			err = preparecost.ObserveCall(ctx, preparecost.StepBind, func(child context.Context) error {
+				return q.BindStep(child, jobID, task.TaskID, binding, m.normalTimestamp())
+			})
 		}
 		if err != nil {
 			m.pauseContainerLiquibase(jobID, err)
 			return preparecost.Failed
 		}
 		if working == nil && task.Cached != nil && *task.Cached {
-			if err := m.updateTaskStatus(ctx, jobID, task.TaskID, StatusSucceeded, nil, strPtr(m.normalTimestamp()), nil); err != nil {
+			if err := preparecost.ObserveCall(ctx, preparecost.StepStatus, func(child context.Context) error {
+				return m.updateTaskStatus(child, jobID, task.TaskID, StatusSucceeded, nil, strPtr(m.normalTimestamp()), nil)
+			}); err != nil {
 				m.pauseContainerLiquibase(jobID, err)
 				return preparecost.Failed
 			}
 			continue
 		}
-		if err := m.updateTaskStatus(ctx, jobID, task.TaskID, StatusRunning, strPtr(m.normalTimestamp()), nil, nil); err != nil {
+		if err := preparecost.ObserveCall(ctx, preparecost.StepStatus, func(child context.Context) error {
+			return m.updateTaskStatus(child, jobID, task.TaskID, StatusRunning, strPtr(m.normalTimestamp()), nil, nil)
+		}); err != nil {
 			m.pauseContainerLiquibase(jobID, err)
 			return preparecost.Failed
 		}
@@ -404,7 +413,9 @@ func (m *PrepareService) observePlanNormalContainerLiquibase(ctx context.Context
 	if err != nil || !found {
 		return queue.PlanningResult{}, queue.ErrLiquibaseBinding
 	}
-	launch, err := m.buildPlanningLaunch(ctx, jobID, p, record, m.containerLiquibase.Sources)
+	launch, err := preparecost.Observe(ctx, preparecost.PlanLaunch, func(child context.Context) (queue.PlanningLaunch, error) {
+		return m.buildPlanningLaunch(child, jobID, p, record, m.containerLiquibase.Sources)
+	})
 	if err != nil {
 		return queue.PlanningResult{}, err
 	}
@@ -428,7 +439,15 @@ func (m *PrepareService) observePlanNormalContainerLiquibase(ctx context.Context
 	if err != nil {
 		return queue.PlanningResult{}, err
 	}
-	request, protected, captureDir, err := m.buildPlanningExecutorRequest(ctx, p, saved, database.instance, connection.Password, m.containerLiquibase.Sources)
+	// Multiple values retain their exact original ownership on both outcomes.
+	var request engineRuntime.RunRequest
+	var protected *effectiveconfig.ProtectedConfig
+	var captureDir string
+	err = preparecost.ObserveCall(ctx, preparecost.PlanInput, func(child context.Context) error {
+		var problem error
+		request, protected, captureDir, problem = m.buildPlanningExecutorRequest(child, p, saved, database.instance, connection.Password, m.containerLiquibase.Sources)
+		return problem
+	})
 	if err != nil {
 		return queue.PlanningResult{}, err
 	}
@@ -441,7 +460,7 @@ func (m *PrepareService) observePlanNormalContainerLiquibase(ctx context.Context
 	// retire its exact assignment before recording absence, not merely pg_ctl.
 	preview := &jobRunner{}
 	preview.setRuntime(database)
-	if err := m.cleanupRuntime(ctx, preview); err != nil {
+	if err := preparecost.ObserveCall(ctx, preparecost.PlanDispose, func(child context.Context) error { return m.cleanupRuntime(child, preview) }); err != nil {
 		return queue.PlanningResult{}, err
 	}
 	if _, err := q.RecordPlanningCloneQuiescence(ctx, attempt, 1, launch.Clone.PlannedRuntimeName, database.instance.ID, m.normalTimestamp()); err != nil {
@@ -451,31 +470,39 @@ func (m *PrepareService) observePlanNormalContainerLiquibase(ctx context.Context
 	if err != nil || !found {
 		return queue.PlanningResult{}, queue.ErrPlanningSchema
 	}
-	result, err := reconcilePlanningCapture(ctx, q, runtime, saved, captureDir, planningCaptureMaxBytes, m.normalTimestamp())
+	result, err := preparecost.Observe(ctx, preparecost.PlanCapture, func(child context.Context) (queue.PlanningResult, error) {
+		return reconcilePlanningCapture(child, q, runtime, saved, captureDir, planningCaptureMaxBytes, m.normalTimestamp())
+	})
 	if err != nil {
 		return queue.PlanningResult{}, err
 	}
-	if _, err := q.SavePrivatePlanningCaptureDisposal(ctx, saved.Attempt, 1, "plan_saved", result.PlanDigest, m.normalTimestamp()); err != nil {
-		return queue.PlanningResult{}, err
-	}
-	if err := runtime.RemoveStoppedContainer(ctx, tracked.ExecutorID); err != nil {
-		return queue.PlanningResult{}, err
-	}
-	observation := normalLiquibaseAbsence{runtime: runtime, planning: saved, protected: protected.HostPath}
-	if err := q.RetirePrivatePlanningCapture(ctx, saved.Attempt, 1, observation, m.normalTimestamp()); err != nil {
-		return queue.PlanningResult{}, err
-	}
-	if err := protected.Close(); err != nil {
-		return queue.PlanningResult{}, err
-	}
-	if err := q.RetirePlanningArtifact(ctx, saved.Attempt, 1, "input", observation, m.normalTimestamp()); err != nil {
-		return queue.PlanningResult{}, err
-	}
-	if err := q.ReleasePlanningClone(ctx, saved.Attempt, 1, observation); err != nil {
-		return queue.PlanningResult{}, err
-	}
-	helper := filepath.Join(m.stateStoreRoot, "jobs", jobID, "planning-helpers", launch.Clone.ID, "capture.sh")
-	if err := os.Remove(helper); err != nil && !os.IsNotExist(err) {
+	err = preparecost.ObserveCall(ctx, preparecost.PlanRelease, func(ctx context.Context) error {
+		if _, err := q.SavePrivatePlanningCaptureDisposal(ctx, saved.Attempt, 1, "plan_saved", result.PlanDigest, m.normalTimestamp()); err != nil {
+			return err
+		}
+		if err := runtime.RemoveStoppedContainer(ctx, tracked.ExecutorID); err != nil {
+			return err
+		}
+		observation := normalLiquibaseAbsence{runtime: runtime, planning: saved, protected: protected.HostPath}
+		if err := q.RetirePrivatePlanningCapture(ctx, saved.Attempt, 1, observation, m.normalTimestamp()); err != nil {
+			return err
+		}
+		if err := protected.Close(); err != nil {
+			return err
+		}
+		if err := q.RetirePlanningArtifact(ctx, saved.Attempt, 1, "input", observation, m.normalTimestamp()); err != nil {
+			return err
+		}
+		if err := q.ReleasePlanningClone(ctx, saved.Attempt, 1, observation); err != nil {
+			return err
+		}
+		helper := filepath.Join(m.stateStoreRoot, "jobs", jobID, "planning-helpers", launch.Clone.ID, "capture.sh")
+		if err := os.Remove(helper); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		return queue.PlanningResult{}, err
 	}
 	return result, nil
@@ -542,15 +569,19 @@ func (m *PrepareService) finishObservedNormalLiquibase(ctx context.Context, q no
 		if err != nil {
 			return err
 		}
-		if err := owner.CleanupJob(ctx, intent); err != nil {
+		if err := preparecost.ObserveCall(ctx, preparecost.ProjectionCleanup, func(child context.Context) error { return owner.CleanupJob(child, intent) }); err != nil {
 			return err
 		}
-		confirmed, err := q.ConfirmProjectionsRemoved(ctx, intent, owner, m.normalTimestamp())
+		confirmed, err := preparecost.Observe(ctx, preparecost.FinalConfirm, func(child context.Context) (queue.FinalizationSnapshot, error) {
+			return q.ConfirmProjectionsRemoved(child, intent, owner, m.normalTimestamp())
+		})
 		if err != nil {
 			return err
 		}
 		at := m.now().UTC()
-		if err := q.CommitFinalization(ctx, confirmed, at.Format(time.RFC3339Nano), at.Add(24*time.Hour).Format(time.RFC3339Nano)); err != nil {
+		if err := preparecost.ObserveCall(ctx, preparecost.FinalCommit, func(child context.Context) error {
+			return q.CommitFinalization(child, confirmed, at.Format(time.RFC3339Nano), at.Add(24*time.Hour).Format(time.RFC3339Nano))
+		}); err != nil {
 			return err
 		}
 		m.events.notify(intent.JobID)
@@ -597,7 +628,9 @@ func (m *PrepareService) observeStartNormalLiquibaseSession(ctx context.Context,
 		StartKind: task.Input.Kind, StartID: task.Input.ID, StartPosition: position, PlannedRunnerName: "sqlrs-lb-session-" + id,
 		RunnerConfigDigest:  digestLiquibaseValues("lb-session-config-v1", p.liquibaseFingerprint, p.effectiveImageID(), cloneID, helperDigest, protectedRef, p.argsNormalized),
 		CaptureHelperDigest: helperDigest, ProtectedConfigRef: protectedRef, CreatedAt: m.normalTimestamp()}
-	session, err = q.PlanLiquibaseSession(ctx, queue.LiquibaseSessionLaunch{Session: session, Clone: clone, FirstTaskID: task.TaskID, ExecutionDigest: binding.Digest, HelperLeaseID: "session-helper-" + id})
+	session, err = preparecost.Observe(ctx, preparecost.SessionPlan, func(child context.Context) (queue.LiquibaseSessionRecord, error) {
+		return q.PlanLiquibaseSession(child, queue.LiquibaseSessionLaunch{Session: session, Clone: clone, FirstTaskID: task.TaskID, ExecutionDigest: binding.Digest, HelperLeaseID: "session-helper-" + id})
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -610,16 +643,24 @@ func (m *PrepareService) observeStartNormalLiquibaseSession(ctx context.Context,
 		return nil, err
 	}
 	working.helper = filepath.Join(m.stateStoreRoot, "jobs", jobID, "liquibase-sessions", id, "step-capture.sh")
-	if err := m.containerLiquibase.Sources.MaterializeBlob(ctx, helperDigest, working.helper, maxPlanningHelperBytes); err != nil {
+	if err := preparecost.ObserveCall(ctx, preparecost.SessionInput, func(child context.Context) error {
+		return m.containerLiquibase.Sources.MaterializeBlob(child, helperDigest, working.helper, maxPlanningHelperBytes)
+	}); err != nil {
 		return nil, err
 	}
 	connection, err := m.managedConnection(ctx, rt)
 	if err != nil {
 		return nil, err
 	}
-	request, protected, err := m.liquibaseContainerRequestWithConfig(p, rt.instance, applyLiquibaseTaskArgs(p.normalizedArgs, task), connection.Password, func(options effectiveconfig.ProtectedOptions) (*effectiveconfig.ProtectedConfig, error) {
-		options.Root = p.liquibaseProjection.Settings
-		return effectiveconfig.CreatePlannedProtected(options, protectedRef)
+	var request LiquibaseRunRequest
+	var protected *effectiveconfig.ProtectedConfig
+	err = preparecost.ObserveCall(ctx, preparecost.SessionInput, func(context.Context) error {
+		var problem error
+		request, protected, problem = m.liquibaseContainerRequestWithConfig(p, rt.instance, applyLiquibaseTaskArgs(p.normalizedArgs, task), connection.Password, func(options effectiveconfig.ProtectedOptions) (*effectiveconfig.ProtectedConfig, error) {
+			options.Root = p.liquibaseProjection.Settings
+			return effectiveconfig.CreatePlannedProtected(options, protectedRef)
+		})
+		return problem
 	})
 	if err != nil {
 		return nil, err
@@ -627,11 +668,15 @@ func (m *PrepareService) observeStartNormalLiquibaseSession(ctx context.Context,
 	working.protected, working.args = protected, request.Args
 	mounts := append([]engineRuntime.Mount(nil), request.Mounts...)
 	mounts = append(mounts, engineRuntime.Mount{HostPath: working.helper, ContainerPath: "/sqlrs/helper/step-capture.sh", ReadOnly: true})
-	working.session, err = working.coordinator.launchRunner(ctx, session, engineRuntime.RunRequest{ImageID: request.ImageID, Env: request.Env, Dir: request.WorkDir, Network: request.Network, Mounts: mounts})
+	working.session, err = preparecost.Observe(ctx, preparecost.SessionRunner, func(child context.Context) (queue.LiquibaseSessionRecord, error) {
+		return working.coordinator.launchRunner(child, session, engineRuntime.RunRequest{ImageID: request.ImageID, Env: request.Env, Dir: request.WorkDir, Network: request.Network, Mounts: mounts})
+	})
 	if err != nil {
 		return nil, err
 	}
-	if _, err := q.RecordLiquibaseSessionReadiness(ctx, working.session, normalReadinessObserver{runtime}, m.normalTimestamp()); err != nil {
+	if _, err := preparecost.Observe(ctx, preparecost.SessionReadiness, func(child context.Context) (queue.LiquibaseSessionReadiness, error) {
+		return q.RecordLiquibaseSessionReadiness(child, working.session, normalReadinessObserver{runtime}, m.normalTimestamp())
+	}); err != nil {
 		return nil, err
 	}
 	return working, nil
@@ -888,12 +933,16 @@ func (m *PrepareService) publishNormalLiquibaseWorkingInstance(ctx context.Conte
 	instanceID := managedOperationRef("instance", jobID)[:32]
 	var intent queue.FinalizationSnapshot
 	var publicationError error
-	err = m.access.Activate(ctx, instanceID, w.rt.instance.Binding, func(secret instanceaccess.Secret) error {
-		return dbms.EnsureManagedPassword(ctx, connection, secret.Password)
-	}, func() error {
-		active := store.InstanceStatusActive
-		intent, publicationError = q.PublishWorkingInstanceAndBeginFinalization(ctx, w.session, store.InstanceCreate{InstanceID: instanceID, StateID: stateID, ImageID: p.effectiveImageID(), CreatedAt: m.normalTimestamp(), RuntimeID: &w.rt.instance.ID, RuntimeDir: &w.rt.runtimeDir, Status: &active}, w.rt.instance.Binding, w.rt.operation)
-		return publicationError
+	err = preparecost.ObserveCall(ctx, preparecost.PublicationActivate, func(ctx context.Context) error {
+		return m.access.Activate(ctx, instanceID, w.rt.instance.Binding, func(secret instanceaccess.Secret) error {
+			return dbms.EnsureManagedPassword(ctx, connection, secret.Password)
+		}, func() error {
+			active := store.InstanceStatusActive
+			intent, publicationError = preparecost.Observe(ctx, preparecost.PublicationCommit, func(child context.Context) (queue.FinalizationSnapshot, error) {
+				return q.PublishWorkingInstanceAndBeginFinalization(child, w.session, store.InstanceCreate{InstanceID: instanceID, StateID: stateID, ImageID: p.effectiveImageID(), CreatedAt: m.normalTimestamp(), RuntimeID: &w.rt.instance.ID, RuntimeDir: &w.rt.runtimeDir, Status: &active}, w.rt.instance.Binding, w.rt.operation)
+			})
+			return publicationError
+		})
 	})
 	if err != nil {
 		if publicationError != nil {
@@ -903,24 +952,26 @@ func (m *PrepareService) publishNormalLiquibaseWorkingInstance(ctx context.Conte
 	}
 	// The known committed intent/pin protects this exact runtime until terminal
 	// completion. Do not enter disposeNormalLiquibaseSessionResources here.
-	if err := runtime.RemoveStoppedContainer(ctx, w.session.RunnerID); err != nil {
-		return err
-	}
-	absence := normalLiquibaseAbsence{runtime: runtime, session: w.session, clone: w.clone, database: w.rt.instance.ID}
-	if err := absence.VerifyTransferredLiquibaseSession(ctx, w.session, w.clone, w.rt.instance.ID); err != nil {
-		return err
-	}
-	if err := w.protected.Close(); err != nil {
-		return err
-	}
-	if err := os.Remove(w.helper); err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	if err := q.RetireTransferredLiquibaseSession(ctx, w.session, absence, m.normalTimestamp()); err != nil {
-		return err
-	}
-	runner.setRuntime(nil)
-	return m.finishNormalLiquibase(ctx, q, intent)
+	return preparecost.ObserveCall(ctx, preparecost.PrivateDispose, func(ctx context.Context) error {
+		if err := runtime.RemoveStoppedContainer(ctx, w.session.RunnerID); err != nil {
+			return err
+		}
+		absence := normalLiquibaseAbsence{runtime: runtime, session: w.session, clone: w.clone, database: w.rt.instance.ID}
+		if err := absence.VerifyTransferredLiquibaseSession(ctx, w.session, w.clone, w.rt.instance.ID); err != nil {
+			return err
+		}
+		if err := w.protected.Close(); err != nil {
+			return err
+		}
+		if err := os.Remove(w.helper); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if err := q.RetireTransferredLiquibaseSession(ctx, w.session, absence, m.normalTimestamp()); err != nil {
+			return err
+		}
+		runner.setRuntime(nil)
+		return m.finishNormalLiquibase(ctx, q, intent)
+	})
 }
 
 // VerifyTransferredLiquibaseSession intentionally does NOT inspect DB absence:
