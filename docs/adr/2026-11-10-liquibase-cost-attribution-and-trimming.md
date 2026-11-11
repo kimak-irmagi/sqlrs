@@ -225,3 +225,27 @@ in-process monotonic operation durations to calendar time.
   historical diagnostic/full-P01b workflows and evidence remain separate.
 - Rationale: implement the approved same-VM experiment with existing authority,
   preserving independent hashes and controls rather than expanding permissions.
+
+## Propose one combined native completion/prune observation
+
+- Conversation timestamp: 2026-11-11 06:13:48 UTC (13:13:48 Asia/Novosibirsk),
+  proposal preparation; no user approval reply yet.
+- GitHub participant: @evilguest (41718235), requested source-linked costs and
+  removal of demonstrated extra work; this new boundary awaits their decision.
+- Agent: Codex / GPT-5.
+- Question: reduce the measured repeated prior-prune Docker round trips without
+  replacing real absence/idle/identity checks with a manifest assertion?
+- Alternatives: retain all current round trips; trust only the completed
+  manifest's prior link; or combine the existing real read-only absence probe
+  and idle proofs with the native completion observation under its unchanged
+  exact pre/post parent checks and deadline.
+- Proposed decision: prefer the combined native observation with a runtime-owned
+  in-memory receipt bound to exact saved authority and completion. Queue guards,
+  transaction/readback rules and explicit standalone proof remain unchanged.
+  Details and critical/repeat review are in cost-attribution components §6.
+  This is not permission to change product code or existing tests.
+- Rationale: CT13 measures the five-command prune branch at 213.829 ms per
+  later step / 1.497 s total, versus about 8 ms per journal trio. Target actual
+  transport duplication first, disclose shifted measurement boundaries and do
+  not claim this alone resolves the remaining 18% fresh regression. Image
+  inventory caching/general recovery/SQLite refactoring are outside this proposal.

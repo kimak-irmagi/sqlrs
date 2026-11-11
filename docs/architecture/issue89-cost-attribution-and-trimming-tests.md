@@ -417,3 +417,17 @@ functions 100%, collector cost selection/qualification 100%, stream parser 98.3%
 and other stream functions 100%. Full Windows ordinary module tests/vet pass;
 its whole 58.9% profile is not Linux integration/helper coverage. Linux build/vet
 and prior native proof remain separately identified; no speed verdict follows.
+
+### CT13 execution checkpoint (2026-11-11)
+
+Actions `42967877614` on `48e6e11` completes the actual image prerequisite and
+all eight serial before/after/off/on members / 16 passes. Each workload's data,
+cache, counters and cleanup qualifies before its costs leave the private child
+output. Both new modes have the same executable/helper. The retained JSON and
+independently recalculated source/step totals are in
+[the results](issue89-cost-results-2026-11-11.md). The new ordinary fresh route
+is about 1 s faster than old v2, still 18.00% slower than actual v1; cached is
+20.83% slower than v1. CT14's unchanged full P01b remains blocked, not waived.
+The old Windows HTTP/SQLite BUSY CI failure is retained separately: its unchanged
+job passes on attempt 2, as do 20 local repeats. Only aggregate coverage is now
+red; this does not claim a fix for the first attempt's contention.

@@ -5,3 +5,4 @@ backend/local-engine-go/internal/prepare/queue/assets/liquibase-main-* text eol=
 docs/architecture/issue89-performance-evidence-2026-11-08/*.json text eol=lf
 docs/architecture/issue89-diagnostic-evidence-2026-11-09/**/*.json text eol=lf
 docs/architecture/issue89-diagnostic-evidence-2026-11-10/**/*.json text eol=lf
+docs/architecture/issue89-cost-evidence-2026-11-11/**/*.json text eol=lf

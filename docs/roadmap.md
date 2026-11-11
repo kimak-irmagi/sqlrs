@@ -179,8 +179,14 @@ tests pass. Native `42964091822` qualifies both helper timers and complete
 three-step/cache detail, reuse/data/cleanup and unchanged full normal prepare.
 Approved DT-C1 raises its new detail decoder from 50/54 to 54/54 statements
 (100%); ordinary tests/vet pass. The four-route comparison driver is connected,
-with 100% pure-helper coverage and 82 passing Node tests; actual before/after/off/on/full Actions
-series remain open. No new speed result or acceptance is claimed.
+with 100% pure-helper coverage and 82 passing Node tests. Short same-VM CT13
+`42967877614` completes all eight before/after/off/on members / 16 qualified
+passes. [Source-linked results](architecture/issue89-cost-results-2026-11-11.md)
+show about 1 s fresh saving from O1–O4, but +18.00% fresh / +20.83% cached versus
+actual v1. Full speed acceptance remains blocked. The first Windows HTTP CI
+BUSY refusal is retained; its unchanged job passes on attempt 2 and the local
+test passes 20 repetitions. Only aggregate coverage is red, not a claimed
+contention fix. No completion or merge readiness is claimed.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

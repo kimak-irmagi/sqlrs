@@ -532,3 +532,104 @@ test qualifies JHipster's pinned 5.0.3 GNU sync/coarse clock outside timing.
 Its execution and the complete eight-member cohort are still required in Actions.
 The parent retains incomplete stage/member evidence on failure, never raw output.
 No old tests, preparation-root policy, product/API/schema or P01b rule changed.
+
+### Complete short CT13 evidence (2026-11-11)
+
+Actions `42967877614` on `48e6e11` now completes all eight members / 16 passes,
+the actual 5.0.3 prerequisite, data/cache/counts and cleanup. The original JSON
+is retained with checksum in [the paired source-linked analysis](issue89-cost-results-2026-11-11.md).
+Ordinary new v2 averages 56.952 s fresh / 10.337 s cached versus actual v1
+48.263 / 8.556 s: +18.00% / +20.83%. O1–O4 save about 1.000 s fresh versus
+old v2 in this small campaign, not enough for acceptance. Per-step capture read
+averages 108.065 ms, separate prior-prune proof 213.829 ms on steps 2–8, journal
+trio 8.155 ms. Known disjoint additional host operations total 3.599 s / 6.346%
+of enabled fresh prepare; this is not the whole cross-version regression.
+Helper/observer details and remaining coarse parents are explicitly separated.
+No full P01b success or merge readiness is claimed. Current CI attempt 1 also
+has a Windows HTTP/SQLite BUSY failure, not covered by the coverage exception;
+20 unchanged local repetitions pass and the failed CI jobs are being rerun.
+
+Attempt 2's unchanged Windows job subsequently passes; only aggregate
+`coverage-merge` is red. The first contention failure remains recorded, not fixed.
+
+## 6. Proposed combined completion/prune observation
+
+Status: proposed after CT13, **not approved or implemented**. No API, CLI, DB
+schema, helper manifest format or replay authority change. A separate reviewed
+test list and any limited old-fixture changes follow component approval.
+
+### Interaction and ownership
+
+The normal session coordinator already owns exclusion over one exact session.
+It loads committed `CapturePrunePlan`, projects its authorization, admits the
+current invocation and calls `InvokeTrackedLiquibaseStep` as before. Change only
+the successful completion observation when a prior-prune authorization exists:
+
+1. Runtime checks the exact full runner ID/name/state and reads the same bounded
+   three-file archive. Existing manifest/identity/hash/EOF checks remain.
+2. For a running parent, the existing idle observation becomes one **bounded**
+   root Docker exec: idle proof, invocation of the already pinned helper's
+   read-only `probe-prune`, idle proof. Its exact fixed response is required;
+   a command exit alone is insufficient. Every environment binding is supplied
+   from the saved authorization, diagnostics explicitly off. No SQL, deletion,
+   readiness initialisation or repair is allowed in this command.
+3. The existing post-inspection encloses both archive and combined probe and
+   must preserve exact ID/name/state. One shared deadline/cancellation applies
+   to the complete read. No Docker call runs under a SQLite/eviction lock.
+4. Only after all checks does runtime attach an in-memory typed prune receipt
+   to this completion. It contains no output/path/credential; it binds every
+   authorization field, exact current invocation, helper, runner/generation and
+   completion manifest digest. Runtime owns construction (unexported fields);
+   consumers can only match a receipt against an expected saved authorization
+   and completion. Local manifest decoding alone cannot create a native receipt.
+5. Prepare's narrow completion-bound verifier supplies this receipt to the
+   existing `ConfirmLiquibaseCapturePruned`. The queue re-reads and validates
+   its exact saved join and atomically records absence/releases the prior slot
+   exactly as today. A wrong/missing receipt is an error, not a blind success.
+   The current invocation is completed in the existing later journal operation.
+
+Do not grant receipt construction to API callers, observer records or mutable
+manifest fields. Copy any pointer-backed prior link/authorization at construction;
+future mutation cannot retarget the proof. No persistent receipt/cache is added.
+
+### Preserved paths and refusals
+
+- First invocation without a prior slot keeps its current capture/idle reader.
+- Standalone and stopped-parent reads remain supported. A stopped parent gets
+  no exec/restart and no fabricated combined receipt. The normal coordinator
+  cannot release a prior slot from a receipt it did not obtain.
+- Retain `VerifyLiquibaseCapturePruned` as a distinct real read-only operation
+  for callers without a combined native observation. It is not replaced by a
+  no-op or a manifest assertion. Normal completion does not fall back on missing,
+  malformed or mismatched evidence; it retains the unresolved owner.
+- Missing prior directory proof, idle failure, changed parent, malformed archive,
+  wrong saved link, cancellation and bounded transport failure keep their safe
+  refusal. Failed/nonzero Liquibase results retain their original classification;
+  a prune receipt cannot turn a failed child into success or permit another SQL.
+- Durable absence/slot release still requires the existing committed publication
+  and retirement authority. No earlier delete, extra attempt or changed slot
+  capacity is introduced. A COMMIT failure does not rerun the native command or
+  SQL automatically; the existing journal readback rules remain authoritative.
+
+### Scope, costs and critical review
+
+This removes only the second pre/post inspection pair and repeated idle Docker
+round trips for the same excluded normal session. The helper still actually
+checks absence; no strict-isolation assumption or output-forgery permission is
+added. The current five-call prune branch averages 213.829 ms per later step;
+the new combined command still costs time, so 1.497 s is an upper target, not
+an assured saving. The separate archive and exact pre/post checks are retained.
+
+`capture.read` will enclose the combined probe in new reports; the old
+`capture.prune` interval will no longer occur in this normal path. Reports must
+state this boundary shift and compare the combined sum, not mistake a renamed
+cost for a saving. The old campaign remains immutable. Repeat the same CT13
+off/on controls and workload oracles after qualification; full P01b stays blocking.
+
+Critical review rejected relying solely on `prior_retirement_ref`, a bool that
+any consumer can fabricate, accepting Docker exit as absence, and removing
+post-inspection. Repeat review added exact completion binding, caller-owned data
+copies, stopped-parent separation, no automatic native retry after journal
+failure, and explicit accounting-boundary disclosure. No remaining P0–P2 found
+in this bounded proposed flow. Image-inventory caching and finer planning/startup
+spans are candidates, not included in this amendment.
