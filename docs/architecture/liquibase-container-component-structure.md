@@ -38,7 +38,9 @@ queue authority; a manifest alone does not prove absence. Standalone/stopped
 paths and queue transactions remain separate as specified there. Components
 and CPR01–CPR09 are approved; runtime/coordinator are connected with only
 separately approved OT-CPR01–OT-CPR03 old-test alignment. Native Actions
-qualification and the next same-VM comparison remain pending.
+qualification passed in `42994708398`; CT13 `43000348314` is incomplete on the
+second old-v2 control. Unchanged same-VM whole retry `43002214752` completes,
+but +15.77% fresh / +19.78% cached versus actual v1 still blocks speed acceptance.
 
 The [JDBC artifact decision](../adr/2026-10-06-postgresql-jdbc-artifact-delivery.md)
 uses the existing external dependency resolver. Build/release verifies the

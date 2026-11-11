@@ -630,8 +630,8 @@ must be reported separately; these proposals are not blanket authorisation.
   timeouts and hit its 6-minute package budget in managedstore/queue; unchanged
   sequential reruns of engine command/managedstore/queue and the complete client
   suite pass; the failed broad attempt is not described as successful.
-- CPR08 source tests and explicit Actions selectors are present, but not yet
-  qualified natively. Review found the new known-failure test's counter combines
+- CPR08 source tests and explicit Actions selectors are present. Review found
+  the new known-failure test's counter combines
   `published_prune` and final `session_disposal` records. The user separately
   approved splitting those checks: exactly one `published_prune/path_absent`,
   plus complete final records, empty slots and actual absence of all containers.
@@ -641,7 +641,25 @@ must be reported separately; these proposals are not blanket authorisation.
   its shell child was incorrectly passed through the stock-Liquibase API. The
   user separately approved correcting only that preparation: unchanged pinned
   helper runs the short shell child directly, actual runtime reads its result.
-  All five variants/stream/exit/absence assertions remain. Native rerun is pending;
+  All five variants/stream/exit/absence assertions remain;
   source CI `42992542478` has all regression jobs green, only aggregate coverage red.
-- No new CT13 has run. The immutable original report, 18% fresh regression and
-  full performance acceptance requirement remain unchanged.
+- Native rerun `42994708398` on `d4d9ccf` passes every actual pinned-helper and
+  wrapper variant, connected three-step/cached prepare, known second-step failure,
+  host attribution and unchanged JVM/manifest/survivor regressions. Exact normal
+  cleanup is observed before fallback. Required PASS names were checked directly;
+  no combined native skip is accepted. All source CI `42994686911` regression jobs
+  pass; only the previously excepted aggregate coverage gate is red.
+- Repeat CT13 `43000348314` on `d4d9ccf` stops after six qualified members while
+  collecting the second old-v2 control (`failureKind`/`cleanupBoundary` unknown).
+  Its [original incomplete report](issue89-cost-evidence-2026-11-11/43000348314/jhipster-cost.json)
+  is retained byte-for-byte, SHA256
+  `7fa22f753b5a73f5b4b891ca9c3b1c6de9f69f9836838e2c5787205e2382fd41`.
+  It is not a completed comparison or an accepted outlier exclusion. Unchanged
+  whole-campaign retry `43002214752` uses the same `d4d9ccf` and completes all eight
+  members / 16 oracle- and cleanup-verified passes. Its [retained complete report](issue89-cost-evidence-2026-11-11/43002214752/jhipster-cost.json)
+  has SHA256 `59776bbe97307a23a7e65cd97f38cc0e2386d54ef06f019066d28b4265d1d22a`.
+  [Analysis](issue89-cost-results-2026-11-11.md#completed-repeat-ct13-after-combined-observation)
+  records 2.513 s / 4.31% fresh saving versus old v2, but +15.77% fresh /
+  +19.78% cached versus actual v1. Normal Docker-command count is 107 instead
+  of the original instrumented 142. CPR qualification is complete; speed remains
+  blocking. Original `42967877614`, the failed attempt and full criterion remain.

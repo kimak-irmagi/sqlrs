@@ -192,8 +192,16 @@ The bounded combined native completion/prune observation components are now
 approved, as are CPR01–CPR09 and limited OT-CPR01–OT-CPR03. Runtime/coordinator
 are connected; focused native-receipt/journal tests and all 83 Node checks pass.
 New runtime receipt helpers and the prepare verifier have 100% statement
-coverage. Native Actions qualification and the next CT13 remain pending;
-there is no new performance result or readiness claim.
+coverage. Native Actions `42994708398` on `d4d9ccf` passes every CPR/prepare/cache/
+known-failure/cleanup control. All source CI `42994686911` regressions pass;
+only the excepted aggregate coverage gate is red. CT13 `43000348314` is incomplete
+after six members, on the second old-v2 control; its original report is retained.
+Unchanged whole retry `43002214752` completes all eight members / 16 passes on
+the same candidate. [Retained analysis](architecture/issue89-cost-results-2026-11-11.md#completed-repeat-ct13-after-combined-observation)
+shows 2.513 s / 4.31% fresh saving versus old v2 and 35 fewer Docker commands,
+but +15.77% fresh / +19.78% cached versus actual v1. Speed still blocks #89;
+no full-P01b success or merge readiness is claimed. Exact preview-to-working DB
+reuse differs from v1; the next-scope choice is pending, with no new code authority.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

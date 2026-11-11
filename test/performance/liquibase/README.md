@@ -135,7 +135,14 @@ cost, never count a removed label as saved time. The standalone prune operation
 and historical reports stay intact. CPR01–CPR09 and limited OT-CPR01–OT-CPR03
 are approved; runtime/coordinator are connected and the explicit native probe
 workflow now selects the new pinned-helper/wrapper/known-failure tests. Those
-tests have not yet run in Actions; no new CT13 or full-P01b result is claimed.
+tests pass in Actions `42994708398` on `d4d9ccf`, including the complete/cached/
+known-failure prepare controls. CT13 `43000348314` is incomplete after six members
+on its second old-v2 control; retain that original report without accepting a
+partial comparison. Unchanged same-VM whole retry `43002214752` completes all
+eight members / 16 passes. Retain both original JSONs and source-linked analysis:
+current v2 saves 4.31% fresh against old v2, but remains +15.77% fresh / +19.78%
+cached versus actual v1. The original speed gate still blocks full acceptance;
+the 35 fewer Docker commands are a count result, not an isolated timing A/B.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.

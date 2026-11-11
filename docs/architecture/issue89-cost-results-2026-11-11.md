@@ -181,8 +181,9 @@ testing any bounded fix; full P01b remains blocking after short regressions
 are resolved.
 
 Subsequently @evilguest approved the combined native observation components on
-2026-11-11. Its separate CPR01–CPR09 test list still awaits approval. Inventory
-caching is not part of that approval; measured evidence above remains unchanged.
+2026-11-11. CPR01–CPR09 and the narrowly audited old-test changes were later
+approved separately. Inventory caching is not part of those approvals; measured
+evidence above remains unchanged.
 
 Separately, current source CI `42967847154` attempt 1 failed the old
 `TestPrepareJobsDeleteBlockedWithoutForce` on Windows with `SQLITE_BUSY`.
@@ -190,3 +191,111 @@ An unchanged local repetition passed 20 times; attempt 2's unchanged failed CI
 job also passes. Only aggregate `coverage-merge` is now red under the approved
 exception. This is not a demonstrated fix for the first attempt's contention;
 the original failure is retained, not hidden as a coverage-only refusal.
+
+## Combined-observation follow-up: qualification, incomplete comparison
+
+Candidate `d4d9ccfd3c30f6b72b30358e010c18cc9d5e0d11` passes the complete native
+prerequisite in [Actions 42994708398](https://github.com/kimak-irmagi/sqlrs/actions/runs/42994708398):
+actual pinned-helper/inner-order controls, three-step and fully cached prepare,
+known second-step failure, exact cleanup, unchanged three-JVM/manifest/survivor
+checks. The first attempt's new fixture incorrectly sent a shell command to
+the stock-Liquibase API; its separately approved test-only correction changes
+neither production code nor the pinned helper. All source regression jobs in
+CI `42994686911` pass; only the previously excepted aggregate coverage gate is red.
+
+[Repeat CT13 43000348314](https://github.com/kimak-irmagi/sqlrs/actions/runs/43000348314)
+is **incomplete**, not a replacement for the complete original report above.
+Six members finished their oracle/count/cleanup checks; collection of the
+second old-v2 member failed with closed cause/cleanup classifications `unknown`.
+This does not identify a candidate regression, establish a transient cause or
+authorise dropping that control. The [original incomplete JSON](issue89-cost-evidence-2026-11-11/43000348314/jhipster-cost.json)
+is retained without reserialization, SHA256
+`7fa22f753b5a73f5b4b891ca9c3b1c6de9f69f9836838e2c5787205e2382fd41`.
+Whole retry `43002214752` used the unchanged candidate/protocol on a fresh VM;
+its complete result is separate below. The incomplete attempt remains retained.
+
+## Completed repeat CT13 after combined observation
+
+[Actions 43002214752](https://github.com/kimak-irmagi/sqlrs/actions/runs/43002214752)
+completed all eight members / 16 passes on one VM, in the original reversed
+four-route order. Every oracle/cleanup flag and the native 5.0.3 prerequisite
+was checked. New off/on use one binary and helper. No strace or laptop workload.
+
+- Candidate: `d4d9ccfd3c30f6b72b30358e010c18cc9d5e0d11`;
+  executable SHA256 `f5374628f9863cf83400ec65ac6084272ad1a6bb72b09527d10a2b66de663bd6`.
+- New helper digest in both modes:
+  `sha256:3c269e3a7b25363a26a96fd88772bd35b4a5acd7c12f6cfd58578c3e91c1240f`.
+- Actual v1, old `668d505` executable and collector hashes are unchanged from
+  the original evidence above. This is not an isolated same-VM `48e6e11`/CPR A/B.
+- [Original complete JSON](issue89-cost-evidence-2026-11-11/43002214752/jhipster-cost.json),
+  SHA256 `59776bbe97307a23a7e65cd97f38cc0e2386d54ef06f019066d28b4265d1d22a`.
+
+Descriptive means of two observations per cell, seconds:
+
+| Variant | Fresh | Fully cached |
+| --- | ---: | ---: |
+| Actual released v1 | 48.218 | 8.498 |
+| Old v2 `668d505` | 58.333 | 10.336 |
+| Current v2, recording off | 55.820 | 10.179 |
+| Same current v2, recording on | 55.528 | 10.337 |
+
+Ordinary current v2 saves 2.513 s / 4.31% fresh versus old v2, including O1–O4
+and combined observation, not CPR alone. The cached mean saves 0.157 s / 1.52%,
+with overlapping sample ranges: not a proven reliable cached improvement.
+Against actual v1 it remains **7.602 s / 15.77% slower fresh and 1.681 s /
+19.78% slower cached**. The short-workload regression remains; do not claim
+full P01b or merge readiness. Recording-on minus off is −0.293 s fresh /
++0.158 s cached, variation rather than negative/known zero observer overhead.
+
+### Current additional work, without double counting
+
+Rows use the two enabled fresh passes (about 55.528 s). Ratios are means of
+their independently validated per-sample ratios. These rows are disjoint;
+their nested Docker/copy/helper intervals must not be added again.
+
+| Additional action | Calls | Mean/call, ms | ZTotal, ms | Zratio |
+| --- | ---: | ---: | ---: | ---: |
+| Combined private read / idle / prior absence | 8 | 120.024 | 960.191 | 1.729% |
+| Plan + admit + complete journal trio | 8 trios | 8.510 | 68.080 | 0.123% |
+| Extra verify after DB resume | 7 | 25.478 | 178.347 | 0.321% |
+| Immutable image/Java/driver inventory | 1 | 953.282 | 953.282 | 1.717% |
+
+These selected additional operations total 2,159.900 ms / 3.890%, **not the
+whole v1 regression**. Source mappings are the table and catalog above, with
+`combined_capture_prune.go:readCombinedStepPrune` now inside the runtime read.
+The normal `capture.prune` count is zero, but its real proof remains in that read.
+Compared with the earlier instrumented `48e6e11` report, Docker-command counts
+fall from 142 to 107: exactly 35 = seven later steps × five removed round trips.
+That is an observed count change, not a same-VM wall-clock difference between
+those two instrumented revisions. Old read+prune (864.522 + 1,496.805 ms) and new
+combined read (960.191 ms) came from different VMs; do not claim their subtraction
+as an isolated causal saving. The actual same-VM aggregate improvement is above.
+
+Migration CLI counts remain nine fresh / one cached in all variants. v2 still
+adds its inventory CLI (ten/two total versus v1 nine/one) and creates eight/four
+containers versus v1 four/two; no per-step container regression was reintroduced.
+Current enabled planning costs 7.174 s fresh / 6.068 s cached, self time
+4.164 / 3.005 s. Working startup is 2.844 s, self 2.660 s. Those coarse parent
+costs remain changed work, not evidence that SQLite or DB startup alone caused
+the unexplained difference. Next-scope discussion must preserve that distinction.
+
+## Source finding: preview-to-working DB reuse differs
+
+The released `jobCoordinator.planLiquibaseChangesets` retains the preview DB
+in the job runner for ordinary prepare. Its `taskExecutor.ensureRuntime`
+reuses it when the requested first input is the same image/source. This is
+visible in the pinned v1 `manager.go` and `execution.go`, not inferred from a
+container-count difference. The current `observePlanNormalContainerLiquibase`
+instead calls `cleanupRuntime` for that DB unconditionally; later
+`observeStartNormalLiquibaseSession` calls `startManagedRuntimeWithPlan` again.
+Thus v2 can perform a second DB clone/start after preview where v1 reuses one.
+
+This is a specific additional action, **not a measured price for that action**:
+the existing `prepare.session_startup` also contains runner/config/readiness and
+journal work. Assigning its entire duration to the second DB would be wrong.
+An optimisation candidate is an exact ownership handoff only when the first
+uncached input matches the preview source. A different cached prefix still
+requires its own correctly sourced DB; plan-only/fully cached behavior must not
+be conflated with that route. Any handoff needs its own reviewed component,
+storage and test approvals. No implementation or broad recovery change is
+authorised by this source finding, and no saving is promised before measurement.

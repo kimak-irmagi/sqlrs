@@ -558,8 +558,13 @@ Status: **components approved** by @evilguest on 2026-11-11, reply
 “Утвердить объединённое наблюдение”; exact reply time unavailable. CPR01–CPR09
 and limited OT-CPR01–OT-CPR03 were subsequently approved separately. Runtime
 and coordinator implementation is connected after the new tests exposed the
-missing-receipt/cancellation refusals. Native Actions qualification and a new
-CT13 comparison are pending. No API, CLI, DB schema, helper manifest format or
+missing-receipt/cancellation refusals. Native Actions qualification passed in
+`42994708398` on `d4d9ccf`. Repeat CT13 `43000348314` is incomplete after six
+members, on the second old-v2 control. Unchanged whole retry `43002214752`
+completes all eight members / 16 passes: −4.31% fresh versus old v2, but still
++15.77% fresh / +19.78% cached versus actual v1; speed remains blocking.
+See the retained reports and follow-up in the [cost analysis](issue89-cost-results-2026-11-11.md).
+No API, CLI, DB schema, helper manifest format or
 replay authority change; this does not approve other old-test changes.
 
 ### Interaction and ownership
