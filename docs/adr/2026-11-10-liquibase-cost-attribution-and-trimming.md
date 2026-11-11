@@ -318,3 +318,21 @@ in-process monotonic operation durations to calendar time.
   slots and actual absence of all containers. No product or old-test change.
 - Rationale: final disposal is a separate saved authority, not a second native
   published-prune observation; both obligations must remain visible and tested.
+
+## Correct only CPR08's new arbitrary-child preparation
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: native run 42992554294 found the new fixture passed `/bin/sh -c`
+  through an API which intentionally prefixes the stock Liquibase command;
+  may only that preparation invoke the pinned helper's arbitrary-child mode?
+- Alternatives: change production invocation semantics (rejected); weaken the
+  expected streams/exit/absence checks (rejected); or correct the test-only
+  launcher while retaining the unchanged helper and actual runtime reader.
+- Decision: user replied “Разрешить исправление подготовки CPR08”. Only the new
+  test launches its short shell child directly through the pinned helper.
+  Real result parsing/proof, exit 7, exact streams, prior-directory and survivor
+  controls stay; connected prepare separately qualifies actual JVM/SQL work.
+- Rationale: separate an arbitrary-child fixture from the stock-CLI product
+  contract without adding a product hook or manufacturing native receipts.

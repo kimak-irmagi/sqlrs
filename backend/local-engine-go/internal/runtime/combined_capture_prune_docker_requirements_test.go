@@ -46,6 +46,23 @@ func combinedNativeCleanup(t *testing.T, rt *DockerRuntime, id string) {
 	}
 }
 
+// combinedNativeChild runs only this fixture's short shell child through the
+// unchanged pinned helper. InvokeTrackedLiquibaseStep intentionally prefixes
+// the stock Liquibase CLI and is not an arbitrary-child test API. Native result
+// acquisition still uses the real runtime reader, never a receipt substitute.
+func combinedNativeChild(ctx context.Context, rt *DockerRuntime, name string, identity StepCaptureIdentity, command string) (CompleteStepCapture, error) {
+	authorization, err := serializeStepPrune(identity)
+	if err != nil {
+		return CompleteStepCapture{}, err
+	}
+	args := stepCaptureExecEnvironment(identity, 1024, authorization)
+	args = append(args, "-e", "SQLRS_CAPTURE_COST=0", identity.RunnerID, "/bin/sh", "/sqlrs/helper/step-capture.sh", "/bin/sh", "-c", command)
+	// Exit 7 is an intentional case. As in production, the helper command's
+	// return is not completion proof; only verified streams/manifest/idle are.
+	_, _ = rt.run(WithoutLogSink(ctx), args, nil)
+	return rt.ReadCompleteLiquibaseStepOutput(ctx, name, identity.RunnerID, "", identity, 1024)
+}
+
 // CPR08: real unchanged pinned helper, no stand-in. Tiny shell children qualify
 // capture/proof behavior; the separate connected prepare test runs real JVM/SQL.
 func TestCombinedCapturePruneNativeDocker(t *testing.T) {
@@ -79,7 +96,7 @@ func TestCombinedCapturePruneNativeDocker(t *testing.T) {
 			}
 			cancel()
 			i := StepCaptureIdentity{JobID: "combined-job", TaskID: "step-1", SessionID: ready.SessionID, InvocationRef: "combined-first", AttemptNo: 1, WorkerGeneration: 1, RunnerID: id, ExecutionDigest: "sha256:" + strings.Repeat("d", 64), HelperDigest: digest}
-			first, err := rt.InvokeTrackedLiquibaseStep(ctx, name, "", i, []string{"/bin/sh", "-c", "printf first"}, 1024)
+			first, err := combinedNativeChild(ctx, rt, name, i, "printf first")
 			if err != nil || first.ExitCode != 0 || string(first.Stdout) != "first" {
 				t.Fatal("native first capture failed")
 			}
@@ -93,7 +110,7 @@ func TestCombinedCapturePruneNativeDocker(t *testing.T) {
 				child += "; exit 7"
 				wantExit = 7
 			}
-			second, err := rt.InvokeTrackedLiquibaseStep(ctx, name, "", i, []string{"/bin/sh", "-c", child}, 1024)
+			second, err := combinedNativeChild(ctx, rt, name, i, child)
 			if err != nil || second.ExitCode != wantExit || string(second.Stdout) != "second" || string(second.Stderr) != "private-error" || !second.MatchesPruneObservation(i, *i.Prune) {
 				t.Fatal("native combined proof or child outcome differs")
 			}

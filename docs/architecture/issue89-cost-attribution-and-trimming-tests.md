@@ -628,12 +628,20 @@ must be reported separately; these proposals are not blanket authorisation.
 - All 83 Node tests pass after workflow selection changes. Windows/Linux vet
   passes for runtime/prepare/queue. The broad local parallel run had old HTTP
   timeouts and hit its 6-minute package budget in managedstore/queue; unchanged
-  sequential reruns of engine command/managedstore/queue pass. Client rerun is
-  pending; the failed broad attempt is not described as successful.
+  sequential reruns of engine command/managedstore/queue and the complete client
+  suite pass; the failed broad attempt is not described as successful.
 - CPR08 source tests and explicit Actions selectors are present, but not yet
   qualified natively. Review found the new known-failure test's counter combines
   `published_prune` and final `session_disposal` records. The user separately
   approved splitting those checks: exactly one `published_prune/path_absent`,
   plus complete final records, empty slots and actual absence of all containers.
+- First native run `42992554294` on `5ad80de` passes all six actual-wrapper
+  controls and the unchanged three-JVM/incomplete-manifest/surviving-child
+  controls. The new pinned-helper fixture fails before combined reading because
+  its shell child was incorrectly passed through the stock-Liquibase API. The
+  user separately approved correcting only that preparation: unchanged pinned
+  helper runs the short shell child directly, actual runtime reads its result.
+  All five variants/stream/exit/absence assertions remain. Native rerun is pending;
+  source CI `42992542478` has all regression jobs green, only aggregate coverage red.
 - No new CT13 has run. The immutable original report, 18% fresh regression and
   full performance acceptance requirement remain unchanged.
