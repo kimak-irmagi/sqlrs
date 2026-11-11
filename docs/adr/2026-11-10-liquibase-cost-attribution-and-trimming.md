@@ -140,3 +140,17 @@ in-process monotonic operation durations to calendar time.
   scenarios, negative refusal, hashes, runner reuse and exact cleanup remain.
 - Rationale: retain the semantic protection and its precise new refusal boundary,
   without changing product errors to make an old fixture pass for a wrong reason.
+
+## Approve actual intermediate outcomes in new CT12
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: must every intermediate Docker readiness command succeed for a
+  successful prepare, or must the observer retain the real intermediate result?
+- Alternatives: fail the new test on legitimate transient readiness refusals;
+  or retain closed actual command outcomes while requiring successful worker
+  and mandatory completed operations, exact DB/counts/reuse/cleanup controls.
+- Decision: user replied “Да, исправить это ожидание”.
+- Rationale: successful prepare does not imply successful readiness probes on
+  every attempt. The correction grants no product retry or execution authority.

@@ -390,9 +390,15 @@ vet pass as well.
 The new native CT12 test is being prepared, not reported green. Review found an
 overstrict new expectation requiring every intermediate Docker span to succeed:
 normal readiness polling may fail transiently while prepare succeeds. The user
-is asked asynchronously to retain the actual intermediate outcomes while still
+approved retaining the actual intermediate outcomes while still
 requiring successful worker/mandatory completed operations and unchanged data,
-counts, reuse and cleanup. That expectation has not been silently altered.
+counts, reuse and cleanup. Only this new expectation is corrected; no product
+retry behavior changes. The existing explicit cost-probe workflow now also
+acquires public PostgreSQL and the locked project JDBC dependency, then runs
+the new recorded three-step/cache case and the unchanged full normal-prepare
+case. The prior prerequisite steps, own-repository label, 20-minute limit and
+no-raw-artifact rule remain; this is not a performance cohort. Four focused Node
+workflow/source checks pass; actual native host qualification is pending.
 
 Source CI `42864007891` at `2f0a280` passes every regression job. Only coverage
 merge fails its unchanged aggregate 95% gates (engine 77.1%, CLI 94.8%); the

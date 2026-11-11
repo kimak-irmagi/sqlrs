@@ -268,3 +268,12 @@ streams after deleting only manifest.complete. Retain all three scenarios,
 exact-ID cleanup, exit/hash/reuse/prune assertions and the negative refusal.
 Do not map unrelated archive errors to a fabricated manifest-specific error in
 product code just to satisfy the obsolete expectation. Other old assertions stay.
+
+### CT12 native intermediate outcomes (approved 2026-11-11)
+
+The user approved correcting only the new test's overstrict expectation that
+every intermediate Docker command succeeds. Keep each closed actual outcome,
+including refused/timed-out readiness probes; require the successful worker and
+mandatory completed named operations. Preserve exact database data, cache/step
+counts, parent/database reuse and cleanup-before-fallback assertions. Do not
+change product retry behavior or turn a terminal prepare failure into success.
