@@ -1,5 +1,11 @@
 # Liquibase container components: main delivery
 
+The approved [O5–O7 amendment](issue89-measured-overhead-reduction.md) adds
+retained preview-to-session DB ownership, a per-service successful inventory
+cache and same-exec bounded results. It preserves driver selection and private
+capture proofs; exact storage/tests are separately pending. Below, independent
+preview teardown and per-prepare inventory describe the pre-amendment path.
+
 This is the bounded #89 view of the previously approved container design,
 following the delivery split accepted by @evilguest on 2026-11-06. It does not
 introduce a new recovery policy or storage schema.

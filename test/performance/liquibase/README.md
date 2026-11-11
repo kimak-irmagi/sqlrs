@@ -1,5 +1,12 @@
 # Liquibase performance collector
 
+The approved [O5–O7 follow-up](../../../docs/architecture/issue89-measured-overhead-reduction.md)
+will change actual allocation/probe/result-acquisition counts, not the workload
+or timer. Counter expectations must be predeclared for exact selected artifacts,
+with cold inventory misses still timed and old-v2/v1 controls unchanged. No cache
+prewarm or inference of expected counts from the observed output is permitted.
+The collector changes/tests are not implemented yet.
+
 External Linux/amd64 engine collector for the approved
 [PA01–PA12 plan](../../../docs/architecture/issue89-performance-actions-tests.md).
 This is not product code and imports no internal engine package.

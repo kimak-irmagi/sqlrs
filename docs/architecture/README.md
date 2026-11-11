@@ -2,10 +2,15 @@
 
 Entry points for Taidon architecture and service design.
 
+- [Measured #89 overhead reductions](issue89-measured-overhead-reduction.md) -
+  approved components for preview DB handoff, bounded process-local
+  inventory reuse and same-exec result transport; schema/tests pending. Includes
+  retained complete-timeline results from CT13 `43061874236`; speed still fails.
+
 - [Complete prepare timeline](issue89-complete-timeline.md) - approved #89
   source-linked diagnostic flow; separate [TL01–TL14 tests](issue89-complete-timeline-tests.md)
-  are approved; tests-first implementation is in progress. No execution-policy
-  or performance-gate change.
+  are approved and connected, native probe passed and CT13 completed. No
+  execution-policy or performance-gate change; source-local unknowns stay explicit.
 
 - [Independent declaration limits](runtime-go-declaration-limits.md) - approved
   #159 contract and bounded implementation; separate publication is #160.

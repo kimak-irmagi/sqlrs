@@ -1,5 +1,10 @@
 # #89: a complete source-linked prepare timeline
 
+For the next approved execution changes see [O5–O7](issue89-measured-overhead-reduction.md).
+Recorded two-DB/probe/result-read counts below remain historical evidence, not
+required overhead for the optimised route. Timelines must follow the new real
+boundaries; exact windows, original timers and explicit unresolved time remain.
+
 Status, 2026-11-11: @evilguest explicitly approved this reviewed component
 amendment with “Утвердить проект полной трассировки”. The overhead review journal,
 additional tracing and Actions repeat are requested; the separately reviewed

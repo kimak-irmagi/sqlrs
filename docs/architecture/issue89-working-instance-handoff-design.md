@@ -1,5 +1,10 @@
 # #89: reuse the working database as the result instance
 
+The separately approved [O5–O7 amendment](issue89-measured-overhead-reduction.md)
+now designs the previously excluded planning-to-working DB handoff. This does
+not change this document's working-to-instance protocol. Its O5 schema/tests
+remain separate; the exclusion below describes this earlier delivery's scope.
+
 Status: component amendment approved by @evilguest on 2026-11-07 after critical/
 repeat review. The separate [schema](issue89-working-instance-handoff-schema.md)
 is now approved; the [test inventory](issue89-working-instance-handoff-tests.md)

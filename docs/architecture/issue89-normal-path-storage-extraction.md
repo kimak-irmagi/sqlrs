@@ -1,5 +1,11 @@
 # #89: extract installation without recovery migrations
 
+The approved [O5–O7 components](issue89-measured-overhead-reduction.md) now include
+source-compatible planning DB ownership transfer. Its separate proposed
+[storage amendment](issue89-planning-db-handoff-schema.md) is not installed yet.
+Direct final-definition installation and refusal of unreleased-checkpoint
+migration remain required; old physical-absence guards are not simply removed.
+
 Status: component amendment approved by @evilguest on 2026-11-07;
 NI01–NI08 were separately approved on the same date and the direct installer is
 implemented. Production session wiring is connected; see the
