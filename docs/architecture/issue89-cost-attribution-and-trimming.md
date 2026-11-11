@@ -500,3 +500,8 @@ script/end-boundary source; all 75 Node tests pass with detail helper 100%
 lines/functions/branches. The new Go detail decoder is 50/54 statements; proposed
 DT-C1 covers the four documented refusal returns plus incomplete phase-at-end.
 That iteration still needs approval. No new performance cohort is claimed.
+
+DT-C1 was subsequently approved and implemented: the repeat ordinary profile
+covers the new detail decoder at 54/54 statements (100%); full module tests/vet
+pass on Windows. Its whole-module 58.9% is not a Linux helper/integration result.
+No old assertion or product boundary changed in this iteration.

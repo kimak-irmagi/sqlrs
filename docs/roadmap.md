@@ -177,8 +177,8 @@ approved, as are DT01–DT08 and limited OT-CT05–OT-CT08. Helper/observer reco
 private collection and independent report qualification are implemented; ordinary
 tests pass. Native `42964091822` qualifies both helper timers and complete
 three-step/cache detail, reuse/data/cleanup and unchanged full normal prepare.
-A small collector-coverage iteration (50/54 statements in its new detail decoder)
-awaits approval. Comparison-driver hookup and before/after/off/on/full Actions
+Approved DT-C1 raises its new detail decoder from 50/54 to 54/54 statements
+(100%); ordinary tests/vet pass. Comparison-driver hookup and before/after/off/on/full Actions
 series remain open. No new speed result or acceptance is claimed.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.

@@ -111,7 +111,8 @@ DT01–DT08 and limited OT-CT05–OT-CT08 are separately approved/permitted. The
 collector now waits for helper detail and observer completion after its original
 API timer. Native `42964091822` passes both helper on/off/exit controls and the
 full recorded three-step/cache and unchanged normal prepare checks. A small
-line-mapped detail-decoder iteration (50/54 statements) still awaits approval.
+line-mapped DT-C1 iteration was separately approved and raises the detail decoder
+from 50/54 to 54/54 statements (100%); full ordinary Windows tests/vet pass.
 Old fixed-binary evidence and
 strict parsers stay intact; a new candidate must have a new pinned identity.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.

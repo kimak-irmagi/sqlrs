@@ -148,3 +148,67 @@ func TestCostDetailInterleavedCompletionAndObserverOutsideAPI(t *testing.T) {
 		}
 	}
 }
+
+// DT-C1: independently target each uncovered refusal, preserving a valid
+// parsed control so an earlier unrelated fault cannot make these cases green.
+func TestCostDetailAdditionalRefusalBoundaries(t *testing.T) {
+	base := costDetailStreamExample(1)
+	for _, variant := range []string{"arity", "duplicate-unavailable", "unknown-unavailable", "host-bound", "incomplete-phases"} {
+		t.Run(variant, func(t *testing.T) {
+			wire := base
+			switch variant {
+			case "arity":
+				wire = strings.Replace(wire, "helper 1 3 preflight 0 0 0", "helper 1 3 preflight 0 0", 1)
+			case "duplicate-unavailable", "unknown-unavailable":
+				before, tail, _ := strings.Cut(wire, "sqlrs-prepare-cost-v1 helper")
+				_, after, _ := strings.Cut(tail, "sqlrs-prepare-cost-v1 end")
+				markers := "sqlrs-prepare-cost-v1 helper 1 3 unavailable 0\nsqlrs-prepare-cost-v1 helper 1 3 unavailable 0\n"
+				if variant == "unknown-unavailable" {
+					markers = "sqlrs-prepare-cost-v1 helper 1 3 unknown 0\n"
+				}
+				wire = before + markers + "sqlrs-prepare-cost-v1 end" + after
+			case "host-bound":
+				wire = strings.Replace(wire, "helper 1 3 preflight 0 0 0", "helper 1 3 preflight 0 2 0", 1)
+			case "incomplete-phases":
+				wire = strings.Replace(wire, "sqlrs-prepare-cost-v1 helper 1 3 final_flush 0 0 0\n", "", 1)
+			}
+			stream := newCostStream()
+			if err := stream.consume(strings.NewReader(wire)); !errors.Is(err, errCostStream) {
+				t.Fatal("targeted malformed detail escaped its parser boundary")
+			}
+			control := newCostStream()
+			if err := control.consume(strings.NewReader(base)); err != nil {
+				t.Fatal("independent valid control rejected", err)
+			}
+			if _, err := control.awaitMeasured(t.Context(), 1); err != nil {
+				t.Fatal("valid measured control rejected", err)
+			}
+		})
+	}
+	stream := newCostStream()
+	if err := stream.consume(strings.NewReader(base)); err != nil {
+		t.Fatal(err)
+	}
+	root, err := stream.awaitMeasured(t.Context(), 1)
+	if err != nil || qualifyDetails(root) != nil {
+		t.Fatal("direct qualification control missing", err)
+	}
+	for _, variant := range []string{"missing", "encode", "wait", "write"} {
+		copy := root
+		observer := *root.Observer
+		copy.Observer = &observer
+		switch variant {
+		case "missing":
+			copy.Observer = nil
+		case "encode":
+			copy.Observer.EncodeNS = -1
+		case "wait":
+			copy.Observer.LockWaitNS = -1
+		case "write":
+			copy.Observer.WriteNS = -1
+		}
+		if err := qualifyDetails(copy); !errors.Is(err, errCostStream) {
+			t.Fatal("invalid observer qualified directly", variant)
+		}
+	}
+}

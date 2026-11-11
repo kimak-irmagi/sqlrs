@@ -192,3 +192,17 @@ in-process monotonic operation durations to calendar time.
   “Разрешить OT-CT05–OT-CT08”. No other old-test changes are authorised.
 - Rationale: qualify owned timing, complete private delivery and independent
   accounting without changing product outcomes or the blocking speed criterion.
+
+## Approve line-mapped DT-C1 detail-decoder coverage
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: cover four remaining detail-decoder refusal operators and incomplete
+  phases at end, or discuss the remaining 50/54 statement gap first?
+- Alternatives: defer the iteration; or add independent targeted literal/direct
+  cases under existing DT03/DT05/DT07 and repeat the complete profile/tests/vet.
+- Decision: user replied “Разрешить адресную итерацию”. No old-test or product
+  boundary changes, new injection capability or dead-code removal authorised.
+- Rationale: verify existing safe-refusal requirements and reach the helper
+  coverage target without changing execution or performance acceptance.

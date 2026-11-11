@@ -400,7 +400,7 @@ separately approved DT01–DT08 and permitted OT-CT05–OT-CT08; exact reply tim
 unavailable. Tests-first implementation may proceed. Approval is not a runtime
 qualification or a speed result.
 
-### Line-mapped follow-up DT-C1 (approval requested)
+### Line-mapped follow-up DT-C1 (approved and implemented)
 
 First complete collector profile: `cost_detail.go` 50/54 statements (92.59%).
 The four uncovered returns implement existing DT03/DT05/DT07 refusals, not dead
@@ -410,4 +410,10 @@ qualification (94). Add independent literal cases for these, plus incomplete
 phases before end (`cost_stream.go` line 165), then repeat full helper tests/vet
 and the per-line profile. No old tests, product boundaries or code removal.
 Critical/repeat review retains reached-boundary checks, safe errors and valid
-controls; this small iteration awaits the separately requested approval.
+controls. @evilguest separately replied “Разрешить адресную итерацию” on
+2026-11-11 (exact time unavailable). The added literal/direct cases pass; the
+complete repeat profile gives `cost_detail.go` 54/54 statements (100%), all its
+functions 100%, collector cost selection/qualification 100%, stream parser 98.3%
+and other stream functions 100%. Full Windows ordinary module tests/vet pass;
+its whole 58.9% profile is not Linux integration/helper coverage. Linux build/vet
+and prior native proof remain separately identified; no speed verdict follows.
