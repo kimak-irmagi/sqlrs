@@ -268,3 +268,53 @@ in-process monotonic operation durations to calendar time.
 - Rationale: target measured transport duplication while retaining physical
   evidence and queue guards. The observed 1.497 s branch is a target, not an
   authorised reduction of the full no-regression performance criterion.
+
+## Approve CPR01–CPR09 before implementation
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: approve the critically/repeatedly reviewed combined-observation
+  test supplement, including a controlled wrapper test distinct from real
+  pinned-helper and ordinary prepare qualification?
+- Alternatives: discuss/revise the inventory first; or approve CPR01–CPR09
+  with separate permission still required for any old-test contradictions.
+- Decision: user replied “Утвердить CPR01–CPR09”. New tests may now be written
+  before product code. Does not approve OT-CPR01–OT-CPR03, inventory caching,
+  schema/API changes or the deferred recovery/SQLite programme.
+- Rationale: qualify actual absence/order, receipt ownership, journal authority,
+  preserved outcomes and honest before/after costs without weakening prior tests
+  or the full performance acceptance criterion.
+
+## Approve limited old-test alignment OT-CPR01–OT-CPR03
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: align three specifically audited old test preparations/counts with
+  the approved combined observation, or revise the new tests instead?
+- Alternatives: retain the contradictory separate-response fixtures; weaken
+  receipt validation (rejected); or update only the named preparations/count.
+- Decision: user replied “Разрешить OT-CPR01–OT-CPR03”. Only the binding test's
+  local bounded response, successful coordinator receipts through the actual
+  runtime plus two valid digest inputs, and the fresh native prune count 2→0
+  may change. All previous cases, refusal gates and functional assertions stay.
+- Rationale: test doubles must model the actual new proof boundary, not forge
+  receipts. Independent CPR tests qualify moved real work; a changed cost label
+  alone is neither proof of absence nor evidence of a performance gain.
+
+## Separate the new known-failure test's two cleanup authorities
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: the new CPR08 counter incorrectly mixed published-prune proof and
+  final session cleanup; may its expectation distinguish the two?
+- Alternatives: keep the incorrect total of one; weaken final cleanup checks
+  (rejected); or check the exact published proof and complete final cleanup
+  independently.
+- Decision: user replied “Разрешить точное разделение двух проверок”. Require
+  one `published_prune/path_absent`, confirmed final records, empty capture
+  slots and actual absence of all containers. No product or old-test change.
+- Rationale: final disposal is a separate saved authority, not a second native
+  published-prune observation; both obligations must remain visible and tested.

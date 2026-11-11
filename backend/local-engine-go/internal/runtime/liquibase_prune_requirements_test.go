@@ -3,10 +3,29 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+// OT-CPR01 is local to the binding test: the archive fixture remains unchanged,
+// while the combined native observation has its own bounded response/counter.
+type pruneBindingRunner struct {
+	*captureFilesRequirementsRunner
+	probes int
+}
+
+func (r *pruneBindingRunner) RunBounded(ctx context.Context, name string, args []string, out, diagnostic int64) ([]byte, error) {
+	if len(args) > 0 && args[0] == "exec" {
+		r.probes++
+		if out != 64 || diagnostic != 4096 || args[len(args)-1] != combinedStepPruneProbe {
+			return nil, fmt.Errorf("unexpected bounded binding probe")
+		}
+		return []byte("sqlrs-step-idle-pruned-v1\n"), nil
+	}
+	return r.captureFilesRequirementsRunner.RunBounded(ctx, name, args, out, diagnostic)
+}
 
 // PC10/PC20-N01: one exact typed authorization is carried on the normal helper
 // exec. This H check cannot qualify whether the queue actually pinned/published
@@ -50,16 +69,16 @@ func TestLiquibasePrivatePruneInvocationBinding(t *testing.T) {
 			runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
 			runner.responses = append(presentInspection(identity.RunnerID, name, "running", 0), runResponse{})
 			runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
-			runner.responses = append(runner.responses, runResponse{output: "sqlrs-step-idle-v1\n"})
 			runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
-			capture, err := NewDocker(Options{Binary: "configured-docker", Runner: runner}).InvokeTrackedLiquibaseStep(context.Background(), name, "", identity, []string{"update-count", "--count", "1"}, 1024)
+			transport := &pruneBindingRunner{captureFilesRequirementsRunner: runner}
+			capture, err := NewDocker(Options{Binary: "configured-docker", Runner: transport}).InvokeTrackedLiquibaseStep(context.Background(), name, "", identity, []string{"update-count", "--count", "1"}, 1024)
 			if variant != "control" {
-				if err == nil || !reflect.DeepEqual(capture, CompleteStepCapture{}) || len(runner.calls) != 0 || len(runner.copies) != 0 {
+				if err == nil || !reflect.DeepEqual(capture, CompleteStepCapture{}) || len(runner.calls) != 0 || len(runner.copies) != 0 || transport.probes != 0 {
 					t.Fatal("invalid prune binding reached Docker or returned capture")
 				}
 				return
 			}
-			if err != nil || capture.ExitCode != 0 || len(runner.calls) != 5 || len(runner.copies) != 1 {
+			if err != nil || capture.ExitCode != 0 || len(runner.calls) != 4 || len(runner.copies) != 1 || transport.probes != 1 {
 				t.Fatal("prune added a separate command or failed normal capture")
 			}
 			args := runner.calls[1].args

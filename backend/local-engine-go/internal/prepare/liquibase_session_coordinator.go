@@ -206,7 +206,7 @@ func (c *liquibaseSessionCoordinator) invokeStep(ctx context.Context, want queue
 		return queue.LiquibaseInvocationRecord{}, engineRuntime.CompleteStepCapture{}, 0, fmt.Errorf("Liquibase session is not runnable")
 	}
 	pruneJournal, hasJournal := c.journal.(capturePruneJournal)
-	pruneRuntime, hasRuntime := c.runtime.(capturePruneRuntime)
+	_, hasRuntime := c.runtime.(capturePruneRuntime)
 	if !hasJournal || !hasRuntime {
 		return queue.LiquibaseInvocationRecord{}, engineRuntime.CompleteStepCapture{}, 0, fmt.Errorf("saved Liquibase capture pruning is unavailable")
 	}
@@ -238,7 +238,7 @@ func (c *liquibaseSessionCoordinator) invokeStep(ctx context.Context, want queue
 		return invocation, engineRuntime.CompleteStepCapture{}, 0, fmt.Errorf("Liquibase child outcome requires reconciliation")
 	}
 	if prune != nil {
-		observation := sessionCapturePruneObservation{runtime: pruneRuntime, name: session.PlannedRunnerName, identity: identity}
+		observation := sessionCapturePruneObservation{identity: identity, capture: capture}
 		if err := pruneJournal.ConfirmLiquibaseCapturePruned(ctx, session, invocation, observation, c.timestamp()); err != nil {
 			return invocation, capture, 0, err
 		}

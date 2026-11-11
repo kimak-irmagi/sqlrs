@@ -555,10 +555,12 @@ Attempt 2's unchanged Windows job subsequently passes; only aggregate
 ## 6. Combined completion/prune observation
 
 Status: **components approved** by @evilguest on 2026-11-11, reply
-“Утвердить объединённое наблюдение”; exact reply time unavailable. Not yet
-implemented. No API, CLI, DB schema, helper manifest format or replay authority
-change. The separately reviewed CPR01–CPR09 test supplement awaits approval;
-it does not itself permit changes to old tests.
+“Утвердить объединённое наблюдение”; exact reply time unavailable. CPR01–CPR09
+and limited OT-CPR01–OT-CPR03 were subsequently approved separately. Runtime
+and coordinator implementation is connected after the new tests exposed the
+missing-receipt/cancellation refusals. Native Actions qualification and a new
+CT13 comparison are pending. No API, CLI, DB schema, helper manifest format or
+replay authority change; this does not approve other old-test changes.
 
 ### Interaction and ownership
 

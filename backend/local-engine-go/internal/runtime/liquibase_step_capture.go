@@ -34,8 +34,8 @@ type StepCaptureIdentity struct {
 	// an output-derived authorization or permission to run another child.
 	PriorRetirementRef *string
 	// Prune is derived by the coordinator from the exact committed slot/intent
-	// join. Only invocation consumes it; reading completion needs no authority
-	// to delete bytes or run a child.
+	// join. Invocation alone may consume it to delete bytes; completion reading
+	// may pass it to the read-only absence probe, never to a mutating action.
 	Prune *CapturePruneAuthorization
 }
 
@@ -47,6 +47,9 @@ type CompleteStepCapture struct {
 	ExitCode       int
 	ManifestDigest string
 	ManifestBytes  int64
+	// Only a complete native read can construct prior-disposal evidence. Local
+	// manifest decoding deliberately leaves this empty (cost amendment §6).
+	pruneObservation *stepPruneObservation
 }
 
 type liquibaseStepCaptureManifest struct {
@@ -156,7 +159,9 @@ printf 'sqlrs-step-idle-v1\n'`
 // ignoring the former host-directory argument. Running parents also require an
 // idle child probe; exited parents never receive exec/restart. Both branches
 // require unchanged pre/post identity and state, and share one 30-second read
-// deadline. See liquibase-private-capture-ownership.md live/stopped read rules.
+// deadline. With saved prune authority, the live idle check also observes prior
+// absence and seals a receipt only after the final inspection. See
+// liquibase-private-capture-ownership.md and issue89-cost-attribution-and-trimming.md §6.
 func (r *DockerRuntime) ReadCompleteLiquibaseStepOutput(ctx context.Context, name, id, _ string,
 	identity StepCaptureIdentity, maxStreamBytes int64) (CompleteStepCapture, error) {
 	return preparecost.Observe(ctx, preparecost.CaptureRead, func(child context.Context) (CompleteStepCapture, error) {
@@ -164,12 +169,32 @@ func (r *DockerRuntime) ReadCompleteLiquibaseStepOutput(ctx context.Context, nam
 	})
 }
 
-// readObservedLiquibaseStepOutput owns the unchanged completion/idle proofs;
-// its observer only measures the actual work and preserves its exact result.
+// readObservedLiquibaseStepOutput owns completion/idle/optional absence proofs;
+// the observer measures their combined real cost without a second prune span.
 func (r *DockerRuntime) readObservedLiquibaseStepOutput(ctx context.Context, name, id string,
 	identity StepCaptureIdentity, maxStreamBytes int64) (CompleteStepCapture, error) {
 	if r == nil || id != identity.RunnerID || !validStepCaptureIdentity(identity) {
 		return CompleteStepCapture{}, fmt.Errorf("invalid exact Liquibase session runner")
+	}
+	if err := ctx.Err(); err != nil {
+		return CompleteStepCapture{}, err
+	}
+	var authorization string
+	var proofRunner boundedBinaryRunner
+	if identity.Prune != nil {
+		var err error
+		authorization, err = serializeStepPrune(identity)
+		if err != nil {
+			return CompleteStepCapture{}, err
+		}
+		var ok bool
+		proofRunner, ok = r.runner.(boundedBinaryRunner)
+		if !ok {
+			return CompleteStepCapture{}, fmt.Errorf("bounded combined Liquibase observation unavailable")
+		}
+		// Retain value copies, not caller-controlled nullable links/authority.
+		authority, prior := *identity.Prune, *identity.PriorRetirementRef
+		identity.Prune, identity.PriorRetirementRef = &authority, &prior
 	}
 	phase := ""
 	inspect := func() error {
@@ -177,6 +202,9 @@ func (r *DockerRuntime) readObservedLiquibaseStepOutput(ctx context.Context, nam
 			return err
 		}
 		view, err := r.inspectPresentContainer(ctx, name, id)
+		if contextErr := ctx.Err(); contextErr != nil {
+			return contextErr
+		}
 		if err != nil || view.ID != id || (view.Status != "running" && view.Status != "exited") || (phase != "" && view.Status != phase) {
 			return fmt.Errorf("exact Liquibase session runner state is not stable")
 		}
@@ -199,9 +227,15 @@ func (r *DockerRuntime) readObservedLiquibaseStepOutput(ctx context.Context, nam
 		return CompleteStepCapture{}, err
 	}
 	if phase == "running" {
-		output, err := r.run(ctx, []string{"exec", "-u", "0", id, "/bin/sh", "-c", stepIdleProbe}, nil)
-		if err != nil || output != "sqlrs-step-idle-v1\n" {
-			return CompleteStepCapture{}, fmt.Errorf("Liquibase session child-process state is not proved idle")
+		if authorization != "" {
+			if err := r.readCombinedStepPrune(ctx, proofRunner, identity, authorization, maxStreamBytes); err != nil {
+				return CompleteStepCapture{}, err
+			}
+		} else {
+			output, err := r.run(ctx, []string{"exec", "-u", "0", id, "/bin/sh", "-c", stepIdleProbe}, nil)
+			if err != nil || output != "sqlrs-step-idle-v1\n" {
+				return CompleteStepCapture{}, fmt.Errorf("Liquibase session child-process state is not proved idle")
+			}
 		}
 	}
 	if err := inspect(); err != nil {
@@ -209,6 +243,11 @@ func (r *DockerRuntime) readObservedLiquibaseStepOutput(ctx context.Context, nam
 	}
 	if err := ctx.Err(); err != nil {
 		return CompleteStepCapture{}, err
+	}
+	if phase == "running" && authorization != "" {
+		capture.pruneObservation = &stepPruneObservation{identity: observationIdentity(identity), authority: *identity.Prune,
+			manifestDigest: capture.ManifestDigest, manifestBytes: capture.ManifestBytes, exitCode: capture.ExitCode,
+			stdoutDigest: capture.StdoutDigest, stderrDigest: capture.StderrDigest}
 	}
 	return capture, nil
 }

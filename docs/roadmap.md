@@ -189,8 +189,11 @@ test passes 20 repetitions. Only aggregate coverage is red, not a claimed
 contention fix. No completion or merge readiness is claimed.
 
 The bounded combined native completion/prune observation components are now
-approved. The critically/repeatedly reviewed CPR01–CPR09 test supplement awaits
-separate approval; product and old tests have not changed for this amendment.
+approved, as are CPR01–CPR09 and limited OT-CPR01–OT-CPR03. Runtime/coordinator
+are connected; focused native-receipt/journal tests and all 83 Node checks pass.
+New runtime receipt helpers and the prepare verifier have 100% statement
+coverage. Native Actions qualification and the next CT13 remain pending;
+there is no new performance result or readiness claim.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

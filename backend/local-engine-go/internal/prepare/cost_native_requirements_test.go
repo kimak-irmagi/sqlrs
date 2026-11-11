@@ -20,7 +20,7 @@ func TestCostMainPathNamedAttributionDocker(t *testing.T) {
 	f.m.costEmitter = preparecost.NewEmitter(&output)
 	counts := []map[string]int{
 		{"prepare.planning": 1, "runner.inventory": 1, "prepare.session_startup": 1, "prepare.step": 3,
-			"liquibase.invoke": 3, "capture.read": 3, "capture.prune": 2, "db.prepare_snapshot": 3,
+			"liquibase.invoke": 3, "capture.read": 3, "capture.prune": 0, "db.prepare_snapshot": 3,
 			"db.resume.step": 2, "db.resume.publication": 1, "db.verify.after_apply": 3, "db.verify.after_resume": 2,
 			"state.snapshot": 3, "state.size": 3, "state.seal": 3, "journal.state_publish": 3,
 			"journal.invocation_plan": 3, "journal.invocation_admit": 3, "journal.invocation_complete": 3,

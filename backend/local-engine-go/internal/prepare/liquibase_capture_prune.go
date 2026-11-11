@@ -20,20 +20,22 @@ type capturePruneRuntime interface {
 }
 
 // sessionCapturePruneObservation binds a queue callback to the same exact
-// current identity that supplied the saved authority to the helper. It confers
-// no standalone JSON/path authority and cannot execute a child. Ownership §9.
+// current completion that supplied the saved authority to the helper. Native
+// observation has already finished outside SQLite; this callback only matches
+// the opaque runtime receipt. Issue89-cost-attribution-and-trimming.md §6, CPR05/06.
 type sessionCapturePruneObservation struct {
-	runtime  capturePruneRuntime
-	name     string
 	identity engineRuntime.StepCaptureIdentity
+	capture  engineRuntime.CompleteStepCapture
 }
 
 func (v sessionCapturePruneObservation) VerifyLiquibaseCapturePruned(ctx context.Context, plan queue.CapturePrunePlan) error {
-	want := projectCapturePrune(plan)
-	if v.identity.Prune == nil || *v.identity.Prune != want || v.identity.PriorRetirementRef == nil || *v.identity.PriorRetirementRef != plan.RetirementRef {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !v.capture.MatchesPruneObservation(v.identity, projectCapturePrune(plan)) {
 		return fmt.Errorf("saved Liquibase prune observation differs")
 	}
-	return v.runtime.VerifyLiquibaseCapturePruned(ctx, v.name, v.identity)
+	return nil
 }
 
 // projectCapturePrune copies only the saved public identities; raw capture bytes

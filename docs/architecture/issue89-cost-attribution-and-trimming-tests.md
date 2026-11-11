@@ -434,9 +434,9 @@ red; this does not claim a fix for the first attempt's contention.
 
 ## Combined native observation: CPR01–CPR09
 
-Status: components §6 approved on 2026-11-11; this **final reviewed test list
-awaits separate user approval**. No new test or product code has been written
-for it. This supplement adds no API/schema, general recovery matrix, image
+Status: components §6 and **CPR01–CPR09 separately approved** on 2026-11-11;
+@evilguest replied “Утвердить CPR01–CPR09”, exact reply time unavailable.
+Tests-first implementation may proceed. This supplement adds no API/schema, general recovery matrix, image
 inventory cache or permission to modify existing tests. Test names below use
 the `TestCombinedCapturePrune` prefix.
 
@@ -574,4 +574,66 @@ the `TestCombinedCapturePrune` prefix.
 
 Repeat review found no remaining P0–P2 in this bounded list. The tests check
 existing guards and this one new observation boundary, not all #170–#174 work.
-User approval is still required before writing the new tests.
+Approval is not runtime qualification or a performance result.
+
+### Post-approval audit: limited old-test changes approved
+
+The audit found these concrete contradictions. On 2026-11-11 @evilguest
+separately replied “Разрешить OT-CPR01–OT-CPR03” (exact time unavailable).
+The following are the exact approved/implemented limits, not permission for
+other existing-test changes:
+
+- **OT-CPR01:** only `TestLiquibasePrivatePruneInvocationBinding/control` needs
+  the new bounded combined-proof response instead of its unbounded idle response.
+  Use a test-local runner adapter, not a change to the shared capture runner.
+  Preserve all 12 variants, invalid-authority zero-call checks, one archive,
+  exact authorization fields and six total Docker operations; separately count
+  ordinary/bounded operations rather than reusing the old five-text-call count.
+- **OT-CPR02:** only the successful `sessionCoordinatorRuntime` invocation
+  fixture must obtain the opaque receipt by calling the real runtime through
+  controlled transport, not synthesize it. In `TestLiquibaseSessionCoordinatorReusesRunner`
+  and `TestMainPathCapturePruneDispatch`, replace the placeholder execution
+  strings `digest`/`binding` by valid fixed SHA256 values so real runtime
+  validation reaches the intended boundary. Keep create/start/apply/remove counts,
+  durable-intent ordering, exact prior links, missing-capability and lost-response
+  cases. Failed invocations keep their original injected error, not a manufactured
+  success. No public/test-only receipt factory or broad fixture rewriting.
+- **OT-CPR03:** only fresh-pass expected `capture.prune` count in
+  `TestCostMainPathNamedAttributionDocker` changes from 2 to 0. Retain three
+  `capture.read`/apply steps, every DB/state/journal/helper/observer/reuse/handoff/
+  cleanup assertion and the unchanged cached controls. New CPR07/CPR08 directly
+  qualify that the actual proof moved inside capture reading; a zero label alone
+  cannot pass them. No historical report or standalone probe test changes.
+
+Critical/repeat audit keeps `capturePruneRuntime`'s pre-SQL capability refusal
+intact (including the existing missing-probe case), even though the normal path
+will consume a receipt rather than call its standalone method. No new fallback
+or automatic SQL/native retry is introduced. Other contradictions, if found,
+must be reported separately; these proposals are not blanket authorisation.
+
+### CPR implementation checkpoint (2026-11-11)
+
+- New tests first exposed the missing receipt method, then coordinator acceptance
+  of missing receipts/cancellation. The runtime now seals a value-bound private
+  receipt only after archive/idle/absence/final-parent checks; prepare matches it
+  without issuing the standalone probe. Cancellation during final inspection
+  retains its original classification.
+- Ordinary runtime/coordinator and real SQLite tests pass, including before-effect
+  refusal, one committed lost reply, independent readback and exact third-slot
+  reuse. CPR02's changed-authority inputs are internally consistent, so the test
+  exercises retained receipt matching rather than an earlier argument mismatch.
+- Per-line profiles show 100% statement coverage for the three new runtime
+  receipt helpers and both prepare match/projection helpers. This is not a claim
+  of 95% for the existing runtime/prepare packages; #89's #174 exception remains.
+- All 83 Node tests pass after workflow selection changes. Windows/Linux vet
+  passes for runtime/prepare/queue. The broad local parallel run had old HTTP
+  timeouts and hit its 6-minute package budget in managedstore/queue; unchanged
+  sequential reruns of engine command/managedstore/queue pass. Client rerun is
+  pending; the failed broad attempt is not described as successful.
+- CPR08 source tests and explicit Actions selectors are present, but not yet
+  qualified natively. Review found the new known-failure test's counter combines
+  `published_prune` and final `session_disposal` records. The user separately
+  approved splitting those checks: exactly one `published_prune/path_absent`,
+  plus complete final records, empty slots and actual absence of all containers.
+- No new CT13 has run. The immutable original report, 18% fresh regression and
+  full performance acceptance requirement remain unchanged.

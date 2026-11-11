@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
@@ -77,7 +78,7 @@ func TestMainPathCapturePruneDispatch(t *testing.T) {
 				baseRuntime.invokeErr = errors.New("lost response")
 			}
 			plan := queue.LiquibaseInvocationPlan{InvocationRef: "next-B", StdoutRef: "next-B-stdout", StderrRef: "next-B-stderr", ManifestRef: "next-B-manifest", ProtocolRevision: "lb-step-capture-v2"}
-			_, _, _, err := c.invokeStep(t.Context(), baseJournal.session, "execute-B", "binding", plan, "", []string{"update-count", "--count", "1"})
+			_, _, _, err := c.invokeStep(t.Context(), baseJournal.session, "execute-B", "sha256:"+strings.Repeat("d", 64), plan, "", []string{"update-count", "--count", "1"})
 			if variant != "control" {
 				wantCalls := 0
 				if variant == "lost-response" {

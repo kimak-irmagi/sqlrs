@@ -132,8 +132,10 @@ The approved next component change combines completion and actual prior-prune
 observation under the existing exact container checks. It moves the normal
 prune check into `capture.read`; compare old read+prune against the new combined
 cost, never count a removed label as saved time. The standalone prune operation
-and historical reports stay intact. CPR01–CPR09 await separate test approval;
-no implementation or new full-P01b result is claimed.
+and historical reports stay intact. CPR01–CPR09 and limited OT-CPR01–OT-CPR03
+are approved; runtime/coordinator are connected and the explicit native probe
+workflow now selects the new pinned-helper/wrapper/known-failure tests. Those
+tests have not yet run in Actions; no new CT13 or full-P01b result is claimed.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.

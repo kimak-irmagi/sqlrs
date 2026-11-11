@@ -182,12 +182,22 @@ func (r *sessionCoordinatorRuntime) RemoveStoppedContainer(context.Context, stri
 	r.status = ""
 	return nil
 }
-func (r *sessionCoordinatorRuntime) InvokeTrackedLiquibaseStep(_ context.Context, _, _ string,
+func (r *sessionCoordinatorRuntime) InvokeTrackedLiquibaseStep(ctx context.Context, name, _ string,
 	identity engineRuntime.StepCaptureIdentity, _ []string, _ int64) (engineRuntime.CompleteStepCapture, error) {
 	if !r.journal.pending || !r.journal.requested || identity.RunnerID != r.id || identity.SessionID != r.journal.session.SessionID {
 		return engineRuntime.CompleteStepCapture{}, errors.New("exec preceded durable bound intent")
 	}
 	r.calls++
+	// OT-CPR02: only successful prior-bearing completions obtain a receipt
+	// through the actual runtime. The controlled transport cannot construct it.
+	if r.invokeErr == nil && identity.Prune != nil {
+		wire, err := combinedCoordinatorArchive(identity, 0)
+		if err != nil {
+			return engineRuntime.CompleteStepCapture{}, err
+		}
+		transport := &combinedCoordinatorTransport{identity: identity, name: name, wire: wire}
+		return engineRuntime.NewDocker(engineRuntime.Options{Runner: transport}).ReadCompleteLiquibaseStepOutput(ctx, name, identity.RunnerID, "", identity, 1024)
+	}
 	return engineRuntime.CompleteStepCapture{ManifestDigest: "sha256:" + strings.Repeat("e", 64), ManifestBytes: 500}, r.invokeErr
 }
 
@@ -219,7 +229,7 @@ func TestLiquibaseSessionCoordinatorReusesRunner(t *testing.T) {
 	}
 	for _, taskID := range []string{"execute-1", "execute-2", "execute-3"} {
 		plan := queue.LiquibaseInvocationPlan{InvocationRef: taskID, StdoutRef: taskID + "-stdout", StderrRef: taskID + "-stderr", ManifestRef: taskID + "-manifest", ProtocolRevision: engineRuntime.LiquibaseStepCaptureProtocol, CreatedAt: "now"}
-		if _, _, _, err := c.invokeStep(ctx, session, taskID, "digest", plan, "/protected/capture", []string{"update-count", "--count", "1"}); err != nil {
+		if _, _, _, err := c.invokeStep(ctx, session, taskID, "sha256:"+strings.Repeat("d", 64), plan, "/protected/capture", []string{"update-count", "--count", "1"}); err != nil {
 			t.Fatal(err)
 		}
 	}

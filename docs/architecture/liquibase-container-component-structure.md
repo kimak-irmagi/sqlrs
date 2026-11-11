@@ -36,7 +36,9 @@ combines native completion/prior-prune observation under shared exact pre/post
 container checks. Its runtime-owned in-memory receipt is checked against saved
 queue authority; a manifest alone does not prove absence. Standalone/stopped
 paths and queue transactions remain separate as specified there. Components
-are approved; CPR01–CPR09 tests await approval and implementation has not started.
+and CPR01–CPR09 are approved; runtime/coordinator are connected with only
+separately approved OT-CPR01–OT-CPR03 old-test alignment. Native Actions
+qualification and the next same-VM comparison remain pending.
 
 The [JDBC artifact decision](../adr/2026-10-06-postgresql-jdbc-artifact-delivery.md)
 uses the existing external dependency resolver. Build/release verifies the
