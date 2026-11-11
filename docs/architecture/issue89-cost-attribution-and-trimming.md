@@ -155,6 +155,43 @@ of their outer invocation; they cannot also increase the host additive total.
 This gives source-linked costs for helper-only work, including sync boundaries,
 without claiming any knowledge of Java internals or removing durability phases.
 
+### Proposed completion of detail transport (2026-11-11; approval pending)
+
+The approved scopes remain unchanged. This makes the last internal wire/data
+ownership choices explicit before connecting helper detail and emission costs:
+
+- `Report` owns transient helper observations tied to an existing recorder-local
+  owner span: one planning invocation, or one step invocation. The trusted host
+  selects the owner and measures the containing call; child output supplies only
+  the eight fixed local phases. Duplicate/foreign owners, malformed clocks or
+  incomplete phases never qualify detail; raw output/errors are not retained.
+- Keep begin/span/end frames. Before end, add closed `helper` frames carrying
+  root, owner, fixed phase, local start/end centiseconds and containing-call
+  duration; alternatively one explicit `unavailable` marker for that owner.
+  Resolution remains 10 ms, with no host-axis placement or additive host cost.
+- After the successful full framed write, emit one closed `observer` frame for
+  the same root: encoding duration, writer-lock wait and framed-write duration.
+  The lock covers both writes. These are **not total observer overhead**:
+  report snapshot copying and construction/write of the observer marker itself
+  remain explicitly unmeasured. Off/on paired controls measure the overall
+  observation impact; no per-row correction or circular self-measurement.
+- Full measured collection waits for end **and** observer, only after the
+  unchanged API timer stops, under the same bounded deadline. Partial writes,
+  missing/late metadata or incomplete expected helper detail invalidate the
+  measured report, not the prepare result; existing exact cleanup remains.
+- The engine explicitly overrides the helper switch for every launch/invocation;
+  readiness/serve/prune probes stay off. Absent recording performs no extra clock
+  reads/output. Timers never change CLI exit, capture bytes, sync boundaries or
+  cleanup authority. No API, manifest revision, DB schema or persisted metric.
+
+Critical and repeat review: corrected self-referential overhead claims, early
+qualification at end alone, fake child-owned correlation, cross-clock addition,
+loss of CLI outcome on clock failure, missing off overrides and mutable snapshot
+aliasing. No remaining P0–P2 identified in this bounded refinement. Existing
+CT06–CT11/CT14 cover its requirements; exact codec cases and named conflicting
+old-fixture changes will be presented before implementation. No helper/observer
+transport code has been changed for this proposal.
+
 ## 4. Accounting and requested report
 
 The collector's original API timer remains the denominator `PrepareElapsedMS`.
@@ -405,3 +442,22 @@ merge fails its unchanged aggregate 95% gates (engine 77.1%, CLI 94.8%); the
 previously approved #89/#174 exception is recorded, not a claim that CI itself
 is fully green. Helper detail/observer overhead, final Node report, native host
 qualification and new paired speed series remain open.
+
+### Native host qualification and report-helper checkpoint (2026-11-11)
+
+[Run 42945061658](https://github.com/kimak-irmagi/sqlrs/actions/runs/42945061658)
+at `cc8ce4b886cb78a9bb306a4e964e456d60da0b47` passes all native prerequisites,
+the new recorded three-step/cache test (39.48 s) and unchanged full normal
+prepare test (73.44 s). Source counts, step/cache association, result data,
+parent/database reuse and cleanup-before-fallback pass. Different test durations
+are not a speed comparison. Source CI `42944933151` passes every regression
+job; only the unchanged aggregate coverage-merge gate fails.
+
+New observer helpers now produce source-linked per-step and overall host rows,
+actual outcome counts, union/self/exclusive costs and zero-apply cached steps.
+All 69 ordinary Node tests pass: accounting/catalog/output helpers each 100%
+lines/functions, branches 97.98%/100%/98.31%. Collector process/oracle failures,
+wrong roots/windows, missing applies and private extras are refused/dropped as
+specified. This output decoder is not connected to a new Actions comparison
+driver yet. Helper phase transport, emission-cost connection and full speed
+acceptance remain open; no new measured JHipster cost values are claimed.

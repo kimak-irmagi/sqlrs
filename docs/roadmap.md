@@ -168,10 +168,13 @@ classification first. The [reviewed component proposal](architecture/issue89-cos
 defines O1–O4, default-off recording and before/after/off/on controls. Components
 and the separately reviewed
 [CT01–CT14 inventory](architecture/issue89-cost-attribution-and-trimming-tests.md)
-are explicitly approved. Tests-first implementation has started: O1/O3 consumers
-and O2 are connected; cost recording/report wiring, O4 qualification and Actions
-reruns remain open. Focused checks pass, but full qualification is not complete.
-No speed acceptance is claimed.
+are explicitly approved. O1–O4 are implemented; Actions `42945061658` passes the
+native flush/reuse checks, recorded three-step/cache counts/data/cleanup and the
+unchanged full normal prepare. Worker roots/private collection are connected;
+new source-catalog/accounting/output helpers pass 69 Node tests with 100% lines
+in those helpers. Helper-phase/emission-cost transport needs its final internal
+format approval; comparison-driver hookup and before/after/off/on/full Actions
+series remain open. No new speed result or acceptance is claimed.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 
