@@ -431,3 +431,147 @@ is about 1 s faster than old v2, still 18.00% slower than actual v1; cached is
 The old Windows HTTP/SQLite BUSY CI failure is retained separately: its unchanged
 job passes on attempt 2, as do 20 local repeats. Only aggregate coverage is now
 red; this does not claim a fix for the first attempt's contention.
+
+## Combined native observation: CPR01–CPR09
+
+Status: components §6 approved on 2026-11-11; this **final reviewed test list
+awaits separate user approval**. No new test or product code has been written
+for it. This supplement adds no API/schema, general recovery matrix, image
+inventory cache or permission to modify existing tests. Test names below use
+the `TestCombinedCapturePrune` prefix.
+
+1. **CPR01 — real runtime, ordered successful observation.** A recording bounded
+   runner supplies independently authored exact inspect JSON, valid tar/manifest/
+   streams and the combined proof response. Call the real runtime with a saved
+   prior authorization. Require order: exact pre-inspect, one archive, one
+   bounded root exec, exact post-inspect; no list, separate idle/prune round trip,
+   create, removal or restart. For `InvokeTrackedLiquibaseStep`, the initial
+   inspect and applying helper exec remain, so six total Docker operations
+   including the archive, not six extra operations. Check exact IDs/name, every
+   authorization environment value, explicit diagnostics-off, unchanged hash/
+   bytes/exit and a valid receipt only after the last inspection. The combined
+   script must perform idle / pinned read-only `probe-prune` / idle, never apply
+   or delete. The fixed complete response, not zero exit, qualifies it. First
+   invocation without prior authority keeps the old read/idle path and no receipt.
+2. **CPR02 — receipt ownership and exact matching.** Obtain a positive receipt
+   only through real runtime observation at CPR01's seam. Zero/default receipt,
+   local manifest-only decoding and manually assembled capture cannot prove
+   native absence. Independently vary each saved authorization field (retirement,
+   session, generation, runner, predecessor invocation/digest, current invocation,
+   helper) and the expected current job/task/attempt/execution identity and
+   completion digest/length: refuse each mismatch. Copy pointer-backed links/
+   authorization before retention; mutating caller values cannot retarget the
+   original proof. A copy may match only the same original observation, not a
+   different invocation. No test-only exported proof constructor/global hook.
+3. **CPR03 — intended refusal boundaries and quotas.** With otherwise valid
+   earlier responses, independently fail pre-inspect, archive, the combined
+   exec and post-inspect. The three internal script stages are exercised by
+   CPR08's actual-command harness, not falsely distinguished by returning the
+   same fake Docker error. Both new exec/parent errors
+   and cancellation/deadline paths must reach their selected boundary, return
+   no usable receipt, make no later call and keep bounded output private. Include
+   proof response missing/partial/foreign/extra bytes, nonzero command status,
+   and changed post-ID/name/state. Assert bounded-runner capability and fixed
+   stdout/stderr limits before command effects; existing cap/cap+1 runner tests
+   stay intact. A valid manifest with prior link alone is insufficient if actual
+   absence fails. Existing archive/hash/EOF refusals remain, not rewritten as
+   acceptable partial output. Positive control reaches all four read operations.
+4. **CPR04 — standalone/stopped paths do not fabricate proof.** No-prior read
+   keeps its one archive/idle behavior. An exact exited parent can still yield
+   the same known child result and stream bytes, but receives no exec/restart
+   and no combined receipt; this holds even with a prior manifest link. Retain
+   and exercise real standalone `VerifyLiquibaseCapturePruned` with its prior
+   exact binding, read-only command and refusal behavior. It must not become a
+   no-op or be automatically used as a success fallback for a missing receipt.
+5. **CPR05 — coordinator plus real queue authority/atomicity.** Through the
+   existing seams, use a real temporary managed SQLite queue and a runtime
+   observation backed by controlled native-transport responses. Publish the
+   first state, admit the second invocation, observe its exact completion and
+   confirm pruning: only the previous slot is released, exact retirement becomes
+   verified, current slot/history/state protection remain. Third invocation can
+   use the freed slot; no extra Liquibase SQL or proof command is issued by the queue
+   verifier. Wrong/missing receipt or changed saved authority leaves the journal
+   unchanged and cannot advance completion. Physical probe is outside the write
+   transaction. Reuse the existing journal boundaries for a refusal before
+   effect and a lost successful COMMIT reply: independently read the committed
+   rows, preserve the correct before/after state and never repeat SQL/native
+   observation automatically. Do not add the deferred exhaustive COMMIT matrix.
+6. **CPR06 — child outcome and cancellation are not overwritten.** Exercise
+   child exits 0 and 7 with independently valid captures. Successful prune proof
+   does not replace the original exit; the ordinary caller still selects failure
+   for 7, without applying another change. A failed proof leaves prior protection
+   unresolved, not a fake complete invocation/job. Cancellation before read,
+   during bounded observation and before confirmation preserves cancellation/
+   refusal and records no fabricated absence. Verify exact reached calls and
+   journal state, not merely a non-nil error. No automatic replay/recovery added.
+7. **CPR07 — cost boundaries, including recording off.** Actual runtime +
+   preparecost recorder: combined native proof is inside the existing
+   `capture.read` parent; normal completion has no separate `capture.prune` span
+   or duplicated command. Standalone proof still has its real `capture.prune`
+   boundary. No recording yields no records and the same transport/child result;
+   enabling recording does not enable helper timers for the read-only probe.
+   Independently specified old read+prune and new combined interval examples
+   must conserve API time and produce the same total for equal work, not an
+   apparent saving from the renamed boundary. Preserve source catalog keys and
+   historical helper/observer decoders; no product API timing change.
+8. **CPR08 — actual Docker and ordinary prepare, Actions only.** A new native
+   runtime test uses the actual pinned helper and exact real container. Second
+   invocation removes the first output under the saved authority; combined read
+   supplies a matching receipt and unchanged streams/child exit, with the parent
+   still reused. Separate controlled cases recreate the previous directory after
+   the child's valid manifest and retain a surviving untrusted child: real absence/
+   idle checks must refuse, despite otherwise valid capture. Separately execute
+   the actual combined shell command in a fresh controlled container with a
+   read-only **test-only probe stand-in**. Deterministically fail its first idle,
+   absence reply and second idle (the stand-in starts a UID-1001 survivor before
+   returning the otherwise correct reply). A positive control in the same
+   harness must reach all three stages and return a valid complete response.
+   Assert actual stage/order and refusal;
+   command source/text checks alone do not qualify these stages. This harness
+   qualifies the wrapper only, never substitutes for the real pinned-helper
+   cases above. No product hook or existing fixture mutation. Check the intended
+   boundary and exact resource cleanup before fallback. Add the tests to the
+   existing explicit native Actions selection; zero selected/skipped tests are
+   not proof. Real connected three-step/cache prepare must still verify prefix/
+   final DB rows, once-per-step apply, one reusable runner/working DB, journal
+   slot history, published DB handoff and normal cleanup before fixture cleanup.
+   Existing native assertions are not implicitly changed by this list; address
+   any contradicting fixture/count expectation separately after approval.
+9. **CPR09 — regression, coverage and same-VM comparison.** Full ordinary
+   engine/client tests and vet on current source, Windows/Linux via established
+   CI; new focused tests are selected explicitly, not silently skipped. Obtain
+   per-line profiles for new runtime/prepare proof helpers: target 100%, minimum
+   95%; the existing #89/#174 aggregate exception is not helper qualification.
+   Any shortfall requires the normal line-mapped approved iteration. After native
+   qualification, repeat the existing eight-member CT13 in Actions, pinning new
+   binary/helper/collector hashes and retaining original `42967877614`. Report
+   combined read versus previous read+prune, unchanged timer, per-step counts,
+   non-additive helper detail and off/on variation honestly. No laptop benchmark,
+   protocol/noise waiver or inferred full-P01b pass. Full P01b follows only after
+   resolving the short-workload regression; the original speed gate remains.
+
+### Critical review, corrections and repeat review
+
+- P1 false native proof: added a positive real-runtime receipt and explicit
+  rejection of default/local-manifest/foreign proof. Receipt must bind both the
+  committed prior authority and exact current completion, including copied data.
+- P1 false green on an earlier error: every refusal has valid preceding responses
+  and reached-boundary/no-later-effect assertions; native recreated-directory and
+  live-child controls cannot pass simply because the fixture was not initialized.
+- P1 indistinguishable inner faults: a mocked single exec cannot establish which
+  inner stage failed. Add actual-wrapper execution with a separately labelled
+  controlled probe stand-in, alongside the real pinned-helper qualification;
+  make the second-idle survivor visible before the stand-in replies.
+- P1 atomicity/authority loss: use real queue state/publication/slot transitions,
+  retain before-effect/lost-reply controls and observe no automatic SQL/native
+  retry. No new general recovery qualification is implied.
+- P2 bad count/speed oracle: four read operations versus six whole invocation
+  operations, archive counted once; compare combined work, not the vanished label.
+  No predicted wall-clock saving is a test assertion.
+- P2 scope/old-test conflict: stopped/first/standalone paths and exit 7 remain;
+  old native counts/fakes may contradict the new boundary and need a separate
+  post-approval audit/decision. No prior test deletion/weakening is authorised.
+
+Repeat review found no remaining P0–P2 in this bounded list. The tests check
+existing guards and this one new observation boundary, not all #170–#174 work.
+User approval is still required before writing the new tests.

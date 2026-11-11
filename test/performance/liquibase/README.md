@@ -123,6 +123,17 @@ the reversed order. Setup/warm-up/native 5.0.3 image qualification are outside A
 timing. Only closed `.tmp/performance/cost-reports/*.json` is uploaded; these are
 not the unchanged full P01b acceptance reports. Pure campaign helpers are 100%
 covered, all 82 Node tests pass. Actual campaign execution is still required.
+
+That short CT13 campaign subsequently completed in Actions `42967877614` on
+`48e6e11`: all eight members / 16 passes, oracles and cleanup. The immutable
+[source-linked analysis](../../../docs/architecture/issue89-cost-results-2026-11-11.md)
+retains the report/hash and 18.00% fresh / 20.83% cached ordinary new-v2 delay.
+The approved next component change combines completion and actual prior-prune
+observation under the existing exact container checks. It moves the normal
+prune check into `capture.read`; compare old read+prune against the new combined
+cost, never count a removed label as saved time. The standalone prune operation
+and historical reports stay intact. CPR01–CPR09 await separate test approval;
+no implementation or new full-P01b result is claimed.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.

@@ -187,6 +187,10 @@ actual v1. Full speed acceptance remains blocked. The first Windows HTTP CI
 BUSY refusal is retained; its unchanged job passes on attempt 2 and the local
 test passes 20 repetitions. Only aggregate coverage is red, not a claimed
 contention fix. No completion or merge readiness is claimed.
+
+The bounded combined native completion/prune observation components are now
+approved. The critically/repeatedly reviewed CPR01–CPR09 test supplement awaits
+separate approval; product and old tests have not changed for this amendment.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.
 

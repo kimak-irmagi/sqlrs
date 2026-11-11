@@ -249,3 +249,22 @@ in-process monotonic operation durations to calendar time.
   transport duplication first, disclose shifted measurement boundaries and do
   not claim this alone resolves the remaining 18% fresh regression. Image
   inventory caching/general recovery/SQLite refactoring are outside this proposal.
+
+## Approve the combined native observation components
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: approve components §6's bounded combined native completion/prune
+  observation, or first discuss the proposed protocol?
+- Alternatives: retain the current separate five-call probe; replace it with
+  manifest-only inference (rejected); or share exact pre/post container checks
+  around completion and a real bounded idle/absence/idle probe with a typed
+  runtime-owned receipt checked against the committed queue authority.
+- Decision: user replied “Утвердить объединённое наблюдение”. Approves only this
+  component flow/ownership, without API/schema/helper-format/replay changes.
+  Test list and any existing-test modifications require their separate steps;
+  inventory caching and general recovery/SQLite work are not included.
+- Rationale: target measured transport duplication while retaining physical
+  evidence and queue guards. The observed 1.497 s branch is a target, not an
+  authorised reduction of the full no-regression performance criterion.

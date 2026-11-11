@@ -31,6 +31,13 @@ the same database container. Private output belongs to the exact runner layer,
 not a host capture directory; completion and permission to discard output are
 separate facts. A failed observation never authorizes a blind SQL retry.
 
+The [approved cost amendment §6](issue89-cost-attribution-and-trimming.md#6-combined-completionprune-observation)
+combines native completion/prior-prune observation under shared exact pre/post
+container checks. Its runtime-owned in-memory receipt is checked against saved
+queue authority; a manifest alone does not prove absence. Standalone/stopped
+paths and queue transactions remain separate as specified there. Components
+are approved; CPR01–CPR09 tests await approval and implementation has not started.
+
 The [JDBC artifact decision](../adr/2026-10-06-postgresql-jdbc-artifact-delivery.md)
 uses the existing external dependency resolver. Build/release verifies the
 pinned Maven artifact before placing it under lib/postgresql-42.7.13.jar.

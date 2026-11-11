@@ -165,7 +165,7 @@ P0–P2 issue in this report was found on repeat review.
 The next design should target the repeated capture/prune round trips first:
 carry the existing exact prior-disposal proof in the same bounded observation
 as completion, without dropping idle/identity/publication/absence checks. The
-[proposed component amendment](issue89-cost-attribution-and-trimming.md#6-proposed-combined-completionprune-observation)
+[component amendment](issue89-cost-attribution-and-trimming.md#6-combined-completionprune-observation)
 retains a real read-only absence probe, not an inference from the manifest.
 The current separate prune branch alone measures about 1.497 s; this is an
 optimisation target, **not a promised saving or a complete fix**. A second
@@ -179,6 +179,10 @@ new general recovery programme or broad SQLite refactoring proposed here.
 Remaining large planning/startup/changed-CLI costs must stay visible while
 testing any bounded fix; full P01b remains blocking after short regressions
 are resolved.
+
+Subsequently @evilguest approved the combined native observation components on
+2026-11-11. Its separate CPR01–CPR09 test list still awaits approval. Inventory
+caching is not part of that approval; measured evidence above remains unchanged.
 
 Separately, current source CI `42967847154` attempt 1 failed the old
 `TestPrepareJobsDeleteBlockedWithoutForce` on Windows with `SQLITE_BUSY`.

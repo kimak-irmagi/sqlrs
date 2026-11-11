@@ -23,7 +23,7 @@ keys. Line numbers are presentation only, never the identity of a measurement.
 | Verify managed DB / seal state | `verifyManagedRuntime` / `RecordSeal` | Same calls plus extra verification sites | Shared action; classify **each call site**, not all checks as new |
 | Persist tasks/state and publish instance | Old executor/store/access | Normal worker/journal/access | Shared purpose, changed implementation; not all SQLite is additional |
 | Resolve/probe/pin Liquibase image | No container binding | `bindFreshContainerLiquibase` / `InspectRunnerImage` | Additional v2 work |
-| Private-output validation and retirement | No private-container protocol | `ReadCompleteLiquibaseStepOutput`, `VerifyLiquibaseCapturePruned` | Additional v2 work, with separate code keys |
+| Private-output validation and retirement | No private-container protocol | `ReadCompleteLiquibaseStepOutput`, `VerifyLiquibaseCapturePruned` | Additional v2 work; §6 combines normal completion/prune observation, not the standalone path |
 | Session/readiness/attempt/slot journal | No equivalent protocol | Coordinator and `prepare/queue` | Additional v2 protocol, not permission to remove it |
 
 Label relationships `shared`, `changed`, `shifted`, `additional`, or `unresolved`.
@@ -552,11 +552,13 @@ has a Windows HTTP/SQLite BUSY failure, not covered by the coverage exception;
 Attempt 2's unchanged Windows job subsequently passes; only aggregate
 `coverage-merge` is red. The first contention failure remains recorded, not fixed.
 
-## 6. Proposed combined completion/prune observation
+## 6. Combined completion/prune observation
 
-Status: proposed after CT13, **not approved or implemented**. No API, CLI, DB
-schema, helper manifest format or replay authority change. A separate reviewed
-test list and any limited old-fixture changes follow component approval.
+Status: **components approved** by @evilguest on 2026-11-11, reply
+“Утвердить объединённое наблюдение”; exact reply time unavailable. Not yet
+implemented. No API, CLI, DB schema, helper manifest format or replay authority
+change. The separately reviewed CPR01–CPR09 test supplement awaits approval;
+it does not itself permit changes to old tests.
 
 ### Interaction and ownership
 
@@ -633,3 +635,10 @@ copies, stopped-parent separation, no automatic native retry after journal
 failure, and explicit accounting-boundary disclosure. No remaining P0–P2 found
 in this bounded proposed flow. Image-inventory caching and finer planning/startup
 spans are candidates, not included in this amendment.
+
+The post-approval architecture/README audit found no conflict with state
+publication, handoff, queue installation or capture quotas. Historical CT13/
+diagnostic results keep their old measured boundaries. The catalog row above,
+test supplement and performance README now explicitly distinguish the approved
+new normal boundary from those historical reports and the retained standalone
+probe. This amendment changes no schema/install/recovery or input-search rule.
