@@ -35,8 +35,20 @@ type costRoot struct {
 	Spans           []costSpan
 	Helpers         []costHelperObservation
 	Observer        *costObserver
+	Clock           *costTimelineClock
+	ObserverWindow  *costTimelineWindow
 	helperIndex     map[int]int
 }
+
+// Complete-mode clock data is independent of product types and reference-relative.
+type costTimelineClock struct {
+	Domain   string
+	OriginNS int64
+}
+
+type costTimelineWindow struct{ StartNS, EndNS int64 }
+
+const maxCostTimelineNumber = uint64(1<<53 - 1)
 
 // costStream drains one engine's private stderr through bounded fragments.
 // Its owner closes/waits the pipe during exact process cleanup. Await is used
@@ -113,6 +125,16 @@ func (s *costStream) accept(line string) error {
 			return errCostStream
 		}
 		s.roots[id] = &costRoot{Root: id, Declared: int(count), ElapsedNS: int64(elapsed), Complete: fields[4] == "1"}
+	case "clock":
+		if !exists || !root.Complete || root.Ended || root.Clock != nil || len(root.Spans) != 0 ||
+			len(fields) != 4 || fields[2] != "linux-monotonic-relative-v1" {
+			return errCostStream
+		}
+		origin, valid := costUnsigned(fields[3], 63)
+		if !valid || origin > maxCostTimelineNumber || uint64(root.ElapsedNS) > maxCostTimelineNumber-origin {
+			return errCostStream
+		}
+		root.Clock = &costTimelineClock{Domain: fields[2], OriginNS: int64(origin)}
 	case "span":
 		if !exists || root.Ended || len(root.Helpers) > 0 || len(fields) != 10 || len(root.Spans) >= root.Declared {
 			return errCostStream
@@ -127,6 +149,9 @@ func (s *costStream) accept(line string) error {
 			return errCostStream
 		}
 		span := costSpan{ID: int(spanID), Parent: int(parent), Step: int(step), Operation: fields[4], Phase: fields[5], Outcome: fields[9], StartNS: int64(start), EndNS: int64(end)}
+		if root.Clock != nil && len(root.Spans) == 0 && (span.Operation != "prepare.request" || span.Parent != 0 || span.Phase != "worker" || span.Step != 0) {
+			return errCostStream
+		}
 		if parent != 0 {
 			owner := root.Spans[parent-1]
 			if span.StartNS < owner.StartNS || span.EndNS > owner.EndNS || owner.Step > 0 && (span.Step != owner.Step || span.Phase != owner.Phase) {
@@ -152,6 +177,16 @@ func (s *costStream) accept(line string) error {
 			return errCostStream
 		}
 		root.Observer = &costObserver{EncodeNS: int64(encode), LockWaitNS: int64(wait), WriteNS: int64(write)}
+	case "observer-window":
+		if !exists || !root.Ended || root.Clock == nil || root.Observer == nil || root.ObserverWindow != nil || len(fields) != 4 {
+			return errCostStream
+		}
+		start, validStart := costUnsigned(fields[2], 63)
+		end, validEnd := costUnsigned(fields[3], 63)
+		if !validStart || !validEnd || end > maxCostTimelineNumber || end < start || start < uint64(root.Clock.OriginNS+root.ElapsedNS) {
+			return errCostStream
+		}
+		root.ObserverWindow = &costTimelineWindow{int64(start), int64(end)}
 	case "end":
 		if !exists || root.Ended || len(fields) != 3 {
 			return errCostStream
@@ -183,6 +218,8 @@ func costUnsigned(value string, bits int) (uint64, bool) {
 // source-catalog/connection tests; neither child output nor a request extends it.
 func costOperation(value string) bool {
 	switch value {
+	case "prepare.request", "prepare.admission":
+		return true
 	case "prepare.worker", "runner.inventory", "capture.read", "capture.prune", "docker.command", "docker.capture_copy":
 		return true
 	case "prepare.planning", "prepare.session_startup", "prepare.step":
@@ -201,7 +238,7 @@ func costPhase(value string, step uint64) bool {
 		return step > 0
 	}
 	switch value {
-	case "worker", "startup", "planning", "publication", "cleanup":
+	case "admission", "worker", "startup", "planning", "publication", "cleanup":
 		return step == 0
 	}
 	return false
@@ -247,6 +284,16 @@ func (s *costStream) awaitMeasured(ctx context.Context, id uint64) (costRoot, er
 }
 
 func (s *costStream) awaitState(ctx context.Context, id uint64, measured bool) (costRoot, error) {
+	return s.awaitSelectedState(ctx, id, measured, false)
+}
+
+// awaitTimeline also requires the shared origin and actual emission window.
+// A legacy root/end/observer never silently qualifies the complete mode.
+func (s *costStream) awaitTimeline(ctx context.Context, id uint64) (costRoot, error) {
+	return s.awaitSelectedState(ctx, id, true, true)
+}
+
+func (s *costStream) awaitSelectedState(ctx context.Context, id uint64, measured, timeline bool) (costRoot, error) {
 	for {
 		if err := ctx.Err(); err != nil {
 			return costRoot{}, err
@@ -257,7 +304,8 @@ func (s *costStream) awaitState(ctx context.Context, id uint64, measured bool) (
 			return costRoot{}, errCostStream
 		}
 		root, found := s.roots[id]
-		if found && root.Ended && (!measured || root.Observer != nil) {
+		if found && root.Ended && (!measured || root.Observer != nil) &&
+			(!timeline || root.Clock != nil && root.ObserverWindow != nil) {
 			if !root.Complete {
 				s.mu.Unlock()
 				return costRoot{}, errCostStream
@@ -272,6 +320,14 @@ func (s *costStream) awaitState(ctx context.Context, id uint64, measured bool) (
 			if root.Observer != nil {
 				observer := *root.Observer
 				copy.Observer = &observer
+			}
+			if root.Clock != nil {
+				clock := *root.Clock
+				copy.Clock = &clock
+			}
+			if root.ObserverWindow != nil {
+				window := *root.ObserverWindow
+				copy.ObserverWindow = &window
 			}
 			s.mu.Unlock()
 			return copy, nil

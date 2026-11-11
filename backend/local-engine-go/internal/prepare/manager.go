@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -59,6 +60,8 @@ type PrepareService struct {
 	// No request, debug level or execution binding can enable this observer.
 	costEmitter  *preparecost.Emitter
 	costSequence atomic.Uint64
+	costTimeline bool
+	costClock    *preparecost.TimelineClock
 	access       *instanceaccess.Service
 	managedMu    sync.Mutex
 	managedRoot  string
@@ -116,6 +119,7 @@ type jobRuntime struct {
 }
 
 type preparedRequest struct {
+	cost                      *submissionCost
 	managed                   managedidentity.BaseSelection
 	request                   Request
 	normalizedArgs            []string
@@ -206,6 +210,10 @@ func NewPrepareService(opts Options) (*PrepareService, error) {
 	}
 	if preparecost.Enabled(os.Getenv("SQLRS_PREPARE_COST")) {
 		m.costEmitter = preparecost.NewEmitter(os.Stderr)
+		m.costTimeline = preparecost.Enabled(os.Getenv("SQLRS_PREPARE_TIMELINE"))
+		if m.costTimeline {
+			m.costClock, _ = preparecost.NewTimelineClock("1", os.Getenv("SQLRS_PREPARE_TIMELINE_REFERENCE"))
+		}
 	}
 	m.snapshot = &snapshotOrchestrator{m: m}
 	m.executor = &taskExecutor{m: m, snapshot: m.snapshot}
@@ -251,10 +259,32 @@ func (m *PrepareService) Submit(ctx context.Context, req Request) (Accepted, err
 // submitForPurpose fixes the internal purpose before durable admission. It is
 // not a request field and cannot authorize executable tasks for explanations.
 func (m *PrepareService) submitForPurpose(ctx context.Context, req Request, purpose string) (Accepted, error) {
+	cost := m.beginSubmissionCost(req)
+	if cost == nil {
+		return m.submitObservedForPurpose(ctx, req, purpose, nil)
+	}
+	child, end := preparecost.Start(preparecost.WithPhase(preparecost.CarryScope(ctx, cost.root), preparecost.PhaseAdmission, 0), preparecost.Admission)
+	outcome := preparecost.Panicked
+	defer func() { end(outcome); cost.complete(outcome) }()
+	accepted, err := m.submitObservedForPurpose(child, req, purpose, cost)
+	outcome = preparecost.Succeeded
+	if err != nil {
+		outcome = preparecost.Failed
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			outcome = preparecost.Cancelled
+		}
+	}
+	return accepted, err
+}
+
+// submitObservedForPurpose keeps the original admission/effect sequence intact;
+// the optional pointer carries measurements only, not request cancellation.
+func (m *PrepareService) submitObservedForPurpose(ctx context.Context, req Request, purpose string, cost *submissionCost) (Accepted, error) {
 	prepared, err := m.prepareRequest(req)
 	if err != nil {
 		return Accepted{}, err
 	}
+	prepared.cost = cost
 	jobID, err := m.idGen()
 	if err != nil {
 		return Accepted{}, err
@@ -305,6 +335,9 @@ func (m *PrepareService) submitForPurpose(ctx context.Context, req Request, purp
 		Status: StatusQueued,
 	})
 
+	if cost != nil {
+		cost.reserveWorker()
+	}
 	if m.async {
 		go m.runJob(prepared, jobID)
 	} else {

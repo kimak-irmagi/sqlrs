@@ -2,6 +2,11 @@
 
 Entry points for Taidon architecture and service design.
 
+- [Complete prepare timeline](issue89-complete-timeline.md) - approved #89
+  source-linked diagnostic flow; separate [TL01–TL14 tests](issue89-complete-timeline-tests.md)
+  are approved; tests-first implementation is in progress. No execution-policy
+  or performance-gate change.
+
 - [Independent declaration limits](runtime-go-declaration-limits.md) - approved
   #159 contract and bounded implementation; separate publication is #160.
 - [Declaration-limit checks](runtime-go-declaration-limits-tests.md) - approved

@@ -96,7 +96,7 @@ func (m *PrepareService) normalTimestamp() string { return m.now().UTC().Format(
 func (c *jobCoordinator) runContainerLiquibase(p preparedRequest, jobID string) {
 	m := c.m
 	ctx, cancel := context.WithCancel(context.Background())
-	ctx, finish := m.beginPrepareCost(ctx)
+	ctx, finish := m.beginSubmissionWorker(ctx, p)
 	outcome := preparecost.Panicked
 	defer func() { finish(outcome) }()
 	runner := m.registerRunner(jobID, cancel)

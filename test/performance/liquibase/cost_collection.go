@@ -33,7 +33,7 @@ func costEngineEnvironment(input []string, enabled bool) []string {
 // is not fabricated SQLite work. Only the actual successful worker may root
 // a successful measured sample; step ordinals belong to this workload's plan.
 func qualifyCostPass(root costRoot, expectedRoot uint64, apiElapsedNS int64, changes int) error {
-	if root.Root != expectedRoot || !root.Complete || !root.Ended || apiElapsedNS <= 0 || changes <= 0 ||
+	if root.Root != expectedRoot || root.Clock != nil || !root.Complete || !root.Ended || apiElapsedNS <= 0 || changes <= 0 ||
 		root.ElapsedNS > apiElapsedNS || len(root.Spans) == 0 || len(root.Spans) != root.Declared {
 		return errCostStream
 	}

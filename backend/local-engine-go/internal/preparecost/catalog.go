@@ -7,6 +7,8 @@ package preparecost
 type Operation string
 
 const (
+	Request            Operation = "prepare.request"
+	Admission          Operation = "prepare.admission"
 	Worker             Operation = "prepare.worker"
 	ImageInventory     Operation = "runner.inventory"
 	CaptureRead        Operation = "capture.read"
@@ -62,6 +64,8 @@ type Definition struct {
 // tested instrumentation sites; no caller can extend it with private data.
 func Definitions() []Definition {
 	return []Definition{
+		{Request, Changed, Location{"internal/prepare/manager.go", "PrepareService.submitForPurpose"}, Location{"internal/prepare/manager.go", "PrepareService.Submit"}},
+		{Admission, Changed, Location{"internal/prepare/manager.go", "PrepareService.submitForPurpose"}, Location{"internal/prepare/manager.go", "PrepareService.Submit"}},
 		{Worker, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "jobCoordinator.runContainerLiquibase"}, Location{"internal/prepare/manager.go", "jobCoordinator.runJob"}},
 		{ImageInventory, Additional, Location{"internal/runtime/runner_image_inspect.go", "DockerRuntime.InspectRunnerImage"}, Location{}},
 		{CaptureRead, Additional, Location{"internal/runtime/liquibase_step_capture.go", "DockerRuntime.ReadCompleteLiquibaseStepOutput"}, Location{}},

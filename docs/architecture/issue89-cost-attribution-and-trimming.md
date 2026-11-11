@@ -197,6 +197,14 @@ separately approved/permitted; tests-first implementation is in progress.
 
 ## 4. Accounting and requested report
 
+The approved [complete-timeline amendment](issue89-complete-timeline.md)
+adds an explicitly selected Linux request/admission/worker timeline with a shared
+host monotonic axis and an additive chronological ledger. The worker-only
+accounting below remains the contract of historical reports/recording mode;
+it is not sufficient to qualify the new complete mode. Keep its original API
+denominator and publish the new timeline-window duration/timer difference
+separately. Do not reinterpret old artifacts using the new root or clock frame.
+
 The collector's original API timer remains the denominator `PrepareElapsedMS`.
 It includes admission/wait/response work outside the worker root. Export those
 uncovered portions as unassigned, not fabricated SQLite cost. Report recorder

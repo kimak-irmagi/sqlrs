@@ -2,6 +2,8 @@
 // released v1. These are static observer data, never child-supplied paths/names.
 // Artifact identity supplies Current's exact revision separately.
 const definitions = [
+  {"Operation":"prepare.request","Relation":"changed","Current":{"File":"internal/prepare/manager.go","Symbol":"PrepareService.submitForPurpose"},"Released":{"File":"internal/prepare/manager.go","Symbol":"PrepareService.Submit","Revision":"cab99c4c7ced5b18f4dc43a65b002d84d8fef02d"}},
+  {"Operation":"prepare.admission","Relation":"changed","Current":{"File":"internal/prepare/manager.go","Symbol":"PrepareService.submitForPurpose"},"Released":{"File":"internal/prepare/manager.go","Symbol":"PrepareService.Submit","Revision":"cab99c4c7ced5b18f4dc43a65b002d84d8fef02d"}},
   {"Operation":"liquibase.plan_invoke","Relation":"changed","Current":{"File":"internal/prepare/tracked_executor.go","Symbol":"runTrackedExecutor"},"Released":{"File":"internal/prepare/components.go","Symbol":"PrepareService.runLiquibaseUpdateSQL","Revision":"cab99c4c7ced5b18f4dc43a65b002d84d8fef02d"}},
   {"Operation":"prepare.worker","Relation":"changed","Current":{"File":"internal/prepare/liquibase_normal_worker.go","Symbol":"jobCoordinator.runContainerLiquibase"},"Released":{"File":"internal/prepare/manager.go","Symbol":"jobCoordinator.runJob","Revision":"cab99c4c7ced5b18f4dc43a65b002d84d8fef02d"}},
   {"Operation":"runner.inventory","Relation":"additional","Current":{"File":"internal/runtime/runner_image_inspect.go","Symbol":"DockerRuntime.InspectRunnerImage"},"Released":null},

@@ -19,21 +19,32 @@ type Report struct {
 	Complete  bool
 	Spans     []Span
 	Helpers   []HelperObservation
+	Clock     *TimelineClockFrame
+	clock     *TimelineClock
+}
+
+// TimelineClockFrame identifies only a shared-clock domain and relative origin.
+// The host's absolute monotonic reference is never serialised.
+type TimelineClockFrame struct {
+	Domain   string
+	OriginNS int64
 }
 
 // Recorder holds at most MaxSpans for one prepare. It uses monotonic elapsed
 // time and no per-operation I/O. It owns neither SQL nor cleanup permissions.
 // CT06/CT07: docs/architecture/issue89-cost-attribution-and-trimming.md §3.
 type Recorder struct {
-	mu       sync.Mutex
-	root     uint64
-	origin   time.Time
-	spans    []Span
-	ended    []bool
-	lastEnd  int64
-	finished bool
-	invalid  bool
-	helpers  map[int]HelperObservation
+	mu         sync.Mutex
+	root       uint64
+	origin     time.Time
+	spans      []Span
+	ended      []bool
+	lastEnd    int64
+	finished   bool
+	invalid    bool
+	helpers    map[int]HelperObservation
+	clock      *TimelineClock
+	clockFrame *TimelineClockFrame
 }
 
 type scopeKey struct{}
@@ -53,6 +64,34 @@ func NewRecorder(enabled bool, sequence uint64) *Recorder {
 	return &Recorder{root: sequence, origin: time.Now(), invalid: sequence == 0}
 }
 
+// NewTimelineRecorder is selected separately from the legacy worker recorder.
+// A failed/missing common clock invalidates evidence, never application work.
+func NewTimelineRecorder(clock *TimelineClock, sequence uint64) *Recorder {
+	r := NewRecorder(true, sequence)
+	origin, err := clock.Read()
+	if err != nil {
+		r.invalid = true
+		return r
+	}
+	r.clock = clock
+	r.clockFrame = &TimelineClockFrame{Domain: "linux-monotonic-relative-v1", OriginNS: origin}
+	return r
+}
+
+// relativeNow is called under the recorder lock. Only selected timeline mode
+// reads the common clock; legacy/default-off semantics remain unchanged.
+func (r *Recorder) relativeNow() int64 {
+	if r.clock == nil {
+		return time.Since(r.origin).Nanoseconds()
+	}
+	now, err := r.clock.Read()
+	if err != nil || now < r.clockFrame.OriginNS {
+		r.invalid = true
+		return r.lastEnd
+	}
+	return now - r.clockFrame.OriginNS
+}
+
 // WithRecorder attaches an observer without replacing context cancellation.
 // Crossing existing roots is a diagnostic error, not a reparenting capability.
 func WithRecorder(ctx context.Context, r *Recorder) context.Context {
@@ -66,6 +105,22 @@ func WithRecorder(ctx context.Context, r *Recorder) context.Context {
 		r.invalidate()
 	}
 	return context.WithValue(ctx, scopeKey{}, scope{recorder: r, phase: PhaseWorker})
+}
+
+// CarryScope transfers only observation metadata onto the destination context.
+// It never transfers HTTP cancellation/values to a detached worker. Foreign
+// roots are refused rather than silently reparented (complete timeline §2).
+func CarryScope(ctx, parent context.Context) context.Context {
+	from, ok := parent.Value(scopeKey{}).(scope)
+	if !ok || from.recorder == nil {
+		return ctx
+	}
+	if previous, ok := ctx.Value(scopeKey{}).(scope); ok && previous.recorder != from.recorder {
+		previous.recorder.invalidate()
+		from.recorder.invalidate()
+		return ctx
+	}
+	return context.WithValue(ctx, scopeKey{}, from)
 }
 
 // IsRecording describes the context's explicit selection, not report validity.
@@ -115,7 +170,7 @@ func Start(ctx context.Context, operation Operation) (context.Context, func(Outc
 	}
 	index := len(r.spans)
 	r.spans = append(r.spans, Span{ID: index + 1, Parent: current.parent, Operation: operation,
-		Phase: current.phase, Step: current.step, StartNS: time.Since(r.origin).Nanoseconds()})
+		Phase: current.phase, Step: current.step, StartNS: r.relativeNow()})
 	r.ended = append(r.ended, false)
 	current.parent = index + 1
 	child := context.WithValue(ctx, scopeKey{}, current)
@@ -138,7 +193,7 @@ func (r *Recorder) end(index int, outcome Outcome) {
 		return
 	}
 	span := &r.spans[index]
-	span.EndNS, span.Outcome = time.Since(r.origin).Nanoseconds(), outcome
+	span.EndNS, span.Outcome = r.relativeNow(), outcome
 	r.ended[index] = true
 	r.lastEnd = max(r.lastEnd, span.EndNS)
 	if span.Parent != 0 {
@@ -176,6 +231,12 @@ func (r *Recorder) Finish() Report {
 			helpers = append(helpers, observation)
 		}
 	}
+	var clockFrame *TimelineClockFrame
+	if r.clockFrame != nil {
+		copy := *r.clockFrame
+		clockFrame = &copy
+	}
 	return Report{Version: 1, Root: r.root, ElapsedNS: r.lastEnd,
-		Complete: !r.invalid && r.root != 0, Spans: append([]Span(nil), r.spans...), Helpers: helpers}
+		Complete: !r.invalid && r.root != 0, Spans: append([]Span(nil), r.spans...), Helpers: helpers,
+		Clock: clockFrame, clock: r.clock}
 }

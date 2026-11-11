@@ -27,6 +27,11 @@ func EncodeReport(report Report) ([]byte, error) {
 	spans := report.Spans
 	helpers := report.Helpers
 	if report.Complete {
+		if report.Clock != nil && (report.Clock.Domain != "linux-monotonic-relative-v1" ||
+			!timelineInterval(report.Clock.OriginNS, report.Clock.OriginNS) || report.ElapsedNS > maxTimelineNumber-report.Clock.OriginNS ||
+			len(spans) == 0 || spans[0].ID != 1 || spans[0].Parent != 0 || spans[0].Operation != Request) {
+			return nil, errEvidence
+		}
 		if _, err := Summarize(spans, max(1, report.ElapsedNS)); err != nil {
 			return nil, errEvidence
 		}
@@ -44,6 +49,9 @@ func EncodeReport(report Report) ([]byte, error) {
 	}
 	var output bytes.Buffer
 	fmt.Fprintf(&output, "%sbegin %d %d %d %d\n", WirePrefix, report.Root, len(spans), report.ElapsedNS, complete)
+	if report.Complete && report.Clock != nil {
+		fmt.Fprintf(&output, "%sclock %d linux-monotonic-relative-v1 %d\n", WirePrefix, report.Root, report.Clock.OriginNS)
+	}
 	for _, span := range spans {
 		fmt.Fprintf(&output, "%sspan %d %d %d %s %s %d %d %d %s\n", WirePrefix,
 			report.Root, span.ID, span.Parent, span.Operation, span.Phase, span.Step,
@@ -77,6 +85,14 @@ func NewEmitter(output io.Writer) *Emitter { return &Emitter{output: output} }
 // frames without interleaving another emission. Errors are closed diagnostics,
 // never arbitrary writer text. A short write is not confirmed delivery.
 func (e *Emitter) Emit(report Report) error {
+	var observerStart int64
+	if report.Clock != nil {
+		var err error
+		observerStart, err = report.clock.Read()
+		if err != nil {
+			return errEvidence
+		}
+	}
 	encodingStart := time.Now()
 	data, err := EncodeReport(report)
 	if err != nil {
@@ -101,6 +117,18 @@ func (e *Emitter) Emit(report Report) error {
 	marker := fmt.Appendf(nil, "%sobserver %d %d %d %d\n", WirePrefix, report.Root, encodingNS, lockWaitNS, writeNS)
 	if count, err := e.output.Write(marker); err != nil || count != len(marker) {
 		return errEvidence
+	}
+	if report.Clock != nil {
+		observerEnd, err := report.clock.Read()
+		if err != nil || observerEnd < observerStart {
+			return errEvidence
+		}
+		// This final frame cannot observe its own write. Its missing self-cost
+		// remains explicit; the off/on control measures complete observer impact.
+		window := fmt.Appendf(nil, "%sobserver-window %d %d %d\n", WirePrefix, report.Root, observerStart, observerEnd)
+		if count, err := e.output.Write(window); err != nil || count != len(window) {
+			return errEvidence
+		}
 	}
 	return nil
 }

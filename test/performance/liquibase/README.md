@@ -143,6 +143,17 @@ eight members / 16 passes. Retain both original JSONs and source-linked analysis
 current v2 saves 4.31% fresh against old v2, but remains +15.77% fresh / +19.78%
 cached versus actual v1. The original speed gate still blocks full acceptance;
 the 35 fewer Docker commands are a count result, not an isolated timing A/B.
+
+2026-11-11: the [complete-timeline amendment](../../../docs/architecture/issue89-complete-timeline.md)
+is explicitly approved. It adds a separately selected Linux shared-monotonic
+request/admission/worker ledger covering the original API workload window,
+including source-local residuals and client/observer overlap. Its summed timeline
+duration and original API elapsed remain separately identified, with measured
+timer-boundary reconciliation. Historical worker-only reports stay unchanged.
+[TL01–TL14](../../../docs/architecture/issue89-complete-timeline-tests.md) are
+separately approved and tests-first implementation has begun. This is not a claim
+that complete tracing or a new campaign already exists. Product checks remain
+unchanged; original worker-only collection remains the default recording mode.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.
 The native collector test is explicitly opted in only by the Actions scheduler.

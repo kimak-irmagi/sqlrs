@@ -9,6 +9,12 @@ The foundation/journal checkpoints below are historical, not the current wiring.
 
 ## Ownership and boundaries
 
+The approved [complete-timeline amendment](issue89-complete-timeline.md) adds
+default-off diagnostic request/admission/worker ownership and shared-clock
+attribution in memory only. It does not change the runtime/JDBC/capture/queue
+responsibilities below. TL01–TL14 are separately approved and implementation
+is in progress; the complete timeline and new campaign are not yet available.
+
 | Component | Responsibility | Owned data |
 | --- | --- | --- |
 | CLI | Select a Liquibase tag, defaulting to latest; never select a host executable or environment. | User declaration and invocation-local source discovery. |

@@ -2,6 +2,7 @@
 // exclusive leaf ownership + shared overlap + unassigned conserve API elapsed.
 // Requirements: issue89-cost-attribution-and-trimming.md §4.
 const operations = new Set([
+  'prepare.request', 'prepare.admission',
   'prepare.worker', 'runner.inventory', 'capture.read', 'capture.prune', 'docker.command', 'docker.capture_copy',
   'prepare.planning', 'prepare.session_startup', 'prepare.step', 'liquibase.invoke', 'liquibase.plan_invoke',
   'db.prepare_snapshot', 'db.resume.step', 'db.resume.publication', 'db.verify.after_apply', 'db.verify.after_resume',
@@ -9,7 +10,7 @@ const operations = new Set([
   'journal.invocation_plan', 'journal.invocation_admit', 'journal.invocation_complete',
   'prepare.publication', 'prepare.final_cleanup',
 ]);
-const phases = new Set(['worker', 'startup', 'planning', 'step', 'publication', 'cleanup']);
+const phases = new Set(['admission', 'worker', 'startup', 'planning', 'step', 'publication', 'cleanup']);
 const outcomes = new Set(['succeeded', 'failed', 'cancelled', 'panicked']);
 const invalid = () => { throw new Error('Invalid host cost evidence'); };
 const natural = value => Number.isSafeInteger(value) && value >= 0;

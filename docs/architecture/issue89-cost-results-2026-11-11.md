@@ -299,3 +299,54 @@ requires its own correctly sourced DB; plan-only/fully cached behavior must not
 be conflated with that route. Any handoff needs its own reviewed component,
 storage and test approvals. No implementation or broad recovery change is
 authorised by this source finding, and no saving is promised before measurement.
+
+## Overhead review journal and the next measurement
+
+2026-11-11, Asia/Novosibirsk; exact message times unavailable.
+Participant: @evilguest (41718235); agent: Codex / GPT-5.
+The user requested an explanation first, then a written record, tracing of the
+remaining time, and another measurement. This request **does not authorise
+removing protections or changing execution behavior**.
+
+1. `runner.inventory` is neither SQL validation nor a migration invocation.
+   `InspectRunnerImage` starts a separate container, `java -version`,
+   `liquibase --version`, and hashes discovered PostgreSQL JDBC JARs.
+   `bindFreshContainerLiquibase` / `driverbundle.Select` use this to select an
+   embedded/supplied driver and bind its identity. Supplying a driver and a
+   correct identity do not inherently require repeating this inventory for
+   every new prepare. Its present cost is about 953 ms fresh / 1021 ms cached;
+   this is a chosen mechanism, not a Liquibase requirement. A replacement is
+   neither designed nor authorised yet.
+2. `capture.read` is not just log reading: two exact-container observations,
+   stdout/stderr/manifest archive transfer, ID/EOF/length/hash checks, and proof
+   that no child or previously published output remains. Released v1 obtained
+   streams and the result directly from process execution. V2's retained result
+   supports the chosen lost-response recovery protocol; reusing a container
+   alone does not require it. About 120 ms/step covers the whole sequence, not
+   copying text.
+3. The three journal writes (plan, admit, complete) cost about 8.5 ms/step
+   together. They distinguish possible-execution boundaries after a failure;
+   the particular three-operation split is an implementation decision, not a
+   Liquibase requirement. This is not the main cause of a 7.6-second regression.
+4. `db.verify.after_resume` additionally calls the full `VerifyManagedAccess`,
+   not a ping: correct administrative credentials, replication, and rejection
+   of wrong/absent passwords on both routes (six connections). V1 already
+   checked before snapshots; v2 adds the after-resume check. For the seven later
+   **changeset applications**, not plan-building steps, this is about 25.5 ms
+   plus 8.5 ms of journal writes, or roughly 34 ms.
+5. Recorded and ordinary passes are different observations. The selected
+   disjoint extra operations total 2.160 s but do not explain the entire 7.602 s
+   gap. The remainder cannot automatically be labelled SQLite, JVM, or the cost
+   of a second DB. Preview DB deletion followed by another startup is proven
+   in source; its separate duration has not yet been isolated.
+6. The present catalog/summary is insufficient for full classification: the
+   worker begins after the API timer; substantial self time remains inside
+   planning/session startup. Conserving the total through `unassigned` proves
+   arithmetic, not the cause of those intervals.
+
+The next result must contain chronological non-overlapping source-linked
+intervals, separate API/queue/observer boundaries, and explicit overlaps and
+unresolved regions. Their sum must equal the selected window's wall time;
+nested/helper durations must not be added twice. Both DB creation/disposal
+boundaries need actual timings, not renamed parent timers. Historical reports,
+hashes and the speed gate remain unchanged; workloads run only in Actions.

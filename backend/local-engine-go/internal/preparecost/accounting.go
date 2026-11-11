@@ -12,6 +12,7 @@ const MaxSpans = 32768
 type Phase string
 
 const (
+	PhaseAdmission   Phase = "admission"
 	PhaseWorker      Phase = "worker"
 	PhaseStartup     Phase = "startup"
 	PhasePlanning    Phase = "planning"
@@ -196,7 +197,7 @@ func validPhase(phase Phase, step int) bool {
 	switch phase {
 	case PhaseStep:
 		return step > 0
-	case PhaseWorker, PhaseStartup, PhasePlanning, PhasePublication, PhaseCleanup:
+	case PhaseAdmission, PhaseWorker, PhaseStartup, PhasePlanning, PhasePublication, PhaseCleanup:
 		return step == 0
 	default:
 		return false
