@@ -94,3 +94,29 @@ connection or regressions still requires separate approval before editing it.
   collector test and its closed result receive the reviewed opt-in branch.
 - Rationale: actual admission/worker alignment needs the same host clock and
   original workload; a mathematically balanced synthetic ledger is insufficient.
+
+## Approve the limited OT-TL02 parser-name correction
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: keep the historical worker-parser name in the static campaign test,
+  or align only that name with the approved complete-report route?
+- Alternatives: leave a false static expectation; or replace only its literal
+  parser name while preserving every other static and behavioral assertion.
+- Decision: user replied “Разрешить замену только имени разборщика”.
+- Rationale: the complete request-root route deliberately does not use the
+  worker-only parser; no old parser contract is weakened.
+
+## Approve LC01–LC03 coverage follow-up
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: address the five uncovered portable collector blocks and the unused
+  outside-owner callback with requirement-based negative/positive controls?
+- Alternatives: accept incomplete qualification; or add the reviewed cases in
+  descending gap order and repeat full tests, vet and line-level measurement.
+- Decision: user replied “Утвердить LC01–LC03”.
+- Rationale: test rejection of partial evidence and preservation of exact tails
+  without new product boundaries, kernel-failure hooks or old-test changes.

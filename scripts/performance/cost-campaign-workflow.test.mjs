@@ -42,7 +42,7 @@ test('CT13: explicit own-repository campaign keeps all eight members on one boun
 
 test('CT13: actual parent verifies identities, owns bounded private output and uses unchanged collector', () => {
   const source = fs.readFileSync('scripts/performance/run-cost.mjs', 'utf8');
-  for (const symbol of ['costCampaignIdentity', 'costCampaignSelection', 'costCampaignSchedule', 'costCampaignEnvironment', 'parseCostOutput', 'parseCollectorResult', 'verifyBytes']) assert.ok(source.includes(symbol+'('));
+  for (const symbol of ['costCampaignIdentity', 'costCampaignSelection', 'costCampaignSchedule', 'costCampaignEnvironment', 'parseCompleteCostOutput', 'parseCollectorResult', 'verifyBytes']) assert.ok(source.includes(symbol+'('));
   assert.match(source, /warm\(repo, \['jhipster'\]\)/);
   assert.match(source, /-test.run=\^TestReleasedEngine\$/);
   assert.match(source, /50 \* 60 \* 1000/);

@@ -194,7 +194,7 @@ measurement failures or source-local unknowns, not valid zero-cost samples.
 No remaining P0–P2 inconsistency found in this limited amendment. The user
 explicitly approved this limited change: “Разрешить ограниченный OT-TL01”.
 
-## OT-TL02: current parser name in orchestration audit, proposed
+## OT-TL02: current parser name in orchestration audit, approved
 
 The unchanged `CT13: actual parent verifies identities, owns bounded private
 output and uses unchanged collector` in `cost-campaign-workflow.test.mjs`
@@ -208,9 +208,9 @@ Critical review rejected keeping an unreachable old-parser call just to satisfy
 the source-string assertion, or weakening old root validation. Repeat review
 verified the new parser has actual positive/negative timing/source/oracle tests
 and the explicit selection is tested separately. No remaining P0–P2 finding in
-this limited proposal. The old test remains unchanged pending approval.
+this limited proposal. The user approved: “Разрешить замену только имени разборщика”.
 
-## LC01–LC03: line-report-driven helper coverage follow-up, proposed
+## LC01–LC03: line-report-driven helper coverage follow-up, approved
 
 The full ordinary Windows collector profile is retained locally as
 `.tmp/timeline-current-collector-windows.out`. It reports `begin` 94.1% and
@@ -241,4 +241,4 @@ Critical review checked original timer/closed errors, phase/root independence,
 finite quotas and the distinction between clip-only accounting and preserving
 inclusive tails. Repeat review tied all five uncovered statement blocks to
 approved requirements and kept real Linux/native tests separate. No remaining
-P0–P2 issue in this limited follow-up. Await approval before adding these cases.
+P0–P2 issue in this limited follow-up. The user approved: “Утвердить LC01–LC03”.

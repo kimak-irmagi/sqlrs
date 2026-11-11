@@ -210,8 +210,8 @@ start/end remain unchanged. Shared-clock brackets, original elapsed, signed
 delta and actual POST/status/poll intervals are separate closed data. Inherited
 selectors/references are stripped on every member; only the two new-on members
 select the complete mode. Original serial CT13 order and artifact/oracle/cleanup
-checks remain unchanged. OT-TL02 separately requests changing one old static
-parser-name expectation; it has not been applied without approval.
+checks remain unchanged. OT-TL02 was separately approved and changes only the
+old static parser-name expectation to `parseCompleteCostOutput`.
 
 Actual source calls now have detailed keys for admission, immutable input/image
 binding, launch/input preparation, preview disposal/capture/release, both managed
@@ -233,8 +233,12 @@ binding/DB-startup self still remains unresolved, never invented SQL/JVM cost.
 New actual binding/refusal, DB-base failure, cancelled-start and runner-stop tests
 were written before their implementations. Ordinary Windows prepare/preparecost,
 collector tests and vet pass. New Node partition/report helpers have 100% lines;
-portable collector qualification is still below 95% and needs the reviewed
-coverage follow-up. Linux-only native qualification is written/connected but not
+LC01/LC02 now pass the full ordinary collector and vet: all portable helpers in
+`timeline_collection.go` and the timer helper have 100% statement coverage
+(`.tmp/timeline-lc-collector-windows.out`; module aggregate 66.9%, not a new-helper
+claim). LC03's new tail-vector check awaits a separately requested correction
+of two type names; exact owners, parents and boundaries already agree. No
+LC03 qualification is claimed yet. Linux-only native qualification is connected but not
 yet executed for this working-tree revision; cross-compilation is not execution.
 
 For `70b224d`, hosted probe 43042345344 passed real Linux clock/recorder tests and
