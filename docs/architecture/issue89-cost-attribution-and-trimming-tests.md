@@ -399,3 +399,15 @@ Repeat review found no remaining P0–P2 in this bounded supplement. @evilguest
 separately approved DT01–DT08 and permitted OT-CT05–OT-CT08; exact reply time
 unavailable. Tests-first implementation may proceed. Approval is not a runtime
 qualification or a speed result.
+
+### Line-mapped follow-up DT-C1 (approval requested)
+
+First complete collector profile: `cost_detail.go` 50/54 statements (92.59%).
+The four uncovered returns implement existing DT03/DT05/DT07 refusals, not dead
+code: malformed helper arity (line 32), invalid/repeated unavailable marker (49),
+local time above the host bound (75), and absent/invalid observer in direct
+qualification (94). Add independent literal cases for these, plus incomplete
+phases before end (`cost_stream.go` line 165), then repeat full helper tests/vet
+and the per-line profile. No old tests, product boundaries or code removal.
+Critical/repeat review retains reached-boundary checks, safe errors and valid
+controls; this small iteration awaits the separately requested approval.

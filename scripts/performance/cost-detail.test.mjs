@@ -70,6 +70,29 @@ test('DT07: private fields and caller mutations do not enter later reports', () 
   assert.doesNotMatch(JSON.stringify(qualifyCostDetails(root)), /caller-mutation/);
 });
 
+test('DT07: helper availability is a closed boolean, not JavaScript truthiness', () => {
+  for (const value of [1, 'true', 'false', {}, []]) {
+    const root = fixture();
+    root.Helpers[0].Available = value;
+    assert.throws(() => qualifyCostDetails(root), error => error.message === 'Invalid cost collector evidence');
+  }
+});
+
+test('DT07: every helper region has the actual fixed source boundary for its owner', () => {
+  for (const operation of ['liquibase.invoke', 'liquibase.plan_invoke']) {
+    const root = fixture();
+    root.Spans[1].Operation = operation;
+    if (operation === 'liquibase.plan_invoke') { root.Spans[1].Phase = 'planning'; root.Spans[1].Step = 0; }
+    const helper = qualifyCostDetails(root).Helpers[0];
+    const file = operation === 'liquibase.invoke' ? 'liquibase-step-capture-v2.sh' : 'liquibase-capture-v2.sh';
+    const source = fs.readFileSync(`backend/local-engine-go/internal/runtime/assets/${file}`, 'utf8');
+    for (const region of helper.Regions) {
+      assert.deepEqual(region.Source, { File: `internal/runtime/assets/${file}`, EndBoundary: `cost_mark ${region.Phase}` });
+      assert.ok(source.includes('\n' + region.Source.EndBoundary + '\n'));
+    }
+  }
+});
+
 test('DT05: collector retains original API timer and one deadline for both end markers', () => {
   const source = fs.readFileSync('test/performance/liquibase/collector_linux_test.go', 'utf8');
   const block = source.slice(source.indexOf('end := time.Now()'), source.indexOf('stage = "oracle"'));

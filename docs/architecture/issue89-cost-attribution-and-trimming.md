@@ -488,3 +488,15 @@ phase-at-end refusal is also included in the proposed iteration. No dead code
 removal is proposed. Native timer on/off controls and complete host detail are
 prepared for the existing Actions probe, not yet qualified. New comparison-driver
 hookup, before/after/off/on collection and unchanged full P01b remain open.
+
+Native [42964091822](https://github.com/kimak-irmagi/sqlrs/actions/runs/42964091822)
+on `a16902fa4dc9af529834e0eb940603c56b9863ea` now passes: eight helper on/off ×
+exit 0/7 controls for both actual scripts (2.93 s), recorded three-step/cache
+prepare with all expected helper/observer owners (39.15 s), and the unchanged
+full normal prepare (70.78 s), plus all preceding sync/reuse controls. These are
+different functional tests, not speed comparisons. Subsequent observer-only
+checks reject non-boolean availability and link every local phase to the exact
+script/end-boundary source; all 75 Node tests pass with detail helper 100%
+lines/functions/branches. The new Go detail decoder is 50/54 statements; proposed
+DT-C1 covers the four documented refusal returns plus incomplete phase-at-end.
+That iteration still needs approval. No new performance cohort is claimed.

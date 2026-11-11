@@ -20,11 +20,12 @@ export function qualifyCostDetails(root) {
     const Helpers = root.Helpers.map(helper => {
       const owner = owners.get(helper?.Owner);
       if (!owner || !natural(owner.StartNS) || !natural(owner.EndNS) || owner.EndNS < owner.StartNS ||
-          !helper.Available || !natural(helper.HostElapsedNS) || helper.HostElapsedNS > owner.EndNS - owner.StartNS) invalid();
+          helper.Available !== true || !natural(helper.HostElapsedNS) || helper.HostElapsedNS > owner.EndNS - owner.StartNS) invalid();
       owners.delete(helper.Owner);
       const detail = helper.Detail;
       if (!detail || detail.ResolutionNS !== resolution || detail.CumulativeUncertaintyNS !== 8 * resolution ||
           !Array.isArray(detail.Regions) || detail.Regions.length !== phases.length) invalid();
+      const helperFile = owner.Operation === 'liquibase.invoke' ? 'liquibase-step-capture-v2.sh' : 'liquibase-capture-v2.sh';
       let previous = 0;
       const Regions = detail.Regions.map((region, index) => {
         if (!region || region.Phase !== phases[index] || !natural(region.StartCS) || !natural(region.EndCS) ||
@@ -32,7 +33,8 @@ export function qualifyCostDetails(root) {
         const duration = (region.EndCS - region.StartCS) * resolution;
         if (!natural(duration) || !natural(region.EndCS * resolution) || region.DurationNS !== duration) invalid();
         previous = region.EndCS;
-        return { Phase: region.Phase, StartCS: region.StartCS, EndCS: region.EndCS, DurationNS: duration };
+        return { Phase: region.Phase, StartCS: region.StartCS, EndCS: region.EndCS, DurationNS: duration,
+          Source: { File: `internal/runtime/assets/${helperFile}`, EndBoundary: `cost_mark ${region.Phase}` } };
       });
       const total = previous * resolution;
       if (detail.TotalNS !== total || total > helper.HostElapsedNS && total - helper.HostElapsedNS > resolution) invalid();
