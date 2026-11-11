@@ -277,3 +277,124 @@ including refused/timed-out readiness probes; require the successful worker and
 mandatory completed named operations. Preserve exact database data, cache/step
 counts, parent/database reuse and cleanup-before-fallback assertions. Do not
 change product retry behavior or turn a terminal prepare failure into success.
+
+## Detail transport DT01–DT08 (awaiting approval, 2026-11-11)
+
+Concrete cases for the approved [§3 refinement](issue89-cost-attribution-and-trimming.md),
+within CT06–CT11/CT14. No new recovery matrix or speed criterion. After approval,
+write tests first at existing boundaries, without global clock hooks or new
+production injection interfaces.
+
+1. **DT01 — owned evidence.** Bind detail to the recorder's own narrow planning
+   or step invocation and actual containing-call duration. Check successive
+   steps/concurrent roots; reject missing/foreign/wrong-kind/duplicate owners,
+   late writes, malformed/incomplete phases and incompatible duration. Invalid
+   detail is unavailable, not eight zeros; valid quantised zero stays distinct.
+   Input, returned reports and nested slices cannot mutate retained evidence.
+   Original errors/panics and the disabled zero-allocation path remain unchanged.
+2. **DT02 — helper timers.** Both actual embedded scripts use builtin uptime
+   reads only when explicitly enabled: eight ordered phases, no date/timer
+   subprocess/JVM. Serve/readiness/prune stay off despite inherited settings.
+   Keep all existing numeric/order/quota/overflow/host-bound decoder cases.
+   Actual host-runner cases supply missing/malformed/oversized/private output:
+   detail becomes unavailable without changing CLI/capture results or leaking
+   raw bytes. Check timer failure cannot enter execution-failure control flow.
+   Native Actions verifies real uptime availability, on/off exit/stream equality
+   and one CLI start, not artificial clock manipulation. Four sync barriers and
+   capture protocol remain; changed helper bytes receive their actual new pin.
+3. **DT03 — literal codec oracles.** Preserve begin/span/end and span counts.
+   After spans, before end: `sqlrs-prepare-cost-v1 helper ROOT OWNER PHASE START_CS END_CS HOST_NS`,
+   or `sqlrs-prepare-cost-v1 helper ROOT OWNER unavailable HOST_NS`.
+   After end: `sqlrs-prepare-cost-v1 observer ROOT ENCODE_NS LOCK_WAIT_NS WRITE_NS`.
+   Each owner has eight existing phases or one unavailable marker, never both.
+   Independently written literal cases test arity, unknown names, canonical
+   uint64 IDs/nonnegative int64 durations/bounded centiseconds, missing/extra/
+   duplicate phases, wrong root/owner/kind/duration. HOST_NS is identical across
+   an owner's phases and cannot exceed its containing owner span. An incomplete
+   host report suppresses detail as well as spans. No partial/private output.
+4. **DT04 — emission ownership.** Recording/blocking writers observe report then
+   exactly one observer for that root under the same lock; concurrent roots do
+   not interleave writes. Nonnegative encoding/lock-wait/framed-write timings
+   describe actual intervals, not exact scheduler-dependent values. Independently
+   inject short/error first and second writes: first failure emits no observer,
+   second failure cannot confirm delivery. Retain nil-writer, safe errors and
+   validation-before-I/O. Snapshot copying and marker construction/write are
+   explicitly unmeasured, never claimed as zero or total observer cost.
+5. **DT05 — full completion.** Real fragmented pipes delay observer beyond end;
+   end alone cannot qualify a measured root. Refuse observer-before-end,
+   duplicate/foreign observer, helper-after-end, bad durations or missing expected
+   detail. Accept valid interleaving/reversed root completion. Exercise EOF/read
+   error/broken pipe/cancellation/deadline after end, existing exact line/engine
+   caps and cap+1 including new records, private long-log draining and immutable
+   snapshots. Wait for both markers under one existing deadline after the
+   unchanged API timer; retain owned process/reader/file cleanup. Diagnostic
+   failure never changes prepare success or repeats SQL. Standalone host-only
+   codec tests are not full measured qualification.
+6. **DT06 — actual wiring.** Counting runners reach actual tracked planning and
+   step calls. One narrow planning invocation receives its source-catalog entry,
+   not the whole preview DB lifetime; one detail per applied step, none for cached
+   steps. Explicit on/off overrides cover both paths; probes/serve/prune stay off.
+   Host duration covers the helper call, not subsequent capture reading. Preserve
+   original failures/cancellation/panics, command/capture/cleanup counts and no
+   retries. No helper data in API, captured Liquibase bytes or exposed errors.
+7. **DT07 — independent accounting/report.** Go/Node independently validate
+   owners/order/bounds/observer and sanitize output. Literal oracle: API 100 ms,
+   worker 80 ms, invocation 30 ms, helper CLI 20 ms + seven zero phases; observer
+   encoding/wait/write 2/3/4 ms. Host total still conserves 100 ms (20 unassigned);
+   helper 20 and observer 9 are separate non-additive detail, not added/subtracted.
+   Preserve source/step association, helper 10 ms resolution/cumulative bound,
+   measured observer components and two explicitly unmeasured categories.
+   Missing is not zero. Refuse missing/duplicate/wrong owners/observer, unsafe
+   JSON integers, negative/overflowed values and incomplete later roots. Existing
+   extra-field dropping/privacy remains. Do not require observer durations to
+   fit the API window; overall impact still needs off/on controls.
+8. **DT08 — qualification.** Existing explicit Actions probe, no laptop workload:
+   three-change fresh pass has four helper owners (planner + three applies),
+   cached pass one planner/zero applies; eight phases per owner, one observer per
+   root. Retain all DB/count/reuse/output-retirement/handoff/cleanup-before-fallback
+   assertions and unchanged default-off full prepare. Run affected ordinary Go
+   tests/vet, collector Linux compilation/vet and all Node tests; separately
+   measure ordinary helpers (target 100%, minimum 95%). Functional qualification
+   does not replace approved before/after/off/on runs or the full P01b gate.
+
+### Named old-test conflicts (OT-CT05–OT-CT08; separate permission pending)
+
+- **OT-CT05:** only `TestCostWireWriterAndConcurrentRoots`: four lines per root
+  become five (observer after the same end). Preserve 16 roots, root/end checks,
+  all write failures and validation-before-I/O. Pure `TestCostWireClosedFrames`
+  stays unchanged as a span-only encoder oracle.
+- **OT-CT06:** only positive preparation of
+  `TestCostCollectionQualifiesActualWorkerAndAPIWindow`: add valid planning
+  owner/detail and observer. Preserve all 14 negative cases and their intended
+  failure boundaries; shared `costStreamExample`/standalone stream tests stay.
+- **OT-CT07:** only common positive fixture of the five groups in
+  `scripts/performance/cost-output.test.mjs`: add planning owner, planning/apply
+  detail and observer. Adjust derived IDs only to avoid introduced collisions or
+  wrong earlier failures; retain every existing rejection/source/conservation/
+  privacy/outcome/zero-cache-apply assertion. New missing-detail refusals are
+  additional cases, not replacements.
+- **OT-CT08:** only `TestCostMainPathNamedAttributionDocker`: recognise new closed
+  records/narrow planning count and add exact DT08 counts/associations. Preserve
+  current operation/step/outcome checks, real DB rows, reuse, publication and
+  cleanup; unknown records still fail. Other native tests stay unchanged.
+
+No blanket fixture rewrite or alternate dead product API is authorised.
+Further contradictions require named approval.
+
+### Critical and repeat review
+
+- P1 premature completion/self-measurement: require observer; explicitly leave
+  snapshot/marker cost unmeasured, never fold these into a claimed total.
+- P1 plausible wrong per-step attribution: host selects the narrow owner and
+  duration; independent literals test identity, clock domain and conservation.
+  Repeat review also made identical per-owner duration, owner containment and
+  suppression of helper payload on incomplete host reports explicit.
+- P1 timer/diagnostic failure changes execution: require explicit off overrides,
+  original CLI outcomes, unchanged API timing and owned cleanup.
+- P2 flaky/impossible checks: controlled writer ordering/actual uptime, no exact
+  scheduler duration or native clock mutation. Old negatives must reach their
+  own fault after fixture expansion, not pass due to missing metadata.
+
+Repeat review found no remaining P0–P2 in this bounded supplement. New tests,
+implementation and named amendments await approval; no new runtime transport,
+helper timers or speed result are claimed.

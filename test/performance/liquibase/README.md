@@ -105,8 +105,10 @@ native checkpoints above describe history, superseded by this complete cohort.
 After discussion, the user selected source-level cost attribution plus evidenced
 duplicate-work removal and a rerun, not further strace-only classification first.
 The [new components](../../../docs/architecture/issue89-cost-attribution-and-trimming.md)
-are now explicitly approved; the separately reviewed CT01–CT14 tests await
-approval before tests/code. Old fixed-binary evidence and
+and separately reviewed CT01–CT14 tests are explicitly approved. The final
+helper/observer transport refinement is also approved (2026-11-11); supplemental
+DT01–DT08 and named old-fixture amendments await separate approval before their
+implementation. Old fixed-binary evidence and
 strict parsers stay intact; a new candidate must have a new pinned identity.
 All regression jobs of source CI 42761251963 pass; aggregate coverage stays red.
 Complete remote EU06 remains unfinished; no precise cause or speed acceptance.

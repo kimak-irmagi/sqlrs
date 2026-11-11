@@ -154,3 +154,27 @@ in-process monotonic operation durations to calendar time.
 - Decision: user replied “Да, исправить это ожидание”.
 - Rationale: successful prepare does not imply successful readiness probes on
   every attempt. The correction grants no product retry or execution authority.
+
+## Approve helper-detail and observer-cost transport
+
+- Conversation date: 2026-11-11, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: how to carry helper-local phases and report-emission measurements
+  without confusing host clocks, accepting a prematurely complete report or
+  claiming circular measurement of all observer overhead?
+- Alternatives: retain host-only frames; add helper times to host totals; or
+  bind closed helper observations to host-selected invocation spans and send
+  a separate observer completion frame after the framed report write.
+- Decision: user replied “Утвердить уточнение передачи”. Keep begin/span/end,
+  send helper detail before end and observer encoding/lock-wait/write durations
+  afterwards under the same writer lock. Full measured collection requires both
+  terminal markers after the unchanged API timer. Snapshot copying and the
+  observer marker's construction/write remain explicitly unmeasured; off/on
+  controls assess the overall effect. Supplemental tests and named conflicting
+  old-fixture amendments require separate approval before implementation.
+- Rationale: preserve independent execution outcomes, bounded private evidence,
+  helper clock resolution and non-additive detail without inventing precision
+  or total observer overhead. No API, DB, capture or cleanup authority changes.
+- Relationship: refines CT06–CT11/CT14 above; does not supersede the optimisation,
+  source-correspondence, privacy, regression or unchanged speed requirements.

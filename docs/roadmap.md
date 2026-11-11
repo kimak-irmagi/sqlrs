@@ -172,8 +172,9 @@ are explicitly approved. O1–O4 are implemented; Actions `42945061658` passes t
 native flush/reuse checks, recorded three-step/cache counts/data/cleanup and the
 unchanged full normal prepare. Worker roots/private collection are connected;
 new source-catalog/accounting/output helpers pass 69 Node tests with 100% lines
-in those helpers. Helper-phase/emission-cost transport needs its final internal
-format approval; comparison-driver hookup and before/after/off/on/full Actions
+in those helpers. The final helper-phase/emission-cost transport refinement is
+approved; supplemental DT01–DT08 tests and named old-fixture amendments await
+approval before implementation. Comparison-driver hookup and before/after/off/on/full Actions
 series remain open. No new speed result or acceptance is claimed.
 All source regressions in CI `42772612811` pass, only aggregate coverage red.
 All source CI `42665129132` regression jobs pass; only aggregate coverage red.

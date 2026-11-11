@@ -155,7 +155,7 @@ of their outer invocation; they cannot also increase the host additive total.
 This gives source-linked costs for helper-only work, including sync boundaries,
 without claiming any knowledge of Java internals or removing durability phases.
 
-### Proposed completion of detail transport (2026-11-11; approval pending)
+### Completion of detail transport (approved 2026-11-11)
 
 The approved scopes remain unchanged. This makes the last internal wire/data
 ownership choices explicit before connecting helper detail and emission costs:
@@ -189,8 +189,11 @@ qualification at end alone, fake child-owned correlation, cross-clock addition,
 loss of CLI outcome on clock failure, missing off overrides and mutable snapshot
 aliasing. No remaining P0–P2 identified in this bounded refinement. Existing
 CT06–CT11/CT14 cover its requirements; exact codec cases and named conflicting
-old-fixture changes will be presented before implementation. No helper/observer
-transport code has been changed for this proposal.
+old-fixture changes are proposed in DT01–DT08 / OT-CT05–OT-CT08 in the
+[test inventory](issue89-cost-attribution-and-trimming-tests.md). @evilguest
+approved the component refinement with “Утвердить уточнение передачи”; the exact
+reply time is unavailable. Those supplemental tests/amendments await separate
+approval. No helper/observer transport code has been changed for this refinement.
 
 ## 4. Accounting and requested report
 
