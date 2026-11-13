@@ -74,6 +74,26 @@ gantt
 
 ---
 
+## #89 O5–O7 local checkpoint (2026-11-13)
+
+The [approved overhead reduction](architecture/issue89-measured-overhead-reduction.md)
+is implemented: O5 hands the live planning DB to the first working session on
+exact Source equality, O6 reuses the service's verified inventory, and O7
+returns a closed result through the same exec. O5 preserves DB ID, clone,
+generation, path and operation; private capture is retired separately. An
+uncertain COMMIT grants neither SQL, a new session nor destructive cleanup.
+
+[PG01–PG10 and CP2](architecture/issue89-planning-db-handoff-tests.md) exercise
+actual SQLite transitions, a positive published-state source, intent before
+disposal, source protection before file effects and stale-reference refusal.
+New O5 files cover 471/476 statements (98.95%); every file is at least 95%.
+The #89/#174 aggregate-coverage exception remains unchanged.
+
+Actual Docker allocation/data controls and the new complete CT13 series after
+combined O5–O7 remain pending in Actions. Original timers, data/cleanup oracles
+and the speed criterion are preserved. This is a local checkpoint, not completed
+#89, a new speed pass or merge readiness; #170–#174 are not expanded.
+
 ## #89 installation checkpoint (2026-11-07)
 
 The normal-path Liquibase journal is installed directly from the approved final

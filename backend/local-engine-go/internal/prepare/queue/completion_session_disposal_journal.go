@@ -655,7 +655,9 @@ JOIN prepare_step_bindings b ON b.job_id=p.job_id AND b.task_id='plan'
 JOIN prepare_execution_bindings e ON e.execution_digest=b.execution_digest
 JOIN liquibase_job_bindings jb ON jb.job_id=p.job_id
 WHERE p.job_id=? AND p.execution_digest=? AND p.result_attempt_no=?
-AND t.type='plan' AND t.status='succeeded' AND c.phase='released'
+AND t.type='plan' AND t.status='succeeded' AND (c.phase='released' OR (c.phase='active' AND EXISTS(
+SELECT 1 FROM prepare_liquibase_planning_db_ownership owner WHERE owner.job_id=p.job_id AND owner.clone_id=c.clone_id
+AND owner.session_id IS NULL AND owner.disposed_at IS NULL AND owner.plan_digest=p.plan_digest)))
 AND a.clone_id=c.clone_id AND a.execution_digest=p.execution_digest
 AND b.execution_digest=p.execution_digest AND e.prepare_kind='lb'
 AND e.adapter_binding_digest=jb.execution_fingerprint AND e.input_manifest_digest=jb.bundle_manifest_digest

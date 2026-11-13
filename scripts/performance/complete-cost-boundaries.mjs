@@ -1,10 +1,10 @@
 const common = ['prepare.request','prepare.admission','prepare.worker','admission.inputs','admission.image','admission.identity','admission.commit',
-  'input.publish','binding.prepare','input.materialize','runner.resolve','runner.ensure','runner.inventory','binding.commit',
-  'prepare.planning','liquibase.plan_invoke','plan.launch_prepare','plan.input_prepare','plan.capture_reconcile','plan.dispose','plan.release','plan.suffix',
+  'input.publish','binding.prepare','input.materialize','runner.resolve','runner.ensure','runner.inventory_lookup','binding.commit',
+  'prepare.planning','liquibase.plan_invoke','plan.launch_prepare','plan.input_prepare','plan.capture_reconcile','plan.retain','plan.release','plan.suffix',
   'prepare.publication','prepare.final_cleanup','projection.cleanup','finalization.confirm','finalization.commit'];
 const database = ['db.startup','db.lock_wait','db.source_prepare','db.assign','db.clone','db.start','db.attach','db.verify.startup'];
 const working = ['prepare.session_startup','session.plan','session.runner_start','session.readiness','runner.stop','publication.activate','publication.commit','private.dispose'];
-const applying = ['prepare.step','liquibase.invoke','capture.read','journal.invocation_plan','journal.invocation_admit','journal.invocation_complete',
+const applying = ['prepare.step','liquibase.invoke','capture.result_decode','journal.invocation_plan','journal.invocation_admit','journal.invocation_complete',
   'db.prepare_snapshot','db.verify.after_apply','state.snapshot','state.size','state.seal','journal.state_publish'];
 const invalid = () => { throw new Error('Incomplete timeline source boundaries'); };
 
@@ -21,8 +21,10 @@ export function qualifyCompleteCostBoundaries(report, changes) {
     const count = (operation, phase, step) => report.SourceSpans.filter(s => s.Operation === operation &&
       (phase === undefined || s.Phase === phase) && (step === undefined || s.Step === step)).length;
     for (const operation of common) if (count(operation) !== 1) invalid();
+    if (count('runner.inventory') !== (cached ? 0 : 1)) invalid();
+    if (count('plan.dispose') !== (cached ? 1 : 0) || count('plan.db_transfer') !== (cached ? 0 : 1)) invalid();
     for (const operation of database) {
-      if (count(operation) !== 2 || count(operation, 'planning', 0) !== 1 || count(operation, cached ? 'publication' : 'startup', 0) !== 1) invalid();
+      if (count(operation) !== (cached ? 2 : 1) || count(operation, 'planning', 0) !== 1 || count(operation, cached ? 'publication' : 'startup', 0) !== (cached ? 1 : 0)) invalid();
     }
     for (const operation of working) if (count(operation) !== (cached ? 0 : 1)) invalid();
     if (count('session.input_prepare') !== (cached ? 0 : 2)) invalid();

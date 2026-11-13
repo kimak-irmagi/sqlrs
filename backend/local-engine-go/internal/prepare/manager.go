@@ -77,6 +77,7 @@ type PrepareService struct {
 	psql               psqlRunner
 	liquibase          liquibaseRunner
 	containerLiquibase *LiquibaseContainerDeps
+	inventoryCache     liquibaseInventoryCache
 	projectionMu       sync.Mutex
 	projectionGates    map[string]*liquibaseProjectionGate
 	projectionOwner    *liquibaseProjectionOwner

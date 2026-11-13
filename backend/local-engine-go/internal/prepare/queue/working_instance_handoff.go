@@ -33,7 +33,10 @@ AND EXISTS (SELECT 1 FROM prepare_tasks t JOIN prepare_liquibase_invocations i U
  WHERE t.job_id=s.job_id AND t.position=s.cursor_position-1 AND t.output_state_id=s.cursor_state_id
  AND i.session_id=s.session_id AND a.clone_id=s.clone_id AND a.worker_generation=s.worker_generation
  AND a.phase='closed' AND a.resolution='published')
-AND NOT EXISTS (SELECT 1 FROM prepare_step_attempts a WHERE a.clone_id=c.clone_id AND (a.phase<>'closed' OR a.resolution IS NOT 'published'))
+AND NOT EXISTS (SELECT 1 FROM prepare_step_attempts a WHERE a.clone_id=c.clone_id AND (a.phase<>'closed' OR a.resolution IS NOT 'published')
+AND NOT(a.task_id='plan' AND a.phase='closed' AND a.resolution='planning_result_saved'
+AND EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership owner WHERE owner.job_id=s.job_id
+AND owner.clone_id=c.clone_id AND owner.session_id=s.session_id AND owner.task_id=a.task_id AND owner.attempt_no=a.attempt_no)))
 AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_cache_restores r WHERE r.session_id=s.session_id AND r.restore_phase NOT IN ('published','abandoned'))
 AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_job_cancellations cancel WHERE cancel.job_id=s.job_id)
 AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_job_finalizations selected WHERE selected.job_id=s.job_id)`,

@@ -6,6 +6,14 @@ const costHelperResolutionNS = int64(10_000_000)
 
 var costHelperPhases = [...]string{"preflight", "cli", "drain", "stream_flush", "hash_rename", "renamed_flush", "manifest_flush", "final_flush"}
 
+func (root *costRoot) helperPhases(owner int) []string {
+	phases := costHelperPhases[:]
+	if root.stepResult && root.Spans[owner-1].Operation == "liquibase.invoke" {
+		phases = append(append([]string(nil), phases...), "result_prepare", "result_emit")
+	}
+	return phases
+}
+
 // Closed numeric evidence; no helper text/identity/error survives parsing.
 // DT03/DT05/DT07: issue89-cost-attribution-and-trimming-tests.md.
 type costHelperRegion struct {
@@ -36,6 +44,7 @@ func (root *costRoot) acceptHelper(fields []string) error {
 		return errCostStream
 	}
 	span := root.Spans[owner-1]
+	phases := root.helperPhases(int(owner))
 	if span.Operation != "liquibase.invoke" && span.Operation != "liquibase.plan_invoke" {
 		return errCostStream
 	}
@@ -58,7 +67,7 @@ func (root *costRoot) acceptHelper(fields []string) error {
 	}
 	if !exists {
 		root.addHelper(costHelperObservation{Owner: int(owner), HostElapsedNS: int64(host), Available: true,
-			Detail: costHelperDetail{ResolutionNS: costHelperResolutionNS, CumulativeUncertaintyNS: int64(len(costHelperPhases)) * costHelperResolutionNS}})
+			Detail: costHelperDetail{ResolutionNS: costHelperResolutionNS, CumulativeUncertaintyNS: int64(len(phases)) * costHelperResolutionNS}})
 		index = len(root.Helpers) - 1
 	}
 	helper := &root.Helpers[index]
@@ -67,7 +76,7 @@ func (root *costRoot) acceptHelper(fields []string) error {
 	if phase > 0 {
 		previous = helper.Detail.Regions[phase-1].EndCS
 	}
-	if !helper.Available || helper.HostElapsedNS != int64(host) || phase >= len(costHelperPhases) || fields[3] != costHelperPhases[phase] || int64(start) != previous {
+	if !helper.Available || helper.HostElapsedNS != int64(host) || phase >= len(phases) || fields[3] != phases[phase] || int64(start) != previous {
 		return errCostStream
 	}
 	total := int64(end) * costHelperResolutionNS
@@ -103,7 +112,7 @@ func qualifyDetails(root costRoot) error {
 		return errCostStream
 	}
 	for _, helper := range root.Helpers {
-		if !owners[helper.Owner] || !helper.Available || len(helper.Detail.Regions) != len(costHelperPhases) {
+		if !owners[helper.Owner] || !helper.Available || len(helper.Detail.Regions) != len(root.helperPhases(helper.Owner)) {
 			return errCostStream
 		}
 		delete(owners, helper.Owner)

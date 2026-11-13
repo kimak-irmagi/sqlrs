@@ -5,7 +5,13 @@ will change actual allocation/probe/result-acquisition counts, not the workload
 or timer. Counter expectations must be predeclared for exact selected artifacts,
 with cold inventory misses still timed and old-v2/v1 controls unchanged. No cache
 prewarm or inference of expected counts from the observed output is permitted.
-The collector changes/tests are not implemented yet.
+O6 cold/hit probe expectations and O7's explicit `same-exec-v1` receiver are
+implemented with ordinary tests. Only the selected new off/on artifacts use
+them; legacy routes keep their original grammar/counts. Step helper detail has
+ten phases, planning still eight. `capture.result_decode` records actual inline
+validation; independent reads retain `capture.read`. Hosted native qualification
+and a new combined timing campaign remain pending, as do O5's tests/code. This
+status does not declare the retained speed criterion passed.
 
 External Linux/amd64 engine collector for the approved
 [PA01–PA12 plan](../../../docs/architecture/issue89-performance-actions-tests.md).

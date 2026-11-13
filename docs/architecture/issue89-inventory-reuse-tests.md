@@ -1,8 +1,9 @@
 # #89 O6: bounded inventory reuse — tests
 
-Status: reviewed final inventory, approval requested. Components O6 are approved
-in [the amendment](issue89-measured-overhead-reduction.md). No new tests, old-test
-changes or product code have been written for this inventory. O5 storage and O7
+Status: IC01–IC08 and limited OT-IC01–OT-IC03 approved by @evilguest on
+2026-11-12. Components O6 are approved
+in [the amendment](issue89-measured-overhead-reduction.md). Implementation and
+verification are in progress; see the results below. O5 storage and O7
 transport are separate, so their approval does not block these cache tests.
 
 ## Requirements and new tests
@@ -96,4 +97,39 @@ rejected. Native data/cleanup and historical strict controls remain independent.
 Repeat review checked all key dimensions, producer/waiter lifetimes, 32/33
 capacity boundaries, deep-copy ownership, both driver modes, real binding failures,
 the selector's legacy/unknown routes and unchanged timing. No remaining P0–P2
-finding in this bounded inventory. No test or code is claimed executed yet.
+finding in this bounded inventory. This review preceded implementation.
+
+## Implementation evidence, 2026-11-12 (not final acceptance)
+
+- Added the per-service zero-value cache and exact binding lookup; same-key
+  cancellable coalescing, successful copied inventory only, independent 32-entry
+  ready/in-flight limits and LRU eviction. Every job retains resolution,
+  availability, selection and driver artifact handling.
+- IC01–IC05 and unchanged cost-binding regression tests pass. Both focused and
+  full-run per-line profiles cover every statement in
+  `liquibase_inventory_cache.go`: 100%; the HTML profile is generated under the
+  ignored engine `coverage` directory, not used as a passing-suite claim.
+- Repeat review reproduced cancellation between a completed probe and cache
+  publication with a deterministic context barrier. Rechecking cancellation at
+  publication fixes the demonstrated retained-entry defect; the focused profile
+  remains 100%. A separate literal JAR oracle also checks that producer/consumer
+  mutation cannot be hidden by using the production copy helper on both sides.
+- The full collector Go suite passes; new `inventory_policy.go` is 100% covered.
+  Collector vet and Linux/amd64 cross-compilation pass. All 100 performance Node
+  tests pass; new/changed policy, collector-output, campaign and source-boundary
+  helpers are 100% lines/branches/functions covered.
+- Follow-up IC07 verification directly tests Go's rejection of wrong observed
+  probe counts for all three predeclared policies. The real collector calls that
+  tested predicate. Full collector suite/vet pass; both functions in the policy
+  helper remain 100% covered. The Node performance suite now has 101 passing
+  tests, including the independent actual-call-site check.
+- Follow-up on 2026-11-13: the approved IC06 fixture corrections pass all four
+  cases (embedded, mounted, publication failure, binding failure). The binding
+  refusal uses the safe `ErrLiquibaseBinding` classification; after all negative
+  and first-job immutability assertions, removing only the test trigger permits
+  the exact same metadata binding. No Liquibase SQL is retried. The complete
+  focused inventory suite and full prepare regression pass.
+- OT-IC01/02/03 are applied within approved scope. Native execution and cold/hit
+  counts are not yet qualified in Actions. Windows race compilation reported a
+  cgo failure; the existing Linux opt-in probe now includes the focused race test.
+  No laptop Docker/Liquibase workload or new CT13 timing has run.

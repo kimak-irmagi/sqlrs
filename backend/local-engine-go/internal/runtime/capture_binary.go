@@ -9,7 +9,8 @@ import (
 )
 
 // boundedBinaryRunner is the private byte-preserving command boundary shared by
-// capture readers. The caller supplies the complete capture's shared deadline;
+// capture readers and the same-exec result transport. The caller supplies its
+// shared read or original SQL-work deadline respectively;
 // a command must not start a fresh per-file timeout. See
 // docs/architecture/container-capture-access-amendment.md section 3.
 type boundedBinaryRunner interface {
@@ -54,8 +55,9 @@ func (b *captureCommandBuffer) Write(p []byte) (int, error) {
 // Both caps must be positive. Any quota, cancellation, start, exit or drain error
 // invalidates the entire payload; no partial stdout or diagnostic body escapes.
 // Cmd.Run reaps the local producer and WaitDelay limits inherited-pipe draining
-// to five additional seconds. The reader owns the shared 30-second capture
-// deadline; this method never resets it. Requirements: capture-access CA07–CA09
+// to five additional seconds. Independent readers own a shared 30-second capture
+// deadline; same-exec SQL uses its original work deadline, never a new 30-second
+// timeout. This method never resets either. Requirements: capture-access CA07–CA09
 // and liquibase-private-capture-ownership.md bounded-transport rules.
 func (execRunner) RunBounded(ctx context.Context, name string, args []string, stdoutCap, stderrCap int64) ([]byte, error) {
 	if stdoutCap <= 0 || stderrCap <= 0 {

@@ -164,7 +164,9 @@ JOIN prepare_tasks p ON p.job_id=j.job_id AND p.task_id='plan'
 JOIN prepare_clones c ON c.clone_id=i.preview_clone_id
 WHERE j.job_id=? AND j.purpose='prepare' AND j.plan_only=0 AND j.prepare_kind='lb' AND j.status='running'
   AND i.plan_saved_at IS NOT NULL AND p.status='succeeded' AND p.position=0
-  AND c.phase='released' AND NOT EXISTS (
+  AND (c.phase='released' OR EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership owner
+    WHERE owner.job_id=j.job_id AND owner.clone_id=c.clone_id AND owner.session_id IS NULL
+    AND owner.disposal_requested_evidence_id IS NULL AND owner.disposed_at IS NULL AND c.phase='active')) AND NOT EXISTS (
     SELECT 1 FROM prepare_planning_attempt_artifacts a WHERE a.job_id=j.job_id
     AND (a.executor_retired_at IS NULL OR a.protected_input_retired_at IS NULL
       OR a.output_retired_at IS NULL OR a.stderr_retired_at IS NULL

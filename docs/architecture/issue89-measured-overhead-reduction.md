@@ -2,8 +2,17 @@
 
 Status: components approved by @evilguest on 2026-11-12 after critical/repeat
 review: “Утвердить проект компонентов”. Storage changes and the final new/
-changed-test inventory require their separate approvals before implementation.
-No product code or old test has been changed for this amendment.
+changed-test inventory have received the separate approvals recorded below.
+O6 implementation follows its separately approved
+[test inventory](issue89-inventory-reuse-tests.md). O5
+[schema](issue89-planning-db-handoff-schema.md) is approved; its
+[final tests](issue89-planning-db-handoff-tests.md) and limited old-test changes
+are approved on 2026-11-13. O7's
+[wire/quota and test inventory](issue89-same-exec-result-tests.md), including
+limited OT-IR01–OT-IR08, are approved. O6/O7 are implemented and undergoing
+qualification. O5 DDL, journal writers and coordinator transfer are implemented;
+new O5 files meet the local coverage minimum. Actions native/speed acceptance
+remains open and no new speed pass is claimed.
 
 ## 1. Evidence, outcome and boundaries
 
@@ -94,7 +103,8 @@ real DB absence/released preview. The amendment must distinguish saved plan,
 retained planning DB and transferred DB without redefining absence or rewriting
 historical evidence. It must cover installation/version checks, exact FK/guards,
 source/path pins and job/instance/state deletion. Exact tables/columns/versions
-are not approved by this component document; no DDL is changed yet.
+are specified by the separately approved
+[O5 storage amendment](issue89-planning-db-handoff-schema.md), now implemented.
 
 Before transfer commit the DB remains owned by planning; afterwards by the
 session. An ambiguous commit or failed observation never authorises another
@@ -201,10 +211,11 @@ only obsolete command counts, setup, scope counts and the reviewed ownership
 scenario may change. User authority to correct coupled tests is not permission
 to remove safety assertions or fake successful runtime evidence.
 
-Components are now approved. Next independent documents are the proposed
-[O5 schema](issue89-planning-db-handoff-schema.md) and reviewed
-[O6 test inventory](issue89-inventory-reuse-tests.md). O7's exact envelope/test
-inventory is still being prepared; no implementation is authorised by a draft.
+Components, [O5 schema](issue89-planning-db-handoff-schema.md),
+[O6 tests](issue89-inventory-reuse-tests.md) and
+[O7 wire/tests](issue89-same-exec-result-tests.md) are approved. O5's separate
+tests-first implementation is undergoing local validation. O6/O7 unit/observer evidence is not a replacement
+for hosted native execution or the retained performance criterion.
 
 Measure changed helpers per-line (target 100%, minimum 95%) under the existing
 #89 aggregate exception/#174. Run ordinary/native regressions, then unchanged

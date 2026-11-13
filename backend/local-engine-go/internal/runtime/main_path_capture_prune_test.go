@@ -113,10 +113,9 @@ func TestMainPathCapturePruneEmptyAuthorityOverridesEnvironment(t *testing.T) {
 	dir, identity, manifest := stepCaptureFixture(t)
 	writeStepCaptureFixture(t, dir, manifest, nil, nil)
 	name := "sqlrs-lb-main-path-first"
-	runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
-	runner.responses = append(presentInspection(identity.RunnerID, name, "running", 0), runResponse{})
-	runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
-	runner.responses = append(runner.responses, runResponse{output: "sqlrs-step-idle-v1\n"})
+	manifestBytes, stdout, stderr := stepResultFiles(t, dir)
+	runner := &inlineFixtureRunner{&captureFilesRequirementsRunner{}}
+	runner.responses = append(presentInspection(identity.RunnerID, name, "running", 0), runResponse{output: string(literalStepResultFrame(manifestBytes, stdout, stderr, nil, false))})
 	runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
 	_, err := NewDocker(Options{Binary: "configured-docker", Runner: runner}).InvokeTrackedLiquibaseStep(t.Context(), name, "", identity, []string{"update-count", "--count", "1"}, 1024)
 	if err != nil {

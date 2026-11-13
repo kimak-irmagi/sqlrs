@@ -380,6 +380,12 @@ func (m *PrepareService) listEvictionCandidates(ctx context.Context, settings ca
 			blocked++
 			continue
 		}
+		if held, err := store.PrepareProtectsState(ctx, m.store, entry.StateID); err != nil {
+			return nil, 0, 0, err
+		} else if held {
+			blocked++
+			continue
+		}
 		children, childErr := m.store.ListStates(ctx, store.StateFilters{ParentID: entry.StateID})
 		if childErr != nil {
 			return nil, 0, 0, childErr
@@ -446,6 +452,13 @@ func (m *PrepareService) listEvictionCandidates(ctx context.Context, settings ca
 }
 
 func (m *PrepareService) deleteEvictionCandidate(ctx context.Context, candidate evictCandidate) error {
+	// Recheck the durable owner before touching a previously listed candidate.
+	// PG07: a later SQL refusal cannot restore already removed source bytes.
+	if held, err := store.PrepareProtectsState(ctx, m.store, candidate.StateID); err != nil {
+		return err
+	} else if held {
+		return fmt.Errorf("state is retained by prepare")
+	}
 	paths, err := resolveStatePaths(m.stateStoreRoot, candidate.ImageID, candidate.StateID, m.statefs)
 	if err != nil {
 		return err

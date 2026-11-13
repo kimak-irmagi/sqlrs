@@ -3,6 +3,7 @@ import { summarizeHostCosts } from './cost-accounting.mjs';
 import { buildTimeline, timelineTimerDelta } from './complete-timeline.mjs';
 import { qualifyCostDetails } from './cost-detail.mjs';
 import { costDefinition } from './cost-catalog.mjs';
+import { stepResultPolicy } from './step-result-policy.mjs';
 
 const natural = n => Number.isSafeInteger(n) && n >= 0;
 const invalid = () => { throw new Error('Invalid complete cost evidence'); };
@@ -15,6 +16,7 @@ const clientKind = s => ['client.post', 'client.status', 'client.poll'].includes
  */
 export function parseCompleteCostOutput(code, output, expected) {
   try {
+    const stepResult = stepResultPolicy(expected);
     const samples = parseCollectorResult(code, output, expected);
     if (expected.route !== 'v2' || expected.revision === '668d5050ad154c1967bea4c6e40b91f3a703d5ba') invalid();
     const costs = output.split(/\r?\n/).filter(line => line.includes('P01B_COST '))
@@ -95,7 +97,7 @@ export function parseCompleteCostOutput(code, output, expected) {
             Owner: s.Owner ? owner(s.Owner) : null })) },
         Additive: [...additive.values()].map(s => ({ ...s, ZTotalMS: s.DurationNS/1e6, Zratio: s.DurationNS/ledger.ElapsedNS*100 })),
         HostNonAdditive: true, HostRows: accounting.Rows.map(row => ({ ...row, Zratio: row.ZTotalMS*1e6/cost.PrepareElapsedNS*100, Source: costDefinition(row.Operation) })),
-        Steps: steps, ...qualifyCostDetails(root) };
+        Steps: steps, ...qualifyCostDetails(root, {stepResult}) };
     });
   } catch { invalid(); }
 }

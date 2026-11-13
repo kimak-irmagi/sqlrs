@@ -4,6 +4,8 @@ package preparecost
 // Group names describe the enclosed code, never an inferred SQL/Docker cause.
 func timelineDefinitions() []Definition {
 	return []Definition{
+		{PlanRetain, Additional, Location{"internal/prepare/planning_db_handoff.go", "PrepareService.captureNormalPlanningDB"}, Location{}},
+		{PlanDBTransfer, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeStartNormalLiquibaseSession"}, Location{}},
 		{PlanRelease, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observePlanNormalContainerLiquibase"}, Location{}},
 		{DBSource, Shared, Location{"internal/prepare/managed_execution.go", "taskExecutor.observeStartManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},
 		{SessionPlan, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observeStartNormalLiquibaseSession"}, Location{}},
@@ -29,7 +31,7 @@ func timelineDefinitions() []Definition {
 		{PlanLaunch, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observePlanNormalContainerLiquibase"}, Location{}},
 		{PlanInput, Additional, Location{"internal/prepare/planning_executor_request.go", "PrepareService.buildPlanningExecutorRequest"}, Location{}},
 		{PlanCapture, Additional, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observePlanNormalContainerLiquibase"}, Location{}},
-		{PlanDispose, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "PrepareService.observePlanNormalContainerLiquibase"}, Location{"internal/prepare/execution.go", "PrepareService.cleanupRuntime"}},
+		{PlanDispose, Changed, Location{"internal/prepare/planning_db_handoff.go", "observePlanningDBDisposal"}, Location{"internal/prepare/execution.go", "PrepareService.cleanupRuntime"}},
 		{PlanSuffix, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "jobCoordinator.runObservedContainerLiquibase"}, Location{"internal/prepare/manager.go", "jobCoordinator.buildPlanLiquibase"}},
 		{DBStartup, Changed, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},
 		{DBLockWait, Shared, Location{"internal/prepare/managed_execution.go", "taskExecutor.observeStartManagedRuntimeWithPlan"}, Location{"internal/prepare/managed_execution.go", "taskExecutor.startManagedRuntime"}},

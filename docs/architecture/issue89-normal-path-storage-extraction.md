@@ -117,6 +117,11 @@ The separately approved [installation test inventory](issue89-normal-path-storag
 records the installation evidence; a metadata PASS is not complete prepare acceptance.
 
 The later approved [working-instance handoff schema](issue89-working-instance-handoff-schema.md)
-amends the current target to session format 3. Record that semantic amendment
+introduced the intermediate target session format 3. Record that semantic amendment
 separately from the frozen composed-source provenance; do not regenerate history.
 The released baseline/bridge stay unchanged. Its test inventory is a separate gate.
+
+The current target session format is 4 under the approved
+[O5 planning-DB handoff schema](issue89-planning-db-handoff-schema.md).
+PG01/OT-PG01 authorise the bounded target catalog/version update;
+historical sources and the released bridge remain unchanged.

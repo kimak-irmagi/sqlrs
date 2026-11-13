@@ -151,7 +151,7 @@ func TestDockerReadLiquibaseStepOutputRequiresIdleExactRunner(t *testing.T) {
 
 // N03: Docker exec returning zero cannot replace the protected manifest.
 // A fully captured nonzero exit is returned as a known child result even
-// when the Docker CLI reports that nonzero exit as a process error.
+// with successful helper transport; the child code belongs to the manifest.
 func TestInvokeTrackedLiquibaseStepRequiresCapturedResult(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
@@ -162,23 +162,25 @@ func TestInvokeTrackedLiquibaseStepRequiresCapturedResult(t *testing.T) {
 	}{
 		{name: "early zero without manifest"},
 		{name: "complete child success", manifest: true, wantOK: true},
-		{name: "complete child failure", manifest: true, childExit: 7, execErr: errors.New("exit 7"), wantOK: true},
+		{name: "complete child failure", manifest: true, childExit: 7, wantOK: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir, identity, manifest := stepCaptureFixture(t)
 			manifest["child_exit_code"] = tc.childExit
 			writeStepCaptureFixture(t, dir, manifest, nil, nil)
+			manifestBytes, stdout, stderr := stepResultFiles(t, dir)
+			wire := literalStepResultFrame(manifestBytes, stdout, stderr, nil, false)
 			if !tc.manifest {
 				if err := os.Remove(filepath.Join(dir, "manifest.complete")); err != nil {
 					t.Fatal(err)
 				}
+				wire = nil
 			}
 			name := "sqlrs-lb-session-1"
 			inspection := `{"Id":"` + identity.RunnerID + `","Name":"/` + name + `","State":{"Status":"running","ExitCode":0}}`
-			runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
+			runner := &inlineFixtureRunner{&captureFilesRequirementsRunner{}}
 			runner.responses = []runResponse{{output: inspection},
-				{err: tc.execErr}, {output: inspection},
-				{output: "sqlrs-step-idle-v1\n"}, {output: inspection}}
+				{output: string(wire), err: tc.execErr}, {output: inspection}}
 			rt := NewDocker(Options{Binary: "docker", Runner: runner})
 			capture, err := rt.InvokeTrackedLiquibaseStep(context.Background(), name, dir, identity,
 				[]string{"update-count", "--count", "1"}, 1024)

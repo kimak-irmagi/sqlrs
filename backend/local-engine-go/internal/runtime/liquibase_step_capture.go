@@ -254,8 +254,10 @@ func (r *DockerRuntime) readObservedLiquibaseStepOutput(ctx context.Context, nam
 
 // InvokeTrackedLiquibaseStep runs the stock CLI through the pinned helper in
 // the exact live runner. The coordinator must commit exec_requested first.
-// Docker's return code is diagnostic: only a complete, idle-checked capture
-// returns a known child result. See N02/N03 in the reusable-container tests.
+// A successful bounded transport carries a complete, idle-checked capture;
+// Liquibase's own exit code comes only from its verified manifest. A transport
+// error stays unknown without rereading/retrying. See O7/IR01–IR10 in
+// docs/architecture/issue89-same-exec-result-tests.md.
 func (r *DockerRuntime) InvokeTrackedLiquibaseStep(ctx context.Context, name, captureDir string,
 	identity StepCaptureIdentity, liquibaseArgs []string, maxStreamBytes int64) (CompleteStepCapture, error) {
 	return preparecost.Observe(ctx, preparecost.Invocation, func(ctx context.Context) (CompleteStepCapture, error) {
@@ -265,16 +267,45 @@ func (r *DockerRuntime) InvokeTrackedLiquibaseStep(ctx context.Context, name, ca
 
 func (r *DockerRuntime) invokeObservedLiquibaseStep(ctx context.Context, name, captureDir string,
 	identity StepCaptureIdentity, liquibaseArgs []string, maxStreamBytes int64) (CompleteStepCapture, error) {
+	if err := ctx.Err(); err != nil {
+		return CompleteStepCapture{}, err
+	}
 	if r == nil || !validStepCaptureIdentity(identity) || maxStreamBytes < 1 || maxStreamBytes > 64<<20 || len(liquibaseArgs) == 0 {
 		return CompleteStepCapture{}, fmt.Errorf("invalid tracked Liquibase invocation")
+	}
+	runner, ok := r.runner.(boundedBinaryRunner)
+	if !ok {
+		return CompleteStepCapture{}, errCaptureArtifactRead
+	}
+	// Freeze nullable links and authority before any external operation. Neither
+	// the transport result nor a caller mutation may redirect the saved proof.
+	if identity.Prune != nil {
+		authority := *identity.Prune
+		identity.Prune = &authority
+	}
+	if identity.PriorRetirementRef != nil {
+		prior := *identity.PriorRetirementRef
+		identity.PriorRetirementRef = &prior
 	}
 	prune, err := serializeStepPrune(identity)
 	if err != nil {
 		return CompleteStepCapture{}, err
 	}
-	view, err := r.inspectPresentContainer(ctx, name, identity.RunnerID)
-	if err != nil || view.ID != identity.RunnerID || view.Status != "running" {
-		return CompleteStepCapture{}, fmt.Errorf("exact Liquibase session runner is not running")
+	inspect := func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		view, err := r.inspectPresentContainer(ctx, name, identity.RunnerID)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err != nil || view.ID != identity.RunnerID || view.Status != "running" {
+			return fmt.Errorf("exact Liquibase session runner is not running")
+		}
+		return nil
+	}
+	if err := inspect(); err != nil {
+		return CompleteStepCapture{}, err
 	}
 	args := stepCaptureExecEnvironment(identity, maxStreamBytes, prune)
 	flag := "0"
@@ -282,18 +313,53 @@ func (r *DockerRuntime) invokeObservedLiquibaseStep(ctx context.Context, name, c
 		flag = "1"
 	}
 	// Explicit override prevents an image's environment enabling diagnostics.
-	args = append(args, "-e", "SQLRS_CAPTURE_COST="+flag)
+	args = append(args, "-e", "SQLRS_CAPTURE_COST="+flag, "-e", "SQLRS_CAPTURE_RESULT=same-exec-v1")
 	args = append(args, identity.RunnerID, "/bin/sh", "/sqlrs/helper/step-capture.sh", "liquibase")
 	args = append(args, liquibaseArgs...)
-	// Do not surface either Docker output or its arbitrary error text. The
-	// protected streams and manifest carry the recoverable child result.
+	// O7: transport success is separate from the manifest's child exit. A failed
+	// or partial exec never triggers a second acquisition or a second SQL call.
+	// Keep the original work deadline, not the independent reader's 30s timeout.
 	helperContext := WithoutLogSink(ctx)
+	var started time.Time
 	if preparecost.IsRecording(ctx) {
-		started := time.Now()
-		output, _ := r.run(helperContext, args, nil)
-		preparecost.RecordHelper(ctx, []byte(output), time.Since(started).Nanoseconds())
-	} else {
-		_, _ = r.run(helperContext, args, nil)
+		started = time.Now()
 	}
-	return r.ReadCompleteLiquibaseStepOutput(ctx, name, identity.RunnerID, captureDir, identity, maxStreamBytes)
+	wire, err := preparecost.Observe(helperContext, preparecost.DockerCommand, func(child context.Context) ([]byte, error) {
+		return runner.RunBounded(child, r.binary, args, stepResultWireLimit(maxStreamBytes), 4096)
+	})
+	var elapsed int64
+	if !started.IsZero() {
+		elapsed = time.Since(started).Nanoseconds()
+	}
+	if err := ctx.Err(); err != nil {
+		return CompleteStepCapture{}, err
+	}
+	if err != nil {
+		return CompleteStepCapture{}, errCaptureArtifactRead
+	}
+	var envelope stepResultEnvelope
+	capture, err := preparecost.Observe(ctx, preparecost.ResultDecode, func(context.Context) (CompleteStepCapture, error) {
+		var err error
+		envelope, err = decodeStepResultEnvelope(wire, maxStreamBytes)
+		if err != nil {
+			return CompleteStepCapture{}, err
+		}
+		if envelope.pruned != (prune != "") {
+			return CompleteStepCapture{}, errCaptureArtifactBinding
+		}
+		return readCompleteLiquibaseStepCapture(envelope.files, identity, maxStreamBytes)
+	})
+	if err != nil {
+		return CompleteStepCapture{}, err
+	}
+	preparecost.RecordStepResultHelper(ctx, envelope.detail, elapsed)
+	if err := inspect(); err != nil {
+		return CompleteStepCapture{}, err
+	}
+	if prune != "" {
+		capture.pruneObservation = &stepPruneObservation{identity: observationIdentity(identity), authority: *identity.Prune,
+			manifestDigest: capture.ManifestDigest, manifestBytes: capture.ManifestBytes, exitCode: capture.ExitCode,
+			stdoutDigest: capture.StdoutDigest, stderrDigest: capture.StderrDigest}
+	}
+	return capture, nil
 }

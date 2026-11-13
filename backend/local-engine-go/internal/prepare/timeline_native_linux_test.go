@@ -141,20 +141,26 @@ func TestCompleteTimelineMainPathDocker(t *testing.T) {
 		if sum != windowEnd-windowStart || position != ledger.ElapsedNS {
 			t.Fatal("native additive timing does not match selected wall window")
 		}
-		for _, key := range []string{"prepare.request", "prepare.admission", "prepare.worker", "input.publish", "binding.prepare", "input.materialize", "runner.resolve", "runner.ensure", "runner.inventory", "binding.commit", "plan.launch_prepare", "plan.input_prepare", "plan.capture_reconcile", "plan.dispose", "plan.suffix", "projection.cleanup", "finalization.confirm", "finalization.commit"} {
+		for _, key := range []string{"prepare.request", "prepare.admission", "prepare.worker", "input.publish", "binding.prepare", "input.materialize", "runner.resolve", "runner.ensure", "runner.inventory_lookup", "binding.commit", "plan.launch_prepare", "plan.input_prepare", "plan.capture_reconcile", "plan.retain", "plan.release", "plan.suffix", "projection.cleanup", "finalization.confirm", "finalization.commit"} {
 			if counts[key] != 1 {
 				t.Fatal("native source boundary count differs", key, counts[key])
 			}
+		}
+		if counts["runner.inventory"] != 1-pass {
+			t.Fatal("cold/hit inventory count differs", counts["runner.inventory"])
 		}
 		for _, key := range []string{"step.bind"} {
 			if counts[key] != 3 {
 				t.Fatal("cached plan ordinals disappeared", key)
 			}
 		}
-		dbCount := 2 // preview + working, or preview + separately published cached DB
+		if counts["plan.dispose"] != pass || counts["plan.db_transfer"] != 1-pass {
+			t.Fatal("planning disposal/transfer count differs", counts["plan.dispose"], counts["plan.db_transfer"])
+		}
+		dbCount := 1 + pass // retained preview, or preview + separate cached publication
 		for _, key := range []string{"db.startup", "db.lock_wait", "db.clone", "db.start", "db.attach", "db.verify.startup"} {
 			if counts[key] != dbCount {
-				t.Fatal("two actual DB lifetimes not observed", key, counts[key])
+				t.Fatal("actual DB lifetime count differs", key, counts[key])
 			}
 		}
 		wantApply, wantSession := 3, 1

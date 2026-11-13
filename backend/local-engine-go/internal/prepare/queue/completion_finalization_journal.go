@@ -845,7 +845,10 @@ AND i.image_id=j.resolved_image_id AND st.lineage_ref=j.lineage_ref AND st.ident
 		stage != "verified" || op.Stage != "running" || access.InstanceRef != outcome.Prepare.InstanceID || access.DomainRef != domain ||
 		access.AccessVersion != op.PhysicalIdentity || access.PhysicalIdentity != op.PhysicalIdentity || access.RuntimeRef != runtimeID ||
 		access.IdentityBinding != op.Identity || access.LineageRef != lineage || access.IdentityDigest != identity || runtimeDir != op.Target ||
-		!filepath.IsAbs(op.Target) || filepath.Base(op.Target) != op.Ref || filepath.Base(filepath.Dir(op.Target)) != jobID || filepath.Base(filepath.Dir(filepath.Dir(op.Target))) != "jobs" {
+		!filepath.IsAbs(op.Target) || filepath.Base(op.Target) != op.Ref || filepath.Base(filepath.Dir(filepath.Dir(op.Target))) != "jobs" {
+		return none, op, ErrLiquibaseFinalization
+	}
+	if filepath.Base(filepath.Dir(op.Target)) != jobID && !planningDBPublicationTarget(ctx, tx, jobID, outcome.Prepare.InstanceID, op) {
 		return none, op, ErrLiquibaseFinalization
 	}
 	secret := instanceaccess.SecretBinding{DomainRef: domain, OwnerRef: access.InstanceRef, IdentityDigest: identity, Version: access.PhysicalIdentity, Purpose: "instance"}

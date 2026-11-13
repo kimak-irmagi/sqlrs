@@ -36,6 +36,10 @@ export function costCampaignEnvironment(input, member) {
   const expected = costCampaignSchedule()[member?.ID - 1];
   if (!expected || Object.keys(expected).some(key => member[key] !== expected[key])) throw new Error('Invalid cost campaign member');
   return { ...input, SQLRS_PREPARE_COST: '', SQLRS_PREPARE_TIMELINE: '', SQLRS_PREPARE_TIMELINE_REFERENCE: '',
+    SQLRS_BENCH_IMAGE_PROBE_POLICY: ['new_off','new_on'].includes(member.Variant) ? 'per-process-v1' : '',
+    SQLRS_BENCH_IMAGE_PROBE_VARIANT: ['new_off','new_on'].includes(member.Variant) ? member.Variant : '',
+    SQLRS_BENCH_RESULT_POLICY: ['new_off','new_on'].includes(member.Variant) ? 'same-exec-v1' : '',
+    SQLRS_BENCH_RESULT_VARIANT: ['new_off','new_on'].includes(member.Variant) ? member.Variant : '',
     SQLRS_BENCH_TIMELINE: member.Record ? '1' : '0', SQLRS_BENCH_DIAGNOSTIC: '', SQLRS_BENCH_TRACE: '',
     SQLRS_BENCH_COST: member.Record ? '1' : '0', SQLRS_BENCH_PROBE: '', SQLRS_BENCH_RETAIN_PROBE: '' };
 }

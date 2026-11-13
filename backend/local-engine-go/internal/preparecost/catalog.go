@@ -11,7 +11,9 @@ const (
 	Admission           Operation = "prepare.admission"
 	Worker              Operation = "prepare.worker"
 	ImageInventory      Operation = "runner.inventory"
+	InventoryLookup     Operation = "runner.inventory_lookup"
 	CaptureRead         Operation = "capture.read"
+	ResultDecode        Operation = "capture.result_decode"
 	PruneObserve        Operation = "capture.prune"
 	DockerCommand       Operation = "docker.command"
 	CaptureCopy         Operation = "docker.capture_copy"
@@ -46,6 +48,8 @@ const (
 	PlanInput           Operation = "plan.input_prepare"
 	PlanCapture         Operation = "plan.capture_reconcile"
 	PlanDispose         Operation = "plan.dispose"
+	PlanRetain          Operation = "plan.retain"
+	PlanDBTransfer      Operation = "plan.db_transfer"
 	PlanSuffix          Operation = "plan.suffix"
 	DBStartup           Operation = "db.startup"
 	DBLockWait          Operation = "db.lock_wait"
@@ -108,7 +112,9 @@ func Definitions() []Definition {
 		{Admission, Changed, Location{"internal/prepare/manager.go", "PrepareService.submitForPurpose"}, Location{"internal/prepare/manager.go", "PrepareService.Submit"}},
 		{Worker, Changed, Location{"internal/prepare/liquibase_normal_worker.go", "jobCoordinator.runContainerLiquibase"}, Location{"internal/prepare/manager.go", "jobCoordinator.runJob"}},
 		{ImageInventory, Additional, Location{"internal/runtime/runner_image_inspect.go", "DockerRuntime.InspectRunnerImage"}, Location{}},
+		{InventoryLookup, Additional, Location{"internal/prepare/liquibase_inventory_cache.go", "PrepareService.inspectLiquibaseInventory"}, Location{}},
 		{CaptureRead, Additional, Location{"internal/runtime/liquibase_step_capture.go", "DockerRuntime.ReadCompleteLiquibaseStepOutput"}, Location{}},
+		{ResultDecode, Additional, Location{"internal/runtime/step_result_envelope.go", "decodeStepResultEnvelope"}, Location{}},
 		{PruneObserve, Additional, Location{"internal/runtime/liquibase_prune.go", "DockerRuntime.VerifyLiquibaseCapturePruned"}, Location{}},
 		{DockerCommand, Shared, Location{"internal/runtime/docker.go", "DockerRuntime.run"}, Location{"internal/runtime/docker.go", "DockerRuntime.run"}},
 		{CaptureCopy, Additional, Location{"internal/runtime/session_capture_bundle.go", "DockerRuntime.readSessionCaptureBundle"}, Location{}},

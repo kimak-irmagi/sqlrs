@@ -208,6 +208,14 @@ func collect(t *testing.T) {
 	if expected := os.Getenv("SQLRS_BENCH_ENGINE_SHA256"); expected == "" || expected != engineSHA {
 		t.Fatal("benchmark artifact differs from the collector's pinned checksum")
 	}
+	probeExpectations, err := inventoryProbeExpectations(os.Getenv("SQLRS_BENCH_IMAGE_PROBE_POLICY"), os.Getenv("SQLRS_BENCH_IMAGE_PROBE_VARIANT"), route, revision, engineSHA)
+	if err != nil {
+		t.Fatal("invalid inventory probe policy")
+	}
+	stepResult, err := stepResultCostSelection(os.Getenv("SQLRS_BENCH_RESULT_POLICY"), os.Getenv("SQLRS_BENCH_RESULT_VARIANT"), route, revision, engineSHA)
+	if err != nil {
+		t.Fatal("invalid step result policy")
+	}
 	if validateCostSelection(route, revision, costEnabled, diagnostic) != nil {
 		t.Fatal("cost recording requires the explicit new untraced v2 member")
 	}
@@ -425,6 +433,9 @@ func collect(t *testing.T) {
 			t.Fatal("private cost transport unavailable")
 		}
 		costReader, costDone = newCostStream(), make(chan error, 1)
+		if stepResult {
+			costReader = newStepResultCostStream()
+		}
 		child.Stderr = costWriter
 	}
 	child.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -819,11 +830,11 @@ func collect(t *testing.T) {
 		if err != nil || count == 0 {
 			t.Fatal("benchmark Docker create stream is not complete")
 		}
-		wantInspections := 1
-		if route == "v1" {
-			wantInspections = 0
+		wantInspections := probeExpectations[0]
+		if pass == "cached" {
+			wantInspections = probeExpectations[1]
 		}
-		if inspections != wantInspections {
+		if !inventoryProbeCountMatches(inspections, probeExpectations, pass) {
 			t.Fatalf("offline image probes=%d expected=%d", inspections, wantInspections)
 		}
 		sample := releasedBenchmarkSample{Route: route, Fixture: fixture, Pass: pass, EngineSHA256: engineSHA, Platform: runtime.GOOS + "/" + runtime.GOARCH, ElapsedMS: float64(end.Sub(start)) / float64(time.Millisecond), Changesets: steps, CacheHits: hits, LiquibaseCLIStarts: starts, ContainerCreates: count, LiquibaseVersion: version, DriverSHA256: hex.EncodeToString(jarDigest[:]), ImageDigest: image, HelperDigest: helper}

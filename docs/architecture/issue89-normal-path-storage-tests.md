@@ -24,13 +24,13 @@ the previously approved MP01–MP07 normal-path requirements.
 - Expected version tuples, essential columns/FKs and protective outcomes are
   specified independently, not obtained solely from the function under test.
   Target marker tuple: liquibase_store_format=2, prepare_attempt_store_format=3,
-  prepare_liquibase_session_store_format=3,
+  prepare_liquibase_session_store_format=4,
   prepare_liquibase_finalization_store_format=2,
   prepare_liquibase_cache_selection_store_format=1; exactly one slot=1 row each.
-  Session format 3 is the later approved
-  [working-instance handoff amendment](issue89-working-instance-handoff-schema.md).
-  Earlier results below used format 2; they do not qualify format 3. Its tests
-  and limited changes to old marker/artifact expectations require separate approval.
+  Format 3 was introduced by [working-instance handoff](issue89-working-instance-handoff-schema.md);
+  the current format 4 is introduced by [O5 planning-DB handoff](issue89-planning-db-handoff-schema.md).
+  PG01 and bounded OT-PG01 are approved. Earlier results below for format 2
+  remain historical and do not qualify the later formats.
 - Compare logical catalog definitions and all persisted rows before/after a
   refusal, including old jobs/tasks/events, state/instance/access metadata,
   Runtime v2 data and unrelated settings. Do not require byte-identical SQLite

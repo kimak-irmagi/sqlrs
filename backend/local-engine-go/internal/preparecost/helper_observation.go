@@ -16,6 +16,16 @@ type HelperObservation struct {
 // ctx must be the current open planning/step invocation. The disabled path has
 // no allocation, clock read or decoder work. The host supplies elapsed time.
 func RecordHelper(ctx context.Context, data []byte, hostElapsedNS int64) {
+	recordHelper(ctx, data, hostElapsedNS, false)
+}
+
+// RecordStepResultHelper binds the result-mode phases only to a current step
+// invocation. Invalid optional measurements never alter the execution result.
+func RecordStepResultHelper(ctx context.Context, data []byte, hostElapsedNS int64) {
+	recordHelper(ctx, data, hostElapsedNS, true)
+}
+
+func recordHelper(ctx context.Context, data []byte, hostElapsedNS int64, stepResult bool) {
 	current, ok := ctx.Value(scopeKey{}).(scope)
 	if !ok || current.recorder == nil {
 		return
@@ -24,13 +34,14 @@ func RecordHelper(ctx context.Context, data []byte, hostElapsedNS int64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.finished || current.parent <= 0 || current.parent > len(r.spans) ||
-		r.ended[current.parent-1] || !helperOwner(r.spans[current.parent-1].Operation) {
+		r.ended[current.parent-1] || !helperOwner(r.spans[current.parent-1].Operation) ||
+		(stepResult && r.spans[current.parent-1].Operation != Invocation) {
 		r.invalid = true
 		return
 	}
 	observation := HelperObservation{Owner: current.parent, HostElapsedNS: max(0, hostElapsedNS)}
 	if _, duplicate := r.helpers[current.parent]; !duplicate {
-		if detail, err := ParseHelperDetail(data, hostElapsedNS); err == nil {
+		if detail, err := parseHelperDetail(data, hostElapsedNS, stepResult); err == nil {
 			observation.Available, observation.Detail = true, detail
 		}
 	}
@@ -55,8 +66,10 @@ func validHelper(observation HelperObservation, span Span) bool {
 	if !observation.Available {
 		return len(detail.Regions) == 0 && detail.TotalNS == 0 && detail.ResolutionNS == 0 && detail.CumulativeUncertaintyNS == 0
 	}
-	phases := [...]HelperPhase{HelperPreflight, HelperCLI, HelperDrain, HelperStreamFlush,
-		HelperHashRename, HelperRenamedFlush, HelperManifest, HelperFinalFlush}
+	if detail.stepResult && span.Operation != Invocation {
+		return false
+	}
+	phases := helperPhases(detail.stepResult)
 	if len(detail.Regions) != len(phases) || detail.ResolutionNS != HelperResolutionNS ||
 		detail.CumulativeUncertaintyNS != int64(len(phases))*HelperResolutionNS {
 		return false

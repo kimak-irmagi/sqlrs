@@ -39,6 +39,7 @@ jobs:
           cd backend/local-engine-go
           go test ./internal/preparecost ./internal/runtime -count=1 -timeout=4m
           go vet ./internal/preparecost ./internal/runtime
+          go test -race ./internal/prepare -run '^TestLiquibaseInventoryCache' -count=1 -timeout=3m
           (cd ../../test/performance/liquibase && GOWORK=off go test ./... -count=1 -timeout=4m)
       - name: Acquire public native fixture
         run: |
@@ -55,6 +56,7 @@ jobs:
           go test ./internal/runtime -run '^(TestCostHelperFlushBoundariesDocker|TestLiquibaseStepCaptureReusableRunnerDocker)$' -v -count=1 -timeout=8m
           go test ./internal/runtime -run '^TestCostHelperTimersDocker$' -v -count=1 -timeout=6m
           go test ./internal/runtime -run '^TestCombinedCapturePrune(NativeDocker|WrapperNativeDocker)$' -v -count=1 -timeout=6m
+          go test ./internal/runtime -run '^TestStepResultEnvelopeNativeDocker$' -v -count=1 -timeout=6m
       - name: Qualify native host attribution and unchanged prepare
         working-directory: backend/local-engine-go
         env:
@@ -62,5 +64,6 @@ jobs:
           SQLRS_PREPARE_COST: '0'
           SQLRS_JDBC_JAR_PATH: ${{ github.workspace }}/dist/deps/postgresql-42.7.13.jar
         run: |
-          go test ./internal/prepare -run '^(TestCostMainPathNamedAttributionDocker|TestMainPathLiquibasePrepareDocker|TestCombinedCapturePruneKnownFailureDocker)$' -v -count=1 -timeout=8m
+          go test ./internal/prepare -run '^(TestCostMainPathNamedAttributionDocker|TestMainPathLiquibasePrepareDocker|TestCombinedCapturePruneKnownFailureDocker|TestStepResultMainPathNativeDocker)$' -v -count=1 -timeout=8m
           go test ./internal/prepare -run '^TestCompleteTimelineMainPathDocker$' -v -count=1 -timeout=8m
+          go test ./internal/prepare -run '^(TestPlanningDBHandoffDocker|TestNormalPlanningDBHandoffOrder)$' -v -count=1 -timeout=10m

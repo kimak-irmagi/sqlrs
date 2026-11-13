@@ -16,7 +16,9 @@ The released prepare_jobs baseline has its own bounded, value-preserving bridge;
 prototype migration/recovery is not part of that installation path.
 
 The approved [working-instance handoff](issue89-working-instance-handoff-schema.md)
-uses session format 3 and an atomic transfer receipt for the live published DB.
+introduced session format 3 and an atomic transfer receipt for the live published DB.
+The current session format is 4 under the approved
+[O5 planning-DB handoff](issue89-planning-db-handoff-schema.md).
 It does not invent a DB-absence fact or permanently retain an instance/state
 through historical receipt foreign keys. Job deletion must preserve instance-owned
 runtime bytes; ordinary instance deletion owns their eventual removal.

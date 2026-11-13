@@ -257,7 +257,7 @@ func appendAttemptEvidenceTx(ctx context.Context, tx *sql.Tx, attempt AttemptRec
 		return 0, ErrCommonAttempt
 	}
 	switch kind {
-	case "executor_inspection", "never_started", "db_quiescence", "probe", "publication", "planning_output", "termination_requested", "termination_acknowledged", cancelledPlanningEvidence:
+	case "executor_inspection", "never_started", "db_quiescence", "probe", "publication", "planning_output", "termination_requested", "termination_acknowledged", cancelledPlanningEvidence, "planning_db_retained", "planning_db_disposal_requested", "planning_db_disposed":
 	default:
 		return 0, ErrCommonAttempt
 	}

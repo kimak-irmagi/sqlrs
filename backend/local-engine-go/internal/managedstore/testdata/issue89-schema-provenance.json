@@ -18,10 +18,10 @@
     "description": "Final approved composed SQLite catalog, obtained through InitializeCommon; migrations run only during this one-time extraction, never by the delivered installer."
   },
   "artifact_sha256": {
-    "liquibase-main-schema.sql": "6f65614ecd5359357c59c33d6e53d97f6bb3ad24452b9ee80f22da99d0aaed6b",
-    "liquibase-main-catalog.json": "a67f6a8d63b26569ca306e31c3d31fe411be854678fb7c4ac6b24e4d2e69c42c",
+    "liquibase-main-schema.sql": "b6d2162166cac78f8fbd0db3b1b13bcaaa4816f3d87ee3918e1629fcb939eb97",
+    "liquibase-main-catalog.json": "1ab326c5c88e65510778b7462125166410299b3c5bb1edc280f5362105b333c0",
     "issue89-released.sql": "3959fbec836ba13386a3a2fb3024f111c55a52a56b369d0537ff02795037674e",
-    "issue89-target-catalog.json": "4af3072d0042c1cbd48f8e63836df88a0e66eea9884ee4fe90aa8244441c6026"
+    "issue89-target-catalog.json": "725b9251d5bc5fabaaa3fec5eff088a969567a4223a157f06c4e2a1d2a35a3d5"
   },
   "working_instance_handoff": {
     "decision": "docs/adr/2026-11-07-liquibase-working-instance-handoff.md",
@@ -37,6 +37,15 @@
     "approved_date": "2026-11-08",
     "changed_objects": ["prepare_decision_evidence_delete_guard"],
     "description": "Retain links while the decision's parent job exists; permit terminal cascades independently of sibling deletion order. Frozen released/composed provenance is unchanged."
+  },
+  "planning_db_handoff": {
+    "decision": "docs/adr/2026-11-12-liquibase-measured-overhead-reduction.md",
+    "schema": "docs/architecture/issue89-planning-db-handoff-schema.md",
+    "session_format": 4,
+    "catalog_objects": 299,
+    "changed_objects": ["prepare_liquibase_session_store_format", "prepare_planning_resolution_guard", "prepare_lb_finalization_failure_admission", "prepare_liquibase_handoff_resume"],
+    "added_objects": ["prepare_liquibase_planning_db_ownership", "prepare_planning_db_live_owners", "prepare_planning_db_identity", "prepare_planning_db_delete", "prepare_planning_db_insert", "prepare_planning_db_transfer", "prepare_planning_db_session_adoption", "prepare_planning_db_request", "prepare_planning_db_disposed", "prepare_planning_db_clone_release", "prepare_planning_db_job_terminal", "prepare_planning_db_job_delete", "prepare_planning_db_operation_update", "prepare_planning_db_operation_delete"],
+    "description": "Approved O5 live planning DB ownership amendment; released artifacts and historical composed/source-file identities are unchanged."
   },
   "source_files_sha256": {
     "internal/instanceaccess/service.go": "97f5b6fdbde4a08edf56c8767e36eb9fb6d336b84b812dbacf88eae649774c93",

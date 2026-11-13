@@ -28,7 +28,7 @@ try {
     return { name: row.name, type: row.type, table: row.tbl_name, sha256: digest(row.sql), offset: Buffer.byteLength(ddl.slice(0, offset)), length: Buffer.byteLength(statement), ...(original?.released_sha256 ? { released_sha256: original.released_sha256 } : {}) };
   });
   if (objects.length !== definitions.size) throw new Error('Canonical statement/catalog mismatch');
-  const markers = prior.markers.map(marker => marker.table === 'prepare_liquibase_session_store_format' ? { ...marker, sql: 'INSERT INTO prepare_liquibase_session_store_format(slot,format_version) VALUES(1,3);' } : marker);
+  const markers = prior.markers.map(marker => marker.table === 'prepare_liquibase_session_store_format' ? { ...marker, sql: 'INSERT INTO prepare_liquibase_session_store_format(slot,format_version) VALUES(1,4);' } : marker);
   const expected = Object.fromEntries([...objects].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0).map(row => [row.name, { type: row.type, table: row.table, sha256: row.sha256 }]));
   writeFileSync(resolve(asset, 'liquibase-main-catalog.json'), JSON.stringify({ objects, markers }, null, 2) + '\n');
   writeFileSync(resolve(fixture, 'issue89-target-catalog.json'), JSON.stringify(expected, null, 2) + '\n');

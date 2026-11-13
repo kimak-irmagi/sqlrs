@@ -3,13 +3,13 @@
 // Requirements: issue89-cost-attribution-and-trimming.md §4.
 const operations = new Set([
   'prepare.request', 'prepare.admission',
-  'plan.release', 'db.source_prepare', 'session.plan', 'session.input_prepare', 'step.status', 'runner.stop',
+  'plan.release', 'plan.retain', 'plan.db_transfer', 'db.source_prepare', 'session.plan', 'session.input_prepare', 'step.status', 'runner.stop',
   'admission.inputs', 'admission.image', 'admission.identity', 'admission.commit', 'db.assign', 'publication.activate', 'publication.commit', 'private.dispose',
   'binding.prepare', 'projection.wait', 'input.publish', 'input.materialize', 'runner.resolve', 'runner.ensure', 'driver.materialize', 'binding.commit',
   'plan.launch_prepare', 'plan.input_prepare', 'plan.capture_reconcile', 'plan.dispose', 'plan.suffix',
   'db.startup', 'db.lock_wait', 'db.base_init', 'db.clone', 'db.start', 'db.attach', 'db.verify.startup',
   'session.runner_start', 'session.readiness', 'step.bind', 'projection.cleanup', 'finalization.confirm', 'finalization.commit',
-  'prepare.worker', 'runner.inventory', 'capture.read', 'capture.prune', 'docker.command', 'docker.capture_copy',
+  'prepare.worker', 'runner.inventory', 'runner.inventory_lookup', 'capture.read', 'capture.result_decode', 'capture.prune', 'docker.command', 'docker.capture_copy',
   'prepare.planning', 'prepare.session_startup', 'prepare.step', 'liquibase.invoke', 'liquibase.plan_invoke',
   'db.prepare_snapshot', 'db.resume.step', 'db.resume.publication', 'db.verify.after_apply', 'db.verify.after_resume',
   'state.snapshot', 'state.size', 'state.seal', 'journal.state_publish',

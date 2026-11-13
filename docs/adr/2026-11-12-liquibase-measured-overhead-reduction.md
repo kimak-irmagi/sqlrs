@@ -69,8 +69,39 @@
 - Alternatives: duplicate physical clone/operation identities; overload absence
   facts; or add one relational ownership record referencing exact append-only
   retention/disposal facts and one deferred-bound working session.
-- Proposed decision (schema approval pending): one 13-column table and a partial
+- Decision (schema approved on 2026-11-12): one 13-column table and a partial
   live-owner index, existing journal facts, exact transition/cleanup guards and
   session store format 3→4; no prototype migration, new API or SQL replay.
 - Rationale: avoid duplicate destructive owners, fictitious absence, permanent
   historical resource pins and uncertain-COMMIT cleanup races.
+
+## Approve the bounded inventory tests and coupled observations
+
+- Conversation date: 2026-11-12, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: how to test O6 without accepting arbitrary observed probe counts?
+- Alternatives: relax counters to accept either zero or one; prewarm the cache;
+  or predeclare exact artifact-bound cold/hit expectations and preserve legacy
+  controls while testing isolation, cancellation, failures and finite capacity.
+- Decision: approve IC01–IC08 and only OT-IC01–OT-IC03 in the inventory test plan.
+- Rationale: distinguish a genuine avoided probe from missing compatibility work;
+  preserve the original timing window, workload and independent data oracles.
+
+## Approve the same-exec framing and its exact test changes
+
+- Conversation date: 2026-11-12, Asia/Novosibirsk; exact reply time unavailable.
+- GitHub participant: @evilguest (41718235).
+- Agent: Codex / GPT-5.
+- Question: how to frame the approved same-exec result and preserve completion
+  checks without another result acquisition?
+- Alternatives: delimit arbitrary streams as text; add another archive read;
+  or fixed ordered binary-length members, a bounded optional detail and a final
+  root-helper idle/prune footer, with exact pre/post parent inspection.
+- Decision: approve IR01–IR10, the wire/quota definition and only OT-IR01–OT-IR08
+  in issue89-same-exec-result-tests.md. Transport zero and manifest child exit
+  remain distinct; quota/transport failures cannot trigger a hidden success read.
+  Legacy independent reads/parsers remain strict; new measurements are explicitly
+  selected by exact artifact before observation.
+- Rationale: avoid successful-path Docker round trips while retaining durable
+  output, identity/hash/EOF checks and the original API timing/speed criterion.

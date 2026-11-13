@@ -260,6 +260,10 @@ AND EXISTS (SELECT 1 FROM prepare_tasks final_task WHERE final_task.job_id=prepa
 AND NOT EXISTS (SELECT 1 FROM prepare_tasks pending WHERE pending.job_id=prepare_liquibase_sessions.job_id
  AND pending.type='state_execute' AND pending.status<>'succeeded')
 AND NOT EXISTS (SELECT 1 FROM prepare_step_attempts pending WHERE pending.clone_id=prepare_liquibase_sessions.clone_id
- AND (pending.phase<>'closed' OR pending.resolution IS NOT 'published'))
+ AND (pending.phase<>'closed' OR pending.resolution IS NOT 'published')
+ AND NOT(pending.task_id='plan' AND pending.phase='closed' AND pending.resolution='planning_result_saved'
+ AND EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership owner WHERE owner.job_id=prepare_liquibase_sessions.job_id
+ AND owner.clone_id=prepare_liquibase_sessions.clone_id AND owner.session_id=prepare_liquibase_sessions.session_id
+ AND owner.task_id=pending.task_id AND owner.attempt_no=pending.attempt_no)))
 AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_job_cancellations cancel WHERE cancel.job_id=prepare_liquibase_sessions.job_id)
 AND NOT EXISTS (SELECT 1 FROM prepare_liquibase_job_finalizations final WHERE final.job_id=prepare_liquibase_sessions.job_id)`

@@ -161,7 +161,7 @@ func (c *jobCoordinator) runObservedContainerLiquibase(ctx context.Context, runn
 		return preparecost.Failed
 	}
 	if view.Purpose == "cache_explain" {
-		if err := m.finishNormalLiquibaseExplanation(ctx, q, jobID, p, plan, tasks, stateID); err != nil {
+		if err := m.finishNormalLiquibaseExplanation(ctx, q, jobID, p, plan.PlanningResult, tasks, stateID); err != nil {
 			m.pauseContainerLiquibase(jobID, err)
 			return preparecost.Failed
 		}
@@ -205,6 +205,11 @@ func (c *jobCoordinator) runObservedContainerLiquibase(ctx context.Context, runn
 			continue
 		}
 		if ctx.Err() != nil {
+			if plan.retained != nil {
+				if err := m.finishRetainedPlanningCancellation(ctx, q, runtime, plan.retained); err == nil {
+					return preparecost.Cancelled
+				}
+			}
 			m.pauseContainerLiquibase(jobID, ctx.Err())
 			return preparecost.Failed
 		}
@@ -246,11 +251,19 @@ func (c *jobCoordinator) runObservedContainerLiquibase(ctx context.Context, runn
 			return preparecost.Failed
 		}
 		if working == nil {
-			working, err = m.startNormalLiquibaseSession(preparecost.WithPhase(workerCtx, preparecost.PhaseStartup, 0), q, runtime, jobID, p, task, position, binding)
+			if plan.retained != nil && (task.Input.Kind != plan.retained.preview.Clone.SourceKind || task.Input.ID != planningCloneSource(plan.retained.preview.Clone)) {
+				if err := m.disposeNormalPlanningDB(ctx, q, runtime, plan.retained, "source_mismatch"); err != nil {
+					m.pauseContainerLiquibase(jobID, err)
+					return preparecost.Failed
+				}
+				plan.retained = nil
+			}
+			working, err = m.startNormalLiquibaseSession(preparecost.WithPhase(workerCtx, preparecost.PhaseStartup, 0), q, runtime, jobID, p, task, position, binding, plan.retained)
 			if err != nil {
 				m.pauseContainerLiquibase(jobID, err)
 				return preparecost.Failed
 			}
+			plan.retained = nil
 			runner.setRuntime(working.rt)
 		}
 		if err := m.executeNormalLiquibaseStep(ctx, q, runtime, p, task, binding, working); err != nil {
@@ -273,6 +286,13 @@ func (c *jobCoordinator) runObservedContainerLiquibase(ctx context.Context, runn
 		}
 	}
 	ctx = preparecost.WithPhase(workerCtx, preparecost.PhasePublication, 0)
+	if plan.retained != nil {
+		if err := m.disposeNormalPlanningDB(ctx, q, runtime, plan.retained, "full_cache"); err != nil {
+			m.pauseContainerLiquibase(jobID, err)
+			return preparecost.Failed
+		}
+		plan.retained = nil
+	}
 	if err := m.publishNormalLiquibaseResult(ctx, q, runtime, runner, jobID, p, stateID, working); err != nil {
 		m.pauseContainerLiquibase(jobID, err)
 		return preparecost.Failed
@@ -402,22 +422,22 @@ func (m *PrepareService) pauseContainerLiquibase(jobID string, cause error) {
 	_ = m.appendEvent(jobID, Event{Type: "error", Status: "recovery_required", Ts: m.normalTimestamp(), Error: &problem})
 }
 
-func (m *PrepareService) planNormalContainerLiquibase(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest) (queue.PlanningResult, error) {
-	return preparecost.Observe(ctx, preparecost.Planning, func(ctx context.Context) (queue.PlanningResult, error) {
+func (m *PrepareService) planNormalContainerLiquibase(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest) (normalPlanningResult, error) {
+	return preparecost.Observe(ctx, preparecost.Planning, func(ctx context.Context) (normalPlanningResult, error) {
 		return m.observePlanNormalContainerLiquibase(ctx, q, runtime, jobID, p)
 	})
 }
 
-func (m *PrepareService) observePlanNormalContainerLiquibase(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest) (queue.PlanningResult, error) {
+func (m *PrepareService) observePlanNormalContainerLiquibase(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest) (normalPlanningResult, error) {
 	record, found, err := q.GetLiquibaseExecutionForJob(ctx, jobID)
 	if err != nil || !found {
-		return queue.PlanningResult{}, queue.ErrLiquibaseBinding
+		return normalPlanningResult{}, queue.ErrLiquibaseBinding
 	}
 	launch, err := preparecost.Observe(ctx, preparecost.PlanLaunch, func(child context.Context) (queue.PlanningLaunch, error) {
 		return m.buildPlanningLaunch(child, jobID, p, record, m.containerLiquibase.Sources)
 	})
 	if err != nil {
-		return queue.PlanningResult{}, err
+		return normalPlanningResult{}, err
 	}
 	var database *jobRuntime
 	attempt, err := launchBoundPlanningClone(ctx, q, boundCloneMaterializerFunc(func(ctx context.Context, clone queue.ClonePlan) (string, error) {
@@ -429,15 +449,15 @@ func (m *PrepareService) observePlanNormalContainerLiquibase(ctx context.Context
 		return database.instance.ID, nil
 	}), launch)
 	if err != nil {
-		return queue.PlanningResult{}, err
+		return normalPlanningResult{}, err
 	}
 	saved, found, err := q.LoadPlanningAttempt(ctx, jobID, 1)
 	if err != nil || !found {
-		return queue.PlanningResult{}, queue.ErrPlanningSchema
+		return normalPlanningResult{}, queue.ErrPlanningSchema
 	}
 	connection, err := m.managedConnection(ctx, database)
 	if err != nil {
-		return queue.PlanningResult{}, err
+		return normalPlanningResult{}, err
 	}
 	// Multiple values retain their exact original ownership on both outcomes.
 	var request engineRuntime.RunRequest
@@ -449,33 +469,25 @@ func (m *PrepareService) observePlanNormalContainerLiquibase(ctx context.Context
 		return problem
 	})
 	if err != nil {
-		return queue.PlanningResult{}, err
+		return normalPlanningResult{}, err
 	}
 	tracked, err := runTrackedExecutor(ctx, q, runtime, attempt, request, m.normalTimestamp)
 	if err != nil {
-		return queue.PlanningResult{}, err
+		return normalPlanningResult{}, err
 	}
 	attempt.ExecutorID = tracked.ExecutorID
-	// The preview DB is independent of the later working session. Stop and
-	// retire its exact assignment before recording absence, not merely pg_ctl.
-	preview := &jobRunner{}
-	preview.setRuntime(database)
-	if err := preparecost.ObserveCall(ctx, preparecost.PlanDispose, func(child context.Context) error { return m.cleanupRuntime(child, preview) }); err != nil {
-		return queue.PlanningResult{}, err
-	}
-	if _, err := q.RecordPlanningCloneQuiescence(ctx, attempt, 1, launch.Clone.PlannedRuntimeName, database.instance.ID, m.normalTimestamp()); err != nil {
-		return queue.PlanningResult{}, err
-	}
+	// Reload the exact stopped planner before retaining its live allocation.
 	saved, found, err = q.LoadPlanningAttempt(ctx, jobID, 1)
 	if err != nil || !found {
-		return queue.PlanningResult{}, queue.ErrPlanningSchema
+		return normalPlanningResult{}, queue.ErrPlanningSchema
 	}
-	result, err := preparecost.Observe(ctx, preparecost.PlanCapture, func(child context.Context) (queue.PlanningResult, error) {
-		return reconcilePlanningCapture(child, q, runtime, saved, captureDir, planningCaptureMaxBytes, m.normalTimestamp())
+	planned, err := preparecost.Observe(ctx, preparecost.PlanCapture, func(child context.Context) (normalPlanningResult, error) {
+		return m.captureNormalPlanningDB(child, q, runtime, p, saved, tracked, database, captureDir)
 	})
 	if err != nil {
-		return queue.PlanningResult{}, err
+		return normalPlanningResult{}, err
 	}
+	result := planned.PlanningResult
 	err = preparecost.ObserveCall(ctx, preparecost.PlanRelease, func(ctx context.Context) error {
 		if _, err := q.SavePrivatePlanningCaptureDisposal(ctx, saved.Attempt, 1, "plan_saved", result.PlanDigest, m.normalTimestamp()); err != nil {
 			return err
@@ -493,8 +505,10 @@ func (m *PrepareService) observePlanNormalContainerLiquibase(ctx context.Context
 		if err := q.RetirePlanningArtifact(ctx, saved.Attempt, 1, "input", observation, m.normalTimestamp()); err != nil {
 			return err
 		}
-		if err := q.ReleasePlanningClone(ctx, saved.Attempt, 1, observation); err != nil {
-			return err
+		if planned.retained == nil {
+			if err := q.ReleasePlanningClone(ctx, saved.Attempt, 1, observation); err != nil {
+				return err
+			}
 		}
 		helper := filepath.Join(m.stateStoreRoot, "jobs", jobID, "planning-helpers", launch.Clone.ID, "capture.sh")
 		if err := os.Remove(helper); err != nil && !os.IsNotExist(err) {
@@ -503,9 +517,9 @@ func (m *PrepareService) observePlanNormalContainerLiquibase(ctx context.Context
 		return nil
 	})
 	if err != nil {
-		return queue.PlanningResult{}, err
+		return normalPlanningResult{}, err
 	}
-	return result, nil
+	return planned, nil
 }
 
 // normalLiquibaseAbsence is a real read-only physical observation, bound to
@@ -589,24 +603,34 @@ func (m *PrepareService) finishObservedNormalLiquibase(ctx context.Context, q no
 	})
 }
 
-func (m *PrepareService) startNormalLiquibaseSession(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest, task taskState, position int, binding queue.ExecutionBinding) (*normalLiquibaseWorking, error) {
+func (m *PrepareService) startNormalLiquibaseSession(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest, task taskState, position int, binding queue.ExecutionBinding, candidate ...*normalPlanningDB) (*normalLiquibaseWorking, error) {
 	return preparecost.Observe(ctx, preparecost.SessionStartup, func(ctx context.Context) (*normalLiquibaseWorking, error) {
-		return m.observeStartNormalLiquibaseSession(ctx, q, runtime, jobID, p, task, position, binding)
+		return m.observeStartNormalLiquibaseSession(ctx, q, runtime, jobID, p, task, position, binding, candidate...)
 	})
 }
 
-func (m *PrepareService) observeStartNormalLiquibaseSession(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest, task taskState, position int, binding queue.ExecutionBinding) (*normalLiquibaseWorking, error) {
+func (m *PrepareService) observeStartNormalLiquibaseSession(ctx context.Context, q normalLiquibaseJournal, runtime normalLiquibaseRuntime, jobID string, p preparedRequest, task taskState, position int, binding queue.ExecutionBinding, candidate ...*normalPlanningDB) (*normalLiquibaseWorking, error) {
 	id, err := randomHex(12)
 	if err != nil {
 		return nil, err
 	}
-	cloneID, err := randomHex(12)
-	if err != nil {
-		return nil, err
+	var retained *normalPlanningDB
+	if len(candidate) > 0 {
+		retained = candidate[0]
 	}
-	generation, err := q.NextCloneGeneration(ctx, jobID)
-	if err != nil {
-		return nil, err
+	var cloneID string
+	var generation int
+	if retained == nil {
+		cloneID, err = randomHex(12)
+		if err != nil {
+			return nil, err
+		}
+		generation, err = q.NextCloneGeneration(ctx, jobID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cloneID, generation = retained.preview.Clone.ID, retained.preview.Clone.Generation
 	}
 	helperBytes, helperDigest := engineRuntime.LiquibaseStepCaptureHelper()
 	stored, err := m.containerLiquibase.Sources.PublishBlob(ctx, helperBytes)
@@ -624,23 +648,44 @@ func (m *PrepareService) observeStartNormalLiquibaseSession(ctx context.Context,
 	} else {
 		clone.SourceStateID = task.Input.ID
 	}
+	if retained != nil {
+		clone = retained.preview.Clone
+	}
 	session := queue.LiquibaseSessionRecord{SessionID: id, JobID: jobID, CloneID: cloneID, SessionNo: 1, WorkerGeneration: 1, ExecutionFingerprint: p.liquibaseFingerprint,
 		StartKind: task.Input.Kind, StartID: task.Input.ID, StartPosition: position, PlannedRunnerName: "sqlrs-lb-session-" + id,
 		RunnerConfigDigest:  digestLiquibaseValues("lb-session-config-v1", p.liquibaseFingerprint, p.effectiveImageID(), cloneID, helperDigest, protectedRef, p.argsNormalized),
 		CaptureHelperDigest: helperDigest, ProtectedConfigRef: protectedRef, CreatedAt: m.normalTimestamp()}
 	session, err = preparecost.Observe(ctx, preparecost.SessionPlan, func(child context.Context) (queue.LiquibaseSessionRecord, error) {
-		return q.PlanLiquibaseSession(child, queue.LiquibaseSessionLaunch{Session: session, Clone: clone, FirstTaskID: task.TaskID, ExecutionDigest: binding.Digest, HelperLeaseID: "session-helper-" + id})
+		launch := queue.LiquibaseSessionLaunch{Session: session, Clone: clone, FirstTaskID: task.TaskID, ExecutionDigest: binding.Digest, HelperLeaseID: "session-helper-" + id}
+		if retained != nil {
+			journal, ok := q.(planningDBJournal)
+			if !ok {
+				return queue.LiquibaseSessionRecord{}, queue.ErrPlanningSchema
+			}
+			return preparecost.Observe(child, preparecost.PlanDBTransfer, func(ctx context.Context) (queue.LiquibaseSessionRecord, error) {
+				return journal.TransferPlanningDBToFirstSession(ctx, launch)
+			})
+		}
+		return q.PlanLiquibaseSession(child, launch)
 	})
 	if err != nil {
 		return nil, err
 	}
-	rt, problem := (&taskExecutor{m: m}).startManagedRuntimeWithPlan(ctx, jobID, p, task.Input, &clone)
-	if problem != nil {
-		return nil, fmt.Errorf("working database unavailable: %s (%s)", problem.Message, problem.Details)
+	var rt *jobRuntime
+	if retained != nil {
+		rt = retained.runtime
+	} else {
+		var problem *ErrorResponse
+		rt, problem = (&taskExecutor{m: m}).startManagedRuntimeWithPlan(ctx, jobID, p, task.Input, &clone)
+		if problem != nil {
+			return nil, fmt.Errorf("working database unavailable: %s (%s)", problem.Message, problem.Details)
+		}
 	}
 	working := &normalLiquibaseWorking{session: session, clone: clone, rt: rt, coordinator: &liquibaseSessionCoordinator{journal: q, runtime: runtime, now: m.normalTimestamp}}
-	if err := q.ActivateLiquibaseSessionClone(ctx, session, clone.PlannedRuntimeName, rt.instance.ID); err != nil {
-		return nil, err
+	if retained == nil {
+		if err := q.ActivateLiquibaseSessionClone(ctx, session, clone.PlannedRuntimeName, rt.instance.ID); err != nil {
+			return nil, err
+		}
 	}
 	working.helper = filepath.Join(m.stateStoreRoot, "jobs", jobID, "liquibase-sessions", id, "step-capture.sh")
 	if err := preparecost.ObserveCall(ctx, preparecost.SessionInput, func(child context.Context) error {

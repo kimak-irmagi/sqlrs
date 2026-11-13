@@ -1,5 +1,11 @@
 # #89: remove duplicate work and measure named operations
 
+Current amendment: [O5–O7](issue89-measured-overhead-reduction.md). O7 returns
+successful step output in the same bounded exec; `capture.result_decode` measures
+its real validation, while `capture.read` remains the independent read path.
+The archive-based normal path below describes the preceding measured revision,
+not a requirement to issue extra reads after a complete same-exec result.
+
 Status, 2026-11-10: @evilguest approved the direction and then explicitly approved
 the reviewed component details below. Exact reply timestamp unavailable.
 **CT01–CT14 are separately approved; implementation is starting tests-first.**

@@ -71,11 +71,17 @@ try {
       const engineHash = item.Route === 'v1' ? prepared.baselineHash : artifact.engineHash;
       const revision = item.Route === 'v1' ? prepared.baselineRevision : artifact.revision;
       verifyBytes(fs.readFileSync(engine), engineHash);
+      const environment = costCampaignEnvironment(process.env, item);
+      const expected = { route: item.Route, fixture: 'jhipster', revision, engineHash,
+        inventoryPolicy: environment.SQLRS_BENCH_IMAGE_PROBE_POLICY,
+        inventoryVariant: environment.SQLRS_BENCH_IMAGE_PROBE_VARIANT,
+        resultPolicy: environment.SQLRS_BENCH_RESULT_POLICY,
+        resultVariant: environment.SQLRS_BENCH_RESULT_VARIANT };
       const output = await new Promise((resolve, reject) => {
         let output = '', overflow = false, launchFailed = false;
         active = spawn(path.join(root,'prepared/collector.test'), ['-test.run=^TestReleasedEngine$','-test.v','-test.timeout=12m'], {
           cwd: path.join(repo,'test/performance/liquibase'), stdio: ['ignore','pipe','pipe'],
-          env: { ...costCampaignEnvironment(process.env, item), SQLRS_LIQUIBASE_RELEASED_BENCH: '1',
+          env: { ...environment, SQLRS_LIQUIBASE_RELEASED_BENCH: '1',
             SQLRS_BENCH_REPO: repo, SQLRS_BENCH_FIXTURE: 'jhipster', SQLRS_BENCH_ROUTE: item.Route,
             SQLRS_BENCH_ENGINE: engine, SQLRS_BENCH_ENGINE_SHA256: engineHash, SQLRS_BENCH_REVISION: revision,
             SQLRS_BENCH_DISTRIBUTIONS: path.join(root,'distributions'), SQLRS_BENCH_INPUTS: path.join(root,'inputs'), SQLRS_BENCH_DB_IMAGE: spec.database }
@@ -92,7 +98,6 @@ try {
           } else resolve(output);
         });
       });
-      const expected = { route: item.Route, fixture: 'jhipster', revision, engineHash };
       report.stage = 'qualify_samples'; persist();
       const samples = parseCollectorResult(0, output, expected);
       report.stage = 'qualify_costs'; persist();

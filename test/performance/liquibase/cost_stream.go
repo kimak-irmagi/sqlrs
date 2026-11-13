@@ -38,6 +38,7 @@ type costRoot struct {
 	Clock           *costTimelineClock
 	ObserverWindow  *costTimelineWindow
 	helperIndex     map[int]int
+	stepResult      bool
 }
 
 // Complete-mode clock data is independent of product types and reference-relative.
@@ -55,15 +56,24 @@ const maxCostTimelineNumber = uint64(1<<53 - 1)
 // only after the original API timer ends, never to extend that timed interval.
 // Requirements: CT10 and limited OT-CT03, cost-attribution-and-trimming design.
 type costStream struct {
-	mu      sync.Mutex
-	roots   map[uint64]*costRoot
-	changed chan struct{}
-	closed  bool
-	err     error
+	mu         sync.Mutex
+	roots      map[uint64]*costRoot
+	changed    chan struct{}
+	closed     bool
+	err        error
+	stepResult bool
 }
 
 func newCostStream() *costStream {
 	return &costStream{roots: make(map[uint64]*costRoot), changed: make(chan struct{})}
+}
+
+// newStepResultCostStream explicitly accepts ten regions only for work steps;
+// planning keeps its original eight-region protocol.
+func newStepResultCostStream() *costStream {
+	stream := newCostStream()
+	stream.stepResult = true
+	return stream
 }
 
 // consume retains only validated fields. Unrelated huge lines are discarded
@@ -124,7 +134,7 @@ func (s *costStream) accept(line string) error {
 		if !validCount || count > costSpanLimit || !validElapsed || (fields[4] != "0" && fields[4] != "1") || fields[4] == "0" && count != 0 {
 			return errCostStream
 		}
-		s.roots[id] = &costRoot{Root: id, Declared: int(count), ElapsedNS: int64(elapsed), Complete: fields[4] == "1"}
+		s.roots[id] = &costRoot{Root: id, Declared: int(count), ElapsedNS: int64(elapsed), Complete: fields[4] == "1", stepResult: s.stepResult}
 	case "clock":
 		if !exists || !root.Complete || root.Ended || root.Clock != nil || len(root.Spans) != 0 ||
 			len(fields) != 4 || fields[2] != "linux-monotonic-relative-v1" {
@@ -196,7 +206,7 @@ func (s *costStream) accept(line string) error {
 			return errCostStream
 		}
 		for _, helper := range root.Helpers {
-			if helper.Available && len(helper.Detail.Regions) != len(costHelperPhases) {
+			if helper.Available && len(helper.Detail.Regions) != len(root.helperPhases(helper.Owner)) {
 				return errCostStream
 			}
 		}
@@ -220,7 +230,7 @@ func costOperation(value string) bool {
 	switch value {
 	case "prepare.request", "prepare.admission":
 		return true
-	case "plan.release", "db.source_prepare", "session.plan", "session.input_prepare", "step.status", "runner.stop":
+	case "plan.release", "plan.retain", "plan.db_transfer", "db.source_prepare", "session.plan", "session.input_prepare", "step.status", "runner.stop":
 		return true
 	case "admission.inputs", "admission.image", "admission.identity", "admission.commit", "db.assign", "publication.activate", "publication.commit", "private.dispose":
 		return true
@@ -229,7 +239,7 @@ func costOperation(value string) bool {
 		"db.startup", "db.lock_wait", "db.base_init", "db.clone", "db.start", "db.attach", "db.verify.startup",
 		"session.runner_start", "session.readiness", "step.bind", "projection.cleanup", "finalization.confirm", "finalization.commit":
 		return true
-	case "prepare.worker", "runner.inventory", "capture.read", "capture.prune", "docker.command", "docker.capture_copy":
+	case "prepare.worker", "runner.inventory", "runner.inventory_lookup", "capture.read", "capture.result_decode", "capture.prune", "docker.command", "docker.capture_copy":
 		return true
 	case "prepare.planning", "prepare.session_startup", "prepare.step":
 		return true

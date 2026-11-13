@@ -401,10 +401,10 @@ func TestCombinedCapturePruneCostBoundaries(t *testing.T) {
 }
 
 func TestCombinedCapturePruneInvocation(t *testing.T) {
-	r, identity, _ := combinedCaptureFixture(t, true, "running", 0)
+	r, identity, _ := stepResultRuntimeFixture(t, true, 0)
 	got, err := NewDocker(Options{Binary: "configured-docker", Runner: r}).InvokeTrackedLiquibaseStep(t.Context(), r.name, "", identity, []string{"update-count", "--count", "1"}, 1024)
-	if err != nil || !got.MatchesPruneObservation(identity, *identity.Prune) || !reflect.DeepEqual(r.operations, []string{"inspect-before", "apply", "inspect-after", "archive", "combined", "inspect-after"}) {
-		t.Fatal("whole invocation did not retain its six actual operations", err, r.operations)
+	if err != nil || !got.MatchesPruneObservation(identity, *identity.Prune) || !reflect.DeepEqual(r.operations, []string{"inspect-before", "apply-result", "inspect-after"}) {
+		t.Fatal("whole invocation did not use its three actual operations", err, r.operations)
 	}
 }
 

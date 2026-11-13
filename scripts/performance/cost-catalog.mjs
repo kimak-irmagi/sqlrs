@@ -7,7 +7,9 @@ const definitions = [
   {"Operation":"liquibase.plan_invoke","Relation":"changed","Current":{"File":"internal/prepare/tracked_executor.go","Symbol":"runTrackedExecutor"},"Released":{"File":"internal/prepare/components.go","Symbol":"PrepareService.runLiquibaseUpdateSQL","Revision":"cab99c4c7ced5b18f4dc43a65b002d84d8fef02d"}},
   {"Operation":"prepare.worker","Relation":"changed","Current":{"File":"internal/prepare/liquibase_normal_worker.go","Symbol":"jobCoordinator.runContainerLiquibase"},"Released":{"File":"internal/prepare/manager.go","Symbol":"jobCoordinator.runJob","Revision":"cab99c4c7ced5b18f4dc43a65b002d84d8fef02d"}},
   {"Operation":"runner.inventory","Relation":"additional","Current":{"File":"internal/runtime/runner_image_inspect.go","Symbol":"DockerRuntime.InspectRunnerImage"},"Released":null},
+  {"Operation":"runner.inventory_lookup","Relation":"additional","Current":{"File":"internal/prepare/liquibase_inventory_cache.go","Symbol":"PrepareService.inspectLiquibaseInventory"},"Released":null},
   {"Operation":"capture.read","Relation":"additional","Current":{"File":"internal/runtime/liquibase_step_capture.go","Symbol":"DockerRuntime.ReadCompleteLiquibaseStepOutput"},"Released":null},
+  {"Operation":"capture.result_decode","Relation":"additional","Current":{"File":"internal/runtime/step_result_envelope.go","Symbol":"decodeStepResultEnvelope"},"Released":null},
   {"Operation":"capture.prune","Relation":"additional","Current":{"File":"internal/runtime/liquibase_prune.go","Symbol":"DockerRuntime.VerifyLiquibaseCapturePruned"},"Released":null},
   {"Operation":"docker.command","Relation":"shared","Current":{"File":"internal/runtime/docker.go","Symbol":"DockerRuntime.run"},"Released":{"File":"internal/runtime/docker.go","Symbol":"DockerRuntime.run","Revision":"cab99c4c7ced5b18f4dc43a65b002d84d8fef02d"}},
   {"Operation":"docker.capture_copy","Relation":"additional","Current":{"File":"internal/runtime/session_capture_bundle.go","Symbol":"DockerRuntime.readSessionCaptureBundle"},"Released":null},
@@ -34,6 +36,8 @@ const definitions = [
 // TL04–TL07: exact call-site correspondence. These rows identify code; their
 // inclusive time is not added to child operations or asserted equal to v1 time.
 const timelineSites = [
+  ['plan.retain', 'planning_db_handoff.go', 'PrepareService.captureNormalPlanningDB'],
+  ['plan.db_transfer', 'liquibase_normal_worker.go', 'PrepareService.observeStartNormalLiquibaseSession'],
   ['plan.release', 'liquibase_normal_worker.go', 'PrepareService.observePlanNormalContainerLiquibase'],
   ['db.source_prepare', 'managed_execution.go', 'taskExecutor.observeStartManagedRuntimeWithPlan', 'shared', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],
   ['session.plan', 'liquibase_normal_worker.go', 'PrepareService.observeStartNormalLiquibaseSession'],
@@ -59,7 +63,7 @@ const timelineSites = [
   ['plan.launch_prepare', 'liquibase_normal_worker.go', 'PrepareService.observePlanNormalContainerLiquibase'],
   ['plan.input_prepare', 'planning_executor_request.go', 'PrepareService.buildPlanningExecutorRequest'],
   ['plan.capture_reconcile', 'liquibase_normal_worker.go', 'PrepareService.observePlanNormalContainerLiquibase'],
-  ['plan.dispose', 'liquibase_normal_worker.go', 'PrepareService.observePlanNormalContainerLiquibase', 'changed', 'execution.go', 'PrepareService.cleanupRuntime'],
+  ['plan.dispose', 'planning_db_handoff.go', 'observePlanningDBDisposal', 'changed', 'execution.go', 'PrepareService.cleanupRuntime'],
   ['plan.suffix', 'liquibase_normal_worker.go', 'jobCoordinator.runObservedContainerLiquibase', 'changed', 'manager.go', 'jobCoordinator.buildPlanLiquibase'],
   ['db.startup', 'managed_execution.go', 'taskExecutor.startManagedRuntimeWithPlan', 'changed', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],
   ['db.lock_wait', 'managed_execution.go', 'taskExecutor.observeStartManagedRuntimeWithPlan', 'shared', 'managed_execution.go', 'taskExecutor.startManagedRuntime'],

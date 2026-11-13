@@ -1,10 +1,13 @@
 # sqlrs-engine (local, Go)
 
-The next approved #89 optimisation is described in
+The approved #89 overhead reduction is described in
 [O5–O7](../../docs/architecture/issue89-measured-overhead-reduction.md): exact
 planning-DB handoff, per-service inventory reuse, and same-exec private results.
-Storage/test approvals and implementation remain pending; no API or SQL-retry
-permission is added. Current measured runtime behavior is not yet changed.
+O5 planning-DB handoff, O6 inventory reuse and O7 same-exec results are implemented
+and undergoing qualification. New O5 files meet the local coverage minimum
+(98.95% combined; each file at least 95%).
+No API or SQL-retry permission is added. Hosted native/speed results for these
+changes are not yet available; the prior measured regression is still open.
 
 Local engine used by `sqlrs` in the local profile.
 

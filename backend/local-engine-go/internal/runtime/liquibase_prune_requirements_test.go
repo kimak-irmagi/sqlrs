@@ -19,10 +19,11 @@ type pruneBindingRunner struct {
 func (r *pruneBindingRunner) RunBounded(ctx context.Context, name string, args []string, out, diagnostic int64) ([]byte, error) {
 	if len(args) > 0 && args[0] == "exec" {
 		r.probes++
-		if out != 64 || diagnostic != 4096 || args[len(args)-1] != combinedStepPruneProbe {
+		if out != stepResultWireLimit(1024) || diagnostic != 4096 || !containsArg(args, "-e", "SQLRS_CAPTURE_RESULT=same-exec-v1") {
 			return nil, fmt.Errorf("unexpected bounded binding probe")
 		}
-		return []byte("sqlrs-step-idle-pruned-v1\n"), nil
+		value, err := r.Run(ctx, name, args, nil)
+		return []byte(value), err
 	}
 	return r.captureFilesRequirementsRunner.RunBounded(ctx, name, args, out, diagnostic)
 }
@@ -66,9 +67,9 @@ func TestLiquibasePrivatePruneInvocationBinding(t *testing.T) {
 				identity.Prune.PriorManifestDigest = "private-invalid-value"
 			}
 			name := "sqlrs-lb-prune-binding"
-			runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
-			runner.responses = append(presentInspection(identity.RunnerID, name, "running", 0), runResponse{})
-			runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
+			manifestBytes, stdout, stderr := stepResultFiles(t, dir)
+			runner := &captureFilesRequirementsRunner{}
+			runner.responses = append(presentInspection(identity.RunnerID, name, "running", 0), runResponse{output: string(literalStepResultFrame(manifestBytes, stdout, stderr, nil, true))})
 			runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
 			transport := &pruneBindingRunner{captureFilesRequirementsRunner: runner}
 			capture, err := NewDocker(Options{Binary: "configured-docker", Runner: transport}).InvokeTrackedLiquibaseStep(context.Background(), name, "", identity, []string{"update-count", "--count", "1"}, 1024)
@@ -78,7 +79,7 @@ func TestLiquibasePrivatePruneInvocationBinding(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || capture.ExitCode != 0 || len(runner.calls) != 4 || len(runner.copies) != 1 || transport.probes != 1 {
+			if err != nil || capture.ExitCode != 0 || len(runner.calls) != 3 || len(runner.copies) != 0 || transport.probes != 1 {
 				t.Fatal("prune added a separate command or failed normal capture")
 			}
 			args := runner.calls[1].args

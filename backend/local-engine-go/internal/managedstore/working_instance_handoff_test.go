@@ -40,7 +40,7 @@ func TestWorkingInstanceHandoffSchema(t *testing.T) {
 					}
 				}
 				var version int
-				if err := db.QueryRow("SELECT format_version FROM prepare_liquibase_session_store_format WHERE slot=1").Scan(&version); err != nil || version != 3 {
+				if err := db.QueryRow("SELECT format_version FROM prepare_liquibase_session_store_format WHERE slot=1").Scan(&version); err != nil || version != 4 {
 					t.Fatalf("handoff requires session format 3: version=%d err=%v", version, err)
 				}
 				rows, err := db.Query("PRAGMA table_info(prepare_liquibase_session_disposals)")

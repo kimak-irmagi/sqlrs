@@ -192,6 +192,12 @@ sync -f /sqlrs/capture || die
 while :; do sleep 3600; done
 fi
 
+# O7 is an explicit transport selection. Unknown modes fail before any child or
+# invocation-directory mutation; serve/probe-prune remain non-SQL protocols.
+if [ "$1" != probe-prune ]; then
+  case "${SQLRS_CAPTURE_RESULT:-}" in ''|same-exec-v1) ;; *) die ;; esac
+fi
+
 # Invocation does not create/repair readiness or the capture root. Its caller
 # must first have admitted native-bound readiness and this exact slot in SQLite.
 trusted_parent / && trusted_parent /sqlrs || die
@@ -342,5 +348,49 @@ cost_mark manifest_flush
 mv "$manifest_partial" "$capture/manifest.complete" || die
 sync -f "$capture" || die
 cost_mark final_flush
+if [ "${SQLRS_CAPTURE_RESULT:-}" = same-exec-v1 ]; then
+  # The root-owned helper checks real process/path absence, not a claim in the
+  # child's manifest. Repeat after emitting streams, before the accepted footer.
+  result_idle() {
+    for status in /proc/[0-9]*/status; do
+      [ -e "$status" ] || continue
+      if ! uid=$(sed -n 's/^Uid:[[:space:]]*\([0-9]*\).*/\1/p' "$status" 2>/dev/null); then
+        [ ! -e "$status" ] && continue
+        return 1
+      fi
+      if [ -z "$uid" ]; then
+        [ ! -e "$status" ] && continue
+        return 1
+      fi
+      [ "$uid" != 1001 ] || return 1
+    done
+    if [ -n "$prior_capture" ]; then
+      [ ! -e "$prior_capture" ] && [ ! -L "$prior_capture" ] || return 1
+    fi
+  }
+  result_idle || die
+  manifest_bytes=$(wc -c < "$capture/manifest.complete") || die
+  manifest_bytes=$(printf '%s' "$manifest_bytes" | tr -d ' ')
+  [ "$manifest_bytes" -le 8192 ] || die
+  cost_mark result_prepare
+  printf 'sqlrs-lb-result-v1\nmanifest %s\n' "$manifest_bytes" || die
+  cat "$capture/manifest.complete" || die
+  printf 'stdout %s\n' "$stdout_bytes" || die
+  cat "$capture/stdout.complete" || die
+  printf 'stderr %s\n' "$stderr_bytes" || die
+  cat "$capture/stderr.complete" || die
+  result_idle || die
+  cost_mark result_emit
+  result_detail=
+  if [ "$cost_on" = 1 ]; then result_detail=$cost_records; fi
+  [ "${#result_detail}" -le 4096 ] || die
+  # This final detail/footer write is deliberately outside helper phase clocks;
+  # its cost remains inside the measured host exec, never counted twice.
+  printf 'detail %s\n%s' "${#result_detail}" "$result_detail" || die
+  result_prune=none
+  if [ -n "$prior_capture" ]; then result_prune=absent; fi
+  printf 'sqlrs-lb-result-end-v1 idle %s\n' "$result_prune" || die
+  exit 0
+fi
 cost_emit
 exit "$child_exit"

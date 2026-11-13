@@ -1,8 +1,11 @@
 # #89 O5: retained planning DB and first-session transfer — storage
 
-Status: proposed schema after critical/repeat review; approval requested.
-[O5 components](issue89-measured-overhead-reduction.md) are approved. No DDL,
-canonical artifact, product writer or old schema test has been changed yet.
+Status: schema approved by @evilguest on 2026-11-12 after critical/repeat review.
+[O5 components](issue89-measured-overhead-reduction.md) are approved. DDL,
+canonical artifact, journal writers and coordinator transfer are now implemented
+under the approved PG01–PG10 / OT-PG01–OT-PG02 inventory. New O5 files meet
+the local coverage minimum after CP2; Actions-only native/speed acceptance
+remains open.
 
 ## 1. Representation and data ownership
 
@@ -174,6 +177,12 @@ After disposal request: pending planner cleanup. After physical deletion but
 before its commit: retained pending owner, not a source eligible for SQL. No
 automatic restart/replay/replacement or expanded recovery implementation is added.
 
+The exact operation Source and runtime ID are rechecked when reading the
+saved owner. The SQL disposal-request guard, like the writer, requires actual
+state/execution provenance for every cached state/prefix, its exact sequence and
+saved authority. Cached flags alone grant no DB deletion rights. Local CP-PG03
+controls reproduce and block both former bypasses.
+
 ## 6. Installation and bounded change surface
 
 Session component format advances **3 → 4**; common attempt=3, Liquibase binding=2,
@@ -187,7 +196,7 @@ the final definitions directly. There is no migration from unreleased #89 format
 3, implicit repair or upgrade of its unfinished jobs. Reject unsupported/partial/
 altered catalogs before writes/workers/probes. Historical source hashes remain
 historical; target hashes/version assertions change only through the subsequent
-explicit test inventory. No product DDL is authorised until schema approval.
+approved PG01–PG10 / OT-PG01 inventory; released source hashes stay unchanged.
 
 ## 7. Critical and repeat review
 

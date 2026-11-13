@@ -10,15 +10,17 @@ import (
 type HelperPhase string
 
 const (
-	HelperPreflight    HelperPhase = "preflight"
-	HelperCLI          HelperPhase = "cli"
-	HelperDrain        HelperPhase = "drain"
-	HelperStreamFlush  HelperPhase = "stream_flush"
-	HelperHashRename   HelperPhase = "hash_rename"
-	HelperRenamedFlush HelperPhase = "renamed_flush"
-	HelperManifest     HelperPhase = "manifest_flush"
-	HelperFinalFlush   HelperPhase = "final_flush"
-	HelperResolutionNS             = int64(10_000_000)
+	HelperPreflight     HelperPhase = "preflight"
+	HelperCLI           HelperPhase = "cli"
+	HelperDrain         HelperPhase = "drain"
+	HelperStreamFlush   HelperPhase = "stream_flush"
+	HelperHashRename    HelperPhase = "hash_rename"
+	HelperRenamedFlush  HelperPhase = "renamed_flush"
+	HelperManifest      HelperPhase = "manifest_flush"
+	HelperFinalFlush    HelperPhase = "final_flush"
+	HelperResultPrepare HelperPhase = "result_prepare"
+	HelperResultEmit    HelperPhase = "result_emit"
+	HelperResolutionNS              = int64(10_000_000)
 )
 
 // HelperRegion retains the helper's own centisecond offsets. DurationNS is a
@@ -35,6 +37,7 @@ type HelperRegion struct {
 type HelperDetail struct {
 	ResolutionNS, TotalNS, CumulativeUncertaintyNS int64
 	Regions                                        []HelperRegion
+	stepResult                                     bool
 }
 
 // ParseHelperDetail accepts only the eight ordered, contiguous fixed regions
@@ -43,16 +46,34 @@ type HelperDetail struct {
 // Missing/invalid detail yields no partial evidence and no private error text.
 // CT09/CT11: issue89-cost-attribution-and-trimming.md §3.
 func ParseHelperDetail(data []byte, hostElapsedNS int64) (HelperDetail, error) {
+	return parseHelperDetail(data, hostElapsedNS, false)
+}
+
+// ParseStepResultHelperDetail explicitly selects the ten-phase result transport;
+// the eight-phase planner/legacy grammar remains unchanged (O7, IR06).
+func ParseStepResultHelperDetail(data []byte, hostElapsedNS int64) (HelperDetail, error) {
+	return parseHelperDetail(data, hostElapsedNS, true)
+}
+
+func helperPhases(stepResult bool) []HelperPhase {
+	phases := []HelperPhase{HelperPreflight, HelperCLI, HelperDrain, HelperStreamFlush,
+		HelperHashRename, HelperRenamedFlush, HelperManifest, HelperFinalFlush}
+	if stepResult {
+		phases = append(phases, HelperResultPrepare, HelperResultEmit)
+	}
+	return phases
+}
+
+func parseHelperDetail(data []byte, hostElapsedNS int64, stepResult bool) (HelperDetail, error) {
 	if len(data) == 0 || len(data) > 4096 || data[len(data)-1] != '\n' || hostElapsedNS < 0 {
 		return HelperDetail{}, errEvidence
 	}
-	phases := [...]HelperPhase{HelperPreflight, HelperCLI, HelperDrain, HelperStreamFlush,
-		HelperHashRename, HelperRenamedFlush, HelperManifest, HelperFinalFlush}
+	phases := helperPhases(stepResult)
 	lines := strings.Split(string(data[:len(data)-1]), "\n")
 	if len(lines) != len(phases) {
 		return HelperDetail{}, errEvidence
 	}
-	result := HelperDetail{ResolutionNS: HelperResolutionNS,
+	result := HelperDetail{ResolutionNS: HelperResolutionNS, stepResult: stepResult,
 		CumulativeUncertaintyNS: int64(len(phases)) * HelperResolutionNS,
 		Regions:                 make([]HelperRegion, 0, len(phases))}
 	var previous int64

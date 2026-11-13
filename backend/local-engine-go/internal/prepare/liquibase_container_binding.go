@@ -184,15 +184,11 @@ func (m *PrepareService) bindFreshContainerLiquibase(ctx context.Context, jobID 
 		}); err != nil {
 			return p, cleanup, err
 		}
-		inventory, err := deps.Runtime.InspectRunnerImage(ctx, image)
+		inventory, err := m.inspectLiquibaseInventory(ctx, image)
 		if err != nil {
 			return p, cleanup, err
 		}
-		catalog := driverbundle.ImageInventory{LiquibaseVersion: inventory.LiquibaseVersion, JavaMajor: inventory.JavaMajor}
-		for _, jar := range inventory.PostgreSQLJars {
-			catalog.PostgreSQLJars = append(catalog.PostgreSQLJars, driverbundle.EmbeddedDriver{Path: jar.Path, Digest: jar.Digest})
-		}
-		driver, err := driverbundle.Select("postgresql", catalog)
+		driver, err := selectInventoryDriver(inventory)
 		if err != nil {
 			return p, cleanup, err
 		}

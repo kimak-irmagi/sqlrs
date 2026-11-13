@@ -9,7 +9,7 @@ const invalid = () => { throw new Error('Invalid cost collector evidence'); };
  * detail and observer components never increase/subtract host/API attribution.
  * Drop extras; return only copied public source coordinates and numbers/enums.
  */
-export function qualifyCostDetails(root) {
+export function qualifyCostDetails(root, {stepResult=false}={}) {
   try {
     if (!root || !Array.isArray(root.Spans) || !Array.isArray(root.Helpers) || !root.Observer) invalid();
     const observer = root.Observer;
@@ -23,12 +23,13 @@ export function qualifyCostDetails(root) {
           helper.Available !== true || !natural(helper.HostElapsedNS) || helper.HostElapsedNS > owner.EndNS - owner.StartNS) invalid();
       owners.delete(helper.Owner);
       const detail = helper.Detail;
-      if (!detail || detail.ResolutionNS !== resolution || detail.CumulativeUncertaintyNS !== 8 * resolution ||
-          !Array.isArray(detail.Regions) || detail.Regions.length !== phases.length) invalid();
+      const selectedPhases = stepResult && owner.Operation === 'liquibase.invoke' ? [...phases,'result_prepare','result_emit'] : phases;
+      if (!detail || detail.ResolutionNS !== resolution || detail.CumulativeUncertaintyNS !== selectedPhases.length * resolution ||
+          !Array.isArray(detail.Regions) || detail.Regions.length !== selectedPhases.length) invalid();
       const helperFile = owner.Operation === 'liquibase.invoke' ? 'liquibase-step-capture-v2.sh' : 'liquibase-capture-v2.sh';
       let previous = 0;
       const Regions = detail.Regions.map((region, index) => {
-        if (!region || region.Phase !== phases[index] || !natural(region.StartCS) || !natural(region.EndCS) ||
+        if (!region || region.Phase !== selectedPhases[index] || !natural(region.StartCS) || !natural(region.EndCS) ||
             region.StartCS !== previous || region.EndCS < region.StartCS) invalid();
         const duration = (region.EndCS - region.StartCS) * resolution;
         if (!natural(duration) || !natural(region.EndCS * resolution) || region.DurationNS !== duration) invalid();
@@ -40,7 +41,7 @@ export function qualifyCostDetails(root) {
       if (detail.TotalNS !== total || total > helper.HostElapsedNS && total - helper.HostElapsedNS > resolution) invalid();
       return { Owner: helper.Owner, Operation: owner.Operation, Phase: owner.Phase, Step: owner.Step,
         Source: costDefinition(owner.Operation), HostElapsedNS: helper.HostElapsedNS,
-        ResolutionNS: resolution, CumulativeUncertaintyNS: 8 * resolution, TotalNS: total, Regions };
+        ResolutionNS: resolution, CumulativeUncertaintyNS: selectedPhases.length * resolution, TotalNS: total, Regions };
     });
     return { HelperNonAdditive: true, Helpers,
       Observer: { EncodeNS: observer.EncodeNS, LockWaitNS: observer.LockWaitNS, WriteNS: observer.WriteNS,

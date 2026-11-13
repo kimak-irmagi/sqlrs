@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
@@ -21,7 +20,7 @@ func TestStepHelperCostOwnsActualInvocationAndPreservesResult(t *testing.T) {
 	for _, mode := range []string{"off", "on", "missing", "private", "oversized", "child-failed"} {
 		t.Run(mode, func(t *testing.T) {
 			dir, identity, manifest := stepCaptureFixture(t)
-			response := runResponse{output: zeroHelperCostOutput()}
+			response := runResponse{output: zeroHelperCostOutput() + "sqlrs-lb-cost-v1 result_prepare 0 0\nsqlrs-lb-cost-v1 result_emit 0 0\n"}
 			if mode == "missing" {
 				response.output = ""
 			}
@@ -32,18 +31,17 @@ func TestStepHelperCostOwnsActualInvocationAndPreservesResult(t *testing.T) {
 				response.output = strings.Repeat("x", 4097)
 			}
 			if mode == "child-failed" {
-				response.err = errors.New("private-exec-marker")
 				manifest["child_exit_code"] = 7
 			}
 			manifest["stdout_bytes"] = len("private-stream")
 			manifest["stdout_sha256"] = captureHex([]byte("private-stream"))
 			writeStepCaptureFixture(t, dir, manifest, []byte("private-stream"), nil)
 			name := "sqlrs-lb-cost-helper"
-			runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
+			manifestBytes, stdout, stderr := stepResultFiles(t, dir)
+			response.output = string(literalStepResultFrame(manifestBytes, stdout, stderr, []byte(response.output), false))
+			runner := &inlineFixtureRunner{&captureFilesRequirementsRunner{}}
 			runner.responses = presentInspection(identity.RunnerID, name, "running", 0)
 			runner.responses = append(runner.responses, response)
-			runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
-			runner.responses = append(runner.responses, runResponse{output: "sqlrs-step-idle-v1\n"})
 			runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
 			recorder := preparecost.NewRecorder(mode != "off", 1)
 			ctx := preparecost.WithPhase(preparecost.WithRecorder(t.Context(), recorder), preparecost.PhaseStep, 2)
@@ -52,7 +50,13 @@ func TestStepHelperCostOwnsActualInvocationAndPreservesResult(t *testing.T) {
 			if mode == "child-failed" {
 				wantExit = 7
 			}
-			if err != nil || result.ExitCode != wantExit || string(result.Stdout) != "private-stream" || len(runner.calls) != 5 || len(runner.copies) != 1 {
+			if mode == "oversized" {
+				if err == nil || len(runner.calls) != 2 || len(runner.copies) != 0 {
+					t.Fatal("overquota framing accepted or used fallback")
+				}
+				return
+			}
+			if err != nil || result.ExitCode != wantExit || string(result.Stdout) != "private-stream" || len(runner.calls) != 3 || len(runner.copies) != 0 {
 				t.Fatal("diagnostics changed original capture/outcome/counts")
 			}
 			flag := "0"
@@ -116,11 +120,10 @@ func TestHelperTimerClosedBoundaries(t *testing.T) {
 func TestStepHelperCostNeverEntersLogSink(t *testing.T) {
 	dir, identity, _ := stepCaptureFixture(t)
 	name := "sqlrs-lb-cost-private"
-	runner := &captureFilesRequirementsRunner{archives: sessionBundleFixture(t, dir, identity.RunnerID, identity.InvocationRef)}
+	manifestBytes, stdout, stderr := stepResultFiles(t, dir)
+	runner := &inlineFixtureRunner{&captureFilesRequirementsRunner{}}
 	runner.responses = presentInspection(identity.RunnerID, name, "running", 0)
-	runner.responses = append(runner.responses, runResponse{output: "private-helper-marker\n"})
-	runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
-	runner.responses = append(runner.responses, runResponse{output: "sqlrs-step-idle-v1\n"})
+	runner.responses = append(runner.responses, runResponse{output: string(literalStepResultFrame(manifestBytes, stdout, stderr, []byte("private-helper-marker\n"), false))})
 	runner.responses = append(runner.responses, presentInspection(identity.RunnerID, name, "running", 0)...)
 	var logged []string
 	recorder := preparecost.NewRecorder(true, 1)

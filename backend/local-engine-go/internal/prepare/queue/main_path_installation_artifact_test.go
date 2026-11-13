@@ -19,9 +19,9 @@ func TestMainPathInstallationArtifact(t *testing.T) {
 	// Locks were obtained at extraction, not calculated by the verifier.
 	// Regenerating both schema and oracle must not silently approve history.
 	for path, want := range map[string]string{
-		filepath.Join("assets", "liquibase-main-schema.sql"):        "6f65614ecd5359357c59c33d6e53d97f6bb3ad24452b9ee80f22da99d0aaed6b",
-		filepath.Join("assets", "liquibase-main-catalog.json"):      "a67f6a8d63b26569ca306e31c3d31fe411be854678fb7c4ac6b24e4d2e69c42c",
-		filepath.Join(fixtureRoot, "issue89-target-catalog.json"):   "4af3072d0042c1cbd48f8e63836df88a0e66eea9884ee4fe90aa8244441c6026",
+		filepath.Join("assets", "liquibase-main-schema.sql"):        "b6d2162166cac78f8fbd0db3b1b13bcaaa4816f3d87ee3918e1629fcb939eb97",
+		filepath.Join("assets", "liquibase-main-catalog.json"):      "1ab326c5c88e65510778b7462125166410299b3c5bb1edc280f5362105b333c0",
+		filepath.Join(fixtureRoot, "issue89-target-catalog.json"):   "725b9251d5bc5fabaaa3fec5eff088a969567a4223a157f06c4e2a1d2a35a3d5",
 		filepath.Join(fixtureRoot, "issue89-released.sql"):          "3959fbec836ba13386a3a2fb3024f111c55a52a56b369d0537ff02795037674e",
 		filepath.Join(fixtureRoot, "issue89-released-catalog.json"): "2e2821f68340c57bb0cfaa0063a60edd4d9d78cd1c42e765c2950976809d53f5",
 	} {
@@ -89,7 +89,9 @@ func TestMainPathInstallationArtifact(t *testing.T) {
 	}
 	// OT-WH02: three handoff guards extend the target; the composed historical
 	// 282-object source above remains frozen and is not rebased.
-	if len(expected) != 285 {
+	// OT-PG01 adds fourteen O5 ownership objects to that amended current target;
+	// historical source/released identities above remain unchanged.
+	if len(expected) != 299 {
 		t.Fatalf("source catalog changed without review: %d", len(expected))
 	}
 	baseline, err := os.ReadFile(filepath.Join(fixtureRoot, "issue89-released.sql"))

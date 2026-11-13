@@ -100,11 +100,15 @@ WHERE d.job_id=? AND d.task_id='plan' AND d.attempt_no=? AND artifact.capture_lo
 const privatePlanningRetirementScope = `artifact.capture_location='container_private' AND artifact.capture_protocol_revision='lb-capture-v2'
 AND EXISTS (SELECT 1 FROM prepare_liquibase_planning_capture_disposals disposition
  WHERE disposition.job_id=a.job_id AND disposition.task_id=a.task_id AND disposition.attempt_no=a.attempt_no)
-AND EXISTS (SELECT 1 FROM prepare_attempt_evidence quiet
+AND (EXISTS (SELECT 1 FROM prepare_attempt_evidence quiet
  WHERE quiet.job_id=a.job_id AND quiet.task_id=a.task_id AND quiet.attempt_no=a.attempt_no AND quiet.worker_generation=a.worker_generation
  AND quiet.kind='db_quiescence' AND json_extract(quiet.facts_json,'$.observation.runtime_absent')=1
  AND json_extract(quiet.facts_json,'$.observation.runtime_name')=clone.planned_db_runtime_name
- AND json_extract(quiet.facts_json,'$.observation.runtime_id') IS clone.db_runtime_id)`
+ AND json_extract(quiet.facts_json,'$.observation.runtime_id') IS clone.db_runtime_id)
+OR EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership owner
+ WHERE owner.job_id=a.job_id AND owner.task_id=a.task_id AND owner.attempt_no=a.attempt_no AND owner.clone_id=a.clone_id
+ AND a.phase='closed' AND a.resolution='planning_result_saved'
+ AND owner.plan_digest=(SELECT plan_digest FROM prepare_planning_intents WHERE job_id=a.job_id)))`
 
 // RetirePrivatePlanningCapture confirms the absence of one exact private parent
 // and stamps executor/stdout/stderr/manifest together. The caller must save its
@@ -251,6 +255,12 @@ func (s *SQLiteStore) RetirePlanningArtifact(ctx context.Context, attempt Attemp
 // safe-replay resolutions use the shared clone recovery policy.
 func (s *SQLiteStore) ReleasePlanningClone(ctx context.Context, attempt AttemptRecord, generation int, verifier CloneAbsenceVerifier) error {
 	if s == nil || s.db == nil || verifier == nil || attempt.JobID == "" || attempt.TaskID != "plan" || attempt.AttemptNo < 1 || attempt.CloneID == "" || attempt.ExecutionDigest == "" || attempt.PlannedExecutorName == "" || generation != attempt.WorkerGeneration {
+		return ErrPlanningSchema
+	}
+	// A transferred row remains history after normal session release; it never
+	// revives the planner's destructive authority (schema §4, PG05).
+	var owned int
+	if err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM prepare_liquibase_planning_db_ownership WHERE clone_id=?", attempt.CloneID).Scan(&owned); err != nil || owned != 0 {
 		return ErrPlanningSchema
 	}
 	var clone ClonePlan

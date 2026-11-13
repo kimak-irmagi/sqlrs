@@ -502,7 +502,7 @@ AND strftime('%Y-%m-%dT%H:%M:%SZ',julianday(substr((CASE WHEN substr(verified_at
 
 CREATE TABLE "prepare_liquibase_session_store_format" (
   slot INTEGER PRIMARY KEY CHECK(slot=1),
-  format_version INTEGER NOT NULL CHECK(format_version=3)
+  format_version INTEGER NOT NULL CHECK(format_version=4)
 );
 
 CREATE TABLE prepare_liquibase_sessions (
@@ -1815,7 +1815,9 @@ OR owner_execution.target_identity_digest IS NOT lb.target_identity_digest
 OR owner_execution.policy_revision IS NOT lb.execution_policy_revision))
 AND p.plan_saved_at IS NOT NULL AND p.plan_digest IS NOT NULL AND p.plan_count IS NOT NULL
 AND p.plan_count=(SELECT count(*) FROM prepare_planning_changesets changes WHERE changes.job_id=p.job_id)
-AND t.type='plan' AND t.status='succeeded' AND c.phase='released'
+AND t.type='plan' AND t.status='succeeded' AND (c.phase='released' OR (c.phase='active' AND EXISTS(
+SELECT 1 FROM prepare_liquibase_planning_db_ownership owner WHERE owner.job_id=p.job_id AND owner.clone_id=c.clone_id
+AND owner.session_id IS NULL AND owner.disposed_at IS NULL AND owner.plan_digest=p.plan_digest)))
 AND a.clone_id=c.clone_id AND a.execution_digest=p.execution_digest AND b.execution_digest=p.execution_digest
 AND e.prepare_kind='lb' AND e.adapter_binding_digest=jb.execution_fingerprint AND e.input_manifest_digest=jb.bundle_manifest_digest
 AND a.phase='closed' AND a.resolution='planning_result_saved'
@@ -2469,7 +2471,10 @@ AND (OLD.retired_at IS NOT NULL OR OLD.cursor_state_id IS NULL
  OR NOT EXISTS (SELECT 1 FROM prepare_tasks t WHERE t.job_id=OLD.job_id AND t.position=OLD.cursor_position-1
  AND t.type='state_execute' AND t.status='succeeded' AND t.output_state_id=OLD.cursor_state_id)
  OR EXISTS (SELECT 1 FROM prepare_tasks t WHERE t.job_id=OLD.job_id AND t.type='state_execute' AND t.status<>'succeeded')
- OR EXISTS (SELECT 1 FROM prepare_step_attempts a WHERE a.clone_id=OLD.clone_id AND (a.phase<>'closed' OR a.resolution IS NOT 'published'))
+ OR EXISTS (SELECT 1 FROM prepare_step_attempts a WHERE a.clone_id=OLD.clone_id AND (a.phase<>'closed' OR a.resolution IS NOT 'published')
+ AND NOT(a.task_id='plan' AND a.phase='closed' AND a.resolution='planning_result_saved'
+ AND EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership owner WHERE owner.job_id=OLD.job_id
+ AND owner.clone_id=OLD.clone_id AND owner.session_id=OLD.session_id AND owner.task_id=a.task_id AND owner.attempt_no=a.attempt_no)))
  OR EXISTS (SELECT 1 FROM prepare_liquibase_job_cancellations c WHERE c.job_id=OLD.job_id)
  OR EXISTS (SELECT 1 FROM prepare_liquibase_job_finalizations f WHERE f.job_id=OLD.job_id))
 BEGIN SELECT RAISE(ABORT,'publication-only resume requires completed suffix'); END;
@@ -3194,10 +3199,16 @@ WHEN NEW.resolution='planning_result_saved' AND (
       AND json_extract(exit_e.facts_json,'$.observation.exit_code')=0
       AND q.job_id=NEW.job_id AND q.task_id=NEW.task_id
       AND q.attempt_no=NEW.attempt_no AND q.worker_generation=NEW.worker_generation
-      AND q.kind='db_quiescence' AND q.evidence_id>exit_e.evidence_id
+      AND q.evidence_id>exit_e.evidence_id
+      AND ((q.kind='db_quiescence'
       AND json_extract(q.facts_json,'$.observation.runtime_absent')=1
       AND json_extract(q.facts_json,'$.observation.runtime_name')=clone.planned_db_runtime_name
-      AND json_extract(q.facts_json,'$.observation.runtime_id')=clone.db_runtime_id
+      AND json_extract(q.facts_json,'$.observation.runtime_id')=clone.db_runtime_id)
+      OR (q.kind='planning_db_retained' AND clone.phase='active'
+      AND EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership owner
+      WHERE owner.job_id=NEW.job_id AND owner.attempt_no=NEW.attempt_no AND owner.clone_id=NEW.clone_id
+      AND owner.retained_evidence_id=q.evidence_id AND owner.plan_digest=i.plan_digest
+      AND owner.session_id IS NULL AND owner.disposal_requested_evidence_id IS NULL)))
       AND output_e.job_id=NEW.job_id AND output_e.task_id=NEW.task_id
       AND output_e.attempt_no=NEW.attempt_no
       AND output_e.worker_generation=NEW.worker_generation
@@ -3542,3 +3553,211 @@ BEGIN SELECT RAISE(ABORT, 'runtime v2 state is immutable'); END;
 
 CREATE TRIGGER runtime_v2_states_no_delete BEFORE DELETE ON runtime_v2_states
 BEGIN SELECT RAISE(ABORT, 'runtime v2 state deletion is not enabled'); END;
+
+CREATE TABLE prepare_liquibase_planning_db_ownership (
+ job_id TEXT PRIMARY KEY REFERENCES prepare_jobs(job_id) ON DELETE CASCADE,
+ task_id TEXT NOT NULL CHECK(task_id='plan'),
+ attempt_no INTEGER NOT NULL CHECK(typeof(attempt_no)='integer' AND attempt_no>0),
+ clone_id TEXT NOT NULL UNIQUE REFERENCES prepare_clones(clone_id) ON DELETE CASCADE,
+ retained_evidence_id INTEGER NOT NULL UNIQUE REFERENCES prepare_attempt_evidence(evidence_id) ON DELETE CASCADE CHECK(retained_evidence_id>0),
+ plan_digest TEXT NOT NULL CHECK(length(plan_digest)=71 AND substr(plan_digest,1,7)='sha256:' AND substr(plan_digest,8) NOT GLOB '*[^0-9a-f]*'),
+ session_id TEXT UNIQUE REFERENCES prepare_liquibase_sessions(session_id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+ first_task_id TEXT,
+ first_execution_digest TEXT REFERENCES prepare_execution_bindings(execution_digest),
+ transferred_at TEXT CHECK(transferred_at IS NULL OR coalesce(
+ transferred_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]*Z'
+ AND (length(transferred_at)=20 OR (length(transferred_at) BETWEEN 22 AND 30 AND substr(transferred_at,20,1)='.' AND substr(transferred_at,21,length(transferred_at)-21) NOT GLOB '*[^0-9]*'))
+ AND strftime('%Y-%m-%dT%H:%M:%SZ',julianday(substr(transferred_at,1,19)||'Z'))=substr(transferred_at,1,19)||'Z',0)),
+ disposal_requested_evidence_id INTEGER UNIQUE REFERENCES prepare_attempt_evidence(evidence_id) ON DELETE CASCADE CHECK(disposal_requested_evidence_id>0),
+ disposal_evidence_id INTEGER UNIQUE REFERENCES prepare_attempt_evidence(evidence_id) ON DELETE CASCADE CHECK(disposal_evidence_id>0),
+ disposed_at TEXT CHECK(disposed_at IS NULL OR coalesce(
+ disposed_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]*Z'
+ AND (length(disposed_at)=20 OR (length(disposed_at) BETWEEN 22 AND 30 AND substr(disposed_at,20,1)='.' AND substr(disposed_at,21,length(disposed_at)-21) NOT GLOB '*[^0-9]*'))
+ AND strftime('%Y-%m-%dT%H:%M:%SZ',julianday(substr(disposed_at,1,19)||'Z'))=substr(disposed_at,1,19)||'Z',0)),
+ FOREIGN KEY(job_id,task_id,attempt_no) REFERENCES prepare_step_attempts(job_id,task_id,attempt_no) ON DELETE CASCADE,
+ FOREIGN KEY(job_id,first_task_id) REFERENCES prepare_tasks(job_id,task_id),
+ CHECK((session_id IS NULL AND first_task_id IS NULL AND first_execution_digest IS NULL AND transferred_at IS NULL)
+ OR (session_id IS NOT NULL AND first_task_id IS NOT NULL AND first_execution_digest IS NOT NULL AND transferred_at IS NOT NULL
+ AND disposal_requested_evidence_id IS NULL AND disposal_evidence_id IS NULL AND disposed_at IS NULL)),
+ CHECK((disposal_evidence_id IS NULL AND disposed_at IS NULL)
+ OR (disposal_evidence_id IS NOT NULL AND disposed_at IS NOT NULL AND disposal_requested_evidence_id IS NOT NULL))
+);
+
+CREATE INDEX prepare_planning_db_live_owners ON prepare_liquibase_planning_db_ownership(job_id)
+WHERE session_id IS NULL AND disposed_at IS NULL;
+
+CREATE TRIGGER prepare_planning_db_identity BEFORE UPDATE ON prepare_liquibase_planning_db_ownership
+WHEN NEW.job_id IS NOT OLD.job_id OR NEW.task_id IS NOT OLD.task_id OR NEW.attempt_no IS NOT OLD.attempt_no
+ OR NEW.clone_id IS NOT OLD.clone_id OR NEW.retained_evidence_id IS NOT OLD.retained_evidence_id OR NEW.plan_digest IS NOT OLD.plan_digest
+ OR (OLD.session_id IS NOT NULL AND (NEW.session_id IS NOT OLD.session_id OR NEW.first_task_id IS NOT OLD.first_task_id
+ OR NEW.first_execution_digest IS NOT OLD.first_execution_digest OR NEW.transferred_at IS NOT OLD.transferred_at))
+ OR (OLD.disposal_requested_evidence_id IS NOT NULL AND NEW.disposal_requested_evidence_id IS NOT OLD.disposal_requested_evidence_id)
+ OR (OLD.disposal_evidence_id IS NOT NULL AND (NEW.disposal_evidence_id IS NOT OLD.disposal_evidence_id OR NEW.disposed_at IS NOT OLD.disposed_at))
+BEGIN SELECT RAISE(ABORT,'planning DB ownership is immutable'); END;
+
+CREATE TRIGGER prepare_planning_db_delete BEFORE DELETE ON prepare_liquibase_planning_db_ownership
+WHEN EXISTS(SELECT 1 FROM prepare_jobs WHERE job_id=OLD.job_id)
+BEGIN SELECT RAISE(ABORT,'planning DB history is retained with its job'); END;
+
+CREATE TRIGGER prepare_planning_db_insert BEFORE INSERT ON prepare_liquibase_planning_db_ownership
+WHEN NEW.session_id IS NOT NULL OR NEW.disposal_requested_evidence_id IS NOT NULL OR NEW.disposal_evidence_id IS NOT NULL
+ OR NOT EXISTS (
+ SELECT 1 FROM prepare_jobs j JOIN prepare_planning_intents p ON p.job_id=j.job_id
+ JOIN prepare_step_attempts a ON a.job_id=j.job_id AND a.task_id='plan' AND a.attempt_no=1
+ JOIN prepare_clones c ON c.clone_id=a.clone_id AND c.job_id=j.job_id
+ JOIN prepare_planning_attempt_artifacts artifact USING(job_id,task_id,attempt_no)
+ JOIN prepare_attempt_evidence e ON e.evidence_id=NEW.retained_evidence_id
+ JOIN liquibase_job_bindings binding ON binding.job_id=j.job_id
+ JOIN managed_runtime_operations op ON op.operation_ref=json_extract(e.facts_json,'$.observation.operation_ref')
+ WHERE j.job_id=NEW.job_id AND j.status='running' AND j.prepare_kind='lb' AND j.purpose='prepare' AND j.plan_only=0
+ AND NEW.attempt_no=a.attempt_no AND NEW.clone_id=a.clone_id AND p.preview_clone_id=c.clone_id
+ AND p.result_attempt_no=1 AND p.plan_count>0 AND p.plan_digest=NEW.plan_digest AND p.plan_saved_at IS NOT NULL
+ AND a.execution_digest=p.execution_digest AND a.phase='observed_stopped' AND a.resolution IS NULL
+ AND c.phase='active' AND c.db_runtime_id=op.runtime_ref AND op.stage='running'
+ AND artifact.capture_location='container_private' AND artifact.capture_protocol_revision='lb-capture-v2'
+ AND artifact.output_complete_at IS NOT NULL AND artifact.output_digest=p.parsed_output_digest
+ AND e.job_id=j.job_id AND e.task_id='plan' AND e.attempt_no=1 AND e.worker_generation=a.worker_generation AND e.kind='planning_db_retained'
+ AND json_extract(e.facts_json,'$.clone_id')=a.clone_id AND json_extract(e.facts_json,'$.execution_digest')=a.execution_digest
+ AND json_extract(e.facts_json,'$.observation.clone_generation')=c.clone_generation
+ AND json_extract(e.facts_json,'$.observation.execution_fingerprint')=binding.execution_fingerprint
+ AND json_extract(e.facts_json,'$.observation.runtime_name')=c.planned_db_runtime_name
+ AND json_extract(e.facts_json,'$.observation.runtime_id')=op.runtime_ref
+ AND json_extract(e.facts_json,'$.observation.target_path')=op.target_path
+ AND json_extract(e.facts_json,'$.observation.source_kind')=c.source_kind
+ AND json_extract(e.facts_json,'$.observation.source_id')=coalesce(c.source_image_id,c.source_state_id)
+ AND op.source_ref=coalesce(c.source_image_id,c.source_state_id)
+ AND json_extract(e.facts_json,'$.observation.physical_identity')=op.physical_identity
+ AND json_extract(e.facts_json,'$.observation.identity')=op.identity_json
+ AND NOT EXISTS(SELECT 1 FROM prepare_liquibase_sessions WHERE job_id=j.job_id)
+ AND NOT EXISTS(SELECT 1 FROM prepare_step_attempts WHERE job_id=j.job_id AND task_id<>'plan')
+ AND NOT EXISTS(SELECT 1 FROM prepare_liquibase_job_cancellations WHERE job_id=j.job_id)
+ AND NOT EXISTS(SELECT 1 FROM prepare_liquibase_job_finalizations WHERE job_id=j.job_id))
+BEGIN SELECT RAISE(ABORT,'retained planning DB lacks exact live owner and plan'); END;
+
+CREATE TRIGGER prepare_planning_db_transfer BEFORE UPDATE OF session_id ON prepare_liquibase_planning_db_ownership
+WHEN OLD.session_id IS NOT NEW.session_id AND NOT EXISTS (
+ SELECT 1 FROM prepare_jobs j JOIN prepare_clones c ON c.clone_id=OLD.clone_id AND c.job_id=j.job_id
+ JOIN prepare_tasks t ON t.job_id=j.job_id AND t.task_id=NEW.first_task_id
+ JOIN prepare_step_bindings b ON b.job_id=t.job_id AND b.task_id=t.task_id
+ JOIN prepare_planning_intents p ON p.job_id=j.job_id
+ JOIN prepare_step_attempts a ON a.job_id=j.job_id AND a.task_id='plan' AND a.attempt_no=OLD.attempt_no
+ WHERE j.job_id=OLD.job_id AND j.status='running' AND j.purpose='prepare' AND j.plan_only=0
+ AND OLD.session_id IS NULL AND OLD.disposal_requested_evidence_id IS NULL AND OLD.disposed_at IS NULL
+ AND NEW.session_id IS NOT NULL AND NEW.first_task_id IS NOT NULL AND NEW.first_execution_digest IS NOT NULL AND NEW.transferred_at IS NOT NULL
+ AND c.phase='active' AND c.source_kind=t.input_kind AND coalesce(c.source_image_id,c.source_state_id)=t.input_id
+ AND t.type='state_execute' AND t.status='running' AND coalesce(t.cached,0)=0 AND b.execution_digest=NEW.first_execution_digest
+ AND t.position=(SELECT min(position) FROM prepare_tasks WHERE job_id=j.job_id AND type='state_execute')
+ AND p.plan_digest=OLD.plan_digest AND p.plan_count>0 AND a.phase='closed' AND a.resolution='planning_result_saved'
+ AND NOT EXISTS(SELECT 1 FROM prepare_planning_attempt_artifacts artifact WHERE artifact.job_id=j.job_id
+ AND (executor_retired_at IS NULL OR protected_input_retired_at IS NULL OR output_retired_at IS NULL OR stderr_retired_at IS NULL OR manifest_retired_at IS NULL))
+ AND NOT EXISTS(SELECT 1 FROM prepare_liquibase_sessions WHERE job_id=j.job_id)
+ AND NOT EXISTS(SELECT 1 FROM prepare_step_attempts WHERE job_id=j.job_id AND task_id<>'plan')
+ AND NOT EXISTS(SELECT 1 FROM prepare_liquibase_job_cancellations WHERE job_id=j.job_id)
+ AND NOT EXISTS(SELECT 1 FROM prepare_liquibase_job_finalizations WHERE job_id=j.job_id))
+BEGIN SELECT RAISE(ABORT,'invalid first planning DB transfer'); END;
+
+CREATE TRIGGER prepare_planning_db_session_adoption BEFORE INSERT ON prepare_liquibase_sessions
+WHEN EXISTS(SELECT 1 FROM prepare_step_attempts WHERE clone_id=NEW.clone_id AND task_id='plan')
+ AND NOT EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership owner
+ JOIN prepare_clones c ON c.clone_id=owner.clone_id AND c.job_id=owner.job_id
+ JOIN prepare_tasks t ON t.job_id=owner.job_id AND t.task_id=owner.first_task_id
+ JOIN prepare_step_bindings b ON b.job_id=t.job_id AND b.task_id=t.task_id
+ JOIN liquibase_job_bindings binding ON binding.job_id=owner.job_id
+ WHERE owner.job_id=NEW.job_id AND owner.clone_id=NEW.clone_id AND owner.session_id=NEW.session_id
+ AND owner.transferred_at=NEW.created_at AND owner.disposal_requested_evidence_id IS NULL
+ AND NEW.session_no=1 AND c.phase='active' AND NEW.worker_generation=(SELECT worker_generation FROM prepare_step_attempts WHERE job_id=owner.job_id AND task_id='plan' AND attempt_no=owner.attempt_no)
+ AND NEW.execution_fingerprint=binding.execution_fingerprint AND NEW.start_kind=c.source_kind
+ AND NEW.start_id=coalesce(c.source_image_id,c.source_state_id) AND NEW.start_position=t.position
+ AND b.execution_digest=owner.first_execution_digest AND t.status='running')
+BEGIN SELECT RAISE(ABORT,'planning clone requires exact committed-in-transaction transfer'); END;
+
+CREATE TRIGGER prepare_planning_db_request BEFORE UPDATE OF disposal_requested_evidence_id ON prepare_liquibase_planning_db_ownership
+WHEN NEW.disposal_requested_evidence_id IS NOT OLD.disposal_requested_evidence_id AND NOT EXISTS (
+ SELECT 1 FROM prepare_attempt_evidence e JOIN prepare_jobs j ON j.job_id=e.job_id
+ JOIN prepare_step_attempts a ON a.job_id=j.job_id AND a.task_id='plan' AND a.attempt_no=OLD.attempt_no
+ WHERE j.job_id=OLD.job_id AND j.status IN ('running','recovery_required') AND OLD.session_id IS NULL
+ AND OLD.disposal_requested_evidence_id IS NULL AND OLD.disposal_evidence_id IS NULL AND OLD.disposed_at IS NULL
+ AND e.evidence_id=NEW.disposal_requested_evidence_id AND e.kind='planning_db_disposal_requested'
+ AND e.task_id='plan' AND e.attempt_no=OLD.attempt_no AND e.worker_generation=a.worker_generation
+ AND json_extract(e.facts_json,'$.clone_id')=OLD.clone_id AND json_extract(e.facts_json,'$.execution_digest')=a.execution_digest
+ AND json_extract(e.facts_json,'$.observation.retained_evidence_id')=OLD.retained_evidence_id
+ AND json_extract(e.facts_json,'$.observation.plan_digest')=OLD.plan_digest
+ AND (json_extract(e.facts_json,'$.observation.reason') NOT IN ('full_cache','source_mismatch') OR (
+ j.status='running' AND json_extract(e.facts_json,'$.observation.authority')=OLD.plan_digest
+ AND EXISTS(SELECT 1 FROM prepare_planning_intents p WHERE p.job_id=j.job_id AND p.plan_digest=OLD.plan_digest AND p.plan_count>0
+ AND p.plan_count=(SELECT count(*) FROM prepare_tasks WHERE job_id=j.job_id AND type='state_execute'))
+ AND NOT EXISTS(SELECT 1 FROM prepare_liquibase_sessions WHERE job_id=j.job_id)
+ AND NOT EXISTS(SELECT 1 FROM prepare_step_attempts WHERE job_id=j.job_id AND task_id<>'plan')
+ AND NOT EXISTS(SELECT 1 FROM prepare_liquibase_job_cancellations WHERE job_id=j.job_id)
+ AND NOT EXISTS(SELECT 1 FROM prepare_liquibase_job_finalizations WHERE job_id=j.job_id)
+ AND json_array_length(json_extract(e.facts_json,'$.observation.cached_states'))=(
+ SELECT count(*) FROM prepare_tasks t WHERE t.job_id=j.job_id AND t.type='state_execute'
+ AND (json_extract(e.facts_json,'$.observation.reason')='full_cache' OR t.position<(
+ SELECT position FROM prepare_tasks WHERE job_id=j.job_id AND task_id=json_extract(e.facts_json,'$.observation.first_task_id'))))
+ AND NOT EXISTS(SELECT 1 FROM prepare_tasks t WHERE t.job_id=j.job_id AND t.type='state_execute'
+ AND (json_extract(e.facts_json,'$.observation.reason')='full_cache' OR t.position<(
+ SELECT position FROM prepare_tasks WHERE job_id=j.job_id AND task_id=json_extract(e.facts_json,'$.observation.first_task_id')))
+ AND (t.status<>'succeeded' OR t.cached IS NOT 1 OR NOT EXISTS(
+ SELECT 1 FROM states state JOIN prepare_state_bindings binding ON binding.state_id=state.state_id
+ JOIN prepare_step_bindings step ON step.execution_digest=binding.execution_digest AND step.job_id=t.job_id AND step.task_id=t.task_id
+ JOIN liquibase_state_bindings lb ON lb.state_id=state.state_id
+ JOIN liquibase_job_bindings expected ON expected.job_id=j.job_id
+ WHERE state.state_id=t.output_state_id AND state.state_fingerprint=state.state_id AND state.prepare_kind='lb'
+ AND state.image_id=j.resolved_image_id AND coalesce(state.lineage_ref,'')=coalesce(j.lineage_ref,'')
+ AND coalesce(state.identity_digest,'')=coalesce(j.identity_digest,'') AND lb.execution_fingerprint=expected.execution_fingerprint)
+ OR NOT EXISTS(SELECT 1 FROM json_each(json_extract(e.facts_json,'$.observation.cached_states')) item
+ WHERE item.value=t.output_state_id AND cast(item.key AS INTEGER)=(SELECT count(*) FROM prepare_tasks earlier
+ WHERE earlier.job_id=t.job_id AND earlier.type='state_execute' AND earlier.position<t.position))))))
+ AND ((json_extract(e.facts_json,'$.observation.reason')='accepted_cancel' AND EXISTS(SELECT 1 FROM prepare_liquibase_job_cancellations WHERE job_id=j.job_id)
+ AND json_extract(e.facts_json,'$.observation.authority')=j.job_id)
+ OR (json_extract(e.facts_json,'$.observation.reason')='selected_failure' AND EXISTS(SELECT 1 FROM prepare_liquibase_job_finalizations f WHERE f.job_id=j.job_id AND f.outcome_kind='failure' AND f.outcome_digest=json_extract(e.facts_json,'$.observation.authority')))
+ OR (json_extract(e.facts_json,'$.observation.reason')='source_mismatch' AND EXISTS(
+ SELECT 1 FROM prepare_tasks t JOIN prepare_step_bindings b USING(job_id,task_id) JOIN prepare_clones c ON c.clone_id=OLD.clone_id
+ WHERE t.job_id=j.job_id AND t.task_id=json_extract(e.facts_json,'$.observation.first_task_id') AND t.type='state_execute' AND t.status='running'
+ AND t.input_kind=json_extract(e.facts_json,'$.observation.input_kind') AND t.input_id=json_extract(e.facts_json,'$.observation.input_id')
+ AND b.execution_digest=json_extract(e.facts_json,'$.observation.first_execution_digest')
+ AND (t.input_kind<>c.source_kind OR t.input_id<>coalesce(c.source_image_id,c.source_state_id))))
+ OR (json_extract(e.facts_json,'$.observation.reason')='full_cache'
+ AND NOT EXISTS(SELECT 1 FROM prepare_tasks WHERE job_id=j.job_id AND type='state_execute' AND (status<>'succeeded' OR cached IS NOT 1))
+ AND (SELECT count(*) FROM prepare_tasks WHERE job_id=j.job_id AND type='state_execute')=(SELECT plan_count FROM prepare_planning_intents WHERE job_id=j.job_id))))
+BEGIN SELECT RAISE(ABORT,'planning DB disposal lacks exact saved authority'); END;
+
+CREATE TRIGGER prepare_planning_db_disposed BEFORE UPDATE OF disposal_evidence_id,disposed_at ON prepare_liquibase_planning_db_ownership
+WHEN (NEW.disposal_evidence_id IS NOT OLD.disposal_evidence_id OR NEW.disposed_at IS NOT OLD.disposed_at) AND NOT EXISTS (
+ SELECT 1 FROM prepare_attempt_evidence e JOIN prepare_step_attempts a ON a.job_id=OLD.job_id AND a.task_id='plan' AND a.attempt_no=OLD.attempt_no
+ JOIN prepare_attempt_evidence retained ON retained.evidence_id=OLD.retained_evidence_id
+ JOIN managed_runtime_operations op ON op.operation_ref=json_extract(retained.facts_json,'$.observation.operation_ref')
+ WHERE e.evidence_id=NEW.disposal_evidence_id AND e.job_id=OLD.job_id AND e.task_id='plan' AND e.attempt_no=OLD.attempt_no
+ AND e.kind='planning_db_disposed' AND e.worker_generation=a.worker_generation AND e.observed_at=NEW.disposed_at
+ AND OLD.session_id IS NULL AND OLD.disposal_requested_evidence_id IS NOT NULL AND OLD.disposal_evidence_id IS NULL AND OLD.disposed_at IS NULL
+ AND json_extract(e.facts_json,'$.clone_id')=OLD.clone_id AND json_extract(e.facts_json,'$.execution_digest')=a.execution_digest
+ AND json_extract(e.facts_json,'$.observation.retained_evidence_id')=OLD.retained_evidence_id
+ AND json_extract(e.facts_json,'$.observation.request_evidence_id')=OLD.disposal_requested_evidence_id
+ AND json_extract(e.facts_json,'$.observation.runtime_absent')=1 AND json_extract(e.facts_json,'$.observation.directory_absent')=1
+ AND op.stage='retired' AND op.runtime_ref=json_extract(retained.facts_json,'$.observation.runtime_id'))
+BEGIN SELECT RAISE(ABORT,'planning DB disposal lacks exact physical absence'); END;
+
+CREATE TRIGGER prepare_planning_db_clone_release BEFORE UPDATE OF phase ON prepare_clones
+WHEN NEW.phase<>'active' AND EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership owner WHERE owner.clone_id=OLD.clone_id AND owner.session_id IS NULL AND owner.disposed_at IS NULL)
+BEGIN SELECT RAISE(ABORT,'live retained planning DB cannot be released'); END;
+
+CREATE TRIGGER prepare_planning_db_job_terminal BEFORE UPDATE OF status ON prepare_jobs
+WHEN NEW.status IN ('succeeded','failed') AND EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership WHERE job_id=OLD.job_id AND session_id IS NULL AND disposed_at IS NULL)
+BEGIN SELECT RAISE(ABORT,'live planning DB prevents terminal completion'); END;
+
+CREATE TRIGGER prepare_planning_db_job_delete BEFORE DELETE ON prepare_jobs
+WHEN EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership WHERE job_id=OLD.job_id AND session_id IS NULL AND disposed_at IS NULL)
+BEGIN SELECT RAISE(ABORT,'live planning DB prevents job deletion'); END;
+
+CREATE TRIGGER prepare_planning_db_operation_update BEFORE UPDATE ON managed_runtime_operations
+WHEN EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership owner JOIN prepare_attempt_evidence e ON e.evidence_id=owner.retained_evidence_id
+ WHERE json_extract(e.facts_json,'$.observation.operation_ref')=OLD.operation_ref AND owner.session_id IS NULL AND owner.disposed_at IS NULL
+ AND (NEW.operation_ref IS NOT OLD.operation_ref OR NEW.target_path IS NOT OLD.target_path OR NEW.source_ref IS NOT OLD.source_ref
+ OR NEW.identity_json IS NOT OLD.identity_json OR NEW.physical_identity IS NOT OLD.physical_identity OR NEW.runtime_ref IS NOT OLD.runtime_ref
+ OR (NEW.stage IS NOT OLD.stage AND NOT(OLD.stage='running' AND NEW.stage='retired' AND owner.disposal_requested_evidence_id IS NOT NULL))))
+BEGIN SELECT RAISE(ABORT,'live planning DB retains its exact operation'); END;
+
+CREATE TRIGGER prepare_planning_db_operation_delete BEFORE DELETE ON managed_runtime_operations
+WHEN EXISTS(SELECT 1 FROM prepare_liquibase_planning_db_ownership owner JOIN prepare_attempt_evidence e ON e.evidence_id=owner.retained_evidence_id
+ WHERE json_extract(e.facts_json,'$.observation.operation_ref')=OLD.operation_ref AND owner.session_id IS NULL AND owner.disposed_at IS NULL)
+BEGIN SELECT RAISE(ABORT,'live planning DB retains its operation locator'); END;

@@ -19,13 +19,13 @@ func TestCostMainPathNamedAttributionDocker(t *testing.T) {
 	var output bytes.Buffer
 	f.m.costEmitter = preparecost.NewEmitter(&output)
 	counts := []map[string]int{
-		{"prepare.planning": 1, "runner.inventory": 1, "prepare.session_startup": 1, "prepare.step": 3,
-			"liquibase.invoke": 3, "capture.read": 3, "capture.prune": 0, "db.prepare_snapshot": 3,
+		{"prepare.planning": 1, "runner.inventory_lookup": 1, "runner.inventory": 1, "prepare.session_startup": 1, "prepare.step": 3,
+			"liquibase.invoke": 3, "capture.read": 0, "capture.result_decode": 3, "capture.prune": 0, "db.prepare_snapshot": 3,
 			"db.resume.step": 2, "db.resume.publication": 1, "db.verify.after_apply": 3, "db.verify.after_resume": 2,
 			"state.snapshot": 3, "state.size": 3, "state.seal": 3, "journal.state_publish": 3,
 			"journal.invocation_plan": 3, "journal.invocation_admit": 3, "journal.invocation_complete": 3,
 			"prepare.publication": 1, "prepare.final_cleanup": 1},
-		{"prepare.planning": 1, "runner.inventory": 1, "prepare.session_startup": 0, "prepare.step": 0,
+		{"prepare.planning": 1, "runner.inventory_lookup": 1, "runner.inventory": 0, "prepare.session_startup": 0, "prepare.step": 0,
 			"liquibase.invoke": 0, "capture.read": 0, "capture.prune": 0, "db.prepare_snapshot": 0,
 			"db.resume.step": 0, "db.resume.publication": 0, "db.verify.after_apply": 0, "db.verify.after_resume": 0,
 			"state.snapshot": 0, "state.size": 0, "state.seal": 0, "journal.state_publish": 0,
@@ -88,6 +88,9 @@ func TestCostMainPathNamedAttributionDocker(t *testing.T) {
 					t.Fatal("native helper lacks exact invocation owner or complete phase")
 				}
 				phases := []string{"preflight", "cli", "drain", "stream_flush", "hash_rename", "renamed_flush", "manifest_flush", "final_flush"}
+				if ownerOperations[fields[3]] == "liquibase.invoke" {
+					phases = append(phases, "result_prepare", "result_emit")
+				}
 				index := helperOwners[fields[3]]
 				if index >= len(phases) || fields[4] != phases[index] {
 					t.Fatal("native helper phase order differs")
@@ -119,8 +122,12 @@ func TestCostMainPathNamedAttributionDocker(t *testing.T) {
 		if observers != 1 || len(helperOwners) != wantOwners || observed["liquibase.plan_invoke"] != 1 {
 			t.Fatal("native helper/observer owner counts differ")
 		}
-		for _, count := range helperOwners {
-			if count != 8 {
+		for owner, count := range helperOwners {
+			wantPhases := 8
+			if ownerOperations[owner] == "liquibase.invoke" {
+				wantPhases = 10
+			}
+			if count != wantPhases {
 				t.Fatal("native helper detail incomplete")
 			}
 		}
