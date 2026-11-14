@@ -74,7 +74,7 @@ gantt
 
 ---
 
-## #89 O5–O7 local checkpoint (2026-11-13)
+## #89 O5–O7 qualification (2026-11-14)
 
 The [approved overhead reduction](architecture/issue89-measured-overhead-reduction.md)
 is implemented: O5 hands the live planning DB to the first working session on
@@ -89,10 +89,17 @@ disposal, source protection before file effects and stale-reference refusal.
 New O5 files cover 471/476 statements (98.95%); every file is at least 95%.
 The #89/#174 aggregate-coverage exception remains unchanged.
 
-Actual Docker allocation/data controls and the new complete CT13 series after
-combined O5–O7 remain pending in Actions. Original timers, data/cleanup oracles
-and the speed criterion are preserved. This is a local checkpoint, not completed
-#89, a new speed pass or merge readiness; #170–#174 are not expanded.
+[Native qualification](https://github.com/kimak-irmagi/sqlrs/actions/runs/43566256871)
+passes on `28cfc25`, including physical DB identity/counts, full/prefix cache,
+known failure, uncertain transfer and cleanup. [Combined CT13](https://github.com/kimak-irmagi/sqlrs/actions/runs/43566888408)
+completes all eight members / sixteen verified passes. Ordinary current v2 means
+are 51.512 s fresh / 9.113 s cached versus actual v1 48.711 / 8.451 and fixed old
+v2 57.615 / 10.120: 10.59% / 9.95% faster than old v2, but still 5.75% / 7.84%
+slower than v1. Original timers, data/cleanup oracles and the speed criterion are
+preserved. This diagnostic result is not full performance acceptance or completed
+#89; speed remains blocking and #170–#174 are not expanded. All 15 current-source
+CI test/documentation jobs pass; aggregate coverage alone remains red (engine
+79.4%, CLI 94.8%) under the unchanged exception.
 
 ## #89 installation checkpoint (2026-11-07)
 

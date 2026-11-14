@@ -11,10 +11,50 @@ are approved on 2026-11-13. O7's
 [wire/quota and test inventory](issue89-same-exec-result-tests.md), including
 limited OT-IR01–OT-IR08, are approved. O6/O7 are implemented and undergoing
 qualification. O5 DDL, journal writers and coordinator transfer are implemented;
-new O5 files meet the local coverage minimum. Actions native/speed acceptance
-remains open and no new speed pass is claimed.
+new O5 files meet the local coverage minimum. [Native qualification on
+`28cfc25`](https://github.com/kimak-irmagi/sqlrs/actions/runs/43566256871) passes,
+including real planning/working/publication DB identity and physical allocation
+counts, full/prefix cache, known failure, uncertain transfer and exact cleanup.
+Full performance acceptance remains open.
 
 ## 1. Evidence, outcome and boundaries
+
+### Combined O5–O7 result (2026-11-14)
+
+[CT13 run 43566888408](https://github.com/kimak-irmagi/sqlrs/actions/runs/43566888408)
+completed on `28cfc25a6f32d3d1ff8a9398004bcd898043cd59`, engine SHA256
+`ed3a8436cb7b2e110d393b3a705122c3ac2870bd7b0130150dcc100141fc5ade`.
+All eight serial members / sixteen JHipster passes passed data and cleanup
+oracles. Each route has two repetitions on the same hosted VM. Means:
+
+| Route | Fresh, ms | Fully cached, ms |
+| --- | ---: | ---: |
+| Actual v1 | 48710.695 | 8450.713 |
+| Old v2 (`668d505`) | 57614.793 | 10120.467 |
+| Current v2, recording off | 51511.594 | 9113.265 |
+| Current v2, recording on | 51630.634 | 9160.053 |
+
+Ordinary current v2 saves **10.59% fresh / 9.95% cached** against the fixed old
+v2, but remains **5.75% / 7.84% slower than actual v1**. The no-regression speed
+criterion remains unmet. CT13 is a diagnostic comparison, not the full P01b
+acceptance campaign or a noise bound. Different historical runs are not pooled;
+the old-v2 comparison does not isolate O5–O7 from the earlier optimizations.
+Recording changes these means by +0.23% / +0.51%.
+
+Both recorded fresh passes have one DB startup/transfer, no planning DB disposal,
+one cold inventory probe and eight same-exec result decodes with no separate
+capture reads. Cached passes retain two DB startups, dispose the preview once,
+perform no transfer or inventory probe, and execute no migration steps. Total
+collector container-create counts are current v2 7/3 versus old v2 8/4 and v1
+4/2 (fresh/cached); these include helper containers and are not DB-start counts.
+
+The [retained ZIP](issue89-cost-evidence-2026-11-14/43566888408/jhipster-cost.zip)
+preserves the exact original JSON, SHA256
+`b383b6110360f8a1f6e7279edade54dd6c030aba7cef5575757e7c10252fc313`.
+The benchmark uses the unchanged released-v1 and old-v2 pins, original API timer,
+eight changesets, eight subsequent exact cache hits and independent cleanup.
+
+### Reference before O5–O7
 
 [CT13 run 43061874236](https://github.com/kimak-irmagi/sqlrs/actions/runs/43061874236)
 on `d20848cce056910f18520558a614dea950b9eade` completed eight members / sixteen
@@ -33,7 +73,7 @@ contains the exact original `jhipster-cost.json`, SHA256
 Compression avoids adding 9.2 MB / 246k repetitive JSON lines to the PR; original
 bytes and every detailed timing interval are preserved and hash-verified.
 
-The current ordinary route remains +14.99% / +18.16% slower than v1. These two
+That revision's ordinary route was +14.99% / +18.16% slower than v1. These two
 diagnostic repetitions are not the full acceptance campaign or a noise bound.
 Recording changes observed means by -0.61% / +1.94%; do not infer that recording
 accelerates fresh execution. Enabled spans identify costs, not exact ordinary-

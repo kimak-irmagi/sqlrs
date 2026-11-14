@@ -427,3 +427,13 @@ include the O5 row; only its exact closed planner is excluded from session-child
 disposal. This preserves PG06's known-failure cleanup requirement without granting
 SQL replay or implementing deferred recovery. The 299-object current catalog and
 its three target hashes change; frozen released/source provenance is unchanged.
+
+[Native qualification 43566256871](https://github.com/kimak-irmagi/sqlrs/actions/runs/43566256871)
+passes on `28cfc25`: TL13, actual PG09 fresh/full/prefix database allocation and
+identity checks, PG08 ordering/uncertain-transfer/reopen controls, and the
+unchanged known-second-step-failure cleanup. Runtime envelope/prune and normal
+prepare controls also pass. The final full local queue run passes (168.096 s),
+as do the managedstore suite and vet. Current source CI 43566258042 passes all
+15 test/documentation jobs; only aggregate coverage fails (engine 79.4%, CLI
+94.8%) under the unchanged #89/#174 exception. These are functional results,
+not performance acceptance.
