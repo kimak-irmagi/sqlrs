@@ -1817,7 +1817,17 @@ AND p.plan_saved_at IS NOT NULL AND p.plan_digest IS NOT NULL AND p.plan_count I
 AND p.plan_count=(SELECT count(*) FROM prepare_planning_changesets changes WHERE changes.job_id=p.job_id)
 AND t.type='plan' AND t.status='succeeded' AND (c.phase='released' OR (c.phase='active' AND EXISTS(
 SELECT 1 FROM prepare_liquibase_planning_db_ownership owner WHERE owner.job_id=p.job_id AND owner.clone_id=c.clone_id
-AND owner.session_id IS NULL AND owner.disposed_at IS NULL AND owner.plan_digest=p.plan_digest)))
+AND owner.disposed_at IS NULL AND owner.plan_digest=p.plan_digest
+AND (owner.session_id IS NULL OR EXISTS(
+SELECT 1 FROM prepare_liquibase_sessions s
+JOIN prepare_tasks first ON first.job_id=s.job_id AND first.task_id=owner.first_task_id
+JOIN prepare_step_bindings first_binding ON first_binding.job_id=first.job_id AND first_binding.task_id=first.task_id
+WHERE s.session_id=owner.session_id AND s.job_id=p.job_id AND s.clone_id=c.clone_id
+AND s.session_no=1 AND s.worker_generation=a.worker_generation
+AND s.execution_fingerprint=jb.execution_fingerprint
+AND s.start_kind=c.source_kind AND s.start_id=coalesce(c.source_state_id,c.source_image_id)
+AND s.start_position=first.position AND first_binding.execution_digest=owner.first_execution_digest
+AND owner.transferred_at IS NOT NULL AND owner.disposal_requested_evidence_id IS NULL)))))
 AND a.clone_id=c.clone_id AND a.execution_digest=p.execution_digest AND b.execution_digest=p.execution_digest
 AND e.prepare_kind='lb' AND e.adapter_binding_digest=jb.execution_fingerprint AND e.input_manifest_digest=jb.bundle_manifest_digest
 AND a.phase='closed' AND a.resolution='planning_result_saved'

@@ -410,3 +410,20 @@ After the fix, all three cases and the full prepare package pass, as does vet.
 The controls preserve plan-only and cache-explain cleanup. Existing ordered
 failure assertions and TL13's required retention span are unchanged. Hosted
 native qualification and CT13 must be repeated on the corrected source.
+
+The next hosted run, 43564979105 on `550110f`, passed successful prepare and
+same-exec checks but exposed the known-failure branch after transfer. Failure
+selection still required an untransferred preview, and its session inventory
+mistook the closed planner sharing the clone for an unassociated session child.
+PG06/PG08 now include `TestPlanningDBSelectedFailureAfterTransfer`: real transfer,
+known nonzero child completion, failure selection/readback, exact owner inventory,
+stopped-session disposal intent and refusal of obsolete planner cleanup. The test
+failed independently at both incorrect guards before their fixes.
+
+The Go selection check and its SQL admission trigger now accept the exact durable
+first-session transfer, checking clone, Source, generation, execution fingerprint,
+first task/binding and absence of planner disposal. Complete owner comparisons
+include the O5 row; only its exact closed planner is excluded from session-child
+disposal. This preserves PG06's known-failure cleanup requirement without granting
+SQL replay or implementing deferred recovery. The 299-object current catalog and
+its three target hashes change; frozen released/source provenance is unchanged.

@@ -175,6 +175,15 @@ func stoppedFailureSessionState(owners LiquibaseFailureOwners, expected Liquibas
 		if item.Record.CloneID != session.CloneID {
 			continue
 		}
+		// O5 shares this clone with one closed planner. Its exact durable
+		// transfer is part of the validated owner snapshot, not a session child
+		// to stop/discard. An unrelated or unresolved attempt still refuses.
+		if owner := owners.planningDB; owner != nil && owner.Session.String == session.SessionID &&
+			owner.CloneID == session.CloneID && owner.TaskID == item.Record.TaskID && owner.AttemptNo == item.Record.AttemptNo &&
+			item.ExecutorKind == "container" && item.Record.WorkerGeneration == session.WorkerGeneration &&
+			item.Record.Phase == "closed" && item.Record.Resolution == "planning_result_saved" {
+			continue
+		}
 		matched := false
 		for _, child := range children {
 			matched = matched || child.Record.Attempt.TaskID == item.Record.TaskID && child.Record.Attempt.AttemptNo == item.Record.AttemptNo && item.ExecutorKind == "session_exec"
@@ -395,6 +404,11 @@ func loadLiquibaseFailureOwnersTx(ctx context.Context, tx *sql.Tx, intent Finali
 		return none, failureOwnerReadError(ctx)
 	}
 	result := LiquibaseFailureOwners{Intent: saved}
+	if owner, err := readPlanningDBOwner(ctx, tx, saved.JobID); err == nil {
+		result.planningDB = &owner
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return none, failureOwnerReadError(ctx)
+	}
 	result.Job, err = scanJob(tx.QueryRowContext(ctx, `SELECT job_id,status,prepare_kind,image_id,plan_only,snapshot_mode,prepare_args_normalized,signature,request_json,created_at,started_at,finished_at,result_json,error_json,coalesce(resolved_image_id,''),coalesce(lineage_ref,''),coalesce(identity_digest,'') FROM prepare_jobs WHERE job_id=?`, saved.JobID))
 	if err != nil {
 		return none, failureOwnerReadError(ctx)
@@ -600,6 +614,9 @@ type LiquibaseFailureOwners struct {
 	Invocations []LiquibaseFailureInvocation
 	Operations  []instanceaccess.Operation
 	Restores    []LiquibaseCacheRestore
+	// Exact O5 ownership participates in complete before/after comparisons.
+	// It does not independently grant a native cleanup or SQL permission.
+	planningDB *planningDBOwner
 }
 
 // LiquibaseFailureClone preserves nullable DB attachment independently of a
@@ -657,7 +674,17 @@ JOIN liquibase_job_bindings jb ON jb.job_id=p.job_id
 WHERE p.job_id=? AND p.execution_digest=? AND p.result_attempt_no=?
 AND t.type='plan' AND t.status='succeeded' AND (c.phase='released' OR (c.phase='active' AND EXISTS(
 SELECT 1 FROM prepare_liquibase_planning_db_ownership owner WHERE owner.job_id=p.job_id AND owner.clone_id=c.clone_id
-AND owner.session_id IS NULL AND owner.disposed_at IS NULL AND owner.plan_digest=p.plan_digest)))
+AND owner.disposed_at IS NULL AND owner.plan_digest=p.plan_digest
+AND (owner.session_id IS NULL OR EXISTS(
+SELECT 1 FROM prepare_liquibase_sessions s
+JOIN prepare_tasks first ON first.job_id=s.job_id AND first.task_id=owner.first_task_id
+JOIN prepare_step_bindings first_binding ON first_binding.job_id=first.job_id AND first_binding.task_id=first.task_id
+WHERE s.session_id=owner.session_id AND s.job_id=p.job_id AND s.clone_id=c.clone_id
+AND s.session_no=1 AND s.worker_generation=a.worker_generation
+AND s.execution_fingerprint=jb.execution_fingerprint
+AND s.start_kind=c.source_kind AND s.start_id=coalesce(c.source_state_id,c.source_image_id)
+AND s.start_position=first.position AND first_binding.execution_digest=owner.first_execution_digest
+AND owner.transferred_at IS NOT NULL AND owner.disposal_requested_evidence_id IS NULL)))))
 AND a.clone_id=c.clone_id AND a.execution_digest=p.execution_digest
 AND b.execution_digest=p.execution_digest AND e.prepare_kind='lb'
 AND e.adapter_binding_digest=jb.execution_fingerprint AND e.input_manifest_digest=jb.bundle_manifest_digest

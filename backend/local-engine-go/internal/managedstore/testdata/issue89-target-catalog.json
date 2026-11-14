@@ -582,7 +582,7 @@
   "prepare_lb_finalization_failure_admission": {
     "type": "trigger",
     "table": "prepare_liquibase_job_finalizations",
-    "sha256": "9a3d64c1527d581e337c37f44be72907001a75679436bb71c40d82007613e21d"
+    "sha256": "60e4f1a144fdb9715f928c8fb1fa580384b0d6664b2df8fa369a536d4f2f087f"
   },
   "prepare_lb_finalization_failure_proof": {
     "type": "trigger",
