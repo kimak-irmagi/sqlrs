@@ -5,6 +5,11 @@
 - Agent: Codex / GPT-5.
 - Status: Accepted, limited to #89 / PR #175.
 
+Performance/merge provisions are partially obsolete: the
+[2026-11-14 decision](2026-11-14-issue89-performance-acceptance-and-merge.md)
+accepts the measured overhead and authorizes merge. The coverage exception,
+honest reporting and unchanged shared threshold remain in force.
+
 ## Question and alternatives
 
 After separating the broad quality program into #174, must #89 still reach

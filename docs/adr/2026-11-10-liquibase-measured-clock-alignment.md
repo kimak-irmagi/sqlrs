@@ -1,5 +1,9 @@
 # Bound measured-clock alignment without changing product timing
 
+The retained #89 performance merge gate is partially obsolete under the
+[2026-11-14 acceptance](2026-11-14-issue89-performance-acceptance-and-merge.md).
+Clock alignment, timing definitions and evidence requirements remain valid.
+
 - Conversation approval: 2026-11-10, Asia/Novosibirsk; exact reply time unavailable.
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.

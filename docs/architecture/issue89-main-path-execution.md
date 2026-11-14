@@ -1,9 +1,11 @@
 # #89: connected normal execution
 
-Approved next amendment: [O5–O7](issue89-measured-overhead-reduction.md) adds
-source-compatible preview DB handoff, process-local inventory reuse and same-exec
-results. Its storage/test approvals and implementation are pending; execution
-described below is the measured pre-amendment behavior, not a required extra DB.
+Current delivery: [O5–O7](issue89-measured-overhead-reduction.md) is implemented
+and native-qualified, including source-compatible preview DB handoff,
+process-local inventory reuse and same-exec results. The user
+[accepts its measured overhead and authorizes merge](../adr/2026-11-14-issue89-performance-acceptance-and-merge.md).
+The execution checkpoint below is historical pre-amendment behavior; its pending
+performance-gate statements are superseded by that acceptance.
 
 Implementation checkpoint, 2026-11-07, under the previously approved delivery
 split. This is not an extension of #170–#174 or a release-ready claim.

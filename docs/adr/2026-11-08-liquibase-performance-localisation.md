@@ -1,5 +1,9 @@
 # Localise the confirmed #89 timing regression before proposing a fix
 
+The #89 no-regression merge gate is partially obsolete under the
+[2026-11-14 acceptance](2026-11-14-issue89-performance-acceptance-and-merge.md).
+Diagnostic designs, test approvals and historical results remain valid.
+
 - Conversation date: 2026-11-08, Asia/Novosibirsk; exact reply timestamp unavailable.
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.

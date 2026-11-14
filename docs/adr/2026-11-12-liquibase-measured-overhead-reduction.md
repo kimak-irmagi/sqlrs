@@ -1,5 +1,10 @@
 # Proceed with the measured #89 overhead candidates
 
+The retained #89 no-regression merge gate is partially obsolete under the
+[2026-11-14 acceptance](2026-11-14-issue89-performance-acceptance-and-merge.md).
+O5–O7 designs, test approvals, safety guards and original measurements remain
+valid; the user accepts the measured overhead for this delivery.
+
 - Conversation date: 2026-11-12, Asia/Novosibirsk; exact reply time unavailable.
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.

@@ -1,5 +1,9 @@
 # Run the retained Liquibase performance protocol away from the laptop
 
+The #89 performance merge gate is partially obsolete under the
+[2026-11-14 acceptance](2026-11-14-issue89-performance-acceptance-and-merge.md).
+The Actions venue, measurement protocol and retained evidence remain valid.
+
 - Conversation date: 2026-11-08, Asia/Novosibirsk; exact reply timestamp unavailable.
 - GitHub participant: @evilguest (41718235).
 - Agent: Codex / GPT-5.

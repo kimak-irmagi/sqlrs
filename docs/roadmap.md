@@ -74,7 +74,7 @@ gantt
 
 ---
 
-## #89 O5–O7 qualification (2026-11-14)
+## #89 O5–O7 delivery acceptance (2026-11-14)
 
 The [approved overhead reduction](architecture/issue89-measured-overhead-reduction.md)
 is implemented: O5 hands the live planning DB to the first working session on
@@ -96,8 +96,10 @@ completes all eight members / sixteen verified passes. Ordinary current v2 means
 are 51.512 s fresh / 9.113 s cached versus actual v1 48.711 / 8.451 and fixed old
 v2 57.615 / 10.120: 10.59% / 9.95% faster than old v2, but still 5.75% / 7.84%
 slower than v1. Original timers, data/cleanup oracles and the speed criterion are
-preserved. This diagnostic result is not full performance acceptance or completed
-#89; speed remains blocking and #170–#174 are not expanded. All 15 current-source
+preserved. This diagnostic result is not full P01b qualification. The user
+[accepts the measured overhead and authorizes merge](adr/2026-11-14-issue89-performance-acceptance-and-merge.md),
+superseding the #89 no-regression merge gate. #170–#174 remain independent
+deliveries. All 15 current-source
 CI test/documentation jobs pass; aggregate coverage alone remains red (engine
 79.4%, CLI 94.8%) under the unchanged exception.
 

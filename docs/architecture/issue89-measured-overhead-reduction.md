@@ -15,7 +15,9 @@ new O5 files meet the local coverage minimum. [Native qualification on
 `28cfc25`](https://github.com/kimak-irmagi/sqlrs/actions/runs/43566256871) passes,
 including real planning/working/publication DB identity and physical allocation
 counts, full/prefix cache, known failure, uncertain transfer and exact cleanup.
-Full performance acceptance remains open.
+The user [accepted the measured overhead for #89 and authorized merge](../adr/2026-11-14-issue89-performance-acceptance-and-merge.md).
+Full P01b qualification is not claimed and is no longer a merge prerequisite
+for this delivery.
 
 ## 1. Evidence, outcome and boundaries
 
@@ -36,7 +38,8 @@ oracles. Each route has two repetitions on the same hosted VM. Means:
 
 Ordinary current v2 saves **10.59% fresh / 9.95% cached** against the fixed old
 v2, but remains **5.75% / 7.84% slower than actual v1**. The no-regression speed
-criterion remains unmet. CT13 is a diagnostic comparison, not the full P01b
+criterion remains unmet; the user explicitly accepts this overhead for #89.
+CT13 is a diagnostic comparison, not the full P01b
 acceptance campaign or a noise bound. Different historical runs are not pooled;
 the old-v2 comparison does not isolate O5–O7 from the earlier optimizations.
 Recording changes these means by +0.23% / +0.51%.
@@ -89,7 +92,8 @@ here. Neither are per-snapshot DB stops/resumes, stock CLI/JVM starts, state
 verification, publication pins, manifest hashes or retained-output limits.
 
 CLI/API, psql, search rules and SQL-retry permissions do not change. #170–#174
-remain separate. The speed gate is unchanged. No laptop workload is permitted.
+remain separate. The original speed test is unchanged; the #89 delivery exception
+is recorded in the acceptance ADR above. No laptop workload is permitted.
 
 ## 2. O5: transfer the planning DB into the first working session
 
@@ -263,7 +267,8 @@ CT13 in Actions: actual v1/old-v2/new-off/new-on, both serial repetitions and
 fresh/cached passes, same inputs/timer/oracles, complete timeline and off/on
 observer control. Do not prepopulate the new inventory cache. Record cold miss
 and subsequent hit explicitly; adapting counters is not altering the workload.
-Full speed acceptance stays a separate requirement after diagnostic results.
+Full speed qualification remains distinct from diagnostic results; it is no
+longer a #89 merge prerequisite under the 2026-11-14 acceptance ADR.
 
 ## 6. Critical review and repeat review
 
