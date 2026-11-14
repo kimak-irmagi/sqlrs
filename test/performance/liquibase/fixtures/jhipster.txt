@@ -1,0 +1,65 @@
+change|1|00000000000000|jhipster|config/liquibase/changelog/00000000000000_initial_schema.xml|9:b6b4a3e0d2a6d7f1e5139675af65d7b0||
+change|2|00000000000001|jhipster|config/liquibase/changelog/00000000000000_initial_schema.xml|9:1fe8b4e13f20fc44432c21045f92d736||
+change|3|20150805124838-1|jhipster|config/liquibase/changelog/20150805124838_added_entity_BankAccount.xml|9:1228cf60729e675beeef0c1c0bffd820||
+change|4|20150805124936-1|jhipster|config/liquibase/changelog/20150805124936_added_entity_Label.xml|9:6b074a1e34d24e19aceb4c6d9e7b43cf||
+change|5|20150805125054-1|jhipster|config/liquibase/changelog/20150805125054_added_entity_Operation.xml|9:bc46d89eed832627c2a9b72e7775c362||
+change|6|20150805125054-1-relations|jhipster|config/liquibase/changelog/20150805125054_added_entity_Operation.xml|9:48e9514b7f090dc6241d013699aef0ad||
+change|7|20150805124838-2|jhipster|config/liquibase/changelog/20150805124838_added_entity_constraints_BankAccount.xml|9:9001ff44ad240ac3958b8f48c5e3967c||
+change|8|20150805125054-2|jhipster|config/liquibase/changelog/20150805125054_added_entity_constraints_Operation.xml|9:1b0267f89c3e66b9c945ba40238cf736||
+column|bank_account|1|id|bigint||64|0|NO|
+column|bank_account|2|name|character varying|255|||NO|
+column|bank_account|3|balance|numeric||21|2|NO|
+column|bank_account|4|user_id|bigint||64|0|YES|
+column|jhi_authority|1|name|character varying|50|||NO|
+column|jhi_user|1|id|bigint||64|0|NO|
+column|jhi_user|2|login|character varying|50|||NO|
+column|jhi_user|3|password_hash|character varying|60|||NO|
+column|jhi_user|4|first_name|character varying|50|||YES|
+column|jhi_user|5|last_name|character varying|50|||YES|
+column|jhi_user|6|email|character varying|191|||YES|
+column|jhi_user|7|image_url|character varying|256|||YES|
+column|jhi_user|8|activated|boolean||||NO|
+column|jhi_user|9|lang_key|character varying|10|||YES|
+column|jhi_user|10|activation_key|character varying|20|||YES|
+column|jhi_user|11|reset_key|character varying|20|||YES|
+column|jhi_user|12|created_by|character varying|50|||NO|
+column|jhi_user|13|created_date|timestamp without time zone||||YES|
+column|jhi_user|14|reset_date|timestamp without time zone||||YES|
+column|jhi_user|15|last_modified_by|character varying|50|||YES|
+column|jhi_user|16|last_modified_date|timestamp without time zone||||YES|
+column|jhi_user_authority|1|user_id|bigint||64|0|NO|
+column|jhi_user_authority|2|authority_name|character varying|50|||NO|
+column|label|1|id|bigint||64|0|NO|
+column|label|2|label|character varying|255|||NO|
+column|operation|1|id|bigint||64|0|NO|
+column|operation|2|date|timestamp without time zone||||NO|
+column|operation|3|description|character varying|255|||YES|
+column|operation|4|amount|numeric||21|2|NO|
+column|operation|5|bank_account_id|bigint||64|0|YES|
+column|rel_operation__label|1|label_id|bigint||64|0|NO|
+column|rel_operation__label|2|operation_id|bigint||64|0|NO|
+constraint|bank_account|bank_account_pkey|p|PRIMARY KEY (id)
+constraint|bank_account|fk_bank_account__user_id|f|FOREIGN KEY (user_id) REFERENCES jhi_user(id)
+constraint|jhi_authority|jhi_authority_pkey|p|PRIMARY KEY (name)
+constraint|jhi_user|jhi_user_pkey|p|PRIMARY KEY (id)
+constraint|jhi_user|ux_user_email|u|UNIQUE (email)
+constraint|jhi_user|ux_user_login|u|UNIQUE (login)
+constraint|jhi_user_authority|fk_authority_name|f|FOREIGN KEY (authority_name) REFERENCES jhi_authority(name)
+constraint|jhi_user_authority|fk_user_id|f|FOREIGN KEY (user_id) REFERENCES jhi_user(id)
+constraint|jhi_user_authority|jhi_user_authority_pkey|p|PRIMARY KEY (user_id, authority_name)
+constraint|label|label_pkey|p|PRIMARY KEY (id)
+constraint|operation|fk_operation__bank_account_id|f|FOREIGN KEY (bank_account_id) REFERENCES bank_account(id)
+constraint|operation|operation_pkey|p|PRIMARY KEY (id)
+constraint|rel_operation__label|fk_rel_operation__label__label_id|f|FOREIGN KEY (label_id) REFERENCES label(id)
+constraint|rel_operation__label|fk_rel_operation__label__operation_id|f|FOREIGN KEY (operation_id) REFERENCES operation(id)
+constraint|rel_operation__label|rel_operation__label_pkey|p|PRIMARY KEY (operation_id, label_id)
+index|bank_account|bank_account_pkey|CREATE UNIQUE INDEX bank_account_pkey ON public.bank_account USING btree (id)
+index|jhi_authority|jhi_authority_pkey|CREATE UNIQUE INDEX jhi_authority_pkey ON public.jhi_authority USING btree (name)
+index|jhi_user|jhi_user_pkey|CREATE UNIQUE INDEX jhi_user_pkey ON public.jhi_user USING btree (id)
+index|jhi_user|ux_user_email|CREATE UNIQUE INDEX ux_user_email ON public.jhi_user USING btree (email)
+index|jhi_user|ux_user_login|CREATE UNIQUE INDEX ux_user_login ON public.jhi_user USING btree (login)
+index|jhi_user_authority|jhi_user_authority_pkey|CREATE UNIQUE INDEX jhi_user_authority_pkey ON public.jhi_user_authority USING btree (user_id, authority_name)
+index|label|label_pkey|CREATE UNIQUE INDEX label_pkey ON public.label USING btree (id)
+index|operation|operation_pkey|CREATE UNIQUE INDEX operation_pkey ON public.operation USING btree (id)
+index|rel_operation__label|rel_operation__label_pkey|CREATE UNIQUE INDEX rel_operation__label_pkey ON public.rel_operation__label USING btree (operation_id, label_id)
+sequence|sequence_generator|bigint|1050|1|9223372036854775807|50|f

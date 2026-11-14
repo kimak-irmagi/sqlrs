@@ -5,23 +5,26 @@ import "context"
 type JobRecord struct {
 	// Immutable recovery provenance, selected before job creation; see
 	// docs/architecture/managed-database-identity-internals.md.
-	ResolvedImageID       string
-	LineageRef            string
-	IdentityDigest        string
-	JobID                 string
-	Status                string
-	PrepareKind           string
-	ImageID               string
-	PlanOnly              bool
-	SnapshotMode          string
-	PrepareArgsNormalized *string
-	Signature             *string
-	RequestJSON           *string
-	CreatedAt             string
-	StartedAt             *string
-	FinishedAt            *string
-	ResultJSON            *string
-	ErrorJSON             *string
+	ResolvedImageID string
+	LineageRef      string
+	IdentityDigest  string
+	JobID           string
+	Status          string
+	// Purpose distinguishes ordinary preparation from a queued explanation.
+	Purpose                string
+	PrepareKind            string
+	ImageID                string
+	PlanOnly               bool
+	SnapshotMode           string
+	PrepareArgsNormalized  *string
+	Signature              *string
+	RequestJSON            *string
+	CreatedAt              string
+	StartedAt              *string
+	FinishedAt             *string
+	ResultJSON             *string
+	CacheExplainResultJSON *string
+	ErrorJSON              *string
 }
 
 type TaskRecord struct {

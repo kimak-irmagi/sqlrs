@@ -8772,7 +8772,7 @@ xor
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[CacheExplainPrepareRequestLiquibase](#schemacacheexplainpreparerequestliquibase)|false|none|none|
+|*anonymous*|[CacheExplainPrepareRequestLiquibase](#schemacacheexplainpreparerequestliquibase)|false|none|Both deployment modes use the engine-owned Liquibase container.<br>Client liquibase_exec, liquibase_exec_mode and liquibase_env are<br>rejected by presence, including empty or null values. The version<br>selector is user intent; only the engine resolves the trusted image.|
 
 <h2 id="tocS_CacheExplainPrepareRequestPsql">CacheExplainPrepareRequestPsql</h2>
 <!-- backwards compatibility -->
@@ -8854,12 +8854,7 @@ xor
   "liquibase_args": [
     "string"
   ],
-  "liquibase_exec": "string",
-  "liquibase_exec_mode": "string",
-  "liquibase_env": {
-    "property1": "string",
-    "property2": "string"
-  },
+  "liquibase_version": "latest",
   "work_dir": "string",
   "source_manifest": {
     "workspace_ref": {
@@ -8896,6 +8891,11 @@ xor
 
 ```
 
+Both deployment modes use the engine-owned Liquibase container.
+Client liquibase_exec, liquibase_exec_mode and liquibase_env are
+rejected by presence, including empty or null values. The version
+selector is user intent; only the engine resolves the trusted image.
+
 ### Properties
 
 |Name|Type|Required|Restrictions|Description|
@@ -8903,10 +8903,7 @@ xor
 |prepare_kind|string|true|none|Prepare adapter kind.|
 |image_id|string|true|none|Base Docker image id to use.|
 |liquibase_args|[string]|true|none|Arguments passed to Liquibase. Argument ordering is preserved and<br>path-bearing arguments must already reflect the absolute bound<br>client execution context. With `source_manifest`, they are logical<br>client coordinates and are not opened on the server filesystem.|
-|liquibase_exec|string|false|none|Optional Liquibase executable override selected by the CLI.|
-|liquibase_exec_mode|string|false|none|Optional Liquibase executable mode selected by the CLI.|
-|liquibase_env|object|false|none|Optional environment variables passed through to Liquibase.|
-|» **additionalProperties**|string|false|none|none|
+|liquibase_version|[LiquibaseVersion](#schemaliquibaseversion)|false|none|Tag in the trusted `liquibase/liquibase` image repository. A pinned<br>release or `latest` is allowed. Omission selects `latest`; this is<br>equivalent to the untagged `liquibase/liquibase` image. Repository<br>names, digests, separators, and empty values are not accepted here.<br>`latest` is refreshed and resolved to a platform-specific digest<br>before planning; one job uses that digest throughout its lifetime.|
 |work_dir|string|false|none|Absolute bound client working directory for the Liquibase invocation.|
 |source_manifest|[SourceManifest](#schemasourcemanifest)|false|none|Optional remote-source manifest attached to file-bearing prepare and<br>cache-explain requests. The server uses this manifest with its scoped<br>content cache to build a virtual workspace for authoritative<br>format-specific input resolution. File-bearing request arguments retain<br>absolute client paths; `workspace_ref` binds those logical coordinates<br>to workspace-relative manifest keys. An empty manifest is a valid<br>first-round handshake and may produce `source_inputs_missing`.|
 
@@ -8980,6 +8977,31 @@ or
 |decision|hit|
 |decision|miss|
 
+<h2 id="tocS_LiquibaseVersion">LiquibaseVersion</h2>
+<!-- backwards compatibility -->
+<a id="schemaliquibaseversion"></a>
+<a id="schema_LiquibaseVersion"></a>
+<a id="tocSliquibaseversion"></a>
+<a id="tocsliquibaseversion"></a>
+
+```json
+"latest"
+
+```
+
+Tag in the trusted `liquibase/liquibase` image repository. A pinned
+release or `latest` is allowed. Omission selects `latest`; this is
+equivalent to the untagged `liquibase/liquibase` image. Repository
+names, digests, separators, and empty values are not accepted here.
+`latest` is refreshed and resolved to a platform-specific digest
+before planning; one job uses that digest throughout its lifetime.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|string|false|none|Tag in the trusted `liquibase/liquibase` image repository. A pinned<br>release or `latest` is allowed. Omission selects `latest`; this is<br>equivalent to the untagged `liquibase/liquibase` image. Repository<br>names, digests, separators, and empty values are not accepted here.<br>`latest` is refreshed and resolved to a platform-specific digest<br>before planning; one job uses that digest throughout its lifetime.|
+
 <h2 id="tocS_PrepareJobRequest">PrepareJobRequest</h2>
 <!-- backwards compatibility -->
 <a id="schemapreparejobrequest"></a>
@@ -9043,7 +9065,7 @@ xor
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|*anonymous*|[PrepareJobRequestLiquibase](#schemapreparejobrequestliquibase)|false|none|none|
+|*anonymous*|[PrepareJobRequestLiquibase](#schemapreparejobrequestliquibase)|false|none|Both deployment modes use the engine-owned Liquibase container.<br>Client liquibase_exec, liquibase_exec_mode and liquibase_env are<br>rejected by presence, including empty or null values. The version<br>selector is user intent; only the engine resolves the trusted image.|
 
 <h2 id="tocS_PrepareJobRequestPsql">PrepareJobRequestPsql</h2>
 <!-- backwards compatibility -->
@@ -9127,12 +9149,7 @@ xor
   "liquibase_args": [
     "string"
   ],
-  "liquibase_exec": "string",
-  "liquibase_exec_mode": "string",
-  "liquibase_env": {
-    "property1": "string",
-    "property2": "string"
-  },
+  "liquibase_version": "latest",
   "work_dir": "string",
   "source_manifest": {
     "workspace_ref": {
@@ -9170,6 +9187,11 @@ xor
 
 ```
 
+Both deployment modes use the engine-owned Liquibase container.
+Client liquibase_exec, liquibase_exec_mode and liquibase_env are
+rejected by presence, including empty or null values. The version
+selector is user intent; only the engine resolves the trusted image.
+
 ### Properties
 
 |Name|Type|Required|Restrictions|Description|
@@ -9177,10 +9199,7 @@ xor
 |prepare_kind|string|true|none|Prepare adapter kind.|
 |image_id|string|true|none|Base Docker image id to use.|
 |liquibase_args|[string]|true|none|Arguments passed to Liquibase. Argument ordering is preserved and<br>path-bearing arguments must already be normalized for the absolute<br>bound client execution context. With `source_manifest`, they are<br>logical client coordinates and are not opened on the server<br>filesystem.|
-|liquibase_exec|string|false|none|Optional Liquibase executable override selected by the CLI.|
-|liquibase_exec_mode|string|false|none|Optional Liquibase executable mode selected by the CLI.|
-|liquibase_env|object|false|none|Optional environment variables passed through to Liquibase.|
-|» **additionalProperties**|string|false|none|none|
+|liquibase_version|[LiquibaseVersion](#schemaliquibaseversion)|false|none|Tag in the trusted `liquibase/liquibase` image repository. A pinned<br>release or `latest` is allowed. Omission selects `latest`; this is<br>equivalent to the untagged `liquibase/liquibase` image. Repository<br>names, digests, separators, and empty values are not accepted here.<br>`latest` is refreshed and resolved to a platform-specific digest<br>before planning; one job uses that digest throughout its lifetime.|
 |work_dir|string|false|none|Absolute bound client working directory for the Liquibase invocation.|
 |source_manifest|[SourceManifest](#schemasourcemanifest)|false|none|Optional remote-source manifest attached to file-bearing prepare and<br>cache-explain requests. The server uses this manifest with its scoped<br>content cache to build a virtual workspace for authoritative<br>format-specific input resolution. File-bearing request arguments retain<br>absolute client paths; `workspace_ref` binds those logical coordinates<br>to workspace-relative manifest keys. An empty manifest is a valid<br>first-round handshake and may produce `source_inputs_missing`.|
 |plan_only|boolean|false|none|When true, only the plan is computed and no instance is created.|

@@ -139,6 +139,43 @@ func TestRunPrepareFailedWithErrorDetails(t *testing.T) {
 	}
 }
 
+// A03c: a durable failure may have only a final error event, without a
+// separate status event. The CLI must validate the saved job status and stop.
+func TestWaitForPrepareTerminalErrorEventWithoutStatusEvent(t *testing.T) {
+	var eventCalls, statusCalls int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/prepare-jobs/job-1/events":
+			atomic.AddInt32(&eventCalls, 1)
+			writeEventStream(w, []client.PrepareJobEvent{{
+				Type: "error", Status: "failed",
+				Error: &client.ErrorResponse{Message: "cannot bind container Liquibase execution"},
+			}})
+		case "/v1/prepare-jobs/job-1":
+			atomic.AddInt32(&statusCalls, 1)
+			w.Header().Set("Content-Type", "application/json")
+			io.WriteString(w, `{"job_id":"job-1","status":"failed","error":{"message":"cannot bind container Liquibase execution"}}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	cli := client.New(server.URL, client.Options{Timeout: time.Second})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := waitForPrepare(ctx, cli, "job-1", server.URL+"/v1/prepare-jobs/job-1/events", io.Discard, false)
+	if err == nil || !strings.Contains(err.Error(), "cannot bind container Liquibase execution") {
+		t.Fatalf("expected saved job failure, got %v", err)
+	}
+	if got := atomic.LoadInt32(&eventCalls); got != 1 {
+		t.Fatalf("expected one events request, got %d", got)
+	}
+	if got := atomic.LoadInt32(&statusCalls); got != 1 {
+		t.Fatalf("expected one job status request, got %d", got)
+	}
+}
+
 func TestRunPrepareJobIDMissing(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/v1/prepare-jobs" {
@@ -525,6 +562,40 @@ func TestWaitForPrepareStreamEndsWithoutTerminal(t *testing.T) {
 	_, err := waitForPrepare(context.Background(), cli, "job-1", server.URL+"/v1/prepare-jobs/job-1/events", io.Discard, false)
 	if err == nil || !strings.Contains(err.Error(), "terminal") {
 		t.Fatalf("expected terminal status error, got %v", err)
+	}
+}
+
+// The prepare-events flow requires a clean stream end without a confirmed
+// terminal job state to fail even when HTTP uses chunked transfer encoding.
+func TestWaitForPrepareChunkedStreamEndsWithoutTerminal(t *testing.T) {
+	var eventCalls int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/prepare-jobs/job-1/events":
+			if atomic.AddInt32(&eventCalls, 1) != 1 {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/x-ndjson")
+			w.WriteHeader(http.StatusOK)
+			w.(http.Flusher).Flush()
+			io.WriteString(w, encodeEvents([]client.PrepareJobEvent{statusEvent("running")}))
+		case "/v1/prepare-jobs/job-1":
+			w.Header().Set("Content-Type", "application/json")
+			io.WriteString(w, `{"job_id":"job-1","status":"running"}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	cli := client.New(server.URL, client.Options{Timeout: time.Second})
+	_, err := waitForPrepare(context.Background(), cli, "job-1", server.URL+"/v1/prepare-jobs/job-1/events", io.Discard, false)
+	if err == nil || !strings.Contains(err.Error(), "ended without terminal status") {
+		t.Fatalf("expected terminal-status error after complete chunked stream, got %v", err)
+	}
+	if got := atomic.LoadInt32(&eventCalls); got != 1 {
+		t.Fatalf("complete stream should not reconnect, requests=%d", got)
 	}
 }
 
@@ -1194,6 +1265,28 @@ func TestRunWatchFailedImmediately(t *testing.T) {
 	}, "job-1")
 	if err == nil || !strings.Contains(err.Error(), "boom: failed fast") {
 		t.Fatalf("expected failed status error, got %v", err)
+	}
+}
+
+func TestRunWatchRecoveryRequiredStopsWithoutStreaming(t *testing.T) {
+	var streamCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/v1/prepare-jobs/job-1" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"job_id":"job-1","status":"recovery_required","error":{"message":"database result is unclear","details":"database session could still finish"}}`)
+			return
+		}
+		streamCalls.Add(1)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	_, err := RunWatch(context.Background(), PrepareOptions{Mode: "remote", Endpoint: server.URL, Timeout: time.Second}, "job-1")
+	if err == nil || !strings.Contains(err.Error(), "job-1") || !strings.Contains(err.Error(), "database session could still finish") {
+		t.Fatalf("expected actionable recovery error, got %v", err)
+	}
+	if got := streamCalls.Load(); got != 0 {
+		t.Fatalf("recovery-required watch opened stream %d times", got)
 	}
 }
 

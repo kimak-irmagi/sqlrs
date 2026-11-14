@@ -15,7 +15,10 @@ import (
 	"github.com/sqlrs/engine-local/internal/dbms"
 	"github.com/sqlrs/engine-local/internal/instanceaccess"
 	"github.com/sqlrs/engine-local/internal/managedidentity"
+	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/preparecost"
 	engineRuntime "github.com/sqlrs/engine-local/internal/runtime"
+	"github.com/sqlrs/engine-local/internal/statefs"
 	"github.com/sqlrs/engine-local/internal/store"
 )
 
@@ -32,6 +35,30 @@ func managedOperationRef(parts ...string) string {
 // provenance. Partial/unowned targets fail closed without destructive reset.
 // See managed-database-identity-internals.md, atomicity and recovery.
 func (e *taskExecutor) startManagedRuntime(ctx context.Context, jobID string, prepared preparedRequest, input *TaskInput) (*jobRuntime, *ErrorResponse) {
+	return e.startManagedRuntimeWithPlan(ctx, jobID, prepared, input, nil)
+}
+
+// startManagedRuntimeWithPlan honors the already committed clone/name intent.
+// The nil-plan path retains the existing psql behavior. A tracked start failure
+// retains its files for exact reconciliation instead of deleting a possible DB.
+func (e *taskExecutor) startManagedRuntimeWithPlan(ctx context.Context, jobID string, prepared preparedRequest, input *TaskInput, plan *queue.ClonePlan) (*jobRuntime, *ErrorResponse) {
+	child, finish := preparecost.Start(ctx, preparecost.DBStartup)
+	outcome := preparecost.Panicked
+	defer func() { finish(outcome) }()
+	owned, problem := e.observeStartManagedRuntimeWithPlan(child, jobID, prepared, input, plan)
+	outcome = preparecost.Succeeded
+	if problem != nil {
+		outcome = preparecost.Failed
+		if problem.Code == "cancelled" {
+			outcome = preparecost.Cancelled
+		}
+	}
+	return owned, problem
+}
+
+// observeStartManagedRuntimeWithPlan retains the original ownership/error
+// ordering; subintervals describe actual calls, not inferred Docker internals.
+func (e *taskExecutor) observeStartManagedRuntimeWithPlan(ctx context.Context, jobID string, prepared preparedRequest, input *TaskInput, plan *queue.ClonePlan) (*jobRuntime, *ErrorResponse) {
 	m := e.m
 	fail := func(err error) (*jobRuntime, *ErrorResponse) {
 		return nil, errorResponse("internal_error", "managed runtime unavailable", err.Error())
@@ -46,7 +73,7 @@ func (e *taskExecutor) startManagedRuntime(ctx context.Context, jobID string, pr
 	if !ok {
 		return fail(instanceaccess.ErrUnavailable)
 	}
-	m.managedMu.Lock()
+	_ = preparecost.ObserveCall(ctx, preparecost.DBLockWait, func(context.Context) error { m.managedMu.Lock(); return nil })
 	defer m.managedMu.Unlock()
 	image := prepared.effectiveImageID()
 	paths, err := resolveStatePaths(m.managedRoot, image, "", m.statefs)
@@ -55,64 +82,79 @@ func (e *taskExecutor) startManagedRuntime(ctx context.Context, jobID string, pr
 	}
 	var source string
 	var bootstrap instanceaccess.SecretBinding
-	switch input.Kind {
-	case "image":
-		if input.ID != prepared.managed.Key {
-			return fail(instanceaccess.ErrConflict)
-		}
-		source = filepath.Join(paths.baseDir, prepared.managed.Key)
-		info, statErr := os.Lstat(source)
-		if statErr != nil && !os.IsNotExist(statErr) {
-			return fail(statErr)
-		}
-		if statErr == nil && (!info.IsDir() || info.Mode()&os.ModeSymlink != 0) {
-			return fail(instanceaccess.ErrConflict)
-		}
-		op, err := m.access.BaseOperation(ctx, prepared.managed.Key, source, prepared.managed.IdentityBinding, statErr == nil)
-		if err != nil {
-			return fail(err)
-		}
-		bootstrap, _, err = m.access.Bootstrap(ctx, prepared.managed.IdentityBinding, op.Stage == "assigned")
-		if err != nil {
-			return fail(err)
-		}
-		if op.Stage != "ready" {
-			if _, err := os.Lstat(source); err == nil || !os.IsNotExist(err) {
-				return fail(instanceaccess.ErrConflict)
+	err = preparecost.ObserveCall(ctx, preparecost.DBSource, func(ctx context.Context) error {
+		switch input.Kind {
+		case "image":
+			if input.ID != prepared.managed.Key {
+				return instanceaccess.ErrConflict
 			}
-			if err := m.statefs.EnsureBaseDir(ctx, source); err != nil {
-				return fail(err)
+			source = filepath.Join(paths.baseDir, prepared.managed.Key)
+			info, statErr := os.Lstat(source)
+			if statErr != nil && !os.IsNotExist(statErr) {
+				return statErr
 			}
-			if err := rt.InitManagedBase(ctx, engineRuntime.ManagedInitRequest{ImageID: image, DataDir: source, Identity: prepared.managed.IdentityBinding, Bootstrap: bootstrap}); err != nil {
-				return fail(err)
+			if statErr == nil && (!info.IsDir() || info.Mode()&os.ModeSymlink != 0) {
+				return instanceaccess.ErrConflict
 			}
-			if err := m.access.BaseReady(ctx, op); err != nil {
-				return fail(err)
+			op, err := m.access.BaseOperation(ctx, prepared.managed.Key, source, prepared.managed.IdentityBinding, statErr == nil)
+			if err != nil {
+				return err
 			}
+			bootstrap, _, err = m.access.Bootstrap(ctx, prepared.managed.IdentityBinding, op.Stage == "assigned")
+			if err != nil {
+				return err
+			}
+			if op.Stage != "ready" {
+				if _, err := os.Lstat(source); err == nil || !os.IsNotExist(err) {
+					return instanceaccess.ErrConflict
+				}
+				if err := m.statefs.EnsureBaseDir(ctx, source); err != nil {
+					return err
+				}
+				if err := preparecost.ObserveCall(ctx, preparecost.DBBaseInit, func(child context.Context) error {
+					return rt.InitManagedBase(child, engineRuntime.ManagedInitRequest{ImageID: image, DataDir: source, Identity: prepared.managed.IdentityBinding, Bootstrap: bootstrap})
+				}); err != nil {
+					return err
+				}
+				if err := m.access.BaseReady(ctx, op); err != nil {
+					return err
+				}
+			}
+		case "state":
+			entry, found, err := m.loadManagedState(ctx, input.ID, prepared)
+			if err != nil {
+				return err
+			}
+			if !found {
+				return instanceaccess.ErrNotFound
+			}
+			paths, err := resolveStatePaths(m.managedRoot, entry.ImageID, input.ID, m.statefs)
+			if err != nil {
+				return err
+			}
+			source = paths.stateDir
+			bootstrap, _, err = m.access.Bootstrap(ctx, prepared.managed.IdentityBinding, false)
+			if err != nil {
+				return err
+			}
+		default:
+			return instanceaccess.ErrInvalid
 		}
-	case "state":
-		entry, found, err := m.loadManagedState(ctx, input.ID, prepared)
-		if err != nil {
-			return fail(err)
-		}
-		if !found {
-			return fail(instanceaccess.ErrNotFound)
-		}
-		paths, err := resolveStatePaths(m.managedRoot, entry.ImageID, input.ID, m.statefs)
-		if err != nil {
-			return fail(err)
-		}
-		source = paths.stateDir
-		bootstrap, _, err = m.access.Bootstrap(ctx, prepared.managed.IdentityBinding, false)
-		if err != nil {
-			return fail(err)
-		}
-	default:
-		return fail(instanceaccess.ErrInvalid)
+		return nil
+	})
+	if err != nil {
+		return fail(err)
 	}
 	opRef := "runtime_" + managedOperationRef(m.stateStoreRoot, jobID, input.Kind, input.ID)
 	target := filepath.Join(m.stateStoreRoot, "jobs", jobID, opRef)
-	op, err := m.access.Assign(ctx, opRef, target, input.ID, prepared.managed.IdentityBinding)
+	if plan != nil {
+		if plan.Ref != filepath.ToSlash(filepath.Join("jobs", jobID, opRef)) || plan.ID == "" || plan.PlannedRuntimeName == "" || plan.SourceKind != input.Kind || input.Kind == "image" && plan.SourceImageID != input.ID || input.Kind == "state" && plan.SourceStateID != input.ID {
+			return fail(instanceaccess.ErrConflict)
+		}
+	}
+	op, err := preparecost.Observe(ctx, preparecost.DBAssign, func(child context.Context) (instanceaccess.Operation, error) {
+		return m.access.Assign(child, opRef, target, input.ID, prepared.managed.IdentityBinding)
+	})
 	if err != nil {
 		return fail(err)
 	}
@@ -125,7 +167,9 @@ func (e *taskExecutor) startManagedRuntime(ctx context.Context, jobID string, pr
 	if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
 		return fail(err)
 	}
-	clone, err := m.statefs.Clone(ctx, source, target)
+	clone, err := preparecost.Observe(ctx, preparecost.DBClone, func(child context.Context) (statefs.CloneResult, error) {
+		return m.statefs.Clone(child, source, target)
+	})
 	if err != nil {
 		return fail(err)
 	}
@@ -134,20 +178,28 @@ func (e *taskExecutor) startManagedRuntime(ctx context.Context, jobID string, pr
 		_ = clone.Cleanup()
 		return fail(err)
 	}
-	instance, err := rt.StartManaged(ctx, engineRuntime.ManagedStartRequest{StartRequest: engineRuntime.StartRequest{ImageID: image, DataDir: clone.MountDir, Name: "sqlrs-managed-" + op.PhysicalIdentity, Mounts: runtimeMountsFrom(mount)}, Identity: prepared.managed.IdentityBinding, PhysicalIdentity: op.PhysicalIdentity})
+	runtimeName := "sqlrs-managed-" + op.PhysicalIdentity
+	if plan != nil {
+		runtimeName = plan.PlannedRuntimeName
+	}
+	instance, err := preparecost.Observe(ctx, preparecost.DBStart, func(child context.Context) (engineRuntime.Instance, error) {
+		return rt.StartManaged(child, engineRuntime.ManagedStartRequest{StartRequest: engineRuntime.StartRequest{ImageID: image, DataDir: clone.MountDir, Name: runtimeName, Mounts: runtimeMountsFrom(mount)}, Identity: prepared.managed.IdentityBinding, PhysicalIdentity: op.PhysicalIdentity})
+	})
 	if err != nil {
-		_ = clone.Cleanup()
+		if plan == nil {
+			_ = clone.Cleanup()
+		}
 		return fail(err)
 	}
 	owned := &jobRuntime{instance: instance, dataDir: clone.MountDir, runtimeDir: target, cleanup: clone.Cleanup, scriptMount: mount, operation: op, bootstrap: &bootstrap}
 	if input.Kind == "state" {
 		owned.stateID = input.ID
 	}
-	if err := m.access.Attach(ctx, op, instance.Binding); err != nil {
+	if err := preparecost.ObserveCall(ctx, preparecost.DBAttach, func(child context.Context) error { return m.access.Attach(child, op, instance.Binding) }); err != nil {
 		_ = m.runtime.Stop(context.WithoutCancel(ctx), instance.ID)
 		return fail(err)
 	}
-	if err := m.verifyManagedRuntime(ctx, owned); err != nil {
+	if err := preparecost.ObserveCall(ctx, preparecost.DBVerifyStartup, func(child context.Context) error { return m.verifyManagedRuntime(child, owned) }); err != nil {
 		_ = m.runtime.Stop(context.WithoutCancel(ctx), instance.ID)
 		_ = m.access.RetireOperation(context.WithoutCancel(ctx), op)
 		return fail(err)

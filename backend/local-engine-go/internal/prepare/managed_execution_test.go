@@ -278,7 +278,7 @@ func managedExecutionFixture(t *testing.T) (*PrepareService, preparedRequest, *s
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { secrets.Close() })
-	access, err := instanceaccess.NewService(db, secrets, format.DomainRef)
+	access, err := instanceaccess.NewServiceWithPublicationPins(db, secrets, format.DomainRef, q)
 	if err != nil {
 		t.Fatal(err)
 	}

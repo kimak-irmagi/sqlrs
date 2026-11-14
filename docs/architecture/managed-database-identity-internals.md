@@ -243,6 +243,13 @@ it does not remove a directory still possibly mounted by an unconfirmed runtime.
 
 ## Approved upgrade conditions
 
+This gate concerns the initial adoption of managed identity, not every later
+extension of an already managed store. The approved #89
+[Liquibase installation boundary](issue89-normal-path-storage-extraction.md)
+preserves an exact released managed baseline and its records through a bounded
+job-table bridge. It does not authorize adopting unbound legacy data or resuming
+unfinished old Liquibase work; the identity and inventory safeguards below remain.
+
 Prefer an explicit empty-runtime cutover over permanent fixed-role compatibility
 or SQL role renaming. Preflight inventories both schemas and managed resources
 before schema mutation. If old states, instances, jobs, leases or snapshots exist,

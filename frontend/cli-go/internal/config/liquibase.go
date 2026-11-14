@@ -1,51 +1,25 @@
 package config
 
-import "strings"
+import (
+	"fmt"
+)
 
-func LookupLiquibaseExec(path string) (string, bool, error) {
+// RejectLiquibaseRunnerSettings enforces the container-only CLI contract from
+// docs/architecture/liquibase-container-component-structure.md. Presence is
+// invalid even when the obsolete value is empty or null.
+func RejectLiquibaseRunnerSettings(path string) error {
 	data, err := readConfigMap(path)
 	if err != nil {
-		return "", false, err
+		return err
 	}
 	liquibase, ok := data["liquibase"].(map[string]any)
 	if !ok {
-		return "", false, nil
+		return nil
 	}
-	raw, ok := liquibase["exec"]
-	if !ok {
-		return "", false, nil
+	for _, key := range []string{"exec", "exec_mode", "env"} {
+		if _, present := liquibase[key]; present {
+			return fmt.Errorf("liquibase.%s is no longer supported; Liquibase runs in a container", key)
+		}
 	}
-	value, ok := raw.(string)
-	if !ok {
-		return "", false, nil
-	}
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return "", false, nil
-	}
-	return value, true, nil
-}
-
-func LookupLiquibaseExecMode(path string) (string, bool, error) {
-	data, err := readConfigMap(path)
-	if err != nil {
-		return "", false, err
-	}
-	liquibase, ok := data["liquibase"].(map[string]any)
-	if !ok {
-		return "", false, nil
-	}
-	raw, ok := liquibase["exec_mode"]
-	if !ok {
-		return "", false, nil
-	}
-	value, ok := raw.(string)
-	if !ok {
-		return "", false, nil
-	}
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return "", false, nil
-	}
-	return value, true, nil
+	return nil
 }

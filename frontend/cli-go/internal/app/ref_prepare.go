@@ -91,7 +91,7 @@ func bindPreparePsqlInputs(runOpts cli.PrepareOptions, workspaceRoot string, cwd
 	}, nil
 }
 
-func bindPrepareLiquibaseInputs(runOpts cli.PrepareOptions, workspaceRoot string, cwd string, parsed prepareArgs, existing *refctx.Context, liquibaseExec string, liquibaseExecMode string, relativizePaths bool) (binding prepareStageBinding, err error) {
+func bindPrepareLiquibaseInputs(runOpts cli.PrepareOptions, workspaceRoot string, cwd string, parsed prepareArgs, existing *refctx.Context, relativizePaths bool) (binding prepareStageBinding, err error) {
 	ctx, cleanup, err := resolvePrepareBindingContext(workspaceRoot, cwd, parsed, existing)
 	if err != nil {
 		return prepareStageBinding{}, err
@@ -111,18 +111,14 @@ func bindPrepareLiquibaseInputs(runOpts cli.PrepareOptions, workspaceRoot string
 			boundaryRoot = ctx.WorkspaceRoot
 			baseDir = effectiveLiquibaseBindBaseDir(cwd, ctx, existing, parsed)
 		}
-		localConverter := converter
-		if shouldUseLiquibaseWindowsMode(liquibaseExec, liquibaseExecMode) {
-			localConverter = nil
-		}
-		args, err := normalizeLiquibaseArgs(parsed.PsqlArgs, boundaryRoot, baseDir, localConverter)
+		args, err := normalizeLiquibaseArgs(parsed.PsqlArgs, boundaryRoot, baseDir, converter)
 		if err != nil {
 			return prepareStageBinding{}, err
 		}
 		if relativizePaths {
 			args = relativizeLiquibaseArgs(args, boundaryRoot, baseDir)
 		}
-		workDir, err := normalizeWorkDir(baseDir, localConverter)
+		workDir, err := normalizeWorkDir(baseDir, converter)
 		if err != nil {
 			return prepareStageBinding{}, err
 		}
@@ -142,11 +138,6 @@ func bindPrepareLiquibaseInputs(runOpts cli.PrepareOptions, workspaceRoot string
 	if err != nil {
 		return prepareStageBinding{}, wrapInputsetError(err)
 	}
-	localConverter := converter
-	if shouldUseLiquibaseWindowsMode(liquibaseExec, liquibaseExecMode) {
-		localConverter = nil
-	}
-
 	stageRoot := ""
 	stageBase := resolver.BaseDir
 	if _, _, hasLocalPaths, err := liquibaseLocalArtifacts(args, resolver, ctx.FileSystem); err != nil {
@@ -172,13 +163,13 @@ func bindPrepareLiquibaseInputs(runOpts cli.PrepareOptions, workspaceRoot string
 		}
 		args = relativizeLiquibaseArgs(args, relRoot, stageBase)
 	} else {
-		args, err = convertLiquibaseHostPaths(args, localConverter)
+		args, err = convertLiquibaseHostPaths(args, converter)
 		if err != nil {
 			return prepareStageBinding{}, err
 		}
 	}
 
-	workDir, err := normalizeWorkDir(stageBase, localConverter)
+	workDir, err := normalizeWorkDir(stageBase, converter)
 	if err != nil {
 		return prepareStageBinding{}, err
 	}

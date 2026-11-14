@@ -197,8 +197,13 @@ flowchart TD
 
 - helper-функции `internal/prepare`
   - Отвечают за lock/marker-семантику build base/state, dirty-state detection,
-    cache invalidation, normalisation/path mapping аргументов Liquibase и
-    семантику host-exec режима Liquibase (`native` vs `windows-bat`).
+    очистку кэша и нормализацию аргументов/входных файлов Liquibase. Прежние режимы
+    исполнения на хосте заменены утверждённым
+    [контейнерным контрактом](liquibase-container-component-structure.RU.md);
+    там историческая основа отделена от подключённого основного пути.
+    [Передача рабочей БД](issue89-working-instance-handoff-design.RU.md) сохраняет
+    итоговую живую БД без нового выделения; уборка задания не удаляет каталог,
+    который уже принадлежит экземпляру.
 - helper-функции `internal/runtime`
   - Отвечают за классификацию docker-ошибок, startup diagnostics, идемпотентное
     обновление host auth в `pg_hba.conf` и гарантии парсинга host-port.

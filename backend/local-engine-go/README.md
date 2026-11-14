@@ -1,5 +1,14 @@
 # sqlrs-engine (local, Go)
 
+The approved #89 overhead reduction is described in
+[O5–O7](../../docs/architecture/issue89-measured-overhead-reduction.md): exact
+planning-DB handoff, per-service inventory reuse, and same-exec private results.
+O5 planning-DB handoff, O6 inventory reuse and O7 same-exec results are implemented
+and undergoing qualification. New O5 files meet the local coverage minimum
+(98.95% combined; each file at least 95%).
+No API or SQL-retry permission is added. Hosted native/speed results for these
+changes are not yet available; the prior measured regression is still open.
+
 Local engine used by `sqlrs` in the local profile.
 
 Current API surface includes:
@@ -12,6 +21,16 @@ Current API surface includes:
 
 The engine owns local prepare planning/execution, state snapshotting, instance
 lifecycle, config persistence, and deletion flows.
+
+Liquibase production jobs use the engine-owned Docker runner, not a host Java
+installation. Build the complete bundle with `node scripts/build-engine-go.mjs`
+from the repository root to include the checksum-locked JDBC dependency under
+`lib/` beside the executable. A bare `go build` does not package that dependency.
+See [normal execution](../../docs/architecture/issue89-main-path-execution.md)
+for supported inputs, cleanup and the deferred automatic-recovery boundary.
+Ordinary Liquibase steps reuse their database and runner containers. The final
+working database is handed to the published instance; deleting its completed
+prepare job does not delete that instance's database or runtime directory.
 
 See also:
 

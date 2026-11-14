@@ -1,5 +1,4 @@
-// Package managedstore coordinates the empty-store format cutover before
-// migrations, recovery or admission. See managed-database-identity-internals.md.
+// Package managedstore coordinates the owned store startup before admission.
 package managedstore
 
 import (
@@ -12,90 +11,29 @@ import (
 	"github.com/sqlrs/engine-local/internal/store/sqlite"
 )
 
-// Initialize must run under Lock. All metadata and physical inventory checks,
-// format reservation and schema installation share one transaction. Existing
-// format is checked against the full expected DDL, never silently repaired.
+// Initialize runs under Lock and returns only a completely verified store.
+// Final Liquibase definitions are installed directly; only the exact released
+// job-table bridge is supported. See issue89-normal-path-storage-extraction.md.
 func Initialize(ctx context.Context, db *sql.DB, inventory func(context.Context) error) (sqlite.ManagedStoreFormat, error) {
-	if db == nil {
-		return sqlite.ManagedStoreFormat{}, sqlite.ErrManagedPreflightUnavailable
-	}
-	db.SetMaxOpenConns(1)
-	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=0"); err != nil {
-		return sqlite.ManagedStoreFormat{}, failure(ctx)
-	}
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return sqlite.ManagedStoreFormat{}, failure(ctx)
-	}
-	defer tx.Rollback()
-	var existing int
-	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_master WHERE name='managed_store_format' COLLATE NOCASE").Scan(&existing); err != nil {
-		return sqlite.ManagedStoreFormat{}, failure(ctx)
-	}
-	format, err := sqlite.EnsureManagedStoreFormat(ctx, tx, inventory)
-	if err != nil {
-		return sqlite.ManagedStoreFormat{}, err
-	}
-	if existing == 0 {
-		if err := install(ctx, tx); err != nil {
-			return sqlite.ManagedStoreFormat{}, err
-		}
-	} else if err := sqlite.InstallRuntimeV2Schema(ctx, tx); err != nil {
-		return sqlite.ManagedStoreFormat{}, err
-	}
-	expected, err := expectedSchema(ctx)
-	if err != nil {
-		return sqlite.ManagedStoreFormat{}, err
-	}
-	actual, err := schema(ctx, tx)
-	if err != nil {
-		return sqlite.ManagedStoreFormat{}, err
-	}
-	for name, definition := range expected {
-		if actual[name] != definition {
-			return sqlite.ManagedStoreFormat{}, sqlite.ErrManagedPreflightUnavailable
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return sqlite.ManagedStoreFormat{}, failure(ctx)
-	}
-	return format, nil
+	return initializeMainPath(ctx, db, inventory)
 }
 
 func install(ctx context.Context, tx *sql.Tx) error {
-	for _, fn := range []func(context.Context, *sql.Tx) error{sqlite.InstallManagedStateSchema, queue.InstallManagedSchema, instanceaccess.InstallSchema, sqlite.InstallRuntimeV2Schema} {
+	for _, fn := range []func(context.Context, *sql.Tx) error{sqlite.InstallManagedStateSchema, instanceaccess.InstallSchema, sqlite.InstallRuntimeV2Schema} {
 		if err := fn(ctx, tx); err != nil {
 			return err
 		}
 	}
-	// Cache eviction retires the capture certificate, never the lineage. A later
-	// rebuild of the same logical key must record its own exact physical proof.
-	if _, err := tx.ExecContext(ctx, `CREATE TRIGGER managed_state_seal_eviction AFTER DELETE ON states BEGIN DELETE FROM managed_state_seals WHERE state_id=OLD.state_id; END`); err != nil {
+	if _, err := tx.ExecContext(ctx, "CREATE TRIGGER managed_state_seal_eviction AFTER DELETE ON states BEGIN DELETE FROM managed_state_seals WHERE state_id=OLD.state_id; END"); err != nil {
 		return failure(ctx)
 	}
-	return nil
+	return queue.InstallLiquibaseMainPathSchema(ctx, tx)
 }
 
-// Build the reference in a disposable in-memory database. This avoids a second,
-// hand-maintained schema catalogue and performs no write on the user's store.
+// The reference is the mechanically frozen final catalog, not a replay of
+// historical migrations. Each caller owns its map; real-store checks are fresh.
 func expectedSchema(ctx context.Context) (map[string]string, error) {
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		return nil, failure(ctx)
-	}
-	defer db.Close()
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, failure(ctx)
-	}
-	defer tx.Rollback()
-	if _, err := sqlite.EnsureManagedStoreFormat(ctx, tx, func(context.Context) error { return nil }); err != nil {
-		return nil, err
-	}
-	if err := install(ctx, tx); err != nil {
-		return nil, err
-	}
-	return schema(ctx, tx)
+	return queue.MainPathSchemaDefinitions(ctx)
 }
 
 func schema(ctx context.Context, tx *sql.Tx) (map[string]string, error) {

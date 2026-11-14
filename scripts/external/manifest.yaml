@@ -1,5 +1,14 @@
 version: 1
 sources:
+  jdbc-postgresql-42.7.13:
+    kind: single-file
+    url: https://repo.maven.apache.org/maven2/org/postgresql/postgresql/42.7.13/postgresql-42.7.13.jar
+    sha256: 6e0e4cc2d8cae902084f8a2b18728b073a6fd9d1f87c9d8bff8f298c18185b93
+    out:
+      path: dist/deps/postgresql-42.7.13.jar
+    license:
+      spdx: BSD-2-Clause
+      upstream: https://github.com/pgjdbc/pgjdbc
   chinook-postgres:
     kind: single-file
     url: https://raw.githubusercontent.com/lerocha/chinook-database/master/ChinookDatabase/DataSources/Chinook_PostgreSql.sql

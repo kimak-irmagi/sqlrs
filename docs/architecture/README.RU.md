@@ -2,6 +2,17 @@
 
 Точки входа по архитектуре и дизайну сервисов Taidon.
 
+- [Сокращение измеренных расходов #89](issue89-measured-overhead-reduction.RU.md) -
+  утверждённые компоненты передачи preview БД, ограниченного кэша инвентаризации
+  в процессе и транспорта результата в том же exec; схема/тесты ещё согласуются.
+  Содержит сохранённый полный CT13 `43061874236`; критерий скорости ещё не выполнен.
+
+- [Полная шкала prepare](issue89-complete-timeline.RU.md) - утверждённый
+  диагностический поток #89 с привязкой к коду; отдельные
+  [TL01–TL14](issue89-complete-timeline-tests.RU.md) утверждены и подключены,
+  native probe прошёл, CT13 завершён. Политика/критерий скорости прежние,
+  неразобранные участки кода остаются явными.
+
 - [Отдельные пределы исходных объявлений](runtime-go-declaration-limits.RU.md) -
   согласованный контракт и ограниченная по размеру реализация #159; выпуск — #160.
 - [Проверки пределов объявлений](runtime-go-declaration-limits-tests.RU.md) -
@@ -105,6 +116,8 @@
   таймауты, отмена, стриминг.
 - [`liquibase-integration.RU.md`](liquibase-integration.RU.md) - стратегия
   Liquibase провайдера и структурированные логи.
+- [Установка основного пути Liquibase](issue89-normal-path-storage-extraction.RU.md) -
+  утверждённое отделение от миграций прототипа; [утверждённые проверки](issue89-normal-path-storage-tests.RU.md).
 - [`k8s-architecture.RU.md`](k8s-architecture.RU.md) - Kubernetes архитектура с
   единой точкой входа через gateway.
 - [`cli-contract.RU.md`](cli-contract.RU.md) - CLI контракт и команды.

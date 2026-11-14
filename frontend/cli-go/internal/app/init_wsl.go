@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/sqlrs/cli/internal/enginebin"
 	"github.com/sqlrs/cli/internal/wsl"
 )
 
@@ -73,6 +74,9 @@ var isElevatedFn = isElevated
 var isTerminalWriterFn = isTerminalWriter
 var isWindows = runtime.GOOS == "windows"
 var validateInstalledWSLEngineFn = validateInstalledWSLEngine
+
+// The product reader verifies the pinned release artifact before transfer.
+var readBundledJDBCFn = enginebin.ReadBundledJDBC
 
 const defaultVHDXName = "btrfs.vhdx"
 const defaultInstalledWSLEnginePath = "/home/user/.local/lib/sqlrs/sqlrs-engine"
@@ -141,6 +145,13 @@ func installWSLEngine(ctx context.Context, distro, sourcePath, destination strin
 	if err != nil {
 		return "", fmt.Errorf("read WSL engine payload: %w", err)
 	}
+	driverPayload, err := readBundledJDBCFn(sourcePath)
+	if err != nil {
+		return "", fmt.Errorf("read bundled PostgreSQL JDBC driver: %w", err)
+	}
+	if len(driverPayload) == 0 {
+		return "", fmt.Errorf("WSL engine bundle is missing the verified PostgreSQL JDBC driver")
+	}
 	expectedMachine, err := expectedELFMachineHex(runtime.GOARCH)
 	if err != nil {
 		return "", err
@@ -158,7 +169,8 @@ func installWSLEngine(ctx context.Context, distro, sourcePath, destination strin
 		`dir="${dest%/*}"
 mkdir -p "$dir"
 tmp="$(mktemp "$dir/.sqlrs-engine.XXXXXX")"
-trap 'rm -f "$tmp"' EXIT
+driver_tmp=""
+trap 'rm -f "$tmp" "$driver_tmp"' EXIT
 base64 -d >"$tmp" <<'__SQLRS_ENGINE_PAYLOAD__'
 ` + encodedPayload + `
 __SQLRS_ENGINE_PAYLOAD__
@@ -166,6 +178,17 @@ magic="$(dd if="$tmp" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')"
 machine="$(dd if="$tmp" bs=1 skip=18 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')"
 test "$magic" = "7f454c46"
 test "$machine" = "$expected_machine"
+driver_dir="$dir/lib"
+mkdir -p "$driver_dir"
+driver_tmp="$(mktemp "$driver_dir/.postgresql-jdbc.XXXXXX")"
+base64 -d >"$driver_tmp" <<'__SQLRS_JDBC_PAYLOAD__'
+` + base64.StdEncoding.EncodeToString(driverPayload) + `
+__SQLRS_JDBC_PAYLOAD__
+driver_hash="$(sha256sum "$driver_tmp" | cut -d ' ' -f1)"
+test "$driver_hash" = "` + strings.TrimPrefix(enginebin.JDBCDriverDigest, "sha256:") + `"
+chmod 600 "$driver_tmp"
+mv -f "$driver_tmp" "$driver_dir/` + enginebin.JDBCDriverFileName + `"
+driver_tmp=""
 chmod 755 "$tmp"
 mv -f "$tmp" "$dest"
 trap - EXIT
@@ -189,13 +212,18 @@ func validateInstalledWSLEngine(ctx context.Context, distro, installedPath strin
 	const script = `set -eu
 path="$1"
 expected_machine="$2"
+expected_driver_hash="$3"
 test -f "$path"
 test -x "$path"
 magic="$(dd if="$path" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')"
 machine="$(dd if="$path" bs=1 skip=18 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')"
 test "$magic" = "7f454c46"
-test "$machine" = "$expected_machine"`
-	if _, err := runWSLCommandAllowFailureFn(ctx, distro, verbose, "validate installed WSL engine", "sh", "-c", script, "sqlrs-engine-validator", strings.TrimSpace(installedPath), expectedMachine); err != nil {
+test "$machine" = "$expected_machine"
+driver="${path%/*}/lib/postgresql-42.7.13.jar"
+test -f "$driver"
+driver_hash="$(sha256sum "$driver" | cut -d ' ' -f1)"
+test "$driver_hash" = "$expected_driver_hash"`
+	if _, err := runWSLCommandAllowFailureFn(ctx, distro, verbose, "validate installed WSL engine", "sh", "-c", script, "sqlrs-engine-validator", strings.TrimSpace(installedPath), expectedMachine, strings.TrimPrefix(enginebin.JDBCDriverDigest, "sha256:")); err != nil {
 		return fmt.Errorf("installed WSL engine is missing or incompatible: %w", err)
 	}
 	return nil

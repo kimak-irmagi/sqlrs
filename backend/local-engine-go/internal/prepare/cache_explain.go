@@ -19,6 +19,14 @@ func (s cacheExplainQueueStore) AppendEvent(ctx context.Context, event queue.Eve
 }
 
 func (m *PrepareService) CacheExplain(ctx context.Context, req Request) (result CacheExplainPrepareResult, err error) {
+	if req.PrepareKind == "lb" && m.containerLiquibase != nil {
+		req.PlanOnly = true
+		accepted, err := m.submitForPurpose(ctx, req, "cache_explain")
+		if err != nil {
+			return CacheExplainPrepareResult{}, err
+		}
+		return CacheExplainPrepareResult{Accepted: &accepted}, nil
+	}
 	prepared, err := m.prepareRequest(req)
 	if err != nil {
 		return CacheExplainPrepareResult{}, err

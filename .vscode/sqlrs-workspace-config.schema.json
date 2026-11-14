@@ -185,20 +185,11 @@
     },
     "liquibase": {
       "type": "object",
+      "description": "Host runner settings are unsupported; select --liquibase-version or the transform attribute.",
       "properties": {
-        "exec": {
-          "type": "string",
-          "description": "Liquibase executable path."
-        },
-        "exec_mode": {
-          "type": "string",
-          "enum": [
-            "auto",
-            "native",
-            "windows-bat"
-          ],
-          "description": "Liquibase invocation mode."
-        }
+        "exec": false,
+        "exec_mode": false,
+        "env": false
       },
       "additionalProperties": false
     },

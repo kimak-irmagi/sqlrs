@@ -32,6 +32,60 @@ func TestEffectiveRefBindBaseDir(t *testing.T) {
 	}
 }
 
+// The Windows/WSL blob-mode binder translates only local absolute Liquibase
+// resources. Relative paths and classpath/URL references belong to Liquibase
+// and must survive unchanged; both split and equals CLI forms are supported.
+func TestLiquibaseBlobPathsPreserveResourceKindsAcrossHostConversion(t *testing.T) {
+	root := t.TempDir()
+	changelog := filepath.Join(root, "change.sql")
+	defaults := filepath.Join(root, "liquibase.properties")
+	search := filepath.Join(root, "includes")
+	converted := map[string]string{
+		changelog: "mapped-change", defaults: "mapped-defaults", search: "mapped-includes",
+	}
+	convert := func(value string) (string, error) {
+		mapped, ok := converted[value]
+		if !ok {
+			return "", errors.New("unexpected local path")
+		}
+		return mapped, nil
+	}
+	args := []string{
+		"--changelog-file", changelog,
+		"--defaults-file=" + defaults,
+		"--searchPath", " " + search + ",relative,classPath:db",
+		"--search-path=" + search + ",classpath:db,https://example.test/db",
+		"--changelog-file=classpath:db/main.xml",
+		"--defaults-file", "relative.properties",
+		"--searchPath=relative,classpath:db",
+		"update",
+	}
+	got, err := convertLiquibaseHostPaths(args, convert)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"--changelog-file", "mapped-change",
+		"--defaults-file=mapped-defaults",
+		"--searchPath", "mapped-includes,relative,classPath:db",
+		"--search-path=mapped-includes,classpath:db,https://example.test/db",
+		"--changelog-file=classpath:db/main.xml",
+		"--defaults-file", "relative.properties",
+		"--searchPath=relative,classpath:db",
+		"update",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("converted Liquibase resources=%q, want=%q", got, want)
+	}
+	if _, err := convertLiquibaseHostPaths([]string{"--defaults-file", defaults},
+		func(string) (string, error) { return "", errors.New("unmappable") }); err == nil {
+		t.Fatal("unmappable local defaults file was silently retained")
+	}
+	if got, err := convertLiquibaseHostPaths(args, nil); err != nil || !reflect.DeepEqual(got, args) {
+		t.Fatalf("no conversion should preserve original args: got=%q err=%v", got, err)
+	}
+}
+
 func TestCleanupAndPsqlHelperBranches(t *testing.T) {
 	if err := joinCleanup(nil, func() error { return nil })(); err != nil {
 		t.Fatalf("joinCleanup success: %v", err)
@@ -171,101 +225,6 @@ func TestPsqlPathRewriteHelpers(t *testing.T) {
 	}
 	if got, err := convertDirectFileArg(query, func(string) (string, error) { return "converted", nil }); err != nil || got != "converted" {
 		t.Fatalf("convertDirectFileArg(abs) = %q, %v", got, err)
-	}
-}
-
-func TestLiquibasePathHelpers(t *testing.T) {
-	root := t.TempDir()
-	stageRoot := t.TempDir()
-	changelog := writeTestFile(
-		t,
-		root,
-		filepath.Join("config", "liquibase", "master.xml"),
-		`<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"><include file="nested/child.xml" relativeToChangelogFile="true"/></databaseChangeLog>`+"\n",
-	)
-	child := writeTestFile(
-		t,
-		root,
-		filepath.Join("config", "liquibase", "nested", "child.xml"),
-		`<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"></databaseChangeLog>`+"\n",
-	)
-	defaults := writeTestFile(t, root, filepath.Join("config", "liquibase.properties"), "url=jdbc:postgresql://localhost/db\n")
-	searchDir := filepath.Join(root, "search")
-	if err := os.MkdirAll(searchDir, 0o700); err != nil {
-		t.Fatalf("mkdir search dir: %v", err)
-	}
-
-	args := []string{
-		"update",
-		"--changelog-file", changelog,
-		"--defaults-file=" + defaults,
-		"--searchPath", searchDir + ",classpath:db,https://example.com/db",
-		"--search-path=" + searchDir,
-	}
-
-	files, dirs, hasLocal, err := liquibaseLocalArtifacts(args, inputset.NewWorkspaceResolver(root, root, nil), inputset.OSFileSystem{})
-	if err != nil {
-		t.Fatalf("liquibaseLocalArtifacts: %v", err)
-	}
-	if !hasLocal {
-		t.Fatalf("expected local Liquibase artifacts")
-	}
-	if !containsPath(files, changelog) || !containsPath(files, defaults) || !containsPath(files, child) {
-		t.Fatalf("unexpected files: %v", files)
-	}
-	if !containsPath(dirs, searchDir) {
-		t.Fatalf("unexpected dirs: %v", dirs)
-	}
-
-	rewritten := rewriteLiquibaseArgsToRoot(args, root, stageRoot)
-	wantMapped := filepath.Join(stageRoot, "config", "liquibase", "master.xml")
-	if rewritten[2] != wantMapped {
-		t.Fatalf("rewritten changelog = %q, want %q", rewritten[2], wantMapped)
-	}
-	if !strings.Contains(strings.Join(rewritten, "|"), "classpath:db") || !strings.Contains(strings.Join(rewritten, "|"), "https://example.com/db") {
-		t.Fatalf("expected remote refs preserved in %v", rewritten)
-	}
-
-	converted, err := convertLiquibaseHostPaths(rewritten, func(value string) (string, error) {
-		return "conv:" + filepath.ToSlash(value), nil
-	})
-	if err != nil {
-		t.Fatalf("convertLiquibaseHostPaths: %v", err)
-	}
-	if converted[2] != "conv:"+filepath.ToSlash(wantMapped) {
-		t.Fatalf("converted changelog = %q", converted[2])
-	}
-	if !strings.Contains(strings.Join(converted, "|"), "classpath:db") || !strings.Contains(strings.Join(converted, "|"), "https://example.com/db") {
-		t.Fatalf("expected remote refs preserved after conversion: %v", converted)
-	}
-	if _, err := convertLiquibaseHostPaths([]string{"--searchPath", searchDir}, func(string) (string, error) {
-		return "", errors.New("boom")
-	}); err == nil || !strings.Contains(err.Error(), "boom") {
-		t.Fatalf("expected convertLiquibaseHostPaths error, got %v", err)
-	}
-
-	if got := rewriteLiquibaseSearchPathToRoot(" , classpath:db , "+searchDir, root, stageRoot); !strings.Contains(got, "classpath:db") || !strings.Contains(got, filepath.Join(stageRoot, "search")) {
-		t.Fatalf("rewriteLiquibaseSearchPathToRoot = %q", got)
-	}
-	if got, err := convertLiquibaseValue("classpath:db", func(string) (string, error) { return "bad", nil }); err != nil || got != "classpath:db" {
-		t.Fatalf("convertLiquibaseValue(remote) = %q, %v", got, err)
-	}
-	if got, err := convertLiquibaseValue(changelog, func(string) (string, error) { return "converted", nil }); err != nil || got != "converted" {
-		t.Fatalf("convertLiquibaseValue(local) = %q, %v", got, err)
-	}
-	searchPath, err := convertLiquibaseSearchPath(" , "+searchDir+",classpath:db,"+defaults, func(value string) (string, error) {
-		return "conv:" + filepath.Base(value), nil
-	})
-	if err != nil {
-		t.Fatalf("convertLiquibaseSearchPath: %v", err)
-	}
-	if !strings.Contains(searchPath, "conv:search") || !strings.Contains(searchPath, "classpath:db") || !strings.Contains(searchPath, "conv:liquibase.properties") {
-		t.Fatalf("convertLiquibaseSearchPath = %q", searchPath)
-	}
-	if _, err := convertLiquibaseSearchPath(searchDir, func(string) (string, error) {
-		return "", errors.New("boom")
-	}); err == nil || !strings.Contains(err.Error(), "boom") {
-		t.Fatalf("expected convertLiquibaseSearchPath error, got %v", err)
 	}
 }
 
@@ -412,7 +371,7 @@ func TestBindPrepareLiquibaseInputsAdditionalBranches(t *testing.T) {
 	writeTestFile(t, root, "master.xml", "<databaseChangeLog/>\n")
 
 	t.Run("resolve error", func(t *testing.T) {
-		_, err := bindPrepareLiquibaseInputs(cli.PrepareOptions{}, repo, cwd, prepareArgs{Ref: "missing-ref", RefMode: "blob"}, nil, "", "", false)
+		_, err := bindPrepareLiquibaseInputs(cli.PrepareOptions{}, repo, cwd, prepareArgs{Ref: "missing-ref", RefMode: "blob"}, nil, false)
 		if err == nil {
 			t.Fatalf("expected resolve error")
 		}
@@ -424,7 +383,7 @@ func TestBindPrepareLiquibaseInputsAdditionalBranches(t *testing.T) {
 			BaseDir:       root,
 			RefMode:       "blob",
 			FileSystem:    inputset.OSFileSystem{},
-		}, "", "", false)
+		}, false)
 		if err == nil {
 			t.Fatalf("expected normalize error")
 		}
@@ -436,7 +395,7 @@ func TestBindPrepareLiquibaseInputsAdditionalBranches(t *testing.T) {
 			BaseDir:       root,
 			RefMode:       "blob",
 			FileSystem:    inputset.OSFileSystem{},
-		}, "", "", true)
+		}, true)
 		if err != nil {
 			t.Fatalf("bindPrepareLiquibaseInputs(relativize): %v", err)
 		}
@@ -446,7 +405,7 @@ func TestBindPrepareLiquibaseInputsAdditionalBranches(t *testing.T) {
 	})
 
 	t.Run("relative workdir rejected", func(t *testing.T) {
-		_, err := bindPrepareLiquibaseInputs(cli.PrepareOptions{}, root, "relative", prepareArgs{PsqlArgs: []string{"update"}}, nil, "", "", false)
+		_, err := bindPrepareLiquibaseInputs(cli.PrepareOptions{}, root, "relative", prepareArgs{PsqlArgs: []string{"update"}}, nil, false)
 		if err == nil || !strings.Contains(err.Error(), "path is not absolute") {
 			t.Fatalf("expected relative workdir error, got %v", err)
 		}
@@ -559,44 +518,6 @@ func TestLiquibaseHelperVariantBranches(t *testing.T) {
 		}
 	})
 
-	t.Run("rewriteLiquibaseArgsToRoot variants", func(t *testing.T) {
-		stageRoot := t.TempDir()
-		args := rewriteLiquibaseArgsToRoot([]string{
-			"update",
-			"--changelog-file",
-			"--searchPath",
-			"--changelog-file=classpath:db/master.xml",
-			"--defaults-file=classpath:db/liquibase.properties",
-			"--searchPath=" + localDir + ",classpath:db",
-			"--search-path=" + localDir,
-		}, root, stageRoot)
-		if args[2] != "--searchPath" {
-			t.Fatalf("expected missing-value pair preserved, got %v", args)
-		}
-		if !strings.Contains(strings.Join(args, "|"), "classpath:db/master.xml") || !strings.Contains(strings.Join(args, "|"), "classpath:db/liquibase.properties") {
-			t.Fatalf("expected remote refs preserved, got %v", args)
-		}
-	})
-
-	t.Run("convertLiquibaseHostPaths variants", func(t *testing.T) {
-		args, err := convertLiquibaseHostPaths([]string{
-			"update",
-			"--changelog-file",
-			"--searchPath",
-			"--changelog-file=" + filepath.Join(root, "broken.xml"),
-			"--defaults-file=" + filepath.Join(root, "broken.xml"),
-			"--searchPath=" + localDir + ",classpath:db",
-			"--search-path=" + localDir,
-		}, func(value string) (string, error) {
-			return "conv:" + filepath.Base(value), nil
-		})
-		if err != nil {
-			t.Fatalf("convertLiquibaseHostPaths variants: %v", err)
-		}
-		if !strings.Contains(strings.Join(args, "|"), "--changelog-file=conv:broken.xml") || !strings.Contains(strings.Join(args, "|"), "--defaults-file=conv:broken.xml") || !strings.Contains(strings.Join(args, "|"), "classpath:db") {
-			t.Fatalf("unexpected converted args: %v", args)
-		}
-	})
 }
 
 func TestRefPrepareRemainingArgumentPolicies(t *testing.T) {
@@ -641,46 +562,10 @@ func TestRefPrepareRemainingArgumentPolicies(t *testing.T) {
 		if got := rewriteLiquibaseArgsToRoot(args, root, t.TempDir()); !reflect.DeepEqual(got, args) {
 			t.Fatalf("rewriteLiquibaseArgsToRoot(%v) = %v", args, got)
 		}
-		if got, err := convertLiquibaseHostPaths(args, failConvert); err != nil || !reflect.DeepEqual(got, args) {
-			t.Fatalf("convertLiquibaseHostPaths(%v) = %v, %v", args, got, err)
-		}
-	}
-	for _, args := range [][]string{
-		{"--changelog-file=" + absolute},
-		{"--defaults-file=" + absolute},
-		{"--searchPath=" + absolute},
-		{"--search-path=" + absolute},
-	} {
-		if got, err := convertLiquibaseHostPaths(args, failConvert); !errors.Is(err, convertErr) || got != nil {
-			t.Fatalf("convertLiquibaseHostPaths(%v) = %v, %v", args, got, err)
-		}
 	}
 	if _, _, _, err := liquibaseLocalArtifacts([]string{"update", "--changelog-file=" + absolute}, inputset.NewWorkspaceResolver(root, root, nil), inputset.OSFileSystem{}); err == nil {
 		t.Fatal("expected missing equals-form changelog to fail collection")
 	}
-	rewritten := rewriteLiquibaseArgsToRoot([]string{
-		"--changelog-file", "classpath:db/master.xml",
-		"--changelog-file=" + absolute,
-	}, root, t.TempDir())
-	if rewritten[1] != "classpath:db/master.xml" || rewritten[2] == "--changelog-file="+absolute {
-		t.Fatalf("rewriteLiquibaseArgsToRoot remote/local values = %v", rewritten)
-	}
-	if got, err := convertLiquibaseHostPaths([]string{"--changelog-file", absolute}, failConvert); !errors.Is(err, convertErr) || got != nil {
-		t.Fatalf("convertLiquibaseHostPaths positional error = %v, %v", got, err)
-	}
-	args = []string{"--changelog-file", absolute}
-	if got, err := convertLiquibaseHostPaths(args, nil); err != nil || !reflect.DeepEqual(got, args) {
-		t.Fatalf("convertLiquibaseHostPaths nil converter = %v, %v", got, err)
-	}
-}
-
-func containsPath(paths []string, want string) bool {
-	for _, path := range paths {
-		if pathutil.SameLocalPath(path, want) {
-			return true
-		}
-	}
-	return false
 }
 
 type scriptedFS struct {

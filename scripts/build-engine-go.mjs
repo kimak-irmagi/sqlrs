@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { ensureDir, isWindows, run } from "./_lib.mjs";
+import { installJdbcDriver } from "./jdbc-driver-bundle.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,8 +17,14 @@ ensureDir(distBin);
 const binaryName = isWindows() ? "sqlrs-engine.exe" : "sqlrs-engine";
 const output = path.join(distBin, binaryName);
 
+await run({
+  cmd: ["node", "scripts/fetch-sql-scripts.mjs", "--lock", "--source-prefix", "jdbc-postgresql-"],
+  cwd: repoRoot
+});
+
 await run({ cmd: ["go", "build", "-o", output, "./cmd/sqlrs-engine"], cwd: engineRoot });
 console.log(`Built sqlrs-engine into: ${output}`);
+console.log(`Bundled JDBC driver: ${installJdbcDriver(repoRoot, distBin)}`);
 
 if (isWindows()) {
   const linuxBinary = "sqlrs-engine-linux-amd64";

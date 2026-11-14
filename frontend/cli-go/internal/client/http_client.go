@@ -97,10 +97,46 @@ func (c *Client) ExplainPrepareCache(ctx context.Context, req PrepareJobRequest)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return out, parseErrorResponse(resp)
 	}
+	if resp.StatusCode != http.StatusOK {
+		return out, fmt.Errorf("cache explanation returned HTTP %d, expected synchronous 200", resp.StatusCode)
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return out, err
 	}
 	return out, nil
+}
+
+// AdmitLiquibaseCacheExplain admits one durable Liquibase explanation job.
+// It deliberately does not retry an ambiguous POST: a lost response can mean
+// the job was accepted, so the caller must consult the ordinary job list.
+// See docs/architecture/liquibase-planning-recovery-design.md.
+func (c *Client) AdmitLiquibaseCacheExplain(ctx context.Context, req PrepareJobRequest) (PrepareJobAccepted, error) {
+	var accepted PrepareJobAccepted
+	if req.PrepareKind != "lb" {
+		return accepted, fmt.Errorf("durable cache explanation requires prepare_kind lb")
+	}
+	body, err := json.Marshal(req)
+	if err != nil {
+		return accepted, err
+	}
+	resp, err := c.doRequestWithBody(ctx, http.MethodPost, "/v1/cache/explain/prepare", true, bytes.NewReader(body), "application/json")
+	if err != nil {
+		return accepted, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusAccepted {
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return accepted, parseErrorResponse(resp)
+		}
+		return accepted, fmt.Errorf("Liquibase cache explanation returned HTTP %d, expected 202", resp.StatusCode)
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&accepted); err != nil {
+		return PrepareJobAccepted{}, err
+	}
+	if accepted.JobID == "" || accepted.StatusURL == "" || resp.Header.Get("Location") != accepted.StatusURL {
+		return PrepareJobAccepted{}, fmt.Errorf("Liquibase cache explanation returned an invalid job reference")
+	}
+	return accepted, nil
 }
 
 func (c *Client) ListNames(ctx context.Context, filters ListFilters) ([]NameEntry, error) {

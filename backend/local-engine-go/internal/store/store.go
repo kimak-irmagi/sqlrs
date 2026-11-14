@@ -52,6 +52,9 @@ type StateEntry struct {
 }
 
 type StateCreate struct {
+	// The normal Liquibase publication transaction binds this pinned execution
+	// to the checkpoint; see liquibase-container-component-structure.md.
+	LiquibaseExecutionFingerprint string
 	// Lineage and digest are written atomically with the state.
 	LineageRef            string
 	IdentityDigest        string

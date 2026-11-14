@@ -1,0 +1,50 @@
+name: Prepare immutable Liquibase benchmark artifacts
+description: Build the selected source and verify identical bytes on every fresh VM, outside timing
+inputs:
+  candidate_sha:
+    required: true
+    description: Fixed candidate revision
+  expected_engine_sha:
+    required: false
+    description: Artifact hash established on the first preparation VM
+  source_root:
+    required: false
+    description: Explicit fixed source checkout; empty retains the action checkout
+outputs:
+  engine_sha:
+    description: Verified candidate artifact SHA256
+    value: ${{ steps.prepare.outputs.engine_sha }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v7
+      with:
+        go-version: '1.25.5'
+        cache: false
+    - uses: actions/setup-node@v7
+      with:
+        node-version: '24'
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: '21.0.2+13.0.LTS'
+    - name: Install locked Node dependencies
+      shell: bash
+      run: |
+        corepack enable
+        corepack prepare pnpm@10.26.2 --activate
+        pnpm install --frozen-lockfile
+    - name: Verify fast collector and workflow checks
+      shell: bash
+      run: |
+        node --test scripts/performance/*.test.mjs scripts/jdbc-driver-bundle.test.mjs scripts/fetch-sql-scripts.test.mjs
+        cd test/performance/liquibase
+        GOWORK=off go test -count=1 -timeout=2m ./...
+    - id: prepare
+      shell: bash
+      env:
+        PERFORMANCE_CANDIDATE: ${{ inputs.candidate_sha }}
+        PERFORMANCE_EXPECTED_ENGINE_SHA: ${{ inputs.expected_engine_sha }}
+        PERFORMANCE_SOURCE_ROOT: ${{ inputs.source_root }}
+        PERFORMANCE_PREPARE_SCRIPT: ${{ github.action_path }}/../../../scripts/performance/prepare.mjs
+      run: node "$PERFORMANCE_PREPARE_SCRIPT"

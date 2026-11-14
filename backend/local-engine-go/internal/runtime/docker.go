@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/sqlrs/engine-local/internal/instanceaccess"
+	"github.com/sqlrs/engine-local/internal/preparecost"
 )
 
 var (
@@ -648,6 +649,14 @@ func (r *DockerRuntime) WaitForReady(ctx context.Context, id string, timeout tim
 }
 
 func (r *DockerRuntime) run(ctx context.Context, args []string, stdin *string) (string, error) {
+	return preparecost.Observe(ctx, preparecost.DockerCommand, func(child context.Context) (string, error) {
+		return r.runObservedCommand(child, args, stdin)
+	})
+}
+
+// runObservedCommand preserves the transport/logging implementation. Timing
+// attaches only closed caller metadata, never command arguments or output.
+func (r *DockerRuntime) runObservedCommand(ctx context.Context, args []string, stdin *string) (string, error) {
 	if ensureMountFn != nil {
 		if err := ensureMountFn(); err != nil {
 			return "", err

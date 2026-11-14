@@ -2628,6 +2628,11 @@ components:
     CacheExplainPrepareRequestLiquibase:
       type: object
       additionalProperties: false
+      description: |
+        Both deployment modes use the engine-owned Liquibase container.
+        Client liquibase_exec, liquibase_exec_mode and liquibase_env are
+        rejected by presence, including empty or null values. The version
+        selector is user intent; only the engine resolves the trusted image.
       required:
         - prepare_kind
         - image_id
@@ -2649,17 +2654,8 @@ components:
             client coordinates and are not opened on the server filesystem.
           items:
             type: string
-        liquibase_exec:
-          type: string
-          description: Optional Liquibase executable override selected by the CLI.
-        liquibase_exec_mode:
-          type: string
-          description: Optional Liquibase executable mode selected by the CLI.
-        liquibase_env:
-          type: object
-          additionalProperties:
-            type: string
-          description: Optional environment variables passed through to Liquibase.
+        liquibase_version:
+          $ref: "#/components/schemas/LiquibaseVersion"
         work_dir:
           type: string
           description: Absolute bound client working directory for the Liquibase invocation.
@@ -2698,6 +2694,17 @@ components:
             - type: string
             - type: "null"
           description: Resolved image id when the engine can report it.
+    LiquibaseVersion:
+      type: string
+      pattern: "^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$"
+      default: latest
+      description: |
+        Tag in the trusted `liquibase/liquibase` image repository. A pinned
+        release or `latest` is allowed. Omission selects `latest`; this is
+        equivalent to the untagged `liquibase/liquibase` image. Repository
+        names, digests, separators, and empty values are not accepted here.
+        `latest` is refreshed and resolved to a platform-specific digest
+        before planning; one job uses that digest throughout its lifetime.
     PrepareJobRequest:
       oneOf:
         - $ref: "#/components/schemas/PrepareJobRequestPsql"
@@ -2742,6 +2749,11 @@ components:
     PrepareJobRequestLiquibase:
       type: object
       additionalProperties: false
+      description: |
+        Both deployment modes use the engine-owned Liquibase container.
+        Client liquibase_exec, liquibase_exec_mode and liquibase_env are
+        rejected by presence, including empty or null values. The version
+        selector is user intent; only the engine resolves the trusted image.
       required:
         - prepare_kind
         - image_id
@@ -2764,17 +2776,8 @@ components:
             filesystem.
           items:
             type: string
-        liquibase_exec:
-          type: string
-          description: Optional Liquibase executable override selected by the CLI.
-        liquibase_exec_mode:
-          type: string
-          description: Optional Liquibase executable mode selected by the CLI.
-        liquibase_env:
-          type: object
-          additionalProperties:
-            type: string
-          description: Optional environment variables passed through to Liquibase.
+        liquibase_version:
+          $ref: "#/components/schemas/LiquibaseVersion"
         work_dir:
           type: string
           description: Absolute bound client working directory for the Liquibase invocation.

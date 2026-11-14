@@ -158,6 +158,13 @@ func (m *Manager) DeleteState(ctx context.Context, stateID string, opts DeleteOp
 	if !ok {
 		return DeleteResult{}, false, nil
 	}
+	// PG07: check durable prepare ownership before removing source files.
+	if held, err := store.PrepareProtectsState(ctx, m.store, stateID); err != nil {
+		return DeleteResult{}, true, err
+	} else if held {
+		return DeleteResult{DryRun: opts.DryRun, Outcome: OutcomeBlocked,
+			Root: DeleteNode{Kind: "state", ID: stateID, ImageID: strPtr(entry.ImageID), Blocked: BlockActiveTasks}}, true, nil
+	}
 
 	if !opts.Recurse {
 		hasDescendants, err := m.hasDescendants(ctx, stateID)
@@ -241,6 +248,12 @@ func (m *Manager) buildStateNode(ctx context.Context, stateID string, opts Delet
 		ID:      stateID,
 		ImageID: strPtr(entry.ImageID),
 	}
+	if held, err := store.PrepareProtectsState(ctx, m.store, stateID); err != nil {
+		return DeleteNode{}, false, err
+	} else if held {
+		node.Blocked = BlockActiveTasks
+		return node, true, nil
+	}
 
 	blocked := false
 	instances, err := m.store.ListInstances(ctx, store.InstanceFilters{StateID: stateID})
@@ -314,6 +327,11 @@ func (m *Manager) deleteTree(ctx context.Context, node DeleteNode) error {
 		}
 		return m.store.DeleteInstance(ctx, node.ID)
 	case "state":
+		if held, err := store.PrepareProtectsState(ctx, m.store, node.ID); err != nil {
+			return err
+		} else if held {
+			return storeError("state is retained by prepare")
+		}
 		if err := m.removeStateDir(node.ImageID, node.ID); err != nil {
 			return err
 		}

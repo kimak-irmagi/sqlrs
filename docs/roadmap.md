@@ -74,6 +74,179 @@ gantt
 
 ---
 
+## #89 O5–O7 delivery acceptance (2026-11-14)
+
+The [approved overhead reduction](architecture/issue89-measured-overhead-reduction.md)
+is implemented: O5 hands the live planning DB to the first working session on
+exact Source equality, O6 reuses the service's verified inventory, and O7
+returns a closed result through the same exec. O5 preserves DB ID, clone,
+generation, path and operation; private capture is retired separately. An
+uncertain COMMIT grants neither SQL, a new session nor destructive cleanup.
+
+[PG01–PG10 and CP2](architecture/issue89-planning-db-handoff-tests.md) exercise
+actual SQLite transitions, a positive published-state source, intent before
+disposal, source protection before file effects and stale-reference refusal.
+New O5 files cover 471/476 statements (98.95%); every file is at least 95%.
+The #89/#174 aggregate-coverage exception remains unchanged.
+
+[Native qualification](https://github.com/kimak-irmagi/sqlrs/actions/runs/43566256871)
+passes on `28cfc25`, including physical DB identity/counts, full/prefix cache,
+known failure, uncertain transfer and cleanup. [Combined CT13](https://github.com/kimak-irmagi/sqlrs/actions/runs/43566888408)
+completes all eight members / sixteen verified passes. Ordinary current v2 means
+are 51.512 s fresh / 9.113 s cached versus actual v1 48.711 / 8.451 and fixed old
+v2 57.615 / 10.120: 10.59% / 9.95% faster than old v2, but still 5.75% / 7.84%
+slower than v1. Original timers, data/cleanup oracles and the speed criterion are
+preserved. This diagnostic result is not full P01b qualification. The user
+[accepts the measured overhead and authorizes merge](adr/2026-11-14-issue89-performance-acceptance-and-merge.md),
+superseding the #89 no-regression merge gate. #170–#174 remain independent
+deliveries. All 15 current-source
+CI test/documentation jobs pass; aggregate coverage alone remains red (engine
+79.4%, CLI 94.8%) under the unchanged exception.
+
+## #89 installation checkpoint (2026-11-07)
+
+The normal-path Liquibase journal is installed directly from the approved final
+catalog, retaining only the exact released-baseline bridge. NI01–NI08 and
+IC01–IC05 pass on Windows and Linux UID 1001; complete-package block unions give
+managedstore 96.41% and queue 97.22%. The complete Windows engine module and vet
+pass. See [installation evidence](architecture/issue89-normal-path-storage-tests.md).
+
+Those percentages describe the installation-only checkpoint, not the subsequently
+expanded journal package. Real normal-path planning/session/publication/pruning
+operations are connected to the production worker. Real Windows/Linux UID 1000
+checks pass the three-step flow, actual checkpoint/cache contents and normal
+cleanup; separate known-error/cancellation checks pass. WSL JDBC transfer and
+validation are connected. Approved limited fixture updates are applied; complete
+local runs and all cross-platform regression jobs pass. The user explicitly
+granted #89 an aggregate-coverage exception, moving remediation to #174 without
+changing shared CI thresholds. Performance acceptance remains open. See the
+[execution checkpoint](architecture/issue89-main-path-execution.md).
+
+The off-laptop performance pilot passes all three public workloads. Full paired
+and independent-confirmation collection is complete in Actions on fixed `668d505`;
+speed acceptance remains open. Ordinary Go collector helpers pass HC01–HC07 at
+174/174 statements (100%), with the unchanged native scenario correctly placed
+in `_test.go`. This is not aggregate product coverage or completed #89. See
+[helper evidence](architecture/issue89-performance-actions-tests.md).
+
+The completed JHipster and 12-change MobilityData comparison/confirmation
+cohorts reproduce slower v2 beyond their noise controls. Speed acceptance is
+therefore blocked, not merely awaiting an all-green collection. The 102-change
+comparison and confirmation are also collected. The diagnostic design and
+DG01–DG12 / OT-DG01–OT-DG03 are approved. DC01–DC03 are approved and pass:
+Go helpers cover 98.0% (494/504), Node 100% lines; Linux vet passes.
+API acquisition/fixed-source preparation TA01–TA05 also pass after separate
+approval (32 Node tests, ordinary helpers 100% lines). Remote TA06/DG11 is the
+next unfinished stage. See
+[results](architecture/issue89-actions-performance-results-2026-11-08.md).
+
+EU01–EU06 and the explicit uncertain-exec boundary are separately approved.
+Observer-only measured decoding passes small regressions/vet (Go 527/537, 98.1%;
+34 Node tests, ordinary helper lines 100%). Strict decoding/old assertions remain.
+The EU04 extra-field clarification is approved and passes unchanged field-dropping
+behaviour (35 Node tests, helper lines 100%). Actual eight-member EU06 remains open;
+these helper checks do not establish a product cause or waive the speed blocker.
+Actual EU06 run `42618850460` remains incomplete at traced member 3 (`trace_8`);
+the original report is retained. The closed failure-context amendment and separate
+CX01–CX05 tests are approved; small checks pass (Go 544/554, 98.2%; 37 Node tests,
+ordinary helper lines 100%). Native CX05 is still open. No new trace format is accepted.
+Actual CX05 `42632130376` proves context transport but remains incomplete at
+traced member 3: `trace_8 / pending_entry / other`, last phase `oracle`. Original
+report retained; no product cause established. The structural-prefix amendment is
+separately approved (recorded 2026-11-10), with PX01–PX05 subsequently approved.
+Prefix implementation passes small Go/vet (579/589, 98.3%) and 39 Node tests
+(helper lines 100%). Native PX05 is open; syntax/product/performance gate unchanged.
+Actual PX05 `42665130138` remains incomplete but verifies `unknown_syscall / other`
+in the failed pending-entry path. Report retained. A measured raw-call grammar
+with unattributed time and separate UR01–UR07 tests are approved (2026-11-10).
+Full small Go/vet pass after the approved UR01 correction: 644/654 statements
+(98.47%; new raw helpers 100%). All 41 Node tests pass (helper lines 100%).
+Native UR06/UR07 remain open; no product cause claimed.
+Subsequent native `42761268874` passes UR06 (0.08 s) and both plain members but
+UR07 still rejects an unknown pending record at traced member 3. Original report
+retained; fixed rejection-detail amendment is separately approved (2026-11-10),
+with separate RD01–RD07 subsequently approved. Detail implementation passes full
+small Go/vet (703/714, 98.46%; new helpers 100%) and 43 Node tests (helper lines
+100%); native RD07 remains open, old strict rejection and assertions unchanged. All
+regression jobs of CI `42761251963` pass, only aggregate coverage red.
+Actual RD07 `42772724450` verifies `fallback / empty / none / arity` at traced
+member 3. Original incomplete report retained; no exact product cause. A narrow
+terminal-only unavailable-entry amendment, UE01–UE07 and two named old-test
+amendments are approved and implemented. Small Linux Go/vet pass at 98.48%,
+44 Node tests pass (helper lines 100%); native UE07 and product cause remain open.
+Native UE07 `42782782114` passes trace decoding but fails summary `clock` at
+member 3; original report retained. All CI `42782733993` regressions pass, only
+aggregate coverage red. Closed clock context and CW01–CW07 are approved and
+implemented: small Linux Go/vet 98.55% (new helpers 100%), 46 Node tests
+(helper lines 100%). Native CW07 remains open; no time/product acceptance change.
+Native `42789132449` identifies the observer's exact refusal: duration_mismatch,
+−9 ns over 73.67 s. Original report retained; all CI `42789081930` regressions
+pass except aggregate coverage. Measured-only bounded alignment and separate
+MC01–MC08 are approved and implemented: small Linux Go/vet 98.58% (new helpers
+100%), 49 Node tests (helper lines 100%). Native MC08 `42802379397` completes all
+eight members/16 passes with all oracles/cleanup successful; the original report
+and [analysis](architecture/issue89-diagnostic-results-2026-11-10.md) are retained.
+Ordinary v2 regression persists. Route-dependent tracing overhead prevents
+equating traced totals with acceptance; exact whole-regression cause/fix remain
+open. All CI `42802317646` regressions pass, only aggregate coverage red. Strict
+helpers/product timing and the speed gate are unchanged.
+
+After discussing the complete evidence, the user selected evidenced duplicate-work
+removal, source-level operation costs and a rerun rather than another strace-only
+classification first. The [reviewed component proposal](architecture/issue89-cost-attribution-and-trimming.md)
+defines O1–O4, default-off recording and before/after/off/on controls. Components
+and the separately reviewed
+[CT01–CT14 inventory](architecture/issue89-cost-attribution-and-trimming-tests.md)
+are explicitly approved. O1–O4 are implemented; Actions `42945061658` passes the
+native flush/reuse checks, recorded three-step/cache counts/data/cleanup and the
+unchanged full normal prepare. Worker roots/private collection are connected;
+new source-catalog/accounting/output helpers pass 69 Node tests with 100% lines
+in those helpers. The final helper-phase/emission-cost transport refinement is
+approved, as are DT01–DT08 and limited OT-CT05–OT-CT08. Helper/observer recording,
+private collection and independent report qualification are implemented; ordinary
+tests pass. Native `42964091822` qualifies both helper timers and complete
+three-step/cache detail, reuse/data/cleanup and unchanged full normal prepare.
+Approved DT-C1 raises its new detail decoder from 50/54 to 54/54 statements
+(100%); ordinary tests/vet pass. The four-route comparison driver is connected,
+with 100% pure-helper coverage and 82 passing Node tests. Short same-VM CT13
+`42967877614` completes all eight before/after/off/on members / 16 qualified
+passes. [Source-linked results](architecture/issue89-cost-results-2026-11-11.md)
+show about 1 s fresh saving from O1–O4, but +18.00% fresh / +20.83% cached versus
+actual v1. Full speed acceptance remains blocked. The first Windows HTTP CI
+BUSY refusal is retained; its unchanged job passes on attempt 2 and the local
+test passes 20 repetitions. Only aggregate coverage is red, not a claimed
+contention fix. No completion or merge readiness is claimed.
+
+The bounded combined native completion/prune observation components are now
+approved, as are CPR01–CPR09 and limited OT-CPR01–OT-CPR03. Runtime/coordinator
+are connected; focused native-receipt/journal tests and all 83 Node checks pass.
+New runtime receipt helpers and the prepare verifier have 100% statement
+coverage. Native Actions `42994708398` on `d4d9ccf` passes every CPR/prepare/cache/
+known-failure/cleanup control. All source CI `42994686911` regressions pass;
+only the excepted aggregate coverage gate is red. CT13 `43000348314` is incomplete
+after six members, on the second old-v2 control; its original report is retained.
+Unchanged whole retry `43002214752` completes all eight members / 16 passes on
+the same candidate. [Retained analysis](architecture/issue89-cost-results-2026-11-11.md#completed-repeat-ct13-after-combined-observation)
+shows 2.513 s / 4.31% fresh saving versus old v2 and 35 fewer Docker commands,
+but +15.77% fresh / +19.78% cached versus actual v1. Speed still blocks #89;
+no full-P01b success or merge readiness is claimed. Exact preview-to-working DB
+reuse differs from v1; the next-scope choice is pending, with no new code authority.
+All source regressions in CI `42772612811` pass, only aggregate coverage red.
+All source CI `42665129132` regression jobs pass; only aggregate coverage red.
+
+The approved [complete timeline](architecture/issue89-complete-timeline.md)
+now connects real admission/worker, both DB lifetimes, steps and publication to
+the independently sampled API window. Hosted probe `43058276396` on `08b3816`
+passes the native Linux prepare and old regressions. Portable collector helpers
+reach 100% statements; 96 Node tests pass, with new report/partition helpers at
+100% lines/functions. The unchanged CT13 repeat is next; exact accounting does
+not by itself classify all source-local self time or satisfy the speed gate.
+
+This is pushed draft-PR progress, not completed #89 or a merge. Final current-head
+qualification and the agreed repeated v1 performance
+comparison are still pending. Deferred recovery/SQLite/search work
+and broad coverage remain in #170–#174; their completion is not claimed here.
+
 ## Status (as of 2026-10-21)
 
 - **Implemented locally; source CI/merge pending

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -26,14 +25,15 @@ var bindPreparePsqlInputsFn = bindPreparePsqlInputs
 var bindPrepareLiquibaseInputsFn = bindPrepareLiquibaseInputs
 
 type prepareArgs struct {
-	Image           string
-	PsqlArgs        []string
-	Watch           bool
-	WatchSpecified  bool
-	ProvenancePath  string
-	Ref             string
-	RefMode         string
-	RefKeepWorktree bool
+	Image            string
+	LiquibaseVersion string
+	PsqlArgs         []string
+	Watch            bool
+	WatchSpecified   bool
+	ProvenancePath   string
+	Ref              string
+	RefMode          string
+	RefKeepWorktree  bool
 }
 
 type stdoutAndErr struct {
@@ -115,6 +115,22 @@ func parsePrepareArgs(args []string) (prepareArgs, bool, error) {
 				return opts, false, ExitErrorf(2, "Missing value for --image")
 			}
 			opts.Image = value
+		case arg == "--liquibase-version":
+			if i+1 >= len(args) {
+				return opts, false, ExitErrorf(2, "Missing value for --liquibase-version")
+			}
+			value := args[i+1]
+			if !validLiquibaseVersion(value) {
+				return opts, false, ExitErrorf(2, "Invalid --liquibase-version %q", value)
+			}
+			opts.LiquibaseVersion = value
+			i++
+		case strings.HasPrefix(arg, "--liquibase-version="):
+			value := strings.TrimPrefix(arg, "--liquibase-version=")
+			if !validLiquibaseVersion(value) {
+				return opts, false, ExitErrorf(2, "Invalid --liquibase-version %q", value)
+			}
+			opts.LiquibaseVersion = value
 		default:
 			opts.PsqlArgs = append(opts.PsqlArgs, args[i:]...)
 			mode, err := normalizeRefMode(opts.Ref, opts.RefMode, opts.RefKeepWorktree)
@@ -137,6 +153,26 @@ func parsePrepareArgs(args []string) (prepareArgs, bool, error) {
 		return opts, false, err
 	}
 	return opts, false, nil
+}
+
+// validLiquibaseVersion enforces the user-facing tag syntax from the
+// LiquibaseVersion schema in docs/api-guides/sqlrs-engine.openapi.yaml.
+// Repository names, digests, and empty tags are never accepted as selectors.
+func validLiquibaseVersion(value string) bool {
+	if len(value) < 1 || len(value) > 128 {
+		return false
+	}
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		first := c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '_'
+		if first {
+			continue
+		}
+		if i == 0 || c != '.' && c != '-' {
+			return false
+		}
+	}
+	return true
 }
 
 func normalizeRefMode(ref string, refMode string, refKeepWorktree bool) (string, error) {
@@ -333,86 +369,6 @@ func resolvePrepareImage(cliValue string, cfg config.LoadedConfig) (string, stri
 		}
 	}
 	return "", "", nil
-}
-
-func resolveLiquibaseExec(cfg config.LoadedConfig) (string, error) {
-	if cfg.ProjectConfigPath != "" {
-		if value, ok, err := config.LookupLiquibaseExec(cfg.ProjectConfigPath); err != nil {
-			return "", err
-		} else if ok {
-			return sanitizeLiquibaseExec(value), nil
-		}
-	}
-	globalPath := filepath.Join(cfg.Paths.ConfigDir, "config.yaml")
-	if fileExists(globalPath) {
-		if value, ok, err := config.LookupLiquibaseExec(globalPath); err != nil {
-			return "", err
-		} else if ok {
-			return sanitizeLiquibaseExec(value), nil
-		}
-	}
-	return "", nil
-}
-
-func resolveLiquibaseExecMode(cfg config.LoadedConfig) (string, error) {
-	if cfg.ProjectConfigPath != "" {
-		if value, ok, err := config.LookupLiquibaseExecMode(cfg.ProjectConfigPath); err != nil {
-			return "", err
-		} else if ok {
-			return value, nil
-		}
-	}
-	globalPath := filepath.Join(cfg.Paths.ConfigDir, "config.yaml")
-	if fileExists(globalPath) {
-		if value, ok, err := config.LookupLiquibaseExecMode(globalPath); err != nil {
-			return "", err
-		} else if ok {
-			return value, nil
-		}
-	}
-	return "", nil
-}
-
-func resolveLiquibaseEnv() map[string]string {
-	javaHome := strings.TrimSpace(os.Getenv("JAVA_HOME"))
-	if javaHome == "" {
-		return nil
-	}
-	javaHome = strings.Trim(javaHome, "\"")
-	javaHome = strings.TrimRight(javaHome, "\\/")
-	if javaHome == "" {
-		return nil
-	}
-	return map[string]string{"JAVA_HOME": javaHome}
-}
-
-func shouldUseLiquibaseWindowsMode(execPath string, execMode string) bool {
-	mode := strings.TrimSpace(strings.ToLower(execMode))
-	switch mode {
-	case "windows-bat":
-		return true
-	case "native":
-		return false
-	}
-	path := strings.ToLower(strings.TrimSpace(execPath))
-	return strings.HasSuffix(path, ".bat") || strings.HasSuffix(path, ".cmd")
-}
-
-func sanitizeLiquibaseExec(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-	if strings.Contains(value, `\"`) {
-		value = strings.ReplaceAll(value, `\"`, `"`)
-	}
-	if len(value) >= 2 {
-		if (value[0] == '"' && value[len(value)-1] == '"') ||
-			(value[0] == '\'' && value[len(value)-1] == '\'') {
-			value = value[1 : len(value)-1]
-		}
-	}
-	return strings.TrimSpace(value)
 }
 
 func formatImageSource(imageID, source string) string {

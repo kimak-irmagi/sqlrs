@@ -1,0 +1,48 @@
+{
+  "source": {
+    "repository": "https://github.com/MobilityData/mobility-feed-api",
+    "commit": "ed866e07b9af277ae78305d17e87ea34f4e6674b",
+    "license": "Apache-2.0",
+    "compose": "docker-compose.yaml"
+  },
+  "natural": {
+    "mechanism": "docker compose Liquibase services, reproduced with their image and command",
+    "liquibase_tag": "latest",
+    "liquibase_version_observed": "5.0.4",
+    "liquibase_platform_digest": "sha256:89efc0141afc7c7afe8df1b8fecf30a755da2e29a55e259c3dadd24adc9aea11",
+    "jdbc_jar": "postgresql-42.7.8.jar",
+    "postgres_image": "postgis/postgis:15-3.5",
+    "postgres_repo_digest": "postgis/postgis@sha256:2a60827705ad26af212f31ca6ed4884f9fa95fffbe7eed5be516fece1bca25f8",
+    "postgres_image_id": "sha256:ce7053cfe63476543a5d7a8bc55b11a9d6eb02fe9e5537cca23ffc9589281d6f",
+    "dbms": "postgresql",
+    "context_filter": null,
+    "parameters": {},
+    "invocation_template": "docker run --rm --network sqlrs-e02-mobility-net -v <pinned-checkout>/liquibase:/liquibase/changelog:ro liquibase/liquibase@sha256:89efc0141afc7c7afe8df1b8fecf30a755da2e29a55e259c3dadd24adc9aea11 --url=jdbc:postgresql://postgres:5432/<database> --changeLogFile=<changelog> --searchpath=changelog --username=e02 --password=<temporary-fixture-password> --log-level=<route-level> --classpath=postgresql-42.7.8.jar update",
+    "notes": [
+      "The source init script had Windows CRLF after checkout, so the second database was created with equivalent psql CREATE DATABASE before running the unchanged Liquibase service command.",
+      "The public-commit fetcher preserves LF Git blob bytes on all hosts. Second natural runs of both routes from those LF bytes produced exactly the same ordered checksums and schema projections as the original oracles.",
+      "Database credentials and names were replaced with temporary isolated fixture values; the repository's changelogs, search path, classpath and update command were unchanged.",
+      "The output SQL compares exact ordered Liquibase changelog identity/checksums and canonical hashes of each class of non-extension, non-Liquibase public schema object."
+    ]
+  },
+  "routes": [
+    {
+      "name": "main",
+      "changelog": "changelog.xml",
+      "database": "e02catalog",
+      "jdbc_url": "jdbc:postgresql://postgres:5432/e02catalog",
+      "log_level": "2",
+      "changesets": 102,
+      "expected": "mobilitydata-main.oracle.txt"
+    },
+    {
+      "name": "user",
+      "changelog": "changelog_user.xml",
+      "database": "e02users",
+      "jdbc_url": "jdbc:postgresql://postgres:5432/e02users",
+      "log_level": "1",
+      "changesets": 12,
+      "expected": "mobilitydata-user.oracle.txt"
+    }
+  ]
+}

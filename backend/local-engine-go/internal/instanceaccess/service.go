@@ -75,12 +75,13 @@ type AccessBinding struct {
 // See managed-database-identity-internals.md, atomicity and recovery: runtime I/O
 // retains only its instance fence, never the shared metadata/registry mutexes.
 type Service struct {
-	db       *sql.DB
-	secrets  *Secrets
-	domain   string
-	mu       sync.Mutex
-	fencesMu sync.Mutex
-	fences   map[string]*instanceFence
+	db              *sql.DB
+	secrets         *Secrets
+	domain          string
+	mu              sync.Mutex
+	fencesMu        sync.Mutex
+	fences          map[string]*instanceFence
+	publicationPins PublicationPins
 }
 
 func NewService(db *sql.DB, secrets *Secrets, domain string) (*Service, error) {
@@ -240,6 +241,9 @@ func (s *Service) RetireBound(ctx context.Context, ref string, remove func(Acces
 	}
 	if stage == "retired" {
 		return nil
+	}
+	if err := s.checkPublicationPin(ctx, ref); err != nil {
+		return err
 	}
 	if stage != "retiring" {
 		if err := s.transition(ctx, ref, stage, "retiring"); err != nil {

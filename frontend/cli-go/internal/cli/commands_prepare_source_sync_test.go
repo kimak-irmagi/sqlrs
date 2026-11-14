@@ -81,3 +81,50 @@ func TestCreatePrepareJobWithSourceSyncRetriesAndUploads(t *testing.T) {
 		t.Fatalf("accepted=%+v postCount=%d putCount=%d", accepted, postCount, putCount)
 	}
 }
+
+// TestSourceSyncKeepsRemoteRunnerOmitted checks that retry changes source
+// manifest data only, and a policy rejection never initiates an upload.
+func TestSourceSyncKeepsRemoteRunnerOmitted(t *testing.T) {
+	root := t.TempDir()
+	content := []byte("select 1;\n")
+	if err := os.WriteFile(filepath.Join(root, "query.sql"), content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	hash := "sha256:" + inputset.HashContent(content)
+	for _, status := range []int{http.StatusConflict, http.StatusBadRequest} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			posts, uploads := 0, 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasPrefix(r.URL.Path, "/v1/source-blobs/") {
+					uploads++
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+				posts++
+				data, _ := io.ReadAll(r.Body)
+				assertNoRunnerBytes(t, data)
+				if posts == 1 {
+					w.WriteHeader(status)
+					if status == http.StatusConflict {
+						_, _ = io.WriteString(w, `{"code":"source_inputs_missing","missing_blobs":[{"path":"query.sql","hash":"`+hash+`"}]}`)
+					} else {
+						_, _ = io.WriteString(w, `{"code":"invalid_argument","message":"runner field forbidden"}`)
+					}
+					return
+				}
+				w.WriteHeader(http.StatusCreated)
+				_, _ = io.WriteString(w, `{"job_id":"job-1","status_url":"/v1/prepare-jobs/job-1"}`)
+			}))
+			t.Cleanup(server.Close)
+			opts := PrepareOptions{Mode: "remote", PrepareKind: "lb", ImageID: "image-1", LiquibaseArgs: []string{"update"}, SourceSync: &remotesource.Options{Enabled: true, WorkspaceRoot: root, MaxRounds: 2}}
+			_, err := createPrepareJobWithSourceSync(context.Background(), client.New(server.URL, client.Options{}), opts, BuildPrepareJobRequest(opts, false))
+			if status == http.StatusBadRequest {
+				if err == nil || posts != 1 || uploads != 0 {
+					t.Fatalf("400 must be terminal: err=%v posts=%d uploads=%d", err, posts, uploads)
+				}
+			} else if err != nil || posts != 2 || uploads != 1 {
+				t.Fatalf("retry failed: err=%v posts=%d uploads=%d", err, posts, uploads)
+			}
+		})
+	}
+}

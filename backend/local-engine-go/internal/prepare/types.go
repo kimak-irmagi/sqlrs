@@ -5,6 +5,7 @@ type Request struct {
 	ImageID           string            `json:"image_id"`
 	PsqlArgs          []string          `json:"psql_args"`
 	LiquibaseArgs     []string          `json:"liquibase_args,omitempty"`
+	LiquibaseVersion  string            `json:"liquibase_version,omitempty"`
 	LiquibaseExec     string            `json:"liquibase_exec,omitempty"`
 	LiquibaseExecMode string            `json:"liquibase_exec_mode,omitempty"`
 	LiquibaseEnv      map[string]string `json:"liquibase_env,omitempty"`
@@ -21,50 +22,61 @@ type Accepted struct {
 }
 
 type CacheExplainPrepareResult struct {
-	Decision        string `json:"decision"`
-	ReasonCode      string `json:"reason_code,omitempty"`
-	Signature       string `json:"signature,omitempty"`
-	MatchedStateID  string `json:"matched_state_id,omitempty"`
-	ResolvedImageID string `json:"resolved_image_id,omitempty"`
+	// Accepted is used only for queued Liquibase explanations. The HTTP
+	// boundary returns its job reference, never a provisional decision.
+	Accepted             *Accepted `json:"-"`
+	Decision             string    `json:"decision,omitempty"`
+	ReasonCode           string    `json:"reason_code,omitempty"`
+	Signature            string    `json:"signature,omitempty"`
+	MatchedStateID       string    `json:"matched_state_id,omitempty"`
+	ResolvedImageID      string    `json:"resolved_image_id,omitempty"`
+	LiquibaseImageDigest string    `json:"liquibase_image_digest,omitempty"`
 }
 
 type Status struct {
-	JobID                 string         `json:"job_id"`
-	Status                string         `json:"status"`
-	PrepareKind           string         `json:"prepare_kind"`
-	ImageID               string         `json:"image_id"`
-	PlanOnly              bool           `json:"plan_only,omitempty"`
-	PrepareArgsNormalized string         `json:"prepare_args_normalized,omitempty"`
-	CreatedAt             *string        `json:"created_at,omitempty"`
-	StartedAt             *string        `json:"started_at,omitempty"`
-	FinishedAt            *string        `json:"finished_at,omitempty"`
-	Tasks                 []PlanTask     `json:"tasks,omitempty"`
-	Result                *Result        `json:"result,omitempty"`
-	Error                 *ErrorResponse `json:"error,omitempty"`
+	Purpose               string                     `json:"purpose"`
+	LiquibaseImageDigest  string                     `json:"liquibase_image_digest,omitempty"`
+	CacheExplainResult    *CacheExplainPrepareResult `json:"cache_explain_result,omitempty"`
+	JobID                 string                     `json:"job_id"`
+	Status                string                     `json:"status"`
+	PrepareKind           string                     `json:"prepare_kind"`
+	ImageID               string                     `json:"image_id"`
+	PlanOnly              bool                       `json:"plan_only,omitempty"`
+	PrepareArgsNormalized string                     `json:"prepare_args_normalized,omitempty"`
+	CreatedAt             *string                    `json:"created_at,omitempty"`
+	StartedAt             *string                    `json:"started_at,omitempty"`
+	FinishedAt            *string                    `json:"finished_at,omitempty"`
+	Tasks                 []PlanTask                 `json:"tasks,omitempty"`
+	Result                *Result                    `json:"result,omitempty"`
+	Error                 *ErrorResponse             `json:"error,omitempty"`
 }
 
 type JobEntry struct {
-	JobID                 string  `json:"job_id"`
-	Status                string  `json:"status"`
-	PrepareKind           string  `json:"prepare_kind"`
-	ImageID               string  `json:"image_id"`
-	ResolvedImageID       string  `json:"resolved_image_id,omitempty"`
-	PrepareArgsNormalized string  `json:"prepare_args_normalized,omitempty"`
-	Signature             string  `json:"signature,omitempty"`
-	PlanOnly              bool    `json:"plan_only,omitempty"`
-	CreatedAt             *string `json:"created_at,omitempty"`
-	StartedAt             *string `json:"started_at,omitempty"`
-	FinishedAt            *string `json:"finished_at,omitempty"`
+	Purpose               string                     `json:"purpose"`
+	LiquibaseImageDigest  string                     `json:"liquibase_image_digest,omitempty"`
+	CacheExplainResult    *CacheExplainPrepareResult `json:"cache_explain_result,omitempty"`
+	JobID                 string                     `json:"job_id"`
+	Status                string                     `json:"status"`
+	PrepareKind           string                     `json:"prepare_kind"`
+	ImageID               string                     `json:"image_id"`
+	ResolvedImageID       string                     `json:"resolved_image_id,omitempty"`
+	PrepareArgsNormalized string                     `json:"prepare_args_normalized,omitempty"`
+	Signature             string                     `json:"signature,omitempty"`
+	PlanOnly              bool                       `json:"plan_only,omitempty"`
+	CreatedAt             *string                    `json:"created_at,omitempty"`
+	StartedAt             *string                    `json:"started_at,omitempty"`
+	FinishedAt            *string                    `json:"finished_at,omitempty"`
 }
 
 type Event struct {
-	Type    string         `json:"type"`
-	Ts      string         `json:"ts"`
-	Status  string         `json:"status,omitempty"`
-	TaskID  string         `json:"task_id,omitempty"`
-	Message string         `json:"message,omitempty"`
-	Result  *Result        `json:"result,omitempty"`
-	Error   *ErrorResponse `json:"error,omitempty"`
+	CacheExplainResult *CacheExplainPrepareResult `json:"cache_explain_result,omitempty"`
+	Type               string                     `json:"type"`
+	Ts                 string                     `json:"ts"`
+	Status             string                     `json:"status,omitempty"`
+	TaskID             string                     `json:"task_id,omitempty"`
+	Message            string                     `json:"message,omitempty"`
+	Result             *Result                    `json:"result,omitempty"`
+	Error              *ErrorResponse             `json:"error,omitempty"`
 }
 
 type Result struct {

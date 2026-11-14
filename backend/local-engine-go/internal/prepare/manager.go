@@ -5,12 +5,14 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sqlrs/engine-local/internal/config"
@@ -19,6 +21,7 @@ import (
 	"github.com/sqlrs/engine-local/internal/instanceaccess"
 	"github.com/sqlrs/engine-local/internal/managedidentity"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/preparecost"
 	"github.com/sqlrs/engine-local/internal/runtime"
 	"github.com/sqlrs/engine-local/internal/statefs"
 	"github.com/sqlrs/engine-local/internal/store"
@@ -32,47 +35,59 @@ const (
 )
 
 type Options struct {
-	Identity       *managedidentity.Owner
-	Access         *instanceaccess.Service
-	Store          store.Store
-	Queue          queue.Store
-	Runtime        runtime.Runtime
-	StateFS        statefs.StateFS
-	ValidateStore  func(root string) error
-	DBMS           dbms.Connector
-	StateStoreRoot string
-	Config         config.Store
-	Psql           psqlRunner
-	Liquibase      liquibaseRunner
-	Version        string
-	Now            func() time.Time
-	IDGen          func() (string, error)
-	Async          bool
-	HeartbeatEvery time.Duration
+	Identity           *managedidentity.Owner
+	Access             *instanceaccess.Service
+	Store              store.Store
+	Queue              queue.Store
+	Runtime            runtime.Runtime
+	StateFS            statefs.StateFS
+	ValidateStore      func(root string) error
+	DBMS               dbms.Connector
+	StateStoreRoot     string
+	Config             config.Store
+	Psql               psqlRunner
+	Liquibase          liquibaseRunner
+	ContainerLiquibase *LiquibaseContainerDeps
+	Version            string
+	Now                func() time.Time
+	IDGen              func() (string, error)
+	Async              bool
+	HeartbeatEvery     time.Duration
 }
 
 type PrepareService struct {
-	access      *instanceaccess.Service
-	managedMu   sync.Mutex
-	managedRoot string
+	// Private startup-only diagnostics; nil means no recorder allocation or I/O.
+	// No request, debug level or execution binding can enable this observer.
+	costEmitter  *preparecost.Emitter
+	costSequence atomic.Uint64
+	costTimeline bool
+	costClock    *preparecost.TimelineClock
+	access       *instanceaccess.Service
+	managedMu    sync.Mutex
+	managedRoot  string
 	// Populated by the coordinated managed-store startup integration.
-	identity       *managedidentity.Owner
-	store          store.Store
-	queue          queue.Store
-	runtime        runtime.Runtime
-	statefs        statefs.StateFS
-	dbms           dbms.Connector
-	stateStoreRoot string
-	config         config.Store
-	psql           psqlRunner
-	liquibase      liquibaseRunner
-	version        string
-	validateStore  func(root string) error
-	now            func() time.Time
-	idGen          func() (string, error)
-	async          bool
-	heartbeatEvery time.Duration
-	lastEviction   *CacheEvictionSummary
+	identity           *managedidentity.Owner
+	store              store.Store
+	queue              queue.Store
+	runtime            runtime.Runtime
+	statefs            statefs.StateFS
+	dbms               dbms.Connector
+	stateStoreRoot     string
+	config             config.Store
+	psql               psqlRunner
+	liquibase          liquibaseRunner
+	containerLiquibase *LiquibaseContainerDeps
+	inventoryCache     liquibaseInventoryCache
+	projectionMu       sync.Mutex
+	projectionGates    map[string]*liquibaseProjectionGate
+	projectionOwner    *liquibaseProjectionOwner
+	version            string
+	validateStore      func(root string) error
+	now                func() time.Time
+	idGen              func() (string, error)
+	async              bool
+	heartbeatEvery     time.Duration
+	lastEviction       *CacheEvictionSummary
 
 	mu      sync.Mutex
 	running map[string]*jobRunner
@@ -105,19 +120,26 @@ type jobRuntime struct {
 }
 
 type preparedRequest struct {
-	managed              managedidentity.BaseSelection
-	request              Request
-	normalizedArgs       []string
-	argsNormalized       string
-	filePaths            []string
-	liquibaseMounts      []runtime.Mount
-	resolvedImageID      string
-	psqlInputs           []psqlInput
-	psqlSteps            []psqlStep
-	psqlWorkDir          string
-	liquibaseLockPaths   []string
-	liquibaseSearchPaths []string
-	liquibaseWorkDir     string
+	cost                      *submissionCost
+	managed                   managedidentity.BaseSelection
+	request                   Request
+	normalizedArgs            []string
+	argsNormalized            string
+	filePaths                 []string
+	liquibaseMounts           []runtime.Mount
+	resolvedImageID           string
+	psqlInputs                []psqlInput
+	psqlSteps                 []psqlStep
+	psqlWorkDir               string
+	liquibaseLockPaths        []string
+	liquibaseSearchPaths      []string
+	liquibaseWorkDir          string
+	liquibaseContainerWorkDir string
+	liquibaseImageID          string
+	liquibaseFingerprint      string
+	liquibaseProperties       map[string]string
+	liquibaseProjection       *liquibaseProjectionCopy
+	liquibasePlan             []LiquibaseChangeset
 }
 
 func NewPrepareService(opts Options) (*PrepareService, error) {
@@ -164,27 +186,35 @@ func NewPrepareService(opts Options) (*PrepareService, error) {
 		}
 	}
 	m := &PrepareService{
-		identity:       opts.Identity,
-		access:         opts.Access,
-		managedRoot:    opts.StateStoreRoot,
-		store:          opts.Store,
-		queue:          opts.Queue,
-		runtime:        opts.Runtime,
-		statefs:        opts.StateFS,
-		dbms:           opts.DBMS,
-		stateStoreRoot: opts.StateStoreRoot,
-		config:         opts.Config,
-		psql:           psql,
-		liquibase:      liquibase,
-		version:        opts.Version,
-		validateStore:  validateStore,
-		now:            now,
-		idGen:          idGen,
-		async:          opts.Async,
-		heartbeatEvery: normalizeHeartbeat(opts.HeartbeatEvery),
-		running:        map[string]*jobRunner{},
-		events:         newEventBus(),
-		beats:          map[string]*heartbeatState{},
+		identity:           opts.Identity,
+		access:             opts.Access,
+		managedRoot:        opts.StateStoreRoot,
+		store:              opts.Store,
+		queue:              opts.Queue,
+		runtime:            opts.Runtime,
+		statefs:            opts.StateFS,
+		dbms:               opts.DBMS,
+		stateStoreRoot:     opts.StateStoreRoot,
+		config:             opts.Config,
+		psql:               psql,
+		liquibase:          liquibase,
+		containerLiquibase: opts.ContainerLiquibase,
+		version:            opts.Version,
+		validateStore:      validateStore,
+		now:                now,
+		idGen:              idGen,
+		async:              opts.Async,
+		heartbeatEvery:     normalizeHeartbeat(opts.HeartbeatEvery),
+		running:            map[string]*jobRunner{},
+		events:             newEventBus(),
+		beats:              map[string]*heartbeatState{},
+	}
+	if preparecost.Enabled(os.Getenv("SQLRS_PREPARE_COST")) {
+		m.costEmitter = preparecost.NewEmitter(os.Stderr)
+		m.costTimeline = preparecost.Enabled(os.Getenv("SQLRS_PREPARE_TIMELINE"))
+		if m.costTimeline {
+			m.costClock, _ = preparecost.NewTimelineClock("1", os.Getenv("SQLRS_PREPARE_TIMELINE_REFERENCE"))
+		}
 	}
 	m.snapshot = &snapshotOrchestrator{m: m}
 	m.executor = &taskExecutor{m: m, snapshot: m.snapshot}
@@ -202,6 +232,12 @@ func (m *PrepareService) Recover(ctx context.Context) error {
 	}
 	for _, job := range jobs {
 		m.logJob(job.JobID, "recover status=%s", job.Status)
+		if job.PrepareKind == "lb" && m.containerLiquibase != nil {
+			// Automatic continuation belongs to #170. Never route an admitted
+			// container job through the old mutable-input execution path.
+			m.pauseContainerLiquibase(job.JobID, fmt.Errorf("interrupted container job awaits explicit reconciliation"))
+			continue
+		}
 		prepared, err := m.prepareFromJob(job)
 		if err != nil {
 			errResp := errorResponse("internal_error", "cannot restore job request", err.Error())
@@ -218,19 +254,52 @@ func (m *PrepareService) Recover(ctx context.Context) error {
 }
 
 func (m *PrepareService) Submit(ctx context.Context, req Request) (Accepted, error) {
-	prepared, err := m.prepareRequest(req)
+	return m.submitForPurpose(ctx, req, "prepare")
+}
+
+// submitForPurpose fixes the internal purpose before durable admission. It is
+// not a request field and cannot authorize executable tasks for explanations.
+func (m *PrepareService) submitForPurpose(ctx context.Context, req Request, purpose string) (Accepted, error) {
+	cost := m.beginSubmissionCost(req)
+	if cost == nil {
+		return m.submitObservedForPurpose(ctx, req, purpose, nil)
+	}
+	child, end := preparecost.Start(preparecost.WithPhase(preparecost.CarryScope(ctx, cost.root), preparecost.PhaseAdmission, 0), preparecost.Admission)
+	outcome := preparecost.Panicked
+	defer func() { end(outcome); cost.complete(outcome) }()
+	accepted, err := m.submitObservedForPurpose(child, req, purpose, cost)
+	outcome = preparecost.Succeeded
+	if err != nil {
+		outcome = preparecost.Failed
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			outcome = preparecost.Cancelled
+		}
+	}
+	return accepted, err
+}
+
+// submitObservedForPurpose keeps the original admission/effect sequence intact;
+// the optional pointer carries measurements only, not request cancellation.
+func (m *PrepareService) submitObservedForPurpose(ctx context.Context, req Request, purpose string, cost *submissionCost) (Accepted, error) {
+	prepared, err := preparecost.Observe(ctx, preparecost.AdmissionInputs, func(context.Context) (preparedRequest, error) { return m.prepareRequest(req) })
 	if err != nil {
 		return Accepted{}, err
 	}
+	prepared.cost = cost
 	jobID, err := m.idGen()
 	if err != nil {
 		return Accepted{}, err
 	}
 	if m.identity != nil {
-		if errResp := m.ensureResolvedImageID(ctx, jobID, &prepared, nil); errResp != nil {
-			return Accepted{}, errorFromExplainResponse(errResp)
+		if err := preparecost.ObserveCall(ctx, preparecost.AdmissionImage, func(child context.Context) error {
+			if errResp := m.ensureResolvedImageID(child, jobID, &prepared, nil); errResp != nil {
+				return errorFromExplainResponse(errResp)
+			}
+			return nil
+		}); err != nil {
+			return Accepted{}, err
 		}
-		if err := m.bindManagedRequest(ctx, &prepared, nil); err != nil {
+		if err := preparecost.ObserveCall(ctx, preparecost.AdmissionIdentity, func(child context.Context) error { return m.bindManagedRequest(child, &prepared, nil) }); err != nil {
 			return Accepted{}, err
 		}
 	}
@@ -242,6 +311,7 @@ func (m *PrepareService) Submit(ctx context.Context, req Request) (Accepted, err
 
 	argsNormalized := prepared.argsNormalized
 	job := queue.JobRecord{
+		Purpose:               purpose,
 		JobID:                 jobID,
 		Status:                StatusQueued,
 		PrepareKind:           prepared.request.PrepareKind,
@@ -255,7 +325,13 @@ func (m *PrepareService) Submit(ctx context.Context, req Request) (Accepted, err
 		LineageRef:            prepared.managed.LineageRef,
 		IdentityDigest:        prepared.managed.IdentityDigest,
 	}
-	if err := m.queue.CreateJob(ctx, job); err != nil {
+	var admissionErr error
+	if prepared.request.PrepareKind == "lb" && m.containerLiquibase != nil {
+		admissionErr = m.admitContainerLiquibase(ctx, job, prepared)
+	} else {
+		admissionErr = m.queue.CreateJob(ctx, job)
+	}
+	if err := admissionErr; err != nil {
 		return Accepted{}, err
 	}
 	m.logJob(jobID, "created kind=%s image=%s plan_only=%t", prepared.request.PrepareKind, prepared.request.ImageID, prepared.request.PlanOnly)
@@ -265,6 +341,9 @@ func (m *PrepareService) Submit(ctx context.Context, req Request) (Accepted, err
 		Status: StatusQueued,
 	})
 
+	if cost != nil {
+		cost.reserveWorker()
+	}
 	if m.async {
 		go m.runJob(prepared, jobID)
 	} else {
@@ -296,6 +375,7 @@ func (m *PrepareService) Get(jobID string) (Status, bool) {
 		tasks = nil
 	}
 	status := Status{
+		Purpose:               "prepare",
 		JobID:                 job.JobID,
 		Status:                job.Status,
 		PrepareKind:           job.PrepareKind,
@@ -306,6 +386,18 @@ func (m *PrepareService) Get(jobID string) (Status, bool) {
 		StartedAt:             job.StartedAt,
 		FinishedAt:            job.FinishedAt,
 		Tasks:                 planTasksFromRecords(tasks),
+	}
+	if job.PrepareKind == "lb" && job.PlanOnly && m.containerLiquibase != nil {
+		if q, ok := m.queue.(interface {
+			LoadPlanningProjection(context.Context, string) (string, bool, error)
+		}); ok {
+			if encoded, found, err := q.LoadPlanningProjection(context.Background(), jobID); err == nil && found {
+				var projection []PlanTask
+				if json.Unmarshal([]byte(encoded), &projection) == nil {
+					status.Tasks = projection
+				}
+			}
+		}
 	}
 	if job.ResultJSON != nil {
 		var result Result
@@ -319,6 +411,17 @@ func (m *PrepareService) Get(jobID string) (Status, bool) {
 		var errResp ErrorResponse
 		if err := json.Unmarshal([]byte(*job.ErrorJSON), &errResp); err == nil {
 			status.Error = &errResp
+		}
+	}
+	if job.PrepareKind == "lb" && m.containerLiquibase != nil {
+		view, err := m.containerJobView(jobID)
+		if err != nil {
+			m.logJob(jobID, "container job view unavailable")
+			return Status{}, false
+		}
+		status.Purpose, status.LiquibaseImageDigest, status.CacheExplainResult = view.Purpose, view.LiquibaseImageDigest, view.Explanation
+		if view.Purpose == "cache_explain" {
+			status.Result = nil
 		}
 	}
 	return status, true
@@ -344,6 +447,7 @@ func (m *PrepareService) ListJobs(jobID string) []JobEntry {
 	entries := make([]JobEntry, 0, len(jobs))
 	for _, job := range jobs {
 		entry := JobEntry{
+			Purpose:               "prepare",
 			JobID:                 job.JobID,
 			Status:                job.Status,
 			PrepareKind:           job.PrepareKind,
@@ -355,6 +459,14 @@ func (m *PrepareService) ListJobs(jobID string) []JobEntry {
 			CreatedAt:             strPtr(job.CreatedAt),
 			StartedAt:             job.StartedAt,
 			FinishedAt:            job.FinishedAt,
+		}
+		if job.PrepareKind == "lb" && m.containerLiquibase != nil {
+			view, err := m.containerJobView(job.JobID)
+			if err != nil {
+				m.logJob(job.JobID, "container job list projection unavailable")
+				return []JobEntry{}
+			}
+			entry.Purpose, entry.LiquibaseImageDigest, entry.CacheExplainResult = view.Purpose, view.LiquibaseImageDigest, view.Explanation
 		}
 		entries = append(entries, entry)
 	}
@@ -453,6 +565,22 @@ func (m *PrepareService) Cancel(jobID string) (Status, bool, bool, error) {
 		}
 		return status, true, false, nil
 	}
+	if job.PrepareKind == "lb" && m.containerLiquibase != nil {
+		q, ok := m.queue.(interface {
+			RequestJobCancellation(context.Context, string, string) (queue.JobCancellation, error)
+		})
+		if !ok {
+			return Status{}, true, false, queue.ErrLiquibaseFinalization
+		}
+		if _, err := q.RequestJobCancellation(context.Background(), jobID, m.normalTimestamp()); err != nil {
+			return Status{}, true, false, err
+		}
+		if runner := m.getRunner(jobID); runner != nil {
+			runner.cancel()
+		}
+		status, found := m.Get(jobID)
+		return status, found, true, nil
+	}
 
 	if runner := m.getRunner(jobID); runner != nil {
 		m.logJob(jobID, "cancel requested")
@@ -488,8 +616,19 @@ func (m *PrepareService) EventsSince(jobID string, index int) ([]Event, bool, bo
 		return nil, true, false, err
 	}
 	out := make([]Event, 0, len(events))
+	var view containerPublicView
+	if job.PrepareKind == "lb" && m.containerLiquibase != nil {
+		view, err = m.containerJobView(jobID)
+		if err != nil {
+			return nil, true, false, err
+		}
+	}
 	for _, event := range events {
 		decoded := eventFromRecord(event)
+		if view.Purpose == "cache_explain" && event.ResultJSON != nil {
+			decoded.Result = nil
+			decoded.CacheExplainResult = view.Explanation
+		}
 		if m.access != nil && decoded.Result != nil {
 			if err := m.hydrateManagedResult(context.Background(), decoded.Result); err != nil {
 				return nil, true, false, err
@@ -497,7 +636,7 @@ func (m *PrepareService) EventsSince(jobID string, index int) ([]Event, bool, bo
 		}
 		out = append(out, decoded)
 	}
-	done := job.Status == StatusSucceeded || job.Status == StatusFailed
+	done := job.Status == StatusSucceeded || job.Status == StatusFailed || job.Status == "recovery_required"
 	return out, true, done, nil
 }
 
@@ -519,7 +658,7 @@ func (m *PrepareService) WaitForEvent(ctx context.Context, jobID string, index i
 		if !ok {
 			return errJobNotFound
 		}
-		if job.Status == StatusSucceeded || job.Status == StatusFailed {
+		if job.Status == StatusSucceeded || job.Status == StatusFailed || job.Status == "recovery_required" {
 			return nil
 		}
 		select {
@@ -553,6 +692,10 @@ func (m *PrepareService) prepareFromJob(job queue.JobRecord) (preparedRequest, e
 
 func (c *jobCoordinator) runJob(prepared preparedRequest, jobID string) {
 	m := c.m
+	if prepared.request.PrepareKind == "lb" && m.containerLiquibase != nil {
+		c.runContainerLiquibase(prepared, jobID)
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	runner := m.registerRunner(jobID, cancel)
 	jobSucceeded := false
@@ -1015,6 +1158,9 @@ func (m *PrepareService) trimCompletedJobsBySignature(ctx context.Context, signa
 }
 
 func (m *PrepareService) prepareRequest(req Request) (preparedRequest, error) {
+	if req.LiquibaseExec != "" || req.LiquibaseExecMode != "" || len(req.LiquibaseEnv) != 0 {
+		return preparedRequest{}, ValidationError{Code: "invalid_argument", Message: "client Liquibase runner settings are not allowed"}
+	}
 	kind := strings.TrimSpace(req.PrepareKind)
 	if kind == "" {
 		return preparedRequest{}, ValidationError{Code: "invalid_argument", Message: "prepare_kind is required"}
@@ -1030,6 +1176,11 @@ func (m *PrepareService) prepareRequest(req Request) (preparedRequest, error) {
 	}
 	req.PrepareKind = kind
 	req.ImageID = imageID
+	version, err := normalizeLiquibaseVersion(kind, req.LiquibaseVersion)
+	if err != nil {
+		return preparedRequest{}, err
+	}
+	req.LiquibaseVersion = version
 	var prepared preparedRequest
 	switch kind {
 	case "psql":
@@ -1047,6 +1198,13 @@ func (m *PrepareService) prepareRequest(req Request) (preparedRequest, error) {
 			psqlWorkDir:    psqlPrepared.workDir,
 		}
 	case "lb":
+		if m.containerLiquibase != nil {
+			prepared, err = prepareContainerLiquibaseInputs(req)
+			if err != nil {
+				return preparedRequest{}, err
+			}
+			break
+		}
 		cwd, _ := os.Getwd()
 		execMode := normalizeExecMode(req.LiquibaseExecMode)
 		execPath := strings.TrimSpace(req.LiquibaseExec)
@@ -1211,6 +1369,9 @@ func (c *jobCoordinator) buildPlanLiquibase(ctx context.Context, jobID string, p
 
 	if len(changesets) == 0 {
 		taskHash := liquibaseFingerprint(prevFingerprintID, nil)
+		if prepared.liquibaseFingerprint != "" {
+			taskHash = sha256Hex(liquibaseContainerFingerprintDomain + "\x00" + prepared.liquibaseFingerprint + "\x00" + taskHash)
+		}
 		outputStateID, errResp := m.computeOutputStateID(inputKind, inputID, taskHash)
 		if errResp != nil {
 			return nil, "", errResp
@@ -1235,6 +1396,9 @@ func (c *jobCoordinator) buildPlanLiquibase(ctx context.Context, jobID string, p
 	} else {
 		for i, changeset := range changesets {
 			taskHash := liquibaseFingerprint(prevFingerprintID, []LiquibaseChangeset{changeset})
+			if prepared.liquibaseFingerprint != "" {
+				taskHash = sha256Hex(liquibaseContainerFingerprintDomain + "\x00" + prepared.liquibaseFingerprint + "\x00" + taskHash)
+			}
 			outputStateID, errResp := m.computeOutputStateID(inputKind, inputID, taskHash)
 			if errResp != nil {
 				return nil, "", errResp
@@ -1282,6 +1446,9 @@ func (c *jobCoordinator) buildPlanLiquibase(ctx context.Context, jobID string, p
 
 func (c *jobCoordinator) planLiquibaseChangesets(ctx context.Context, jobID string, prepared preparedRequest) ([]LiquibaseChangeset, *ErrorResponse) {
 	m := c.m
+	if prepared.liquibasePlan != nil {
+		return prepared.liquibasePlan, nil
+	}
 	if m.liquibase == nil {
 		return nil, errorResponse("internal_error", "liquibase runner is required", "")
 	}
@@ -2268,6 +2435,25 @@ func (m *PrepareService) removeJobDir(jobID string) error {
 		return nil
 	}
 	path := filepath.Join(m.stateStoreRoot, "jobs", jobID)
+	// A transferred working runtime keeps its original job-shaped pathname.
+	// Job deletion removes history, never instance-owned live data. Fail closed
+	// on a metadata read error. Handoff design/WH06; instance deletion owns the
+	// runtime directory even after the originating job has been deleted.
+	if m.store != nil {
+		instances, err := m.store.ListInstances(context.Background(), store.InstanceFilters{})
+		if err != nil {
+			return err
+		}
+		for _, instance := range instances {
+			if instance.RuntimeDir == nil {
+				continue
+			}
+			rel, err := filepath.Rel(path, *instance.RuntimeDir)
+			if err == nil && !filepath.IsAbs(rel) && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				return nil
+			}
+		}
+	}
 	if m.statefs != nil {
 		runtimeDir := filepath.Join(path, "runtime")
 		_ = m.statefs.RemovePath(context.Background(), runtimeDir)

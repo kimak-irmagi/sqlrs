@@ -2,9 +2,12 @@ package app
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/sqlrs/cli/internal/cli"
@@ -49,13 +52,13 @@ func TestRunPlanKindAdditionalBranches(t *testing.T) {
 		}
 	})
 
-	t.Run("liquibase-exec-mode-error", func(t *testing.T) {
+	t.Run("liquibase-global-config-error", func(t *testing.T) {
 		root := t.TempDir()
 		projectConfig := filepath.Join(root, ".sqlrs", "config.yaml")
 		if err := os.MkdirAll(filepath.Dir(projectConfig), 0o700); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
-		if err := os.WriteFile(projectConfig, []byte("liquibase:\n  exec: liquibase\n"), 0o600); err != nil {
+		if err := os.WriteFile(projectConfig, []byte("liquibase: {}\n"), 0o600); err != nil {
 			t.Fatalf("write project config: %v", err)
 		}
 
@@ -86,21 +89,13 @@ func TestRunPlanKindAdditionalBranches(t *testing.T) {
 
 	t.Run("liquibase-normalize-args-error", func(t *testing.T) {
 		root := t.TempDir()
-		projectConfig := filepath.Join(root, ".sqlrs", "config.yaml")
-		if err := os.MkdirAll(filepath.Dir(projectConfig), 0o700); err != nil {
-			t.Fatalf("mkdir: %v", err)
-		}
-		if err := os.WriteFile(projectConfig, []byte("liquibase:\n  exec: liquibase\n"), 0o600); err != nil {
-			t.Fatalf("write project config: %v", err)
-		}
 
 		err := runPlanKind(
 			&bytes.Buffer{},
 			&bytes.Buffer{},
 			cli.PrepareOptions{},
 			config.LoadedConfig{
-				ProjectConfigPath: projectConfig,
-				Paths:             paths.Dirs{ConfigDir: t.TempDir()},
+				Paths: paths.Dirs{ConfigDir: t.TempDir()},
 			},
 			root,
 			root,
@@ -113,8 +108,14 @@ func TestRunPlanKindAdditionalBranches(t *testing.T) {
 		}
 	})
 
-	t.Run("liquibase-windows-mode-branches", func(t *testing.T) {
+	t.Run("remote-liquibase-rejects-removed-windows-executable", func(t *testing.T) {
 		root := t.TempDir()
+		var requests atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			requests.Add(1)
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		t.Cleanup(server.Close)
 		projectConfig := filepath.Join(root, ".sqlrs", "config.yaml")
 		if err := os.MkdirAll(filepath.Dir(projectConfig), 0o700); err != nil {
 			t.Fatalf("mkdir: %v", err)
@@ -126,7 +127,7 @@ func TestRunPlanKindAdditionalBranches(t *testing.T) {
 		err := runPlanKind(
 			&bytes.Buffer{},
 			&bytes.Buffer{},
-			cli.PrepareOptions{Mode: "remote"},
+			cli.PrepareOptions{Mode: "remote", Endpoint: server.URL},
 			config.LoadedConfig{
 				ProjectConfigPath: projectConfig,
 				Paths:             paths.Dirs{ConfigDir: t.TempDir()},
@@ -137,8 +138,11 @@ func TestRunPlanKindAdditionalBranches(t *testing.T) {
 			"json",
 			"lb",
 		)
-		if err == nil || !strings.Contains(err.Error(), "remote mode requires explicit endpoint") {
-			t.Fatalf("expected remote endpoint error after windows-mode preprocessing, got %v", err)
+		if requests.Load() != 0 {
+			t.Fatalf("removed runner setting caused %d remote requests", requests.Load())
+		}
+		if err == nil || !strings.Contains(err.Error(), "liquibase.exec") {
+			t.Fatalf("expected removed runner setting error, got %v", err)
 		}
 	})
 
@@ -148,7 +152,7 @@ func TestRunPlanKindAdditionalBranches(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(projectConfig), 0o700); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
-		if err := os.WriteFile(projectConfig, []byte("liquibase:\n  exec: liquibase\n  exec_mode: native\n"), 0o600); err != nil {
+		if err := os.WriteFile(projectConfig, []byte("liquibase: {}\n"), 0o600); err != nil {
 			t.Fatalf("write project config: %v", err)
 		}
 

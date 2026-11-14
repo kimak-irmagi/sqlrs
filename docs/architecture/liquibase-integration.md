@@ -66,20 +66,24 @@ A DB proxy/driver observes commits and snapshots. Predictive caching is limited 
 
 Liquibase execution is abstracted so the engine can run it in different environments.
 
-**Current (local Windows + WSL engine):**
+**Historical host path, superseded by #89's approved container contract:**
 
 - Engine runs Liquibase as a **host Windows executable** via WSL interop.
 - Paths are translated from WSL (`/mnt/c/...`) to Windows (`C:\...`) before launch.
 - `liquibase.exec` config (if set) overrides PATH lookup.
 
-**Future (container execution):**
+**Approved target (container execution; integration remains in progress):**
 
 - Engine runs Liquibase in a **separate container**.
 - Paths are translated from WSL to container mount paths.
 - The execution interface remains the same; only the runner and path mapper change.
 
-Path mapping is implemented behind a **PathMapper interface** with per-environment
-implementations (WSL->Windows, WSL->Container).
+The old host PathMapper is not a compatibility requirement of the container
+delivery. The client cannot select an executable, batch mode or environment.
+The engine owns trusted image resolution, JDBC, input capture and execution;
+see [the bounded component design](liquibase-container-component-structure.md).
+Extended recovery and lookup conformance are separate follow-ups, not prerequisites
+silently added to the normal-path scope.
 
 ---
 

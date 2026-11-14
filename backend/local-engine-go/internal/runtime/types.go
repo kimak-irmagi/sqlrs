@@ -37,13 +37,18 @@ type ExecRequest struct {
 
 type RunRequest struct {
 	ImageID string
-	Args    []string
-	Env     map[string]string
-	Dir     string
-	User    string
-	Name    string
-	Network string
-	Mounts  []Mount
+	// EntryPoint is engine-owned. Planning uses /bin/sh for the pinned helper;
+	// ordinary runner requests leave the image entrypoint unchanged.
+	EntryPoint string
+	Args       []string
+	Env        map[string]string
+	Dir        string
+	User       string
+	Name       string
+	Network    string
+	Mounts     []Mount
+	// Labels are engine-owned non-secret identity bindings for recovery.
+	Labels map[string]string
 }
 
 type Mount struct {

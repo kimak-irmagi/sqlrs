@@ -2,6 +2,16 @@
 
 Entry points for Taidon architecture and service design.
 
+- [Measured #89 overhead reductions](issue89-measured-overhead-reduction.md) -
+  approved components for preview DB handoff, bounded process-local
+  inventory reuse and same-exec result transport; schema/tests pending. Includes
+  retained complete-timeline results from CT13 `43061874236`; speed still fails.
+
+- [Complete prepare timeline](issue89-complete-timeline.md) - approved #89
+  source-linked diagnostic flow; separate [TL01–TL14 tests](issue89-complete-timeline-tests.md)
+  are approved and connected, native probe passed and CT13 completed. No
+  execution-policy or performance-gate change; source-local unknowns stay explicit.
+
 - [Independent declaration limits](runtime-go-declaration-limits.md) - approved
   #159 contract and bounded implementation; separate publication is #160.
 - [Declaration-limit checks](runtime-go-declaration-limits-tests.md) - approved
@@ -103,6 +113,8 @@ Entry points for Taidon architecture and service design.
   cancel, streaming.
 - [`liquibase-integration.md`](liquibase-integration.md) - Liquibase provider
   strategy and structured logs.
+- [Liquibase main-path installation](issue89-normal-path-storage-extraction.md) -
+  approved separation from prototype migrations; [approved installation tests](issue89-normal-path-storage-tests.md).
 - [`k8s-architecture.md`](k8s-architecture.md) - Kubernetes architecture with a
   single gateway entry point.
 - [`cli-contract.md`](cli-contract.md) - CLI contract and commands.

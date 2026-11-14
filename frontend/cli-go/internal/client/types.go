@@ -38,11 +38,12 @@ type CacheStatus struct {
 }
 
 type CacheExplainPrepareResponse struct {
-	Decision        string `json:"decision"`
-	ReasonCode      string `json:"reason_code,omitempty"`
-	Signature       string `json:"signature,omitempty"`
-	MatchedStateID  string `json:"matched_state_id,omitempty"`
-	ResolvedImageID string `json:"resolved_image_id,omitempty"`
+	Decision             string `json:"decision"`
+	ReasonCode           string `json:"reason_code,omitempty"`
+	Signature            string `json:"signature,omitempty"`
+	MatchedStateID       string `json:"matched_state_id,omitempty"`
+	ResolvedImageID      string `json:"resolved_image_id,omitempty"`
+	LiquibaseImageDigest string `json:"liquibase_image_digest,omitempty"`
 }
 
 type ListFilters struct {
@@ -89,17 +90,15 @@ type StateEntry struct {
 }
 
 type PrepareJobRequest struct {
-	PrepareKind       string            `json:"prepare_kind"`
-	ImageID           string            `json:"image_id"`
-	PsqlArgs          []string          `json:"psql_args"`
-	LiquibaseArgs     []string          `json:"liquibase_args,omitempty"`
-	LiquibaseExec     string            `json:"liquibase_exec,omitempty"`
-	LiquibaseExecMode string            `json:"liquibase_exec_mode,omitempty"`
-	LiquibaseEnv      map[string]string `json:"liquibase_env,omitempty"`
-	WorkDir           string            `json:"work_dir,omitempty"`
-	Stdin             *string           `json:"stdin,omitempty"`
-	SourceManifest    *SourceManifest   `json:"source_manifest,omitempty"`
-	PlanOnly          bool              `json:"plan_only,omitempty"`
+	PrepareKind      string          `json:"prepare_kind"`
+	ImageID          string          `json:"image_id"`
+	PsqlArgs         []string        `json:"psql_args"`
+	LiquibaseArgs    []string        `json:"liquibase_args,omitempty"`
+	LiquibaseVersion string          `json:"liquibase_version,omitempty"`
+	WorkDir          string          `json:"work_dir,omitempty"`
+	Stdin            *string         `json:"stdin,omitempty"`
+	SourceManifest   *SourceManifest `json:"source_manifest,omitempty"`
+	PlanOnly         bool            `json:"plan_only,omitempty"`
 }
 
 // SourceManifest is the CLI-side representation of the remote source-sync
@@ -157,42 +156,49 @@ type PrepareJobAccepted struct {
 }
 
 type PrepareJobStatus struct {
-	JobID                 string            `json:"job_id"`
-	Status                string            `json:"status"`
-	PrepareKind           string            `json:"prepare_kind"`
-	ImageID               string            `json:"image_id"`
-	PlanOnly              bool              `json:"plan_only,omitempty"`
-	PrepareArgsNormalized string            `json:"prepare_args_normalized,omitempty"`
-	CreatedAt             *string           `json:"created_at,omitempty"`
-	StartedAt             *string           `json:"started_at,omitempty"`
-	FinishedAt            *string           `json:"finished_at,omitempty"`
-	Tasks                 []PlanTask        `json:"tasks,omitempty"`
-	Result                *PrepareJobResult `json:"result,omitempty"`
-	Error                 *ErrorResponse    `json:"error,omitempty"`
+	JobID                 string                       `json:"job_id"`
+	Status                string                       `json:"status"`
+	PrepareKind           string                       `json:"prepare_kind"`
+	Purpose               string                       `json:"purpose"`
+	ImageID               string                       `json:"image_id"`
+	LiquibaseImageDigest  string                       `json:"liquibase_image_digest,omitempty"`
+	PlanOnly              bool                         `json:"plan_only,omitempty"`
+	PrepareArgsNormalized string                       `json:"prepare_args_normalized,omitempty"`
+	CreatedAt             *string                      `json:"created_at,omitempty"`
+	StartedAt             *string                      `json:"started_at,omitempty"`
+	FinishedAt            *string                      `json:"finished_at,omitempty"`
+	Tasks                 []PlanTask                   `json:"tasks,omitempty"`
+	Result                *PrepareJobResult            `json:"result,omitempty"`
+	CacheExplainResult    *CacheExplainPrepareResponse `json:"cache_explain_result,omitempty"`
+	Error                 *ErrorResponse               `json:"error,omitempty"`
 }
 
 type PrepareJobEntry struct {
-	JobID                 string  `json:"job_id"`
-	Status                string  `json:"status"`
-	PrepareKind           string  `json:"prepare_kind"`
-	ImageID               string  `json:"image_id"`
-	ResolvedImageID       string  `json:"resolved_image_id,omitempty"`
-	PrepareArgsNormalized string  `json:"prepare_args_normalized,omitempty"`
-	Signature             string  `json:"signature,omitempty"`
-	PlanOnly              bool    `json:"plan_only,omitempty"`
-	CreatedAt             *string `json:"created_at,omitempty"`
-	StartedAt             *string `json:"started_at,omitempty"`
-	FinishedAt            *string `json:"finished_at,omitempty"`
+	JobID                 string                       `json:"job_id"`
+	Status                string                       `json:"status"`
+	PrepareKind           string                       `json:"prepare_kind"`
+	Purpose               string                       `json:"purpose"`
+	ImageID               string                       `json:"image_id"`
+	ResolvedImageID       string                       `json:"resolved_image_id,omitempty"`
+	LiquibaseImageDigest  string                       `json:"liquibase_image_digest,omitempty"`
+	PrepareArgsNormalized string                       `json:"prepare_args_normalized,omitempty"`
+	Signature             string                       `json:"signature,omitempty"`
+	PlanOnly              bool                         `json:"plan_only,omitempty"`
+	CreatedAt             *string                      `json:"created_at,omitempty"`
+	StartedAt             *string                      `json:"started_at,omitempty"`
+	FinishedAt            *string                      `json:"finished_at,omitempty"`
+	CacheExplainResult    *CacheExplainPrepareResponse `json:"cache_explain_result,omitempty"`
 }
 
 type PrepareJobEvent struct {
-	Type    string            `json:"type"`
-	Ts      string            `json:"ts"`
-	Status  string            `json:"status,omitempty"`
-	TaskID  string            `json:"task_id,omitempty"`
-	Message string            `json:"message,omitempty"`
-	Result  *PrepareJobResult `json:"result,omitempty"`
-	Error   *ErrorResponse    `json:"error,omitempty"`
+	Type               string                       `json:"type"`
+	Ts                 string                       `json:"ts"`
+	Status             string                       `json:"status,omitempty"`
+	TaskID             string                       `json:"task_id,omitempty"`
+	Message            string                       `json:"message,omitempty"`
+	Result             *PrepareJobResult            `json:"result,omitempty"`
+	CacheExplainResult *CacheExplainPrepareResponse `json:"cache_explain_result,omitempty"`
+	Error              *ErrorResponse               `json:"error,omitempty"`
 }
 
 type PrepareJobResult struct {

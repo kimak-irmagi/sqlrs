@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sqlrs/cli/internal/cli"
@@ -54,11 +55,27 @@ type prepareStageResult struct {
 }
 
 func buildStageRuntime(stderr io.Writer, runOpts cli.PrepareOptions, cfg config.LoadedConfig, req stageRunRequest) (stageRuntime, error) {
+	if req.kind != "lb" && req.parsed.LiquibaseVersion != "" {
+		return stageRuntime{}, ExitErrorf(2, "--liquibase-version is only supported by Liquibase commands")
+	}
 	if req.mode == stageModePlan && req.parsed.WatchSpecified {
 		return stageRuntime{}, ExitErrorf(2, "plan does not support --watch/--no-watch")
 	}
 	if req.kind == "lb" && len(req.parsed.PsqlArgs) == 0 {
 		return stageRuntime{}, ExitErrorf(2, "liquibase command is required")
+	}
+	if req.kind == "lb" {
+		if cfg.ProjectConfigPath != "" {
+			if err := config.RejectLiquibaseRunnerSettings(cfg.ProjectConfigPath); err != nil {
+				return stageRuntime{}, err
+			}
+		}
+		globalPath := filepath.Join(cfg.Paths.ConfigDir, "config.yaml")
+		if fileExists(globalPath) {
+			if err := config.RejectLiquibaseRunnerSettings(globalPath); err != nil {
+				return stageRuntime{}, err
+			}
+		}
 	}
 
 	imageID, source, err := resolvePrepareImage(req.parsed.Image, cfg)
@@ -98,23 +115,13 @@ func buildStageRuntime(stderr io.Writer, runOpts cli.PrepareOptions, cfg config.
 		runtime.opts.Stdin = bound.Stdin
 		runtime.opts.PrepareKind = "psql"
 	case "lb":
-		liquibaseExec, err := resolveLiquibaseExec(cfg)
-		if err != nil {
-			return stageRuntime{}, combineBindingCleanupError(err, runStageCleanup(refCleanup))
-		}
-		liquibaseExecMode, err := resolveLiquibaseExecMode(cfg)
-		if err != nil {
-			return stageRuntime{}, combineBindingCleanupError(err, runStageCleanup(refCleanup))
-		}
-		bound, err := bindPrepareLiquibaseInputsFn(runOpts, req.workspaceRoot, req.cwd, req.parsed, actualRef, liquibaseExec, liquibaseExecMode, req.relativizeLiquibasePath)
+		bound, err := bindPrepareLiquibaseInputsFn(runOpts, req.workspaceRoot, req.cwd, req.parsed, actualRef, req.relativizeLiquibasePath)
 		if err != nil {
 			return stageRuntime{}, err
 		}
 		runtime.cleanup = bound.cleanup
 		runtime.opts.LiquibaseArgs = bound.LiquibaseArgs
-		runtime.opts.LiquibaseExec = liquibaseExec
-		runtime.opts.LiquibaseExecMode = liquibaseExecMode
-		runtime.opts.LiquibaseEnv = resolveLiquibaseEnv()
+		runtime.opts.LiquibaseVersion = req.parsed.LiquibaseVersion
 		runtime.opts.WorkDir = bound.WorkDir
 		runtime.opts.PrepareKind = "lb"
 	default:

@@ -128,6 +128,7 @@ func TestRunInitDoesNotAttemptWSLRepairOutsideWindows(t *testing.T) {
 }
 
 func TestRunInitRepairsExecutableButInvalidWSLEngine(t *testing.T) {
+	withVerifiedWSLDriverFixture(t)
 	withWindowsMode(t)
 	workspace := t.TempDir()
 	marker := filepath.Join(workspace, ".sqlrs")

@@ -6,6 +6,7 @@ import (
 
 	"github.com/sqlrs/engine-local/internal/managedidentity"
 	"github.com/sqlrs/engine-local/internal/prepare/queue"
+	"github.com/sqlrs/engine-local/internal/statefs"
 	"github.com/sqlrs/engine-local/internal/store"
 )
 
@@ -51,7 +52,29 @@ func (m *PrepareService) isManagedStateCached(stateID string, prepared preparedR
 	if m.identity == nil {
 		return m.isStateCached(stateID)
 	}
-	_, found, err := m.loadManagedState(context.Background(), stateID, prepared)
+	entry, found, err := m.loadManagedState(context.Background(), stateID, prepared)
+	if err == nil && found && prepared.liquibaseFingerprint != "" {
+		q, ok := m.queue.(interface {
+			GetLiquibaseStateExecution(context.Context, string) (string, bool, error)
+		})
+		if !ok {
+			return false, queue.ErrLiquibaseBinding
+		}
+		fingerprint, bound, readErr := q.GetLiquibaseStateExecution(context.Background(), stateID)
+		if readErr != nil {
+			return false, readErr
+		}
+		if !bound || fingerprint != prepared.liquibaseFingerprint {
+			return false, queue.ErrLiquibaseBinding
+		}
+		paths, pathErr := resolveStatePaths(m.stateStoreRoot, entry.ImageID, stateID, m.statefs)
+		if pathErr != nil {
+			return false, pathErr
+		}
+		if markerErr := statefs.VerifyPublishedMarker(paths.stateDir, snapshotKind(m.statefs)); markerErr != nil {
+			return false, markerErr
+		}
+	}
 	return found, err
 }
 

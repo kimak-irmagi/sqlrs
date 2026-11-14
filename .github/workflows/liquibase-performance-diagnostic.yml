@@ -1,0 +1,63 @@
+name: Liquibase diagnostic (explicit opt-in, not acceptance)
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: liquibase-performance-diagnostic-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  diagnostic:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.label.name == 'performance:diagnostic'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Start hosted budget
+        run: node -e 'require("fs").appendFileSync(process.env.GITHUB_ENV, "PERFORMANCE_JOB_STARTED_MS=" + Date.now() + "\n")'
+      - uses: actions/checkout@v7
+        with:
+          ref: 668d5050ad154c1967bea4c6e40b91f3a703d5ba
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: .tmp/performance-observer
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: ./.tmp/performance-observer/.github/actions/liquibase-perf-setup
+        with:
+          source_root: ${{ github.workspace }}
+          candidate_sha: 668d5050ad154c1967bea4c6e40b91f3a703d5ba
+          expected_engine_sha: 1367bce9ddaa44c0aa378b07c015dfb20a4c0d29f00d2f5a893905686fae14b0
+      - name: Prepare external observer only
+        env:
+          OBSERVER_REVISION: ${{ github.event.pull_request.head.sha }}
+        run: |
+          command -v strace >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y strace; }
+          cd .tmp/performance-observer
+          node --test scripts/performance/*.test.mjs
+          cd test/performance/liquibase
+          GOWORK=off go test -count=1 -timeout=2m ./...
+          SQLRS_DIAGNOSTIC_SMOKE=1 GOWORK=off go test -run '^TestDiagnosticStraceProcessSmoke$' -v -count=1 -timeout=30s .
+          SQLRS_DIAGNOSTIC_RAW_SMOKE=1 GOWORK=off go test -run '^TestDiagnosticRawSyscallSmoke$' -v -count=1 -timeout=30s .
+          GOWORK=off go vet ./...
+          GOWORK=off go test -c -o "$GITHUB_WORKSPACE/.tmp/performance/prepared/collector.test" .
+      - name: Eight serial diagnostic members
+        env:
+          OBSERVER_REVISION: ${{ github.event.pull_request.head.sha }}
+        run: node .tmp/performance-observer/scripts/performance/run-diagnostic.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: liquibase-diagnostic-${{ github.event.pull_request.head.sha }}
+          path: .tmp/performance/diagnostic-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14

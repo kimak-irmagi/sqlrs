@@ -8,6 +8,21 @@ not permission to infer or restore a fixed administrative role.
 This document defines the SQLite schema for persistent names/instances/states
 used by the local engine and exposed via `sqlrs ls`.
 
+For the main #89 Liquibase delivery, the approved
+[installation boundary](issue89-normal-path-storage-extraction.md) retains
+these existing data domains while adding the already approved journal catalog.
+It does not reinterpret old states or migrate unfinished old Liquibase jobs.
+The released prepare_jobs baseline has its own bounded, value-preserving bridge;
+prototype migration/recovery is not part of that installation path.
+
+The approved [working-instance handoff](issue89-working-instance-handoff-schema.md)
+introduced session format 3 and an atomic transfer receipt for the live published DB.
+The current session format is 4 under the approved
+[O5 planning-DB handoff](issue89-planning-db-handoff-schema.md).
+It does not invent a DB-absence fact or permanently retain an instance/state
+through historical receipt foreign keys. Job deletion must preserve instance-owned
+runtime bytes; ordinary instance deletion owns their eventual removal.
+
 ## 1. Goals
 
 - Persist names/instances/states in SQLite under `<StateDir>`.

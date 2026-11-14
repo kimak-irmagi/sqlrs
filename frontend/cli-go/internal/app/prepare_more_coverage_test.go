@@ -119,7 +119,7 @@ func TestPrepareResultLiquibaseErrorBranchesCoverage(t *testing.T) {
 		[]string{"--image", "img", "--", "update"},
 	)
 	if err == nil {
-		t.Fatalf("expected resolveLiquibaseExec error")
+		t.Fatalf("expected invalid Liquibase configuration error")
 	}
 
 	_, _, err = prepareResultLiquibase(
@@ -146,56 +146,6 @@ func TestPrepareResultLiquibaseErrorBranchesCoverage(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expected normalizeWorkDir conversion error")
 		}
-	}
-}
-
-func TestResolveLiquibaseExecModeGlobalErrorCoverage(t *testing.T) {
-	root := t.TempDir()
-	projectPath := filepath.Join(root, "project.yaml")
-	if err := os.WriteFile(projectPath, []byte("liquibase:\n  exec: lb.bat\n"), 0o600); err != nil {
-		t.Fatalf("write project config: %v", err)
-	}
-	globalDir := filepath.Join(root, "global")
-	if err := os.MkdirAll(globalDir, 0o700); err != nil {
-		t.Fatalf("mkdir global: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(globalDir, "config.yaml"), []byte("liquibase: ["), 0o600); err != nil {
-		t.Fatalf("write global config: %v", err)
-	}
-
-	cfg := config.LoadedConfig{
-		ProjectConfigPath: projectPath,
-		Paths:             paths.Dirs{ConfigDir: globalDir},
-	}
-	if _, err := resolveLiquibaseExec(cfg); err != nil {
-		t.Fatalf("resolveLiquibaseExec: %v", err)
-	}
-	if _, err := resolveLiquibaseExecMode(cfg); err == nil {
-		t.Fatalf("expected resolveLiquibaseExecMode error")
-	}
-
-	_, _, err := prepareResultLiquibase(
-		stdoutAndErr{stdout: io.Discard, stderr: io.Discard},
-		cli.PrepareOptions{},
-		cfg,
-		"",
-		t.TempDir(),
-		[]string{"--image", "img", "--", "update"},
-	)
-	if err == nil {
-		t.Fatalf("expected prepareResultLiquibase exec mode error")
-	}
-}
-
-func TestLiquibaseHelpersAdditionalCoverage(t *testing.T) {
-	t.Setenv("JAVA_HOME", `""`)
-	if env := resolveLiquibaseEnv(); env != nil {
-		t.Fatalf("expected nil JAVA_HOME env, got %+v", env)
-	}
-
-	got := sanitizeLiquibaseExec(`\"C:\tools\lb.bat\"`)
-	if got != `C:\tools\lb.bat` {
-		t.Fatalf("unexpected sanitize output: %q", got)
 	}
 }
 
