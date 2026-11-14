@@ -33,6 +33,7 @@ type normalLiquibaseJournal interface {
 	planningCaptureJournal
 	trackedAttemptJournal
 	projectionAuthority
+	LoadContainerJobView(context.Context, string) (queue.ContainerJobView, error)
 	LoadPlanningAttempt(context.Context, string, int) (queue.PlanningRecoverySnapshot, bool, error)
 	RecordPlanningCloneQuiescence(context.Context, queue.AttemptRecord, int, string, string, string) (int64, error)
 	SavePrivatePlanningCaptureDisposal(context.Context, queue.AttemptRecord, int, string, string, string) (queue.PlanningCaptureDisposal, error)

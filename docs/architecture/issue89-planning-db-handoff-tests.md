@@ -394,3 +394,19 @@ The roadmap now records implemented O5–O7 with local coverage evidence. Actual
 native allocation/identity/data/cleanup qualification and the complete combined
 CT13 series still belong in Actions. Original timing/speed criteria are retained;
 no new hosted speed pass, completed #89 or merge readiness is claimed.
+
+## Persisted purpose qualification (2026-11-14)
+
+Hosted native run 43467869209 passed runtime and normal-prepare checks, then
+failed TL13 because `plan.retain` was absent. O5 had read `Purpose` from the
+base `GetJob` projection, which deliberately omits component-only fields.
+The coordinator now uses the existing admitted `LoadContainerJobView` reader;
+the base queue reader and schema remain unchanged.
+
+`TestPlanningCoordinatorPersistedPurpose` supplements PG02/PG08 and CP-PG01
+with real SQLite admission and purpose reads at the coordinator boundary.
+Before the fix, its prepare case selected absence-based cleanup and failed.
+After the fix, all three cases and the full prepare package pass, as does vet.
+The controls preserve plan-only and cache-explain cleanup. Existing ordered
+failure assertions and TL13's required retention span are unchanged. Hosted
+native qualification and CT13 must be repeated on the corrected source.

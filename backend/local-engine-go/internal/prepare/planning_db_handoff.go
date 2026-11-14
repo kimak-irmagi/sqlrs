@@ -105,8 +105,10 @@ func (m *PrepareService) captureNormalPlanningDB(ctx context.Context, q normalLi
 	for i, c := range changes {
 		metadata[i] = planningcodec.Changeset{ID: c.ID, Author: c.Author, Path: c.Path, SQLHash: c.SQLHash, Checksum: c.Checksum}
 	}
-	job, found, err := q.GetJob(ctx, saved.Attempt.JobID)
-	if err != nil || !found {
+	// Purpose belongs to the admitted Liquibase component view. The base queue
+	// reader intentionally omits it to remain usable without that schema.
+	job, err := q.LoadContainerJobView(ctx, saved.Attempt.JobID)
+	if err != nil {
 		return fail(queue.ErrPlanningSchema)
 	}
 	retain := !p.request.PlanOnly && job.Purpose == "prepare" && len(metadata) > 0 && tracked.ExitCode == 0
